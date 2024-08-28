@@ -1,0 +1,167 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of UVWXYZ
+#
+# Copyright (c) 2022-2024 Andrea Beck
+#
+# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Mesh generation library
+# ==================================================================================================================================
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Standard libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import math
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Third-party libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import gmsh
+import numpy as np
+import pygmsh
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local imports
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local definitions
+# ----------------------------------------------------------------------------------------------------------------------------------
+ELEMTYPE = 'hexahedron'
+# ==================================================================================================================================
+
+
+def MeshCartesian():
+    # Local imports ----------------------------------------
+    # from src.readintools.readintools import CountOption
+    from src.readintools.readintools import GetStr, GetInt
+    from src.readintools.readintools import GetRealArray, GetIntArray
+    from src.common.common import find_indices
+    from src.mesh.mesh_common import faces, face_to_edge, face_to_corner
+    from src.mesh.mesh_common import edge_to_dir
+    import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
+    # ------------------------------------------------------
+
+    nZones = GetInt('nZones')
+
+    gmsh.initialize()
+
+    # nBCs = CountOption('BoundaryName')
+
+    for zone in range(nZones):
+        hopout.routine('Generating zone {}'.format(zone+1))
+
+        corners = GetRealArray('Corner')
+        nElems  = GetIntArray( 'nElems')
+
+        gmsh.model.add('Zone{}'.format(zone))
+
+        # Create all the corner points
+        p = [None] * len(corners)
+        for index, corner in enumerate(corners):
+            p[index] = gmsh.model.geo.addPoint(*corner, tag=index+1)
+
+        # Connect the corner points
+        e = [None] * 12
+        # First, the plane surface
+        for i in range(2):
+            for j in range(4):
+                e[j + i*4] = gmsh.model.geo.addLine(p[j + i*4], p[(j+1) % 4 + i*4])
+        # Then, the connection
+        for j in range(4):
+            e[j+8] = gmsh.model.geo.addLine(p[j], p[j+4])
+
+        # We need to define the curves as transfinite curves
+        # and set the correct spacing from the parameter file
+        for index, line in enumerate(e):
+            # We set the number of nodes, so Elems+1
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index)]+1)
+
+        # Create the curve loop
+        el = [None] * len(faces())
+        for index, face in enumerate(faces()):
+            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)],s) for s in face_to_edge(face)])
+
+        # Create the surfaces
+        s = [None] * len(faces())
+        for index, surface in enumerate(s):
+            s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=index+1)
+
+        # We need to define the surfaces as transfinite surface
+        for index, face in enumerate(faces()):
+            gmsh.model.geo.mesh.setTransfiniteSurface(index+1, face, [s+1 for s in face_to_corner(face)])
+
+        # Create the surface loop
+        gmsh.model.geo.addSurfaceLoop([s for s in s], zone+1)
+
+        gmsh.model.geo.synchronize()
+
+        hopout.sep()
+        hopout.routine('Setting boundary conditions')
+        # At this point, we can create a "Physical Group" corresponding
+        # to the boundaries. This requires a synchronize call!
+        gmsh.model.geo.synchronize()
+
+        mesh_vars.bcIndex = GetIntArray('BCIndex')
+        bcIndex = mesh_vars.bcIndex
+
+        mesh_vars.bcs  = [None] * max(bcIndex)
+        bcs = mesh_vars.bcs
+        # for iBC in list(set(bcIndex)):
+        for iBC, bc in enumerate(bcs):
+            bcs[iBC] = dict()
+            bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
+            bcs[iBC]['BCID'] = iBC + 1
+            bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
+
+        bc = [None] * max(bcIndex)
+        for iBC in range(max(bcIndex)):
+            # if mesh_vars.bcs[iBC-1] is None:
+            if 'Name' not in bcs[iBC]:
+                continue
+
+            # Format [dim of group, list, name)
+            # print([s+1 for s in list_duplicates_of(BCIndex, iBC)])
+            bc[iBC] = gmsh.model.addPhysicalGroup(2, [s+1 for s in find_indices(bcIndex, iBC+1)], name=bcs[iBC]['Name'])
+
+        # Create the volume
+        gmsh.model.geo.addVolume([zone+1], zone+1)
+
+        # We need to define the volume as transfinite volume
+        gmsh.model.geo.mesh.setTransfiniteVolume(zone+1)
+
+        # "SaveAll" does not appear to be working, so create a physical group
+        # for the volume. This requires a synchronize call!
+        # gmsh.model.geo.synchronize()
+        # gmsh.model.addPhysicalGroup(3, [zone+1], name='volume')
+
+        # To generate connect the generated cells, we can simply set
+        gmsh.option.setNumber('Mesh.RecombineAll', 1)
+        # Force Gmsh to output all mesh elements
+        gmsh.option.setNumber('Mesh.SaveAll', 1)
+
+    gmsh.model.geo.synchronize()
+
+    # PyGMSH returns a meshio.mesh datatype
+    mesh = pygmsh.geo.Geometry().generate_mesh()
+
+    # Final count
+    hexcells = mesh.get_cells_type(ELEMTYPE)
+    ncells   = hexcells.shape[0]
+    hopout.sep()
+    hopout.routine('Generated hexahedral mesh with {} cells'.format(ncells))
+    hopout.sep()
+
+    return mesh

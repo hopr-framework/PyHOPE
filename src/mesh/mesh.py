@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of UVWXYZ
+#
+# Copyright (c) 2022-2024 Andrea Beck
+#
+# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Mesh generation library
+# ==================================================================================================================================
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Standard libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Third-party libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local imports
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local definitions
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ==================================================================================================================================
+
+
+def DefineMesh():
+    # Local imports ----------------------------------------
+    from src.readintools.readintools import CreateSection
+    from src.readintools.readintools import CreateStr, CreateInt
+    from src.readintools.readintools import CreateRealArray, CreateIntArray
+    # ------------------------------------------------------
+
+    CreateSection('Mesh')
+    CreateInt('Mode'        , help='Mesh generation mode (1 - Internal, 2 - External (MeshIO)')
+    CreateInt('nZones'      , help='Number of mesh zones')
+    CreateRealArray('Corner', 24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
+    CreateIntArray( 'nElems',  3, multiple=True, help='Number of elements in each direction')
+    CreateStr('BoundaryName',     multiple=True, help='Name of domain boundary')
+    CreateIntArray('BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray('BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
+
+
+def InitMesh():
+    # Local imports ----------------------------------------
+    from src.readintools.readintools import GetInt
+    import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
+    # ------------------------------------------------------
+
+    hopout.separator()
+    hopout.info('INIT MESH...')
+
+    mesh_vars.mode = GetInt('Mode')
+    hopout.info('INIT MESH DONE!')
+
+def GenerateMesh():
+    # Local imports ----------------------------------------
+    from src.mesh.mesh_builtin import MeshCartesian
+    import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
+    # ------------------------------------------------------
+
+    hopout.separator()
+    hopout.info('GENERATE MESH...')
+
+    match mesh_vars.mode:
+        case 1:  # Internal Cartesian Mesh
+            mesh = MeshCartesian()
+
+    mesh_vars.mesh = mesh
+
+    hopout.info('GENERATE MESH DONE!')

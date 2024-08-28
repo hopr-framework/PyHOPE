@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of UVWXYZ
+#
+# Copyright (c) 2022-2024 Andrea Beck
+#
+# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Mesh generation library
+# ==================================================================================================================================
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Standard libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Third-party libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import numpy as np
+
+from packaging.version import Version
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local imports
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local definitions
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ==================================================================================================================================
+
+
+class Common():
+    __version__ = Version('2.0.0')
+    __program__ = 'UVWXYZ'
+
+    program = str(__program__)
+    version = str(__version__)
+
+
+# > https://stackoverflow.com/a/5419576/23851165
+def object_meth(object):
+    methods = [method_name for method_name in dir(object)
+               if '__' not in method_name]
+    return methods
+
+
+def find_key(seq, item):
+    """ Find the first occurance of a a key in dictionary
+    """
+    for key, val in seq.items():
+        if np.all(val == item): return key
+    return None
+
+
+def find_keys(seq, item):
+    """ Find all occurance of a a key in dictionary
+    """
+    keys = [key for key, val in seq.items() if np.all(val == item)]
+    if len(keys) > 0:
+        return keys
+    return None
+
+
+def find_index(seq, item):
+    """ Find the first occurances of a a key in a list
+    """
+    if type(seq) is np.ndarray:
+        seq = seq.tolist()
+
+    for index, val in enumerate(seq):
+        if np.all(val == item): return index
+    return None
+
+
+def find_indices(seq, item):
+    """ Find all occurances of a a key in a list
+    """
+    if type(seq) is np.ndarray:
+        seq = seq.tolist()
+
+    start_at = -1
+    locs = []
+    while True:
+        try:
+            loc = seq.index(item, start_at+1)
+        except ValueError:
+            break
+        else:
+            locs.append(loc)
+            start_at = loc
+    return locs

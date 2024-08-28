@@ -1,0 +1,124 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of UVWXYZ
+#
+# Copyright (c) 2022-2024 Andrea Beck
+#
+# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Mesh generation library
+# ==================================================================================================================================
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Standard libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import sys
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Third-party libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import meshio
+import numpy as np
+from hilbertcurve.hilbertcurve import HilbertCurve
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local imports
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local definitions
+# ----------------------------------------------------------------------------------------------------------------------------------
+ELEMTYPE = 'hexahedron'
+# ==================================================================================================================================
+
+
+def object_meth(object):
+    methods = [method_name for method_name in dir(object)
+               if '__' not in method_name]
+    return methods
+
+
+def Coords2Int(coords, spacing, xmin, xmax):
+    """ Compute the integer discretization in each direction
+    """
+    disc = np.round((coords - xmin) * spacing)
+    return disc
+
+
+def SFCResolution(kind, xmin, xmax):
+    """ Compute the resolution of the SFC for the given bounding box
+        and the given integer kind
+    """
+    blen    = xmax - xmin
+    nbits   = (kind*8 - 1) / 3.
+    intfact = 2**nbits-1
+    spacing = np.ceil(intfact/blen)
+
+    return np.ceil(nbits), spacing
+
+
+def SortMesh():
+    # Local imports ----------------------------------------
+    import src.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+
+    # print(mesh_vars.mesh)
+
+    # We only need the volume cells
+    hexcells = mesh_vars.mesh.get_cells_type(ELEMTYPE)
+
+    huge = sys.float_info.max
+    xmin = np.array([ huge,  huge,  huge])
+    xmax = np.array([-huge, -huge, -huge])
+    for cell in hexcells:
+        for point in mesh_vars.mesh.points[cell]:
+            xmin = np.minimum(xmin, point)
+            xmax = np.maximum(xmax, point)
+
+    # Calculate the element bary centers
+    elemBary = [None] * len(hexcells)
+    for elemID, cell in enumerate(hexcells):
+        elemBary[elemID] = np.zeros(3)
+
+        for point in mesh_vars.mesh.points[cell]:
+            elemBary[elemID] += point
+
+        elemBary[elemID] = elemBary[elemID] / len(mesh_vars.mesh.points[hexcells])
+
+    # Calculate the space-filling curve resolution for the given KIND
+    kind = 4
+    nbits, spacing = SFCResolution(kind, xmin, xmax)
+
+    # Discretize the element positions along according to the chosen resolution
+    elemDisc = [None] * len(hexcells)
+    for elemID, cell in enumerate(hexcells):
+        elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin, xmax)
+
+    # Generate the space-filling curve and order elements along it
+    hc = HilbertCurve(p=nbits, n=3)
+    distances = hc.distances_from_points(elemDisc)
+
+    # Create a new mesh with only volume elements and sorted along SFC
+    points   = mesh_vars.mesh.points
+    cells    = mesh_vars.mesh.cells
+    cellsets = mesh_vars.mesh.cell_sets
+    for meshcells in cells:
+        if meshcells.type == ELEMTYPE:
+            meshcells = [(ELEMTYPE, np.asarray([x.tolist() for _, x in sorted(zip(distances, hexcells))]))]
+
+    # Overwrite the old mesh
+    mesh   = meshio.Mesh(points=points,
+                         cells=cells,
+                         cell_sets=cellsets)
+
+    mesh_vars.mesh = mesh
