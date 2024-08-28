@@ -82,6 +82,7 @@ def ConnectMesh():
     mesh_vars.sides = [None] * nElems * 6
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+    quads   = mesh.get_cells_type('quad')
 
     # Create dictionaries
     for iElem, elem in enumerate(elems):
@@ -118,10 +119,19 @@ def ConnectMesh():
 
     # Map sides to BC
     # > Create a dict containing only the face corners
-    face_corners = dict()
+    side_corners = dict()
     for iSide, side in enumerate(sides):
         corners = np.sort(side['Corners'])
-        face_corners.update({iSide: corners})
+        corners = hash(corners.tostring())
+        side_corners.update({iSide: corners})
+
+    # Build the reverse dictionary
+    corner_side = dict()
+    for key, val in side_corners.items():
+        if val not in corner_side:
+            corner_side[val] = [key]
+        else:
+            corner_side[val].append(key)
 
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
@@ -134,10 +144,15 @@ def ConnectMesh():
             # Get the list of sides
             iBCsides = cset[1] - offsetcs
 
-            # Map the sides to our sides
+            # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
-                corners = np.sort(np.array(mesh.get_cells_type('quad')[iSide]))
-                sideID  = find_key(face_corners, corners)
+                # Get the quad corner nodes
+                corners = np.sort(np.array(quads[iSide]))
+                corners = hash(corners.tostring())
+
+                # Boundary faces are unique
+                # sideID  = find_key(face_corners, corners)
+                sideID = corner_side[corners][0]
                 sides[sideID].update({'BCID': bcid})
 
     # Try to connect the inner / periodic sides
@@ -145,9 +160,10 @@ def ConnectMesh():
         if 'BCID' not in side:
             # Check if side is already connected
             if 'Connection' not in side:
-                corners = np.sort(side['Corners'])
+                corners = side_corners[iSide]
                 # Find the matching sides
-                sideIDs  = find_keys(face_corners, corners)
+                # sideIDs  = find_keys(face_corners, corners)
+                sideIDs = corner_side[corners]
                 # Sanity check
                 if len(sideIDs) != 2:
                     hopout.warning('Found internal side with more than two adjacent elements, exiting...')
@@ -179,16 +195,7 @@ def ConnectMesh():
     hopout.info('Number of periodic sides : {:9d}'.format(nperiodicsides))
     hopout.sep()
 
-
     # Connect the remaining sides
-    # TODO
-
-    # print(elems)
-    # print(sides)
-    # print(mesh.cells)
-    # print(meshio.CellBlock("hexahedron", mesh.get_cells_type("hexahedron")))
-    # print(mesh.cell_sets)
-
     # TODO: PERIODIC!
 
     hopout.info('CONNECT MESH DONE!')

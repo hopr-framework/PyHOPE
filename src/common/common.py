@@ -58,17 +58,24 @@ def object_meth(object):
 def find_key(seq, item):
     """ Find the first occurance of a a key in dictionary
     """
-    for key, val in seq.items():
-        if np.all(val == item): return key
+    if type(item) is np.ndarray:
+        for key, val in seq.items():
+            if np.all(val == item): return key
+    else:
+        for key, val in seq.items():
+            if        val == item : return key
     return None
 
 
 def find_keys(seq, item):
     """ Find all occurance of a a key in dictionary
     """
-    keys = [key for key, val in seq.items() if np.all(val == item)]
-    if len(keys) > 0:
-        return keys
+    if type(item) is np.ndarray:
+        keys = [key for key, val in seq.items() if np.all(val == item)]
+        if len(keys) > 0: return keys
+    else:
+        keys = [key for key, val in seq.items() if        val == item ]
+        if len(keys) > 0: return keys
     return None
 
 
@@ -78,8 +85,12 @@ def find_index(seq, item):
     if type(seq) is np.ndarray:
         seq = seq.tolist()
 
-    for index, val in enumerate(seq):
-        if np.all(val == item): return index
+    if type(item) is np.ndarray:
+        for index, val in enumerate(seq):
+            if np.all(val == item): return index
+    else:
+        for index, val in enumerate(seq):
+            if        val == item : return index
     return None
 
 
