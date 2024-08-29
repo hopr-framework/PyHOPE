@@ -39,8 +39,8 @@ global mode
 global mesh
 global nGeo
 
-global bcIndex
 global bcs
+global vvs
 
 global elems
 global sides

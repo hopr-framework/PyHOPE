@@ -53,6 +53,21 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
+def strtobool(val):  # From distutils.util.strtobool() [Python 3.11.2]
+    """ Convert a string representation of truth to True or False.
+        True values  are 'y', 'yes', 't', 'true', 'on', and '1';
+        False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
+        Raises ValueError if 'val' is anything else.
+    """
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError('invalid truth value %r' % (val,))
+
+
 # ==================================================================================================================================
 class DefineConfig:
     """ Provide routines to define all HOPR parameters
@@ -150,18 +165,32 @@ def CreateStr(string, help=None, default=None, multiple=None):
                                multiple=multiple)
 
 
-def CreateInt(integer, help=None, default=None, multiple=None):
+def CreateInt(string, help=None, default=None, multiple=None):
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
 
-    CheckDefined(integer, multiple, init=True)
-    config.prms[integer] = dict(type='int',
-                                name=integer,
-                                help=help,
-                                default=default,
-                                counter=0,
-                                multiple=multiple)
+    CheckDefined(string, multiple, init=True)
+    config.prms[string] = dict(type='int',
+                               name=string,
+                               help=help,
+                               default=default,
+                               counter=0,
+                               multiple=multiple)
+
+
+def CreateLogical(string, help=None, default=None, multiple=None):
+    # Local imports ----------------------------------------
+    import src.config.config as config
+    # ------------------------------------------------------
+
+    CheckDefined(string, multiple, init=True)
+    config.prms[string] = dict(type='bool',
+                               name=string,
+                               help=help,
+                               default=default,
+                               counter=0,
+                               multiple=multiple)
 
 
 def CreateIntFromString(string, help=None, default=None, multiple=None):
@@ -189,34 +218,34 @@ def CreateIntOption(string, name, number):
     config.prms[string]['mapping'].update({number: name})
 
 
-def CreateRealArray(array, nReals, help=None, default=None, multiple=None):
+def CreateRealArray(string, nReals, help=None, default=None, multiple=None):
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
 
-    CheckDefined(array, multiple, init=True)
-    config.prms[array] = dict(type='realarray',
-                              number=nReals,
-                              name=array,
-                              help=help,
-                              default=default,
-                              counter=0,
-                              multiple=multiple)
+    CheckDefined(string, multiple, init=True)
+    config.prms[string] = dict(type='realarray',
+                               number=nReals,
+                               name=string,
+                               help=help,
+                               default=default,
+                               counter=0,
+                               multiple=multiple)
 
 
-def CreateIntArray(array, nInts, help=None, default=None, multiple=None):
+def CreateIntArray(string, nInts, help=None, default=None, multiple=None):
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
 
-    CheckDefined(array, multiple, init=True)
-    config.prms[array] = dict(type='intarray',
-                              number=nInts,
-                              name=array,
-                              help=help,
-                              default=default,
-                              counter=0,
-                              multiple=multiple)
+    CheckDefined(string, multiple, init=True)
+    config.prms[string] = dict(type='intarray',
+                               number=nInts,
+                               name=string,
+                               help=help,
+                               default=default,
+                               counter=0,
+                               multiple=multiple)
 
 
 # ==================================================================================================================================
@@ -227,7 +256,7 @@ def CountOption(string):
 
     CheckDefined(string)
 
-    counter = len([s for s in config.params.get('general', string).split('\n')])
+    counter = len([s for s in config.params.get('general', string).split('\n') if s != ''])
     return counter
 
 
@@ -248,7 +277,7 @@ def GetParam(name, calltype, default=None, number=None):
             if number is None: number = config.prms[name]['counter']-1
             else:              number = number
 
-            value = [s for s in config.params.get('general', name).split('\n')][number]
+            value = [s for s in config.params.get('general', name).split('\n') if s != ''][number]
         else:
             value = config.params.get('general', name)
 
@@ -279,6 +308,11 @@ def GetStr(name, default=None, number=None):
 def GetInt(name, default=None, number=None):
     value = GetParam(name=name, default=default, number=number, calltype='int')
     return int(value)
+
+
+def GetLogical(name, default=None, number=None):
+    value = GetParam(name=name, default=default, number=number, calltype='bool')
+    return strtobool(value)
 
 
 def GetIntFromStr(name, default=None, number=None):
@@ -315,8 +349,12 @@ def GetRealArray(name, default=None, number=None):
     value = value.split('/)')[0]
 
     # Commas separate 1st dimension, double commas separate 2nd dimension
-    value = [s.split(',') for s in value.split(',,')]
-    value = np.array(value).astype(float)
+    if ',,' in value:
+        value = [s.split(',') for s in value.split(',,')]
+        value = np.array(value).astype(float)
+    else:
+        value = value.split(',')
+        value = np.array(value).astype(float)
     CheckDimension(name, value.size)
     return value
 

@@ -25,12 +25,15 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
+import copy
 import math
+import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gmsh
-import numpy as np
+# import numpy as np
 import pygmsh
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -44,22 +47,43 @@ ELEMTYPE = 'hexahedron'
 
 def MeshCartesian():
     # Local imports ----------------------------------------
-    # from src.readintools.readintools import CountOption
+    from src.readintools.readintools import CountOption
     from src.readintools.readintools import GetStr, GetInt
     from src.readintools.readintools import GetRealArray, GetIntArray
-    from src.common.common import find_indices
+    from src.common.common import find_index, find_indices
+    from src.io.io_vars import debugvisu
     from src.mesh.mesh_common import faces, face_to_edge, face_to_corner
     from src.mesh.mesh_common import edge_to_dir
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     # ------------------------------------------------------
 
-    nZones = GetInt('nZones')
-
     gmsh.initialize()
+    if not debugvisu:
+        # Hide the GMSH debug output
+        gmsh.option.setNumber('General.Terminal', 0)
 
-    # nBCs = CountOption('BoundaryName')
+    hopout.sep()
+    nBCs = CountOption('BoundaryName')
+    mesh_vars.bcs = [None] * nBCs
+    bcs = mesh_vars.bcs
 
+    for iBC, bc in enumerate(bcs):
+        bcs[iBC] = dict()
+        bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
+        bcs[iBC]['BCID'] = iBC + 1
+        bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
+
+    nVVs = CountOption('vv')
+    mesh_vars.vvs = [None] * nVVs
+    vvs = mesh_vars.vvs
+    for iVV, vv in enumerate(vvs):
+        vvs[iVV] = dict()
+        vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
+
+    hopout.sep()
+
+    nZones = GetInt('nZones')
     for zone in range(nZones):
         hopout.routine('Generating zone {}'.format(zone+1))
 
@@ -102,29 +126,20 @@ def MeshCartesian():
         # We need to define the surfaces as transfinite surface
         for index, face in enumerate(faces()):
             gmsh.model.geo.mesh.setTransfiniteSurface(index+1, face, [s+1 for s in face_to_corner(face)])
+            gmsh.model.geo.mesh.setRecombine(2, 1)
 
         # Create the surface loop
         gmsh.model.geo.addSurfaceLoop([s for s in s], zone+1)
 
         gmsh.model.geo.synchronize()
 
-        hopout.sep()
+        # hopout.sep()
         hopout.routine('Setting boundary conditions')
         # At this point, we can create a "Physical Group" corresponding
         # to the boundaries. This requires a synchronize call!
         gmsh.model.geo.synchronize()
 
-        mesh_vars.bcIndex = GetIntArray('BCIndex')
-        bcIndex = mesh_vars.bcIndex
-
-        mesh_vars.bcs  = [None] * max(bcIndex)
-        bcs = mesh_vars.bcs
-        # for iBC in list(set(bcIndex)):
-        for iBC, bc in enumerate(bcs):
-            bcs[iBC] = dict()
-            bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
-            bcs[iBC]['BCID'] = iBC + 1
-            bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
+        bcIndex = GetIntArray('BCIndex')
 
         bc = [None] * max(bcIndex)
         for iBC in range(max(bcIndex)):
@@ -134,13 +149,45 @@ def MeshCartesian():
 
             # Format [dim of group, list, name)
             # print([s+1 for s in list_duplicates_of(BCIndex, iBC)])
-            bc[iBC] = gmsh.model.addPhysicalGroup(2, [s+1 for s in find_indices(bcIndex, iBC+1)], name=bcs[iBC]['Name'])
+            surfID  = [s+1 for s in find_indices(bcIndex, iBC+1)]
+            bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=bcs[iBC]['Name'])
+
+            # For periodic sides, we need to impose the periodicity constraint
+            if bcs[iBC]['Type'][0] == 1:
+                # > Periodicity transform is provided as a 4x4 affine transformation matrix, given by row
+                # > Rotation matrix [columns 0-2], translation vector [column 3], bottom row [0, 0, 0, 1]
+
+                # Only define the positive translation
+                if bcs[iBC]['Type'][3] > 0:
+                    pass
+                elif bcs[iBC]['Type'][3] == 0:
+                    hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit()
+                else:
+                    continue
+
+                translation = [1., 0., 0., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][0]),
+                               0., 1., 0., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][1]),
+                               0., 0., 1., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][2]),
+                               0., 0., 0., 1.]
+
+                # Find the opposing side
+                # > copy, otherwise we modify bcs
+                nbType     = copy.copy(bcs[iBC]['Type'])
+                nbType[3] *= -1
+                nbBCID     = find_index([s['Type'] for s in bcs], nbType)
+                nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
+
+                # Connect positive to negative side
+                gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
 
         # Create the volume
         gmsh.model.geo.addVolume([zone+1], zone+1)
 
         # We need to define the volume as transfinite volume
         gmsh.model.geo.mesh.setTransfiniteVolume(zone+1)
+        gmsh.model.geo.mesh.setRecombine(3, 1)
 
         # "SaveAll" does not appear to be working, so create a physical group
         # for the volume. This requires a synchronize call!
@@ -156,6 +203,9 @@ def MeshCartesian():
 
     # PyGMSH returns a meshio.mesh datatype
     mesh = pygmsh.geo.Geometry().generate_mesh()
+
+    if debugvisu:
+        gmsh.fltk.run()
 
     # Final count
     hexcells = mesh.get_cells_type(ELEMTYPE)

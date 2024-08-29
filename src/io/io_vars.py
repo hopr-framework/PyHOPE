@@ -38,6 +38,8 @@
 global projectname
 global outputformat
 
+global debugvisu
+
 
 class MeshFormat:
     FORMAT_HDF5 = 0

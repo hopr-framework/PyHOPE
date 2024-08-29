@@ -107,20 +107,21 @@ def DefineIO():
     from src.io.io_vars import MeshFormat
     from src.readintools.readintools import CreateSection, CreateStr
     from src.readintools.readintools import CreateIntFromString, CreateIntOption
+    from src.readintools.readintools import CreateLogical
     # ------------------------------------------------------
 
     CreateSection('Output')
     CreateStr('ProjectName', help='Name of output files')
-    # CreateInt('Test', default=3)
-    # CreateStr(config, 'test', multiple=True)
     CreateIntFromString('OutputFormat', default=0, help='Mesh output format')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_HDF5, name='HDF5')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_VTK , name='VTK')
+    CreateLogical(      'DebugVisu'   , default=0, help='Launch the GMSH GUI to see the results')
 
 
 def InitIO():
     # Local imports ----------------------------------------
     from src.readintools.readintools import GetStr, GetIntFromStr
+    from src.readintools.readintools import GetLogical
     import src.output.output as hopout
     import src.io.io_vars as io_vars
     # ------------------------------------------------------
@@ -130,6 +131,8 @@ def InitIO():
 
     io_vars.projectname  = GetStr('ProjectName')
     io_vars.outputformat = GetIntFromStr('OutputFormat')
+
+    io_vars.debugvisu    = GetLogical('DebugVisu')
 
     hopout.info('INIT OUTPUT DONE!')
 
@@ -168,7 +171,7 @@ def IO():
             hopout.sep()
             for elemType in ELEM.TYPES:
                 if elemCounter[elemType] > 0:
-                    hopout.info( ELEMTYPE(elemType) + ': {:9d}'.format(elemCounter[elemType]))
+                    hopout.info( ELEMTYPE(elemType) + ': {:12d}'.format(elemCounter[elemType]))
             hopout.sep()
             hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
             hopout.sep()
@@ -192,14 +195,13 @@ def IO():
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
-                bcNames = [s['Name'] for s in bcs]
-                bcTypes = np.zeros((nBCs, 4))
+                bcNames = [f'{s['Name']:<255}' for s in bcs]
+                bcTypes = np.zeros((nBCs, 4), dtype=np.int32)
                 for iBC, bc in enumerate(bcs):
                     bcTypes[iBC, :] = bc['Type']
 
-                f.create_dataset('BCNames'   , data=bcNames)
+                f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
                 f.create_dataset('BCType'    , data=bcTypes)
-
 
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh
@@ -233,7 +235,7 @@ def getMeshInfo():
         elemCounter[elemType] = 0
 
     # Fill the ElemInfo
-    elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=int)
+    elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=np.int32)
     sideCount = 0  # elem['Sides'] might work as well
     nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
@@ -252,25 +254,33 @@ def getMeshInfo():
         elemCounter[elem['Type']] += 1
 
     # Fill the SideInfo
-    sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=int)
+    sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
     for iSide, side in enumerate(sides):
         sideInfo[iSide, SIDE.TYPE     ] = side['Type'  ]
-        sideInfo[iSide, SIDE.ID       ] = side['SideID']
+        sideInfo[iSide, SIDE.ID       ] = side['GlobalSideID']
         # Connected sides
         if 'Connection' in side:
             nbSideID = side['Connection']
             nbElemID = sides[nbSideID]['ElemID'] + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = side['Flip']
-            sideInfo[iSide, SIDE.BCID          ] = 0
+            if side['Flip'] == 0:  # Master side
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10
+            else:
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10 + side['Flip']
+
+            # Periodic sides still have a BCID
+            if 'BCID' in side:
+                sideInfo[iSide, SIDE.BCID      ] = side['BCID'] + 1
+            else:
+                sideInfo[iSide, SIDE.BCID      ] = 0
         else:
             sideInfo[iSide, SIDE.NBELEMID      ] = 0
             sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
-            sideInfo[iSide, SIDE.BCID          ] = side['BCID']
+            sideInfo[iSide, SIDE.BCID          ] = side['BCID'] + 1
 
     # Fill the NodeInfo
-    nodeInfo = np.zeros((ELEM.INFOSIZE, nNodes), dtype=int)
+    nodeInfo = np.zeros((ELEM.INFOSIZE, nNodes), dtype=np.int32)
 
     # Fill the NodeCoords
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)

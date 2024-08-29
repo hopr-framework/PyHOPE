@@ -29,8 +29,11 @@
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+import copy
 import numpy as np
 import traceback
+
+from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -57,7 +60,7 @@ def flip(side, nbside):
 def ConnectMesh():
     # Local imports ----------------------------------------
     from src.io.io_vars import MeshFormat
-    from src.common.common import find_key, find_keys
+    from src.common.common import find_index
     import src.io.io_vars as io_vars
     from src.mesh.mesh_common import faces, face_to_corner
     import src.mesh.mesh_vars as mesh_vars
@@ -103,6 +106,7 @@ def ConnectMesh():
             corners = [ioelems[iElem][s] for s in face_to_corner(face)]
             sides[count].update({'ElemID' : iElem})
             sides[count].update({'SideID' : count})
+            sides[count].update({'LocSide': index+1})
             sides[count].update({'Corners': np.array(corners)})
             count += 1
 
@@ -120,10 +124,15 @@ def ConnectMesh():
     # Map sides to BC
     # > Create a dict containing only the face corners
     side_corners = dict()
-    for iSide, side in enumerate(sides):
-        corners = np.sort(side['Corners'])
-        corners = hash(corners.tostring())
-        side_corners.update({iSide: corners})
+    # for iSide, side in enumerate(sides):
+    #     corners = np.sort(side['Corners'])
+    #     corners = hash(corners.tostring())
+    #     side_corners.update({iSide: corners})
+    for iElem, elem in enumerate(elems):
+        for iSide, side in enumerate(elem['Sides']):
+            corners = np.sort(sides[side]['Corners'])
+            corners = hash(corners.tostring())
+            side_corners.update({side: corners})
 
     # Build the reverse dictionary
     corner_side = dict()
@@ -133,13 +142,43 @@ def ConnectMesh():
         else:
             corner_side[val].append(key)
 
+    # Try to connect the inner sides
+    for index, (key, val) in enumerate(corner_side.items()):
+        match len(val):
+            case 1:  # BC side
+                continue
+            case 2:  # Internal side
+                sideIDs = val
+                corners = [sides[sideIDs[0]]['Corners'], sides[sideIDs[1]]['Corners']]
+                flipID  = flip(corners[0], corners[1]) + 1
+                # Connect the sides
+                # sides[sideIDs[0]].update({'GlobalSideID': index + 1})
+                # Master side contains positive global side ID
+                sides[sideIDs[0]].update({'MS'          : 1})
+                sides[sideIDs[0]].update({'Connection'  : sideIDs[1]})
+                sides[sideIDs[0]].update({'Flip'        : flipID})
+                sides[sideIDs[0]].update({'nbLocSide'   : sides[sideIDs[1]]['LocSide']})
+                # Slave side contains negative global side ID of master side
+                # sides[sideIDs[1]].update({'GlobalSideID':-(index+1)})
+                sides[sideIDs[1]].update({'MS'          : 0})
+                sides[sideIDs[1]].update({'Connection'  : sideIDs[0]})
+                sides[sideIDs[1]].update({'Flip'        : flipID})
+                sides[sideIDs[1]].update({'nbLocSide'   : sides[sideIDs[0]]['LocSide']})
+            case _:  # Zero or more than 2 sides
+                hopout.warning('Found internal side with more than two adjacent elements, exiting...')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit()
+
+    # Set BC and periodic sides
+    bcs = mesh_vars.bcs
+    vvs = mesh_vars.vvs
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
         if key:
             # Get the BCIndex from the list
-            for iBC, bc in enumerate(mesh_vars.bcs):
+            for iBC, bc in enumerate(bcs):
                 if key in bc['Name']:
-                    bcid = iBC
+                    bcID = iBC
 
             # Get the list of sides
             iBCsides = cset[1] - offsetcs
@@ -153,38 +192,129 @@ def ConnectMesh():
                 # Boundary faces are unique
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
-                sides[sideID].update({'BCID': bcid})
+                sides[sideID].update({'BCID': bcID})
 
-    # Try to connect the inner / periodic sides
-    # for iSide, side in enumerate(sides):
-    #     if 'BCID' not in side:
-    #         # Check if side is already connected
-    #         if 'Connection' not in side:
-    #             corners = side_corners[iSide]
-    #             # Find the matching sides
-    #             # sideIDs  = find_keys(face_corners, corners)
-    #             sideIDs = corner_side[corners]
-    #             # Sanity check
-    #             if len(sideIDs) != 2:
-    #                 hopout.warning('Found internal side with more than two adjacent elements, exiting...')
-    #                 traceback.print_stack(file=sys.stdout)
-    #                 sys.exit()
-    for key, val in corner_side.items():
-        match len(val):
-            case 1:  # BC side
+    # Try to connect the periodic sides
+    # TODO: SET ANOTHER TOLERANCE
+    tol = 1.E-10
+
+    for key, cset in mesh.cell_sets.items():
+        # Check if the set is a BC
+        if key:
+            # Get the BCIndex from the list
+            for iBC, bc in enumerate(bcs):
+                if key in bc['Name']:
+                    bcID = iBC
+
+            # Only periodic BCs
+            if bcs[bcID]['Type'][0] != 1:
                 continue
-            case 2:  # Internal / periodic side
-                sideIDs = val
-                corners = [sides[sideIDs[0]]['Corners'], sides[sideIDs[1]]['Corners']]
+            # Only try to connect in positive direction
+            if bcs[bcID]['Type'][3] < 0:
+                continue
+            else:
+                iVV = bcs[bcID]['Type'][3] - 1
+
+            # Get the opposite side
+            nbType     = copy.copy(bcs[bcID]['Type'])
+            nbType[3] *= -1
+            nbBCID     = find_index([s['Type'] for s in bcs], nbType)
+            nbBCName   = bcs[nbBCID]['Name']
+
+            # Collapse all opposing corner nodes into an [:, 12] array
+            nbCellSet  = mesh.cell_sets[nbBCName]
+            nbCorners  = [np.array(quads[s - offsetcs]) for s in nbCellSet[1]]
+            nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+            nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+            del nbCorners
+
+            # Build a k-dimensional tree of all points on the opposing side
+            stree = spatial.KDTree(nbPoints)
+
+            # Get the list of sides on our side
+            iBCsides = cset[1] - offsetcs
+
+            # Map the unique quad sides to our non-unique elem sides
+            for iSide in iBCsides:
+                # Get the quad corner nodes
+                corners = np.array(quads[iSide])
+                points  = copy.copy(mesh.points[corners])
+
+                # Shift the points in periodic direction
+                for iPoint in range(points.shape[0]):
+                    points[iPoint, :] += vvs[iVV]['Dir']
+                points = np.sort(points, axis=0)
+                points = points.flatten()
+
+                # Query the try for the opposing side
+                trSide = copy.copy(stree.query(points))
+                del points
+
+                # trSide contains the Euclidean distance and the index of the
+                # opposing side in the nbCellSet
+                if trSide[0] > tol:
+                    hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit()
+
+                nbiSide  = nbCellSet[1][trSide[1]] - offsetcs
+
+                # Get our corner quad nodes
+                corners   = np.sort(np.array(quads[iSide]))
+                corners   = hash(corners.tostring())
+                sideID    = corner_side[corners][0]
+                del corners
+
+                # Get nb corner quad nodes
+                nbcorners = np.sort(np.array(quads[nbiSide]))
+                nbcorners = hash(nbcorners.tostring())
+                nbSideID  = corner_side[nbcorners][0]
+                del nbcorners
+
+                # Build the connection, including flip
+                sideIDs   = [sideID, nbSideID]
+                corners   = np.array(quads[iSide])
+                points    = mesh.points[corners]
+                for iPoint in range(points.shape[0]):
+                    points[iPoint, :] += vvs[iVV]['Dir']
+                ptree     = spatial.KDTree(points)
+                # > Find the first neighbor point to determine the flip
+                nbcorner  = mesh.points[np.array(quads[nbiSide])[0]]
+
+                trCorn = ptree.query(nbcorner)
+                flipID = trCorn[1] + 1
+
                 # Connect the sides
-                sides[sideIDs[0]].update({'Connection': sideIDs[1]})
-                sides[sideIDs[0]].update({'Flip'      : flip(corners[0], corners[1]) + 1})
-                sides[sideIDs[1]].update({'Connection': sideIDs[0]})
-                sides[sideIDs[1]].update({'Flip'      : flip(corners[1], corners[0]) + 1})
-            case _:  # Zero or more than 2 sides
-                hopout.warning('Found internal side with more than two adjacent elements, exiting...')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                # Master side contains positive global side ID
+                sides[sideIDs[0]].update({'MS'          : 1})
+                sides[sideIDs[0]].update({'Connection'  : sideIDs[1]})
+                sides[sideIDs[0]].update({'Flip'        : flipID})
+                # Slave side contains negative global side ID of master side
+                # sides[sideIDs[1]].update({'GlobalSideID': -(sides[sideIDs[0]]['GlobalSideID'])})
+                sides[sideIDs[1]].update({'MS'          : 0})
+                sides[sideIDs[1]].update({'Connection'  : sideIDs[0]})
+                sides[sideIDs[1]].update({'Flip'        : flipID})
+                sides[sideIDs[1]].update({'nbLocSide'   : sides[sideIDs[0]]['LocSide']})
+
+    # Set the global side ID
+    globalSideID = 0
+    for iSide, side in enumerate(sides):
+        # Already counted the side
+        if 'GlobalSideID' in side:
+            continue
+
+        if 'Connection' not in side:  # BC side
+            side.update({'GlobalSideID':  globalSideID+1 })
+            globalSideID += 1
+        else:                         # Internal / periodic side
+            # Master side does not have a flip
+            if side['MS'] == 1:
+                # Set the positive globalSideID of the master side
+                side.update({'GlobalSideID':  globalSideID+1 })
+                # Set the negative globalSideID of the slave  side
+                nbSideID = side['Connection']
+                sides[nbSideID].update({'GlobalSideID':-(globalSideID+1)})
+            globalSideID += 1
 
     # Count the sides
     nsides         = len(sides)
@@ -193,15 +323,18 @@ def ConnectMesh():
     nperiodicsides = 0
     for iSide, side in enumerate(sides):
         if 'BCID'       in side:
-            nbcsides    += 1
-        if 'Connection' in side:
-            ninnersides += 1
+            if 'Connection' in side:
+                nperiodicsides += 1
+            else:
+                nbcsides       += 1
+        else:
+            ninnersides        += 1
 
     hopout.sep()
-    hopout.info(' Number of sides          : {:9d}'.format(nsides))
-    hopout.info(' Number of inner sides    : {:9d}'.format(ninnersides))
-    hopout.info(' Number of boundary sides : {:9d}'.format(nbcsides))
-    hopout.info(' Number of periodic sides : {:9d}'.format(nperiodicsides))
+    hopout.info(' Number of sides          : {:12d}'.format(nsides))
+    hopout.info(' Number of inner sides    : {:12d}'.format(ninnersides))
+    hopout.info(' Number of boundary sides : {:12d}'.format(nbcsides))
+    hopout.info(' Number of periodic sides : {:12d}'.format(nperiodicsides))
     hopout.sep()
 
     # Connect the remaining sides
