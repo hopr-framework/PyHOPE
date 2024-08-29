@@ -94,7 +94,7 @@ def main():
 
     # Generate the actual mesh
     GenerateMesh()
-    # SortMesh()
+    SortMesh()
     ConnectMesh()
 
     # Output the mesh

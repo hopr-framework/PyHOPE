@@ -45,13 +45,14 @@ def DefineMesh():
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt('Mode'        , help='Mesh generation mode (1 - Internal, 2 - External (MeshIO)')
-    CreateInt('nZones'      , help='Number of mesh zones')
-    CreateRealArray('Corner', 24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
-    CreateIntArray( 'nElems',  3, multiple=True, help='Number of elements in each direction')
-    CreateStr('BoundaryName',     multiple=True, help='Name of domain boundary')
-    CreateIntArray('BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
-    CreateIntArray('BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
+    CreateInt(      'Mode',                           help='Mesh generation mode (1 - Internal, 2 - External (MeshIO)')
+    CreateInt(      'BoundaryOrder',   default=2,     help='Order of spline-reconstruction for curved surfaces')
+    CreateInt(      'nZones',                         help='Number of mesh zones')
+    CreateRealArray('Corner',    24  , multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
+    CreateIntArray( 'nElems',     3  , multiple=True, help='Number of elements in each direction')
+    CreateStr(      'BoundaryName',    multiple=True, help='Name of domain boundary')
+    CreateIntArray( 'BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray( 'BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
 
 
 def InitMesh():
@@ -65,6 +66,8 @@ def InitMesh():
     hopout.info('INIT MESH...')
 
     mesh_vars.mode = GetInt('Mode')
+    mesh_vars.nGeo = GetInt('BoundaryOrder') - 1
+
     hopout.info('INIT MESH DONE!')
 
 def GenerateMesh():

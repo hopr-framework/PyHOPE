@@ -48,6 +48,8 @@ class ELEM:
     FIRSTNODE = 4
     LASTNODE  = 5
 
+    TYPES     = [104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208]
+
 
 class SIDE:
     INFOSIZE  = 5
@@ -56,6 +58,48 @@ class SIDE:
     NBELEMID  = 2
     NBLOCSIDE_FLIP = 3
     BCID      = 4
+
+
+def LINMAP(elemType):
+    """ CGNS -> IJK ordering for element corner nodes
+    """
+    match elemType:
+        case 104:  # Tetraeder
+            return np.array([0, 1, 2, 3])
+        case 105:  # Pyramid
+            return np.array([0, 1, 3, 2, 4])
+        case 106:  # Prism
+            return np.array([0, 1, 2, 3, 4, 5])
+        case 108:  # Hexaeder
+            return np.array([0, 1, 3, 2, 4, 5, 7, 6])
+
+
+def ELEMTYPE(elemType):
+    """ Name of a given element type
+    """
+    match elemType:
+        case 104:
+            return ' Straight-edge Tetrahedra '
+        case 204:
+            return '        Curved Tetrahedra '
+        case 105:
+            return '  Planar-faced Pyramids   '
+        case 115:
+            return ' Straight-edge Pyramids   '
+        case 205:
+            return '        Curved Pyramids   '
+        case 106:
+            return '  Planar-faced Prisms     '
+        case 116:
+            return ' Straight-edge Prisms     '
+        case 206:
+            return '        Curved Prisms     '
+        case 108:
+            return '  Planar-faced Hexahedra  '
+        case 118:
+            return ' Straight-edge Hexahedra  '
+        case 208:
+            return '        Curved Hexahedra  '
 
 
 def DefineIO():
@@ -117,6 +161,14 @@ def IO():
 
             pname = io_vars.projectname
             fname = '{}_mesh.h5'.format(pname)
+
+            elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter = getMeshInfo()
+
+            # Print the final output
+            hopout.sep()
+            for elemType in ELEM.TYPES:
+                if elemCounter[elemType] > 0:
+                    hopout.info( ELEMTYPE(elemType) + ': {:9d}'.format(elemCounter[elemType]))
             hopout.sep()
             hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
             hopout.sep()
@@ -127,12 +179,11 @@ def IO():
                 f.attrs['HoprVersionInt'] = Common.__version__.micro + Common.__version__.minor*100 + Common.__version__.major*10000
 
                 # Store mesh information
-                f.attrs['Ngeo'          ] = 1  # FIXME
+                f.attrs['Ngeo'          ] = mesh_vars.nGeo
                 f.attrs['nElems'        ] = nElems
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
 
-                elemInfo, sideInfo, nodeInfo, nodeCoords = getMeshInfo()
 
                 f.create_dataset('ElemInfo'  , data=elemInfo)
                 f.create_dataset('SideInfo'  , data=sideInfo)
@@ -148,6 +199,7 @@ def IO():
 
                 f.create_dataset('BCNames'   , data=bcNames)
                 f.create_dataset('BCType'    , data=bcTypes)
+
 
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh
@@ -175,6 +227,11 @@ def getMeshInfo():
     nSides = len(sides)
     nNodes = np.sum([s['Nodes'].size for s in elems])  # number of non-unique nodes
 
+    # Create the ElemCounter
+    elemCounter = dict()
+    for iType, elemType in enumerate(ELEM.TYPES):
+        elemCounter[elemType] = 0
+
     # Fill the ElemInfo
     elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=int)
     sideCount = 0  # elem['Sides'] might work as well
@@ -191,6 +248,8 @@ def getMeshInfo():
         elemInfo[iElem, ELEM.FIRSTNODE] = nodeCount
         elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem['Nodes'])
         nodeCount += len(elem['Nodes'])
+
+        elemCounter[elem['Type']] += 1
 
     # Fill the SideInfo
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=int)
@@ -217,8 +276,14 @@ def getMeshInfo():
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
     nodeCount  = 0
     for iElem, elem in enumerate(elems):
-        for iNode, node in enumerate(elem['Nodes']):
-            nodeCoords[nodeCount, :] = nodes[node]
-            nodeCount += 1
+        match elem['Type']:
+            case 108:  # Hexaeder
+                # for iNode, node in enumerate(elem['Nodes']):
+                #     nodeCoords[nodeCount, :] = nodes[node]
+                linMap    = LINMAP(elem['Type'])
+                elemNodes = elem['Nodes']
+                for iNode in range(len(elemNodes)):
+                    nodeCoords[nodeCount, :] = nodes[elemNodes[linMap[iNode]]]
+                    nodeCount += 1
 
-    return elemInfo, sideInfo, nodeInfo, nodeCoords
+    return elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter

@@ -150,8 +150,11 @@ def printoption(option, value, status, length=31):
             string (str): String to be printed in banner.
             length (int): (Optional.) Number of characters in each line.
     """
-    if len(value) > length:
-        pvalue = '{}...'.format(value[:(length-3)])
-    else:
+    try:
+        if len(value) > length:
+            pvalue = '{}...'.format(value[:(length-3)])
+        else:
+            pvalue = value
+    except TypeError:
         pvalue = value
     print(f'│ {option:>{length}} │ {pvalue:<{length}} │ {status} │')

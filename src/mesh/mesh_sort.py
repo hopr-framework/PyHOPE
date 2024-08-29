@@ -55,6 +55,16 @@ def Coords2Int(coords, spacing, xmin, xmax):
     return disc
 
 
+def centeroidnp(coords):
+    """ Compute the centroid (barycenter) of a set of coordinates
+    """
+    length = coords.shape[0]
+    sum_x  = np.sum(coords[:, 0])
+    sum_y  = np.sum(coords[:, 1])
+    sum_z  = np.sum(coords[:, 2])
+    return np.array([sum_x/length, sum_y/length, sum_z/length])
+
+
 def SFCResolution(kind, xmin, xmax):
     """ Compute the resolution of the SFC for the given bounding box
         and the given integer kind
@@ -69,10 +79,12 @@ def SFCResolution(kind, xmin, xmax):
 
 def SortMesh():
     # Local imports ----------------------------------------
+    import src.output.output as hopout
     import src.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
-    # print(mesh_vars.mesh)
+    hopout.separator()
+    hopout.routine('Sorting elements along space-filling curve')
 
     # We only need the volume cells
     hexcells = mesh_vars.mesh.get_cells_type(ELEMTYPE)
@@ -88,12 +100,7 @@ def SortMesh():
     # Calculate the element bary centers
     elemBary = [None] * len(hexcells)
     for elemID, cell in enumerate(hexcells):
-        elemBary[elemID] = np.zeros(3)
-
-        for point in mesh_vars.mesh.points[cell]:
-            elemBary[elemID] += point
-
-        elemBary[elemID] = elemBary[elemID] / len(mesh_vars.mesh.points[hexcells])
+        elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
 
     # Calculate the space-filling curve resolution for the given KIND
     kind = 4
@@ -112,9 +119,11 @@ def SortMesh():
     points   = mesh_vars.mesh.points
     cells    = mesh_vars.mesh.cells
     cellsets = mesh_vars.mesh.cell_sets
+    import copy
+    old = copy.deepcopy(cells)
     for meshcells in cells:
         if meshcells.type == ELEMTYPE:
-            meshcells = [(ELEMTYPE, np.asarray([x.tolist() for _, x in sorted(zip(distances, hexcells))]))]
+            meshcells.data = np.asarray([x.tolist() for _, x in sorted(zip(distances, hexcells))])
 
     # Overwrite the old mesh
     mesh   = meshio.Mesh(points=points,

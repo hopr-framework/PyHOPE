@@ -42,12 +42,12 @@ ELEMTYPE = 'hexahedron'
 
 
 def flip(side, nbside):
-    ''' Determines the flip of the side-to-side connection
+    """ Determines the flip of the side-to-side connection
         flip = 1 : 1st node of neighbor side = 1st node of side
         flip = 2 : 2nd node of neighbor side = 1st node of side
         flip = 3 : 3rd node of neighbor side = 1st node of side
         flip = 4 : 4th node of neighbor side = 1st node of side
-    '''
+    """
     # Local imports ----------------------------------------
     from src.common.common import find_index
     # ------------------------------------------------------
@@ -156,26 +156,35 @@ def ConnectMesh():
                 sides[sideID].update({'BCID': bcid})
 
     # Try to connect the inner / periodic sides
-    for iSide, side in enumerate(sides):
-        if 'BCID' not in side:
-            # Check if side is already connected
-            if 'Connection' not in side:
-                corners = side_corners[iSide]
-                # Find the matching sides
-                # sideIDs  = find_keys(face_corners, corners)
-                sideIDs = corner_side[corners]
-                # Sanity check
-                if len(sideIDs) != 2:
-                    hopout.warning('Found internal side with more than two adjacent elements, exiting...')
-                    traceback.print_stack(file=sys.stdout)
-                    sys.exit()
-
+    # for iSide, side in enumerate(sides):
+    #     if 'BCID' not in side:
+    #         # Check if side is already connected
+    #         if 'Connection' not in side:
+    #             corners = side_corners[iSide]
+    #             # Find the matching sides
+    #             # sideIDs  = find_keys(face_corners, corners)
+    #             sideIDs = corner_side[corners]
+    #             # Sanity check
+    #             if len(sideIDs) != 2:
+    #                 hopout.warning('Found internal side with more than two adjacent elements, exiting...')
+    #                 traceback.print_stack(file=sys.stdout)
+    #                 sys.exit()
+    for key, val in corner_side.items():
+        match len(val):
+            case 1:  # BC side
+                continue
+            case 2:  # Internal / periodic side
+                sideIDs = val
+                corners = [sides[sideIDs[0]]['Corners'], sides[sideIDs[1]]['Corners']]
                 # Connect the sides
                 sides[sideIDs[0]].update({'Connection': sideIDs[1]})
-                sides[sideIDs[0]].update({'Flip'      : flip(sides[sideIDs[0]]['Corners'], sides[sideIDs[1]]['Corners']) + 1})
+                sides[sideIDs[0]].update({'Flip'      : flip(corners[0], corners[1]) + 1})
                 sides[sideIDs[1]].update({'Connection': sideIDs[0]})
-                sides[sideIDs[1]].update({'Flip'      : flip(sides[sideIDs[1]]['Corners'], sides[sideIDs[0]]['Corners']) + 1})
-
+                sides[sideIDs[1]].update({'Flip'      : flip(corners[1], corners[0]) + 1})
+            case _:  # Zero or more than 2 sides
+                hopout.warning('Found internal side with more than two adjacent elements, exiting...')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit()
 
     # Count the sides
     nsides         = len(sides)
@@ -189,10 +198,10 @@ def ConnectMesh():
             ninnersides += 1
 
     hopout.sep()
-    hopout.info('Number of sides          : {:9d}'.format(nsides))
-    hopout.info('Number of inner sides    : {:9d}'.format(ninnersides))
-    hopout.info('Number of boundary sides : {:9d}'.format(nbcsides))
-    hopout.info('Number of periodic sides : {:9d}'.format(nperiodicsides))
+    hopout.info(' Number of sides          : {:9d}'.format(nsides))
+    hopout.info(' Number of inner sides    : {:9d}'.format(ninnersides))
+    hopout.info(' Number of boundary sides : {:9d}'.format(nbcsides))
+    hopout.info(' Number of periodic sides : {:9d}'.format(nperiodicsides))
     hopout.sep()
 
     # Connect the remaining sides
