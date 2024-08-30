@@ -29,7 +29,6 @@
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-
 from packaging.version import Version
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -79,7 +78,7 @@ def find_keys(seq, item):
     return None
 
 
-def find_index(seq, item):
+def find_index(seq, item) -> int:
     """ Find the first occurances of a a key in a list
     """
     if type(seq) is np.ndarray:
@@ -91,7 +90,7 @@ def find_index(seq, item):
     else:
         for index, val in enumerate(seq):
             if        val == item : return index
-    return None
+    return -1
 
 
 def find_indices(seq, item):

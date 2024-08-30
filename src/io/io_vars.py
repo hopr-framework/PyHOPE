@@ -35,10 +35,10 @@
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-global projectname
-global outputformat
+projectname  : str                               # Name of output files
+outputformat : int                               # Mesh output format
 
-global debugvisu
+debugvisu    : bool                              # Enable and show debug output / visualization
 
 
 class MeshFormat:

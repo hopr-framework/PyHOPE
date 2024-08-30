@@ -48,14 +48,14 @@ def object_meth(object):
     return methods
 
 
-def Coords2Int(coords, spacing, xmin, xmax):
+def Coords2Int(coords, spacing, xmin, xmax) -> np.ndarray:
     """ Compute the integer discretization in each direction
     """
     disc = np.round((coords - xmin) * spacing)
     return disc
 
 
-def centeroidnp(coords):
+def centeroidnp(coords) -> np.ndarray:
     """ Compute the centroid (barycenter) of a set of coordinates
     """
     length = coords.shape[0]
@@ -79,8 +79,8 @@ def SFCResolution(kind, xmin, xmax):
 
 def SortMesh():
     # Local imports ----------------------------------------
-    import src.output.output as hopout
     import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
     # ------------------------------------------------------
 
     hopout.separator()
@@ -98,7 +98,7 @@ def SortMesh():
             xmax = np.maximum(xmax, point)
 
     # Calculate the element bary centers
-    elemBary = [None] * len(hexcells)
+    elemBary = [np.ndarray(3)] * len(hexcells)
     for elemID, cell in enumerate(hexcells):
         elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
 
@@ -107,7 +107,7 @@ def SortMesh():
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions along according to the chosen resolution
-    elemDisc = [None] * len(hexcells)
+    elemDisc = [np.ndarray(3)] * len(hexcells)
     for elemID, cell in enumerate(hexcells):
         elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin, xmax)
 
@@ -119,8 +119,7 @@ def SortMesh():
     points   = mesh_vars.mesh.points
     cells    = mesh_vars.mesh.cells
     cellsets = mesh_vars.mesh.cell_sets
-    import copy
-    old = copy.deepcopy(cells)
+
     for meshcells in cells:
         if meshcells.type == ELEMTYPE:
             meshcells.data = np.asarray([x.tolist() for _, x in sorted(zip(distances, hexcells))])

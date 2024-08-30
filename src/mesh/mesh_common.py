@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +53,7 @@ def faces():
     return ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
 
 
-def face_to_edge(face, dtype=int):
+def face_to_edge(face, dtype=int) -> np.ndarray:
     match face:
         case 'z-':
             return np.array([  0,  1,   2,   3], dtype=dtype)
@@ -66,9 +67,12 @@ def face_to_edge(face, dtype=int):
             return np.array([  8, -7, -11,   3], dtype=dtype)
         case 'z+':
             return np.array([  4,  5,   6,   7], dtype=dtype)
+        case _:  # Default
+            print('Error in face_to_edge, unknown face')
+            sys.exit()
 
 
-def face_to_corner(face, dtype=int):
+def face_to_corner(face, dtype=int) -> np.ndarray:
     match face:
         case 'z-':
             return np.array([  0,  1,   2,   3], dtype=dtype)
@@ -82,3 +86,6 @@ def face_to_corner(face, dtype=int):
             return np.array([  0,  4,   7,   3], dtype=dtype)
         case 'z+':
             return np.array([  4,  5,   6,   7], dtype=dtype)
+        case _:  # Default
+            print('Error in face_to_corner, unknown face')
+            sys.exit()

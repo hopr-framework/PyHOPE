@@ -25,9 +25,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
 import copy
 import math
+import sys
 import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -47,15 +47,12 @@ ELEMTYPE = 'hexahedron'
 
 def MeshCartesian():
     # Local imports ----------------------------------------
-    from src.readintools.readintools import CountOption
-    from src.readintools.readintools import GetStr, GetInt
-    from src.readintools.readintools import GetRealArray, GetIntArray
-    from src.common.common import find_index, find_indices
-    from src.io.io_vars import debugvisu
-    from src.mesh.mesh_common import faces, face_to_edge, face_to_corner
-    from src.mesh.mesh_common import edge_to_dir
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
+    from src.common.common import find_index, find_indices
+    from src.io.io_vars import debugvisu
+    from src.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
+    from src.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()
@@ -65,17 +62,16 @@ def MeshCartesian():
 
     hopout.sep()
     nBCs = CountOption('BoundaryName')
-    mesh_vars.bcs = [None] * nBCs
+    mesh_vars.bcs = [dict() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
 
     for iBC, bc in enumerate(bcs):
-        bcs[iBC] = dict()
         bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
         bcs[iBC]['BCID'] = iBC + 1
         bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
 
     nVVs = CountOption('vv')
-    mesh_vars.vvs = [None] * nVVs
+    mesh_vars.vvs = [dict() for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     for iVV, vv in enumerate(vvs):
         vvs[iVV] = dict()
@@ -93,12 +89,12 @@ def MeshCartesian():
         gmsh.model.add('Zone{}'.format(zone))
 
         # Create all the corner points
-        p = [None] * len(corners)
+        p = [None for _ in range(len(corners))]
         for index, corner in enumerate(corners):
             p[index] = gmsh.model.geo.addPoint(*corner, tag=index+1)
 
         # Connect the corner points
-        e = [None] * 12
+        e = [None for _ in range(12)]
         # First, the plane surface
         for i in range(2):
             for j in range(4):
@@ -114,12 +110,12 @@ def MeshCartesian():
             gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index)]+1)
 
         # Create the curve loop
-        el = [None] * len(faces())
+        el = [None for _ in range(len(faces()))]
         for index, face in enumerate(faces()):
-            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)],s) for s in face_to_edge(face)])
+            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)], s) for s in face_to_edge(face)])
 
         # Create the surfaces
-        s = [None] * len(faces())
+        s = [None for _ in range(len(faces()))]
         for index, surface in enumerate(s):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=index+1)
 
@@ -141,7 +137,7 @@ def MeshCartesian():
 
         bcIndex = GetIntArray('BCIndex')
 
-        bc = [None] * max(bcIndex)
+        bc = [None for _ in range(max(bcIndex))]
         for iBC in range(max(bcIndex)):
             # if mesh_vars.bcs[iBC-1] is None:
             if 'Name' not in bcs[iBC]:

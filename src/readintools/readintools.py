@@ -53,7 +53,7 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strtobool(val):  # From distutils.util.strtobool() [Python 3.11.2]
+def strtobool(val) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
         True values  are 'y', 'yes', 't', 'true', 'on', and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
@@ -72,12 +72,12 @@ def strtobool(val):  # From distutils.util.strtobool() [Python 3.11.2]
 class DefineConfig:
     """ Provide routines to define all HOPR parameters
     """
-    def __init__(self):
+    def __init__(self) -> None:
         # Create an empty config dictionary
         self.dict = dict()
         return None
 
-    def __enter__(self):
+    def __enter__(self) -> dict:
         return self.dict
 
     def __exit__(self, *args: object) -> None:
@@ -85,7 +85,7 @@ class DefineConfig:
 
 
 # ==================================================================================================================================
-def CheckDefined(name, multiple=False, init=False):
+def CheckDefined(name, multiple=False, init=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -106,7 +106,7 @@ def CheckDefined(name, multiple=False, init=False):
             sys.exit()
 
 
-def CheckUsed(name):
+def CheckUsed(name) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -118,7 +118,7 @@ def CheckUsed(name):
         sys.exit()
 
 
-def CheckType(name, calltype):
+def CheckType(name, calltype) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -130,7 +130,7 @@ def CheckType(name, calltype):
         sys.exit()
 
 
-def CheckDimension(name, result):
+def CheckDimension(name, result) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -142,7 +142,7 @@ def CheckDimension(name, result):
         sys.exit()
 
 
-def CreateSection(string):
+def CreateSection(string) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -151,7 +151,7 @@ def CreateSection(string):
     config.prms[string] = dict(type='section', name=string)
 
 
-def CreateStr(string, help=None, default=None, multiple=None):
+def CreateStr(string, help=None, default=None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -165,7 +165,7 @@ def CreateStr(string, help=None, default=None, multiple=None):
                                multiple=multiple)
 
 
-def CreateInt(string, help=None, default=None, multiple=None):
+def CreateInt(string, help=None, default=None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -179,7 +179,7 @@ def CreateInt(string, help=None, default=None, multiple=None):
                                multiple=multiple)
 
 
-def CreateLogical(string, help=None, default=None, multiple=None):
+def CreateLogical(string, help=None, default=None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -193,7 +193,7 @@ def CreateLogical(string, help=None, default=None, multiple=None):
                                multiple=multiple)
 
 
-def CreateIntFromString(string, help=None, default=None, multiple=None):
+def CreateIntFromString(string, help=None, default=None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -208,7 +208,7 @@ def CreateIntFromString(string, help=None, default=None, multiple=None):
                                multiple=multiple)
 
 
-def CreateIntOption(string, name, number):
+def CreateIntOption(string, name, number) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -218,7 +218,7 @@ def CreateIntOption(string, name, number):
     config.prms[string]['mapping'].update({number: name})
 
 
-def CreateRealArray(string, nReals, help=None, default=None, multiple=None):
+def CreateRealArray(string, nReals, help=None, default=None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -233,7 +233,7 @@ def CreateRealArray(string, nReals, help=None, default=None, multiple=None):
                                multiple=multiple)
 
 
-def CreateIntArray(string, nInts, help=None, default=None, multiple=None):
+def CreateIntArray(string, nInts, help=None, default=None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -249,7 +249,7 @@ def CreateIntArray(string, nInts, help=None, default=None, multiple=None):
 
 
 # ==================================================================================================================================
-def CountOption(string):
+def CountOption(string) -> int:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -285,37 +285,39 @@ def GetParam(name, calltype, default=None, number=None):
         if calltype != 'int2str':
             hopout.printoption(name, value, '*CUSTOM')
     else:
-        if config.prms[name]['default'] is not None:
-            value = config.prms[name]['default']
-
-            # int2str has custom output
-            if calltype != 'int2str':
-                hopout.printoption(name, value, 'DEFAULT')
+        if default:
+            value = default
         else:
-            hopout.warning('Keyword "{}" not found in file and no default given, exiting...'
-                           .format(name))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit()
+            if config.prms[name]['default'] is not None:
+                value = config.prms[name]['default']
 
+                # int2str has custom output
+                if calltype != 'int2str':
+                    hopout.printoption(name, value, 'DEFAULT')
+            else:
+                hopout.warning('Keyword "{}" not found in file and no default given, exiting...'
+                               .format(name))
+                traceback.print_stack(file=sys.stdout)
+                sys.exit()
     return value
 
 
-def GetStr(name, default=None, number=None):
+def GetStr(name, default=None, number=None) -> str:
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
 
 
-def GetInt(name, default=None, number=None):
+def GetInt(name, default=None, number=None) -> int:
     value = GetParam(name=name, default=default, number=number, calltype='int')
     return int(value)
 
 
-def GetLogical(name, default=None, number=None):
+def GetLogical(name, default=None, number=None) -> bool:
     value = GetParam(name=name, default=default, number=number, calltype='bool')
     return strtobool(value)
 
 
-def GetIntFromStr(name, default=None, number=None):
+def GetIntFromStr(name, default=None, number=None) -> int:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -341,7 +343,7 @@ def GetIntFromStr(name, default=None, number=None):
     return value
 
 
-def GetRealArray(name, default=None, number=None):
+def GetRealArray(name, default=None, number=None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='realarray')
 
     # Split the array definitiosn
@@ -359,7 +361,7 @@ def GetRealArray(name, default=None, number=None):
     return value
 
 
-def GetIntArray(name, default=None, number=None):
+def GetIntArray(name, default=None, number=None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
     # Split the array definitiosn
@@ -383,11 +385,11 @@ class ReadConfig():
         format, so we need some hacks around the INI file format
     """
 
-    def __init__(self, parameter):
+    def __init__(self, parameter) -> None:
         self.parameter = parameter
         return None
 
-    def __enter__(self) -> str:
+    def __enter__(self) -> ConfigParser:
         # Local imports ----------------------------------------
         import src.config.config as config
         # ------------------------------------------------------

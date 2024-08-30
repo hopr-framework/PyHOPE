@@ -26,8 +26,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 # import os
-import sys
 import subprocess
+import sys
 import time
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -43,15 +43,14 @@ def main():
     """
     # Local imports ----------------------------------------
     import src.config.config as config
-    from src.readintools.commandline import CommandLine
-    from src.readintools.readintools import ReadConfig
-    from src.readintools.readintools import DefineConfig
+    import src.output.output as hopout
     from src.common.common import Common
-    from src.io.io import DefineIO, InitIO, IO
-    from src.mesh.mesh import DefineMesh, InitMesh, GenerateMesh
+    from src.io.io import IO, DefineIO, InitIO
+    from src.mesh.mesh import DefineMesh, GenerateMesh, InitMesh
     from src.mesh.mesh_connect import ConnectMesh
     from src.mesh.mesh_sort import SortMesh
-    import src.output.output as hopout
+    from src.readintools.commandline import CommandLine
+    from src.readintools.readintools import DefineConfig, ReadConfig
     # ------------------------------------------------------
 
     tStart  = time.time()

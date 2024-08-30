@@ -25,6 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
+import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,13 +41,11 @@
 
 def DefineMesh():
     # Local imports ----------------------------------------
-    from src.readintools.readintools import CreateSection
-    from src.readintools.readintools import CreateStr, CreateInt
-    from src.readintools.readintools import CreateRealArray, CreateIntArray
+    from src.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt(      'Mode',                           help='Mesh generation mode (1 - Internal, 2 - External (MeshIO)')
+    CreateInt(      'Mode',                           help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
     CreateInt(      'BoundaryOrder',   default=2,     help='Order of spline-reconstruction for curved surfaces')
     CreateInt(      'nZones',                         help='Number of mesh zones')
     CreateRealArray('Corner',      24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
@@ -58,9 +58,9 @@ def DefineMesh():
 
 def InitMesh():
     # Local imports ----------------------------------------
-    from src.readintools.readintools import GetInt
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
+    from src.readintools.readintools import GetInt
     # ------------------------------------------------------
 
     hopout.separator()
@@ -73,9 +73,9 @@ def InitMesh():
 
 def GenerateMesh():
     # Local imports ----------------------------------------
-    from src.mesh.mesh_builtin import MeshCartesian
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
+    from src.mesh.mesh_builtin import MeshCartesian
     # ------------------------------------------------------
 
     hopout.separator()
@@ -84,6 +84,10 @@ def GenerateMesh():
     match mesh_vars.mode:
         case 1:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
+        case _:  # Default
+            hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit()
 
     mesh_vars.mesh = mesh
 

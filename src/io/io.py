@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -60,7 +61,7 @@ class SIDE:
     BCID      = 4
 
 
-def LINMAP(elemType):
+def LINMAP(elemType) -> np.ndarray:
     """ CGNS -> IJK ordering for element corner nodes
     """
     match elemType:
@@ -72,9 +73,12 @@ def LINMAP(elemType):
             return np.array([0, 1, 2, 3, 4, 5])
         case 108:  # Hexaeder
             return np.array([0, 1, 3, 2, 4, 5, 7, 6])
+        case _:  # Default
+            print('Error in LINMAP, unknown elemType')
+            sys.exit()
 
 
-def ELEMTYPE(elemType):
+def ELEMTYPE(elemType) -> str:
     """ Name of a given element type
     """
     match elemType:
@@ -100,14 +104,15 @@ def ELEMTYPE(elemType):
             return ' Straight-edge Hexahedra  '
         case 208:
             return '        Curved Hexahedra  '
+        case _:  # Default
+            print('Error in ELEMTYPE, unknown elemType')
+            sys.exit()
 
 
 def DefineIO():
     # Local imports ----------------------------------------
     from src.io.io_vars import MeshFormat
-    from src.readintools.readintools import CreateSection, CreateStr
-    from src.readintools.readintools import CreateIntFromString, CreateIntOption
-    from src.readintools.readintools import CreateLogical
+    from src.readintools.readintools import CreateIntFromString, CreateIntOption, CreateLogical, CreateSection, CreateStr
     # ------------------------------------------------------
 
     CreateSection('Output')
@@ -120,10 +125,9 @@ def DefineIO():
 
 def InitIO():
     # Local imports ----------------------------------------
-    from src.readintools.readintools import GetStr, GetIntFromStr
-    from src.readintools.readintools import GetLogical
-    import src.output.output as hopout
     import src.io.io_vars as io_vars
+    import src.output.output as hopout
+    from src.readintools.readintools import GetIntFromStr, GetLogical, GetStr
     # ------------------------------------------------------
 
     hopout.separator()
@@ -139,11 +143,11 @@ def InitIO():
 
 def IO():
     # Local imports ----------------------------------------
-    from src.common.common import Common
-    from src.io.io_vars import MeshFormat
     import src.io.io_vars as io_vars
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
+    from src.common.common import Common
+    from src.io.io_vars import MeshFormat
     # ------------------------------------------------------
 
     hopout.separator()
@@ -186,7 +190,6 @@ def IO():
                 f.attrs['nElems'        ] = nElems
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
-
 
                 f.create_dataset('ElemInfo'  , data=elemInfo)
                 f.create_dataset('SideInfo'  , data=sideInfo)

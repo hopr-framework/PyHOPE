@@ -28,6 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import meshio
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -35,12 +36,12 @@
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-global mode
-global mesh
-global nGeo
+mode  : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
+mesh  : meshio._mesh.Mesh                        # MeshIO object holding the mesh
+nGeo  : int                                      # Order of spline-reconstruction for curved surfaces
 
-global bcs
-global vvs
+bcs   : list                                     # [list of dict] - Boundary conditions
+vvs   : list                                     # [list of dict] - Periodic vectors
 
-global elems
-global sides
+elems : list                                     # [list of list] - Element nodes
+sides : list                                     # [list of list] - Side    nodes

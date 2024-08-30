@@ -25,14 +25,13 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import copy
+import sys
+import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
-import copy
 import numpy as np
-import traceback
-
 from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -59,12 +58,12 @@ def flip(side, nbside):
 
 def ConnectMesh():
     # Local imports ----------------------------------------
-    from src.io.io_vars import MeshFormat
-    from src.common.common import find_index
     import src.io.io_vars as io_vars
-    from src.mesh.mesh_common import faces, face_to_corner
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
+    from src.common.common import find_index
+    from src.io.io_vars import MeshFormat
+    from src.mesh.mesh_common import face_to_corner, faces
     # ------------------------------------------------------
 
     match io_vars.outputformat:
@@ -81,22 +80,20 @@ def ConnectMesh():
     # Create non-unique sides
     ioelems = mesh.get_cells_type(ELEMTYPE)
     nElems  = ioelems.shape[0]
-    mesh_vars.elems = [None] * nElems
-    mesh_vars.sides = [None] * nElems * 6
+    mesh_vars.elems = [dict() for _ in range(nElems  )]
+    mesh_vars.sides = [dict() for _ in range(nElems*6)]
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
     quads   = mesh.get_cells_type('quad')
 
     # Create dictionaries
     for iElem, elem in enumerate(elems):
-        elems[iElem] = dict()
         elems[iElem]['Type'  ] = 108  # FIXME
         elems[iElem]['ElemID'] = iElem
         elems[iElem]['Sides' ] = []
         elems[iElem]['Nodes' ] = ioelems[iElem]
 
     for iSide, side in enumerate(sides):
-        sides[iSide] = dict()
         sides[iSide]['Type'  ] = 104  # FIXME
 
     # Assign nodes to sides, CGNS format
@@ -126,12 +123,12 @@ def ConnectMesh():
     side_corners = dict()
     # for iSide, side in enumerate(sides):
     #     corners = np.sort(side['Corners'])
-    #     corners = hash(corners.tostring())
+    #     corners = hash(corners.tobytes())
     #     side_corners.update({iSide: corners})
     for iElem, elem in enumerate(elems):
         for iSide, side in enumerate(elem['Sides']):
             corners = np.sort(sides[side]['Corners'])
-            corners = hash(corners.tostring())
+            corners = hash(corners.tobytes())
             side_corners.update({side: corners})
 
     # Build the reverse dictionary
@@ -176,18 +173,23 @@ def ConnectMesh():
         # Check if the set is a BC
         if key:
             # Get the BCIndex from the list
+            bcID = None
             for iBC, bc in enumerate(bcs):
                 if key in bc['Name']:
                     bcID = iBC
+            if bcID is None:
+                hopout.warning('Could not find BC {} in list, exiting...'.format(key))
+                traceback.print_stack(file=sys.stdout)
+                sys.exit()
 
             # Get the list of sides
-            iBCsides = cset[1] - offsetcs
+            iBCsides = np.array(cset[1]) - offsetcs
 
             # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
                 # Get the quad corner nodes
                 corners = np.sort(np.array(quads[iSide]))
-                corners = hash(corners.tostring())
+                corners = hash(corners.tobytes())
 
                 # Boundary faces are unique
                 # sideID  = find_key(face_corners, corners)
@@ -202,9 +204,14 @@ def ConnectMesh():
         # Check if the set is a BC
         if key:
             # Get the BCIndex from the list
+            bcID = None
             for iBC, bc in enumerate(bcs):
                 if key in bc['Name']:
                     bcID = iBC
+            if bcID is None:
+                hopout.warning('Could not find BC {} in list, exiting...'.format(key))
+                traceback.print_stack(file=sys.stdout)
+                sys.exit()
 
             # Only periodic BCs
             if bcs[bcID]['Type'][0] != 1:
@@ -223,7 +230,8 @@ def ConnectMesh():
 
             # Collapse all opposing corner nodes into an [:, 12] array
             nbCellSet  = mesh.cell_sets[nbBCName]
-            nbCorners  = [np.array(quads[s - offsetcs]) for s in nbCellSet[1]]
+            nbFaceSet  =  np.array(nbCellSet[1])
+            nbCorners  = [np.array(quads[s - offsetcs]) for s in nbFaceSet]
             nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
             nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
             del nbCorners
@@ -232,7 +240,7 @@ def ConnectMesh():
             stree = spatial.KDTree(nbPoints)
 
             # Get the list of sides on our side
-            iBCsides = cset[1] - offsetcs
+            iBCsides = np.array(cset[1]) - offsetcs
 
             # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
@@ -251,23 +259,23 @@ def ConnectMesh():
                 del points
 
                 # trSide contains the Euclidean distance and the index of the
-                # opposing side in the nbCellSet
+                # opposing side in the nbFaceSet
                 if trSide[0] > tol:
                     hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
                     traceback.print_stack(file=sys.stdout)
                     sys.exit()
 
-                nbiSide  = nbCellSet[1][trSide[1]] - offsetcs
+                nbiSide  = nbFaceSet[trSide[1]] - offsetcs
 
                 # Get our corner quad nodes
                 corners   = np.sort(np.array(quads[iSide]))
-                corners   = hash(corners.tostring())
+                corners   = hash(corners.tobytes())
                 sideID    = corner_side[corners][0]
                 del corners
 
                 # Get nb corner quad nodes
                 nbcorners = np.sort(np.array(quads[nbiSide]))
-                nbcorners = hash(nbcorners.tostring())
+                nbcorners = hash(nbcorners.tobytes())
                 nbSideID  = corner_side[nbcorners][0]
                 del nbcorners
 
@@ -313,7 +321,7 @@ def ConnectMesh():
                 side.update({'GlobalSideID':  globalSideID+1 })
                 # Set the negative globalSideID of the slave  side
                 nbSideID = side['Connection']
-                sides[nbSideID].update({'GlobalSideID':-(globalSideID+1)})
+                sides[nbSideID].update({'GlobalSideID': -(globalSideID+1)})
             globalSideID += 1
 
     # Count the sides
@@ -322,7 +330,7 @@ def ConnectMesh():
     nbcsides       = 0
     nperiodicsides = 0
     for iSide, side in enumerate(sides):
-        if 'BCID'       in side:
+        if 'BCID' in side:
             if 'Connection' in side:
                 nperiodicsides += 1
             else:

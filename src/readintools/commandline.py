@@ -116,6 +116,5 @@ class CommandLine:
     def __exit__(self, *args: object) -> None:
         return None
 
-
     def helpjoin(self, end):
-            self.help = os.linesep.join([self.help, end])
+        self.help = os.linesep.join([self.help, end])
