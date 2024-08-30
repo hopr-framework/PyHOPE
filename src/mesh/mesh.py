@@ -40,6 +40,8 @@ import traceback
 
 
 def DefineMesh():
+    """ Define general options for mesh generation / readin
+    """
     # Local imports ----------------------------------------
     from src.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     # ------------------------------------------------------
@@ -57,6 +59,8 @@ def DefineMesh():
 
 
 def InitMesh():
+    """ Readin general option for mesh generation / readin
+    """
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
@@ -71,7 +75,12 @@ def InitMesh():
 
     hopout.info('INIT MESH DONE!')
 
+
 def GenerateMesh():
+    """ Generate the mesh
+        Mode 1 - Use internal mesh generation
+        Mode 2 - Readin external mesh through MeshIO
+    """
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout

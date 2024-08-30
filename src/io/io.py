@@ -146,7 +146,7 @@ def IO():
     import src.io.io_vars as io_vars
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
-    from src.common.common import Common
+    from src.common.common_vars import Common
     from src.io.io_vars import MeshFormat
     # ------------------------------------------------------
 

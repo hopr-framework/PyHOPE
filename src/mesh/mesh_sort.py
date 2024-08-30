@@ -25,13 +25,13 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import os
 import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
-from hilbertcurve.hilbertcurve import HilbertCurve
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -79,6 +79,8 @@ def SFCResolution(kind, xmin, xmax):
 
 def SortMesh():
     # Local imports ----------------------------------------
+    from hilbertcurve.hilbertcurve import HilbertCurve
+    from src.common.common_vars import np_mtp
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     # ------------------------------------------------------
@@ -112,7 +114,7 @@ def SortMesh():
         elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin, xmax)
 
     # Generate the space-filling curve and order elements along it
-    hc = HilbertCurve(p=nbits, n=3)
+    hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
     distances = hc.distances_from_points(elemDisc)
 
     # Create a new mesh with only volume elements and sorted along SFC

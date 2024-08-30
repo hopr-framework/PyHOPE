@@ -44,7 +44,8 @@ def main():
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
-    from src.common.common import Common
+    from src.common.common import DefineCommon, InitCommon
+    from src.common.common_vars import Common
     from src.io.io import IO, DefineIO, InitIO
     from src.mesh.mesh import DefineMesh, GenerateMesh, InitMesh
     from src.mesh.mesh_connect import ConnectMesh
@@ -62,6 +63,7 @@ def main():
 
     with DefineConfig() as dc:
         config.prms = dc
+        DefineCommon()
         DefineIO()
         DefineMesh()
 
@@ -88,6 +90,7 @@ def main():
     hopout.header(program, version, commit)
 
     # Read-in required parameters
+    InitCommon()
     InitIO()
     InitMesh()
 

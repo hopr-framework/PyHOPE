@@ -25,11 +25,11 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import os
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from packaging.version import Version
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,12 +39,38 @@ from packaging.version import Version
 # ==================================================================================================================================
 
 
-class Common():
-    __version__ = Version('2.0.0')
-    __program__ = 'UVWXYZ'
+def DefineCommon():
+    """ Define general options for the entire program
+    """
+    # Local imports ----------------------------------------
+    from src.readintools.readintools import CreateInt, CreateSection
+    # ------------------------------------------------------
+    CreateSection('Common')
+    CreateInt(      'nThreads',        default=4,     help='Number of threads for multiprocessing')
 
-    program = str(__program__)
-    version = str(__version__)
+
+def InitCommon():
+    """ Readin general option for the entire program
+    """
+    # Local imports ----------------------------------------
+    import src.output.output as hopout
+    from src.common.common_vars import np_mtp
+    from src.readintools.readintools import GetInt
+    # ------------------------------------------------------
+
+    hopout.separator()
+    hopout.info('INIT PROGRAM...')
+
+    # Check the number of available threads
+    np_req = GetInt('nThreads')
+    match np_req:
+        case -1 | 0:  # All available cores / no multiprocessing
+            np_mtp = np_req
+        case _:       # Check if the number of requested processes can be provided
+            np_aff = len(os.sched_getaffinity(0))
+            np_mtp = min(np_req, np_aff)
+
+    hopout.info('INIT PROGRAM DONE!')
 
 
 # > https://stackoverflow.com/a/5419576/23851165
