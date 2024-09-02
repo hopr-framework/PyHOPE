@@ -67,7 +67,11 @@ def InitCommon():
         case -1 | 0:  # All available cores / no multiprocessing
             np_mtp = np_req
         case _:       # Check if the number of requested processes can be provided
-            np_aff = len(os.sched_getaffinity(0))
+            # os.affinity is Linux only
+            try:
+                np_aff = len(os.sched_getaffinity(0))
+            except AttributeError:
+                np_aff = 1
             np_mtp = min(np_req, np_aff)
 
     hopout.info('INIT PROGRAM DONE!')
