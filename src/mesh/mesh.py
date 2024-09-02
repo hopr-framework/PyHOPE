@@ -72,6 +72,9 @@ def InitMesh():
 
     mesh_vars.mode = GetInt('Mode')
     mesh_vars.nGeo = GetInt('BoundaryOrder') - 1
+    if mesh_vars.nGeo < 1:
+        hopout.warning('Effective boundary order < 1. Try increasing the BoundaryOrder parameter!')
+        sys.exit()
 
     hopout.info('INIT MESH DONE!')
 

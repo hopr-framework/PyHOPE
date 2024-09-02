@@ -42,7 +42,6 @@ import pygmsh
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
-ELEMTYPE = 'hexahedron'
 # ==================================================================================================================================
 
 
@@ -214,11 +213,14 @@ def MeshCartesian():
     # Force Gmsh to output all mesh elements
     gmsh.option.setNumber('Mesh.SaveAll', 1)
 
-    gmsh.model.occ.synchronize()
+    # Set the element order
+    # > Technically, this is only required in generate_mesh but let's be precise here
+    gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+
     gmsh.model.geo.synchronize()
 
     # PyGMSH returns a meshio.mesh datatype
-    mesh = pygmsh.geo.Geometry().generate_mesh()
+    mesh = pygmsh.geo.Geometry().generate_mesh(order=mesh_vars.nGeo)
 
     if debugvisu:
         gmsh.fltk.run()
@@ -227,10 +229,11 @@ def MeshCartesian():
     gmsh.finalize()
 
     # Final count
-    hexcells = mesh.get_cells_type(ELEMTYPE)
-    ncells   = hexcells.shape[0]
+    nElems = 0
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        nElems += mesh.get_cells_type(elemType).shape[0]
     hopout.sep()
-    hopout.routine('Generated hexahedral mesh with {} cells'.format(ncells))
+    hopout.routine('Generated mesh with {} cells'.format(nElems))
     hopout.sep()
 
     return mesh

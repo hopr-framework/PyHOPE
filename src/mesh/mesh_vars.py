@@ -45,3 +45,7 @@ vvs   : list                                     # [list of dict] - Periodic vec
 
 elems : list                                     # [list of list] - Element nodes
 sides : list                                     # [list of list] - Side    nodes
+
+
+class ELEM:
+    type = {'tetra': 4, 'pyramid': 5, 'wedge': 5, 'hexahedron': 6}

@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import string
 import sys
 import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,7 +40,6 @@ from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
-ELEMTYPE = 'hexahedron'
 # ==================================================================================================================================
 
 
@@ -75,15 +75,35 @@ def ConnectMesh():
     hopout.separator()
     hopout.info('CONNECT MESH...')
 
-    mesh = mesh_vars.mesh
-
-    # Create non-unique sides
-    ioelems = mesh.get_cells_type(ELEMTYPE)
-    nElems  = ioelems.shape[0]
-    mesh_vars.elems = [dict() for _ in range(nElems  )]
-    mesh_vars.sides = [dict() for _ in range(nElems*6)]
+    mesh   = mesh_vars.mesh
+    nElems = 0
+    mesh_vars.elems = []
+    mesh_vars.sides = []
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+
+    # Loop over all element types
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        # Get the elements
+        ioelems  = mesh.get_cells_type(elemType)
+        baseElem = elemType.rstrip(string.digits)
+        nIOElems = ioelems.shape[0]
+        nSides   = mesh_vars.ELEM.type[baseElem]
+
+        # Create non-unique sides
+        mesh_vars.elems.extend([dict() for _ in range(nIOElems       )])
+        mesh_vars.sides.extend([dict() for _ in range(nIOElems*nSides)])
+
+        # Add to nElems
+        nElems += nIOElems
+
+    # FIXME: THIS GETS COMPLICATED
+    if 'quad' not in mesh.cells_dict.keys():
+        sys.exit()
     quads   = mesh.get_cells_type('quad')
 
     # Create dictionaries

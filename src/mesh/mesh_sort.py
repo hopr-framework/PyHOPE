@@ -38,7 +38,6 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
-ELEMTYPE = 'hexahedron'
 # ==================================================================================================================================
 
 
@@ -88,30 +87,52 @@ def SortMesh():
     hopout.separator()
     hopout.routine('Sorting elements along space-filling curve')
 
-    # We only need the volume cells
-    hexcells = mesh_vars.mesh.get_cells_type(ELEMTYPE)
-
     huge = sys.float_info.max
     xmin = np.array([ huge,  huge,  huge])
     xmax = np.array([-huge, -huge, -huge])
-    for cell in hexcells:
-        for point in mesh_vars.mesh.points[cell]:
-            xmin = np.minimum(xmin, point)
-            xmax = np.maximum(xmax, point)
+    # We only need the volume cells
+    mesh   = mesh_vars.mesh
+    nElems = 0
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        ioelems = mesh.get_cells_type(elemType)
+        nElems += ioelems.shape[0]
+
+        for cell in ioelems:
+            for point in mesh_vars.mesh.points[cell]:
+                xmin = np.minimum(xmin, point)
+                xmax = np.maximum(xmax, point)
 
     # Calculate the element bary centers
-    elemBary = [np.ndarray(3)] * len(hexcells)
-    for elemID, cell in enumerate(hexcells):
-        elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
+    elemBary = [np.ndarray(3)] * nElems
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        ioelems = mesh.get_cells_type(elemType)
+
+        for elemID, cell in enumerate(ioelems):
+            elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
 
     # Calculate the space-filling curve resolution for the given KIND
     kind = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions along according to the chosen resolution
-    elemDisc = [np.ndarray(3)] * len(hexcells)
-    for elemID, cell in enumerate(hexcells):
-        elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin, xmax)
+    elemDisc = [np.ndarray(3)] * nElems
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        ioelems = mesh.get_cells_type(elemType)
+
+        for elemID, cell in enumerate(ioelems):
+            elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin, xmax)
 
     # Generate the space-filling curve and order elements along it
     hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
@@ -122,9 +143,10 @@ def SortMesh():
     cells    = mesh_vars.mesh.cells
     cellsets = mesh_vars.mesh.cell_sets
 
-    for meshcells in cells:
-        if meshcells.type == ELEMTYPE:
-            meshcells.data = np.asarray([x.tolist() for _, x in sorted(zip(distances, hexcells))])
+    for iCell, cellType in enumerate(cells):
+        if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
+            # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
+            cellType.data = np.asarray([x.tolist() for _, x in sorted(zip(distances, cellType.data))])
 
     # Overwrite the old mesh
     mesh   = meshio.Mesh(points=points,
