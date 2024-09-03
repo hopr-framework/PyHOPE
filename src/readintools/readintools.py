@@ -252,11 +252,15 @@ def CreateIntArray(string, nInts, help=None, default=None, multiple=False) -> No
 def CountOption(string) -> int:
     # Local imports ----------------------------------------
     import src.config.config as config
+    from configparser import NoOptionError
     # ------------------------------------------------------
 
     CheckDefined(string)
 
-    counter = len([s for s in config.params.get('general', string).split('\n') if s != ''])
+    try:
+        counter = len([s for s in config.params.get('general', string).split('\n') if s != ''])
+    except NoOptionError:
+        counter = 0
     return counter
 
 
