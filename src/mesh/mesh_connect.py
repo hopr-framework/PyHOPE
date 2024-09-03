@@ -63,7 +63,6 @@ def ConnectMesh():
     import src.output.output as hopout
     from src.common.common import find_index
     from src.io.io_vars import MeshFormat
-    from src.mesh.mesh_common import face_to_corner, faces
     # ------------------------------------------------------
 
     match io_vars.outputformat:
@@ -75,68 +74,18 @@ def ConnectMesh():
     hopout.separator()
     hopout.info('CONNECT MESH...')
 
-    mesh   = mesh_vars.mesh
-    nElems = 0
-    mesh_vars.elems = []
-    mesh_vars.sides = []
+    mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
 
-    # Loop over all element types
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
-        # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
-            continue
-
-        # Get the elements
-        ioelems  = mesh.get_cells_type(elemType)
-        baseElem = elemType.rstrip(string.digits)
-        nIOElems = ioelems.shape[0]
-        nSides   = mesh_vars.ELEM.type[baseElem]
-
-        # Create non-unique sides
-        mesh_vars.elems.extend([dict() for _ in range(nIOElems       )])
-        mesh_vars.sides.extend([dict() for _ in range(nIOElems*nSides)])
-
-        # Add to nElems
-        nElems += nIOElems
-
-    # FIXME: THIS GETS COMPLICATED
-    if 'quad' not in mesh.cells_dict.keys():
-        sys.exit()
-    quads   = mesh.get_cells_type('quad')
-
-    # Create dictionaries
-    for iElem, elem in enumerate(elems):
-        elems[iElem]['Type'  ] = 108  # FIXME
-        elems[iElem]['ElemID'] = iElem
-        elems[iElem]['Sides' ] = []
-        elems[iElem]['Nodes' ] = ioelems[iElem]
-
-    for iSide, side in enumerate(sides):
-        sides[iSide]['Type'  ] = 104  # FIXME
-
-    # Assign nodes to sides, CGNS format
-    count = 0
-    for iElem in range(nElems):
-        for index, face in enumerate(faces()):
-            corners = [ioelems[iElem][s] for s in face_to_corner(face)]
-            sides[count].update({'ElemID' : iElem})
-            sides[count].update({'SideID' : count})
-            sides[count].update({'LocSide': index+1})
-            sides[count].update({'Corners': np.array(corners)})
-            count += 1
-
-    # Append sides to elem
-    for iSide, side in enumerate(sides):
-        elemID = side['ElemID']
-        sideID = side['SideID']
-        elems[elemID]['Sides'].append(sideID)
-
     # cell_sets contain the face IDs [dim=2]
     # > Offset is calculated with entities from [dim=0, dim=1]
-    offsetcs =  len(mesh.get_cells_type('vertex'))
-    offsetcs += len(mesh.get_cells_type('line'))
+    offsetcs = 0
+    for key, value in mesh.cells_dict.items():
+        if 'vertex' in key:
+            offsetcs += value.shape[0]
+        elif 'line' in key:
+            offsetcs += value.shape[0]
 
     # Map sides to BC
     # > Create a dict containing only the face corners
@@ -191,6 +140,8 @@ def ConnectMesh():
     # Set BC and periodic sides
     bcs = mesh_vars.bcs
     vvs = mesh_vars.vvs
+    # print(mesh.cells[1].data)
+    # print(mesh.cell_sets)
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
         if key:
@@ -204,19 +155,27 @@ def ConnectMesh():
                 traceback.print_stack(file=sys.stdout)
                 sys.exit()
 
+            # Find the mapping to the (N-1)-dim elements
+            csetMap = [s for s in range(len(cset)) if cset[s] is not None]
+
             # Get the list of sides
-            iBCsides = np.array(cset[1]) - offsetcs
+            for iMap in csetMap:
+                iBCsides = np.array(cset[iMap]) - offsetcs
+                # print(cset, offsetcs)
+                mapFaces = mesh.cells[iMap].data
+                # print(mapFaces.shape)
 
-            # Map the unique quad sides to our non-unique elem sides
-            for iSide in iBCsides:
-                # Get the quad corner nodes
-                corners = np.sort(np.array(quads[iSide]))
-                corners = hash(corners.tobytes())
+                # Map the unique quad sides to our non-unique elem sides
+                for iSide in iBCsides:
+                    # Get the quad corner nodes
+                    # FIXME: HARDCODED FIRST 4 NODES WHICH ARE THE OUTER CORNER NODES FOR QUADS!
+                    corners = np.sort(np.array(mapFaces[iSide][0:4]))
+                    corners = hash(corners.tobytes())
 
-                # Boundary faces are unique
-                # sideID  = find_key(face_corners, corners)
-                sideID = corner_side[corners][0]
-                sides[sideID].update({'BCID': bcID})
+                    # Boundary faces are unique
+                    # sideID  = find_key(face_corners, corners)
+                    sideID = corner_side[corners][0]
+                    sides[sideID].update({'BCID': bcID})
 
     # Try to connect the periodic sides
     # TODO: SET ANOTHER TOLERANCE
@@ -252,10 +211,21 @@ def ConnectMesh():
 
             # Collapse all opposing corner nodes into an [:, 12] array
             nbCellSet  = mesh.cell_sets[nbBCName]
-            nbFaceSet  =  np.array(nbCellSet[1])
-            nbCorners  = [np.array(quads[s - offsetcs]) for s in nbFaceSet]
-            nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
-            nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+
+            # Find the mapping to the (N-1)-dim elements
+            nbcsetMap = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None]
+            # FIXME: TODO HYBRID MESHES
+            if len(nbcsetMap) > 1:
+                print('Hybrid meshes currently not supported')
+                sys.exit()
+
+            # Get the list of sides
+            for iMap in csetMap:
+                nbFaceSet  =  np.array(nbCellSet[iMap])
+                nbmapFaces = mesh.cells[iMap].data
+                nbCorners  = [np.array(nbmapFaces[s - offsetcs]) for s in nbFaceSet]
+                nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+                nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
             del nbCorners
 
             # Build a k-dimensional tree of all points on the opposing side
@@ -267,7 +237,7 @@ def ConnectMesh():
             # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
                 # Get the quad corner nodes
-                corners = np.array(quads[iSide])
+                corners = np.array(nbmapFaces[iSide])
                 points  = copy.copy(mesh.points[corners])
 
                 # Shift the points in periodic direction
@@ -290,26 +260,26 @@ def ConnectMesh():
                 nbiSide  = nbFaceSet[trSide[1]] - offsetcs
 
                 # Get our corner quad nodes
-                corners   = np.sort(np.array(quads[iSide]))
+                corners   = np.sort(np.array(nbmapFaces[iSide]))
                 corners   = hash(corners.tobytes())
                 sideID    = corner_side[corners][0]
                 del corners
 
                 # Get nb corner quad nodes
-                nbcorners = np.sort(np.array(quads[nbiSide]))
+                nbcorners = np.sort(np.array(nbmapFaces[nbiSide]))
                 nbcorners = hash(nbcorners.tobytes())
                 nbSideID  = corner_side[nbcorners][0]
                 del nbcorners
 
                 # Build the connection, including flip
                 sideIDs   = [sideID, nbSideID]
-                corners   = np.array(quads[iSide])
+                corners   = np.array(nbmapFaces[iSide])
                 points    = mesh.points[corners]
                 for iPoint in range(points.shape[0]):
                     points[iPoint, :] += vvs[iVV]['Dir']
                 ptree     = spatial.KDTree(points)
                 # > Find the first neighbor point to determine the flip
-                nbcorner  = mesh.points[np.array(quads[nbiSide])[0]]
+                nbcorner  = mesh.points[np.array(nbmapFaces[nbiSide])[0]]
 
                 trCorn = ptree.query(nbcorner)
                 flipID = trCorn[1] + 1

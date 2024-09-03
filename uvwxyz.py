@@ -49,6 +49,7 @@ def main():
     from src.io.io import IO, DefineIO, InitIO
     from src.mesh.mesh import DefineMesh, GenerateMesh, InitMesh
     from src.mesh.mesh_connect import ConnectMesh
+    from src.mesh.mesh_sides import GenerateSides
     from src.mesh.mesh_sort import SortMesh
     from src.readintools.commandline import CommandLine
     from src.readintools.readintools import DefineConfig, ReadConfig
@@ -97,6 +98,7 @@ def main():
     # Generate the actual mesh
     GenerateMesh()
     SortMesh()
+    GenerateSides()
     ConnectMesh()
 
     # Output the mesh

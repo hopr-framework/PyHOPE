@@ -25,10 +25,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import string
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -37,51 +37,68 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-mode  : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
-mesh  : meshio._mesh.Mesh                        # MeshIO object holding the mesh
-nGeo  : int                                      # Order of spline-reconstruction for curved surfaces
-
-bcs   : list                                     # [list of dict] - Boundary conditions
-vvs   : list                                     # [list of dict] - Periodic vectors
-
-elems : list                                     # [list of list] - Element nodes
-sides : list                                     # [list of list] - Side    nodes
-
-HEXMAP: np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
 
 
-class ELEM:
-    type = {'tetra': 4, 'pyramid': 5, 'wedge': 5, 'hexahedron': 6}
-
-
-def ELEMMAP(meshioType: str) -> int:
+def GenerateSides():
     # Local imports ----------------------------------------
-    import sys
+    import src.mesh.mesh_vars as mesh_vars
+    from src.mesh.mesh_common import face_to_corner, faces
     # ------------------------------------------------------
-    # Linear or curved tetrahedron
-    if 'tetra' in meshioType:
-        if 'tetra' == meshioType:
-            return 104
-        else:
-            return 204
-    # Linear or curved pyramid
-    elif 'pyramid' in meshioType:
-        if 'pyramid' == meshioType:
-            return 105
-        else:
-            return 205
-    # Linear or curved wedge / prism
-    elif 'wedge' in meshioType:
-        if 'wedge' == meshioType:
-            return 106
-        else:
-            return 206
-    # Linear or curved hexahedron
-    elif 'hexahedron' in meshioType:
-        if 'hexahedron' == meshioType:
-            return 108
-        else:
-            return 208
-    else:
-        print('Unknown element type {}'.format(meshioType))
-        sys.exit()
+
+    mesh   = mesh_vars.mesh
+    nElems = 0
+    nSides = 0
+    sCount = 0
+    mesh_vars.elems = []
+    mesh_vars.sides = []
+    elems   = mesh_vars.elems
+    sides   = mesh_vars.sides
+
+    # Loop over all element types
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        # Get the elements
+        ioelems  = mesh.get_cells_type(elemType)
+        baseElem = elemType.rstrip(string.digits)
+        nIOElems = ioelems.shape[0]
+        nIOSides   = mesh_vars.ELEM.type[baseElem]
+
+        # Create non-unique sides
+        mesh_vars.elems.extend([dict() for _ in range(nIOElems         )])
+        mesh_vars.sides.extend([dict() for _ in range(nIOElems*nIOSides)])
+
+        # Create dictionaries
+        for iElem in range(nElems, nElems+nIOElems):
+            elems[iElem]['Type'  ] = mesh_vars.ELEMMAP(elemType)
+            elems[iElem]['ElemID'] = iElem
+            elems[iElem]['Sides' ] = []
+            elems[iElem]['Nodes' ] = ioelems[iElem]
+
+            # Create the sides
+            for iSide in range(nSides, nSides+nIOSides):
+                sides[iSide]['Type'  ] = 104  # FIXME: THIS NEEDS TREATMENT FOR NON-HEXAS
+
+            # Assign nodes to sides, CGNS format
+            for index, face in enumerate(faces()):
+                corners = [ioelems[iElem][s] for s in face_to_corner(face)]
+                sides[sCount].update({'ElemID' : iElem})
+                sides[sCount].update({'SideID' : sCount})
+                sides[sCount].update({'LocSide': index+1})
+                sides[sCount].update({'Corners': np.array(corners)})
+                sCount += 1
+
+            # Add to nSides
+            nSides += nIOSides
+
+        # Add to nElems
+        nElems += nIOElems
+
+    # Append sides to elem
+    for iSide, side in enumerate(sides):
+        elemID = side['ElemID']
+        sideID = side['SideID']
+        elems[elemID]['Sides'].append(sideID)
+
