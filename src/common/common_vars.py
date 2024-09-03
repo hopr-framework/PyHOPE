@@ -46,4 +46,4 @@ class Common():
     version = str(__version__)
 
 
-np_mtp : int = 4                                 # Number of threads for multiprocessing
+np_mtp : int                                     # Number of threads for multiprocessing

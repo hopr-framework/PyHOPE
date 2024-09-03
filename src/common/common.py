@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -37,6 +38,25 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+def DebugEnabled():
+    """ Check if program runs with debugger attached
+        > https://stackoverflow.com/a/77627075/23851165
+    """
+    try:
+        if sys.gettrace() is not None:
+            return True
+    except AttributeError:
+        pass
+
+    try:
+        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:
+            return True
+    except AttributeError:
+        pass
+
+    return False
 
 
 def DefineCommon():
@@ -54,7 +74,7 @@ def InitCommon():
     """
     # Local imports ----------------------------------------
     import src.output.output as hopout
-    from src.common.common_vars import np_mtp
+    import src.common.common_vars as common_vars
     from src.readintools.readintools import GetInt
     # ------------------------------------------------------
 
@@ -62,6 +82,7 @@ def InitCommon():
     hopout.info('INIT PROGRAM...')
 
     # Check the number of available threads
+    np_mtp = 4
     np_req = GetInt('nThreads')
     match np_req:
         case -1 | 0:  # All available cores / no multiprocessing
@@ -73,6 +94,14 @@ def InitCommon():
             except AttributeError:
                 np_aff = 1
             np_mtp = min(np_req, np_aff)
+
+    # If running under debugger, multiprocessing is not available
+    if DebugEnabled():
+        hopout.info('Debugger detected, disabling multiprocessing!')
+        np_mtp = 0
+
+    # Actually overwrite the global value
+    common_vars.np_mtp = np_mtp
 
     hopout.info('INIT PROGRAM DONE!')
 
