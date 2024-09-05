@@ -61,99 +61,13 @@ class SIDE:
     BCID      = 4
 
 
-def edgePointCGNS(order: int, edge: int, node: int) -> np.ndarray:
-    match edge:
-        case 0:  # z- / base
-            return np.array([node      , 0         ], dtype=int)
-        case 1:  # y+ / base
-            return np.array([order     , node      ], dtype=int)
-        case 2:  # z+ / base
-            return np.array([order-node, order     ], dtype=int)
-        case 3:  # y- / base
-            return np.array([0         , order-node], dtype=int)
-        case _:
-            sys.exit()
-
-
-def genHEXMAP(order: int) -> None:
-    """ CGNS -> IJK ordering for high-order hexahedrons
-        > Losely based on [Gmsh] "generatePointsHexCGNS"
-    """
-    # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
-    map = np.zeros((order, order, order), dtype=int)
-
-    if order == 1:
-        map[0, 0, 0] = 0
-        mesh_vars.HEXMAP = map
-        return None
-
-    # Principal vertices
-    map[0      , 0      , 0      ] = 1
-    map[order-1, 0      , 0      ] = 2
-    map[order-1, order-1, 0      ] = 3
-    map[0      , order-1, 0      ] = 4
-    map[0      , 0      , order-1] = 5
-    map[order-1, 0      , order-1] = 6
-    map[order-1, order-1, order-1] = 7
-    map[0      , order-1, order-1] = 8
-
-    # Internal points of base quadrangle edges (x-)
-    count = 8
-    for iFace in range(4):
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple, base quadrangle -> z = 0
-            edge  = edgePointCGNS(order-1, iFace, iNode)
-            index = (int(edge[0]), int(edge[1]), 0)
-            map[index] = count
-            count += 1
-
-    # Internal points of mounting edges
-    for iFace in range(4):
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple, mounting edges -> z ascending
-            edge  = edgePointCGNS(order-1, (iFace+3) % 4, order-1)
-            index = (int(edge[0]), int(edge[1]), iNode)
-            map[index] = count
-            count += 1
-
-    # Internal points of top quadrangle edges
-    for iFace in range(4):
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple, top  quadrangle -> z = order
-            edge  = edgePointCGNS(order-1, iFace, iNode)
-            index = (int(edge[0]), int(edge[1]), order-1)
-            map[index] = count
-            count += 1
-
-    # Internal points of triangles
-    for k in range(order):
-        for j in range(order):
-            for i in range(order):
-                index = (i, j, k)
-                if map[index] != 0:
-                    continue
-                map[index] = count
-                count += 1
-
-    # Python indexing, 1 -> 0
-    map -= 1
-
-    # Reshape into 1D array, tensor-product style
-    tensor = []
-    for k in range(order):
-        for j in range(order):
-            for i in range(order):
-                tensor.append(int(map[i, j, k]))
-
-    mesh_vars.HEXMAP = tensor
-
-
 def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
     """ CGNS -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
+    # from src.io.io_cgns import genHEXMAPCGNS
+    # from src.io.io_vtk import genHEXMAPVTK
+    from src.io.io_meshio import genHEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
@@ -167,10 +81,25 @@ def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
             return np.array([0, 1, 3, 2, 4, 5, 7, 6])
         # Curved elements, use mapping
         case 208:  # Hexaeder
+            # # CGNS
+            # try:
+            #     from src.mesh.mesh_vars import HEXMAP
+            # except ImportError:
+            #     genHEXMAP(order+1)
+            #     from src.mesh.mesh_vars import HEXMAP
+
+            # # VTK
+            # try:
+            #     from src.mesh.mesh_vars import HEXMAP
+            # except ImportError:
+            #     genHEXMAPVTK(order+1)
+            #     from src.mesh.mesh_vars import HEXMAP
+
+            # MESHIO
             try:
                 from src.mesh.mesh_vars import HEXMAP
             except ImportError:
-                genHEXMAP(order+1)
+                genHEXMAPMESHIO(order+1)
                 from src.mesh.mesh_vars import HEXMAP
             return HEXMAP
         case _:  # Default
@@ -388,11 +317,19 @@ def getMeshInfo():
     # Fill the NodeCoords
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
     nodeCount  = 0
+
     for iElem, elem in enumerate(elems):
+        # Mesh coordinates are stored in VTK sorting
         linMap    = LINMAP(elem['Type'], order=mesh_vars.nGeo)
+        # meshio accesses them in their own ordering
+        # > need to reverse the mapping
+        mapLin    = {k: v for v, k in enumerate(linMap)}
         elemNodes = elem['Nodes']
-        for iNode in range(len(elemNodes)):
-            nodeCoords[nodeCount, :] = nodes[elemNodes[linMap[iNode]]]
-            nodeCount += 1
+
+        # Access the actual nodeCoords and reorder them
+        for iNode, nodeID in enumerate(elemNodes):
+            nodeCoords[nodeCount + mapLin[iNode], :] = nodes[nodeID]
+
+        nodeCount += len(elemNodes)
 
     return elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter
