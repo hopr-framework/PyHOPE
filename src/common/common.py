@@ -92,7 +92,7 @@ def InitCommon():
             try:
                 np_aff = len(os.sched_getaffinity(0))
             except AttributeError:
-                np_aff = 1
+                np_aff = os.cpu_count()
             np_mtp = min(np_req, np_aff)
 
     # If running under debugger, multiprocessing is not available

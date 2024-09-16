@@ -56,6 +56,7 @@ def DefineMesh():
     CreateIntArray( 'BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
     CreateRealArray('vv',           3, multiple=True, help='Vector for periodic BC')
+    CreateStr(      'filename',                       help='Name of external mesh file')
 
 
 def InitMesh():
@@ -88,6 +89,7 @@ def GenerateMesh():
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     from src.mesh.mesh_builtin import MeshCartesian
+    from src.mesh.mesh_external import MeshCGNS
     # ------------------------------------------------------
 
     hopout.separator()
@@ -96,6 +98,8 @@ def GenerateMesh():
     match mesh_vars.mode:
         case 1:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
+        case 3:  # External CGNS mesh
+            mesh = MeshCGNS()
         case _:  # Default
             hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
             traceback.print_stack(file=sys.stdout)
