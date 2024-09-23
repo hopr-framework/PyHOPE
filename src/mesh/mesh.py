@@ -56,7 +56,7 @@ def DefineMesh():
     CreateIntArray( 'BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
     CreateRealArray('vv',           3, multiple=True, help='Vector for periodic BC')
-    CreateStr(      'filename',                       help='Name of external mesh file')
+    CreateStr(      'filename',        multiple=True, help='Name of external mesh file')
 
 
 def InitMesh():

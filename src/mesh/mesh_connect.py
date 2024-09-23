@@ -327,7 +327,7 @@ def ConnectMesh():
         # trSide contains the Euclidean distance and the index of the
         # opposing side in the nbFaceSet
         if trSide[0] > tol:
-            hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
+            hopout.warning('Could not find an internal side within tolerance {}, exiting...'.format(tol))
             traceback.print_stack(file=sys.stdout)
             sys.exit()
 
@@ -420,8 +420,5 @@ def ConnectMesh():
     hopout.info(' Number of boundary sides : {:12d}'.format(nbcsides))
     hopout.info(' Number of periodic sides : {:12d}'.format(nperiodicsides))
     hopout.sep()
-
-    # Connect the remaining sides
-    # TODO: PERIODIC!
 
     hopout.info('CONNECT MESH DONE!')

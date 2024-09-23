@@ -146,10 +146,10 @@ def DefineIO():
 
     CreateSection('Output')
     CreateStr('ProjectName', help='Name of output files')
-    CreateIntFromString('OutputFormat', default=0, help='Mesh output format')
+    CreateIntFromString('OutputFormat', default=0    , help='Mesh output format')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_HDF5, name='HDF5')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_VTK , name='VTK')
-    CreateLogical(      'DebugVisu'   , default=0, help='Launch the GMSH GUI to see the results')
+    CreateLogical(      'DebugVisu'   , default=False, help='Launch the GMSH GUI to see the results')
 
 
 def InitIO():

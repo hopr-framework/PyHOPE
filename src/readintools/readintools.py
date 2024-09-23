@@ -59,6 +59,9 @@ def strtobool(val) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
         Raises ValueError if 'val' is anything else.
     """
+    if type(val) is bool:
+        return val
+
     val = val.lower()
     if val in ('y', 'yes', 't', 'true', 'on', '1'):
         return True
@@ -344,7 +347,7 @@ def GetIntFromStr(name, default=None, number=None) -> int:
                 value = int(value[0])
                 hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), '*CUSTOM')
 
-    return value
+    return int(value)
 
 
 def GetRealArray(name, default=None, number=None) -> np.ndarray:
