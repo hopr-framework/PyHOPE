@@ -50,6 +50,10 @@ sides : list                                     # [list of list] - Side    node
 HEXMAP: np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
 
 
+class CGNS:
+    regenarate_BCs: bool                         # Flag if CGNS needs BC regeneration
+
+
 class ELEM:
     type = {'tetra': 4, 'pyramid': 5, 'wedge': 5, 'hexahedron': 6}
 

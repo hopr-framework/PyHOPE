@@ -39,6 +39,52 @@ import numpy as np
 # ==================================================================================================================================
 
 
+def ElemTypes(num: int) -> dict[str, str]:
+    types = [{ 'ElemTypeCGNS': 'ElementTypeNull', 'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 0
+             { 'ElemTypeCGNS': 'ElementTypeUser', 'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 1
+             { 'ElemTypeCGNS': 'NODE',            'ElemTypeMeshIO': 'vertex',       'Nodes': 1  },  # 2
+             { 'ElemTypeCGNS': 'BAR_2',           'ElemTypeMeshIO': 'line',         'Nodes': 2  },  # 3
+             { 'ElemTypeCGNS': 'BAR_3',           'ElemTypeMeshIO': 'line3',        'Nodes': 3  },  # 4
+             { 'ElemTypeCGNS': 'TRI_3',           'ElemTypeMeshIO': 'triangle',     'Nodes': 3  },  # 5
+             { 'ElemTypeCGNS': 'TRI_6',           'ElemTypeMeshIO': 'triangle6',    'Nodes': 6  },  # 6
+             { 'ElemTypeCGNS': 'QUAD_4',          'ElemTypeMeshIO': 'quad',         'Nodes': 4  },  # 7
+             { 'ElemTypeCGNS': 'QUAD_8',          'ElemTypeMeshIO': 'quad8',        'Nodes': 8  },  # 8
+             { 'ElemTypeCGNS': 'QUAD_9',          'ElemTypeMeshIO': 'quad9',        'Nodes': 9  },  # 9
+             { 'ElemTypeCGNS': 'TETRA_4',         'ElemTypeMeshIO': 'tetra',        'Nodes': 4  },  # 10
+             { 'ElemTypeCGNS': 'TETRA_10',        'ElemTypeMeshIO': 'tetra10',      'Nodes': 10 },  # 11
+             { 'ElemTypeCGNS': 'PYRA_5',          'ElemTypeMeshIO': 'pyramid',      'Nodes': 5  },  # 12
+             { 'ElemTypeCGNS': 'PYRA_14',         'ElemTypeMeshIO': 'pyramid14',    'Nodes': 14 },  # 13
+             { 'ElemTypeCGNS': 'PENTA_6',         'ElemTypeMeshIO': 'wedge',        'Nodes': 6  },  # 14
+             { 'ElemTypeCGNS': 'PENTA_15',        'ElemTypeMeshIO': 'wedge15',      'Nodes': 15 },  # 15
+             { 'ElemTypeCGNS': 'PENTA_18',        'ElemTypeMeshIO': 'wedge18',      'Nodes': 18 },  # 16
+             { 'ElemTypeCGNS': 'HEXA_8',          'ElemTypeMeshIO': 'hexahedron',   'Nodes': 8  },  # 17
+             { 'ElemTypeCGNS': 'HEXA_20',         'ElemTypeMeshIO': 'hexahedron20', 'Nodes': 20 },  # 18
+             { 'ElemTypeCGNS': 'HEXA_27',         'ElemTypeMeshIO': 'hexahedron27', 'Nodes': 27 },  # 19
+             { 'ElemTypeCGNS': 'MIXED',           'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 20
+             { 'ElemTypeCGNS': 'PYRA_13',         'ElemTypeMeshIO': 'pyramid13',    'Nodes': 13 },  # 21
+             { 'ElemTypeCGNS': 'NGON_n',          'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 22
+             { 'ElemTypeCGNS': 'NFACE_n',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 23
+             { 'ElemTypeCGNS': 'BAR_4',           'ElemTypeMeshIO': 'line4',        'Nodes': 4  },  # 24
+             { 'ElemTypeCGNS': 'TRI_9',           'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 25
+             { 'ElemTypeCGNS': 'TRI_10',          'ElemTypeMeshIO': 'triangle10',   'Nodes': 10 },  # 26
+             { 'ElemTypeCGNS': 'QUAD_12',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 27
+             { 'ElemTypeCGNS': 'QUAD_16',         'ElemTypeMeshIO': 'quad16',       'Nodes': 16 },  # 28
+             { 'ElemTypeCGNS': 'TETRA_16',        'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 29
+             { 'ElemTypeCGNS': 'TETRA_20',        'ElemTypeMeshIO': 'tetra20',      'Nodes': 20 },  # 30
+             { 'ElemTypeCGNS': 'PYRA_21',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 31
+             { 'ElemTypeCGNS': 'PYRA_29',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 32
+             { 'ElemTypeCGNS': 'PYRA_30',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 33
+             { 'ElemTypeCGNS': 'PENTA_24',        'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 34
+             { 'ElemTypeCGNS': 'PENTA_38',        'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 35
+             { 'ElemTypeCGNS': 'PENTA_40',        'ElemTypeMeshIO': 'wedge40',      'Nodes': 40 },  # 36
+             { 'ElemTypeCGNS': 'HEXA_32',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 37
+             { 'ElemTypeCGNS': 'HEXA_56',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 38
+             { 'ElemTypeCGNS': 'HEXA_64',         'ElemTypeMeshIO': 'hexahedron64', 'Nodes': 64 },  # 39
+             { 'ElemTypeCGNS': 'Null',            'ElemTypeMeshIO': 'hexahedron24', 'Nodes': 24 },  # 40
+]
+    return types[num]
+
+
 def spiral_matrix(n):
     """ Print a spiral matrix of order n
         > https://rosettacode.org/wiki/Spiral_matrix#Simple_solution
@@ -209,4 +255,3 @@ def genHEXMAPCGNS(order: int) -> None:
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
     mesh_vars.HEXMAP = tensor
-

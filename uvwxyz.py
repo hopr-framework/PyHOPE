@@ -47,7 +47,7 @@ def main():
     from src.common.common import DefineCommon, InitCommon
     from src.common.common_vars import Common
     from src.io.io import IO, DefineIO, InitIO
-    from src.mesh.mesh import DefineMesh, GenerateMesh, InitMesh
+    from src.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
     from src.mesh.mesh_connect import ConnectMesh
     from src.mesh.mesh_sides import GenerateSides
     from src.mesh.mesh_sort import SortMesh
@@ -97,8 +97,9 @@ def main():
 
     # Generate the actual mesh
     GenerateMesh()
-    SortMesh()
+    # SortMesh()
     GenerateSides()
+    RegenerateMesh()
     ConnectMesh()
 
     # Output the mesh

@@ -113,32 +113,38 @@ def object_meth(object):
     return methods
 
 
-def find_key(seq, item):
-    """ Find the first occurance of a a key in dictionary
+def find_key(dict: dict, item):
+    """ Find the first occurance of a key in dictionary
     """
     if type(item) is np.ndarray:
-        for key, val in seq.items():
+        for key, val in dict.items():
             if np.all(val == item): return key
     else:
-        for key, val in seq.items():
+        for key, val in dict.items():
             if        val == item : return key
     return None
 
 
-def find_keys(seq, item):
-    """ Find all occurance of a a key in dictionary
+def find_keys(dict: dict, item):
+    """ Find all occurance of a key in dictionary
     """
     if type(item) is np.ndarray:
-        keys = [key for key, val in seq.items() if np.all(val == item)]
+        keys = [key for key, val in dict.items() if np.all(val == item)]
         if len(keys) > 0: return keys
     else:
-        keys = [key for key, val in seq.items() if        val == item ]
+        keys = [key for key, val in dict.items() if        val == item ]
         if len(keys) > 0: return keys
     return None
 
 
+def find_value(dict, item):
+    """ Find key by value in dictionary
+    """
+    return dict.keys()[dict.values().index(item)]
+
+
 def find_index(seq, item) -> int:
-    """ Find the first occurances of a a key in a list
+    """ Find the first occurances of a key in a list
     """
     if type(seq) is np.ndarray:
         seq = seq.tolist()
@@ -153,7 +159,7 @@ def find_index(seq, item) -> int:
 
 
 def find_indices(seq, item):
-    """ Find all occurances of a a key in a list
+    """ Find all occurances of a key in a list
     """
     if type(seq) is np.ndarray:
         seq = seq.tolist()

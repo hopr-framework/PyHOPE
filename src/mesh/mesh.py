@@ -108,3 +108,33 @@ def GenerateMesh():
     mesh_vars.mesh = mesh
 
     hopout.info('GENERATE MESH DONE!')
+
+
+def RegenerateMesh():
+    """ Finish missing mesh information such as BCs
+    """
+    # Local imports ----------------------------------------
+    from src.mesh.mesh_external import BCCGNS
+    import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
+    # ------------------------------------------------------
+
+    hopout.separator()
+    hopout.info('REGENERATE MESH...')
+
+    match mesh_vars.mode:
+        case 1:  # Internal Cartesian Mesh
+            mesh = mesh_vars.mesh
+        case 3:  # External CGNS mesh
+            if mesh_vars.CGNS.regenarate_BCs:
+                mesh = BCCGNS()
+            else:
+                mesh = mesh_vars.mesh
+        case _:  # Default
+            hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit()
+
+    mesh_vars.mesh = mesh
+
+    hopout.info('REGENERATE MESH DONE!')

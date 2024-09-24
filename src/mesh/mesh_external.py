@@ -25,14 +25,18 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import copy
 import os
 import sys
+import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gmsh
 import h5py
+import numpy as np
 import pygmsh
+from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,8 +50,6 @@ def MeshCGNS():
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
-    from src.common.common_vars import Common
-    from.src.io.io_cgns import ElemTypes
     from src.io.io_vars import debugvisu
     from src.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
@@ -90,7 +92,7 @@ def MeshCGNS():
     if len(vvs) > 0:
         hopout.sep()
 
-    gmsh_needs_bcs = False
+    mesh_vars.CGNS.regenarate_BCs = False
 
     fnames = CountOption('filename')
     for iName in range(fnames):
@@ -138,7 +140,7 @@ def MeshCGNS():
                 entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
                 gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
         else:
-            gmsh_needs_bcs = True
+            mesh_vars.CGNS.regenarate_BCs = True
 
         gmsh.model.geo.synchronize()
 
@@ -150,5 +152,119 @@ def MeshCGNS():
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
+
+    return mesh
+
+
+def BCCGNS():
+    """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
+        > Add them here manually to the meshIO object
+    """
+    # Local imports ----------------------------------------
+    import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
+    from src.common.common import find_index
+    from src.common.common_vars import Common
+    from src.io.io_cgns import ElemTypes
+    from src.readintools.readintools import CountOption, GetStr
+    # ------------------------------------------------------
+
+    mesh    = mesh_vars.mesh
+    # elems   = mesh_vars.elems
+    sides   = mesh_vars.sides
+    bcs     = mesh_vars.bcs
+
+    # All non-connected sides (technically all) are potential BC sides
+    nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
+
+    # Collapse all opposing corner nodes into an [:, 12] array
+    nbCorners  = [s['Corners'] for s in nConnSide]
+    nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+    nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+    del nbCorners
+
+    # Build a k-dimensional tree of all points on the opposing side
+    stree = spatial.KDTree(nbPoints)
+
+    # TODO: SET ANOTHER TOLERANCE
+    tol = 1.E-10
+
+    # Now set the missing CGNS boundaries
+    fnames = CountOption('filename')
+    for iName in range(fnames):
+        fname = GetStr('filename', number=iName)
+        fname = os.path.join(os.getcwd(), fname)
+        # Check if the file is using HDF5 format internally
+        if not h5py.is_hdf5(fname):
+            hopout.warning('{} only support HDF5 CGNS files not following GMSH standard'.format(Common.program))
+            sys.exit()
+            # TODO: Convert ADF to HDF automatically
+
+        with h5py.File(fname, mode='r') as f:
+            if 'CGNSLibraryVersion' not in f.keys():
+                hopout.warning('CGNS file does not contain library version header')
+                sys.exit()
+
+            base = f['Base']
+
+            for baseNum, baseZone in enumerate(base.keys()):
+                # Ignore the base dataset
+                if baseZone.strip() == 'data':
+                    continue
+
+                zone = base[baseZone]
+                # Check if the zone contains BCs
+                if 'ZoneBC' not in zone.keys():
+                    continue
+
+                # Load the CGNS points
+                nPoints = int(zone[' data'][0])
+                points  = [np.zeros(3, dtype='f8') for _ in range(nPoints)]
+
+                for pointNum, point in enumerate(points):
+                    point[0] = float(zone['GridCoordinates']['CoordinateX'][' data'][pointNum])
+                    point[1] = float(zone['GridCoordinates']['CoordinateY'][' data'][pointNum])
+                    point[2] = float(zone['GridCoordinates']['CoordinateZ'][' data'][pointNum])
+
+                # Loop over all BCs
+                zoneBCs = [s for s in zone['ZoneBC'].keys() if s.strip() != 'innerfaces']
+
+                for zoneBC in zoneBCs:
+                    bcName = zoneBC[3:]
+                    bcID   = find_index([s['Name'] for s in bcs], bcName)
+
+                    cgnsBC = zone[zoneBC]['ElementConnectivity'][' data']
+
+                    # Read the surface elements, one at a time
+                    count  = 0
+
+                    # Loop over all elements and get the type
+                    while count < cgnsBC.shape[0]:
+
+                        elemType = ElemTypes(cgnsBC[count])
+
+                        # Map the unique quad sides to our non-unique elem sides
+                        corners  = cgnsBC[count+1:count+elemType['Nodes']+1]
+                        # BCpoints = copy.copy(points[corners])
+                        BCpoints = [points[s-1] for s in corners]
+                        BCpoints = np.sort(BCpoints, axis=0)
+                        BCpoints = BCpoints.flatten()
+
+                        # Query the try for the opposing side
+                        trSide = copy.copy(stree.query(BCpoints))
+                        del BCpoints
+
+                        # trSide contains the Euclidean distance and the index of the
+                        # opposing side in the nbFaceSet
+                        if trSide[0] > tol:
+                            hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
+                            traceback.print_stack(file=sys.stdout)
+                            sys.exit()
+
+                        sideID = int(trSide[1])
+                        sides[sideID].update({'BCID': bcID})
+
+                        # Move to the next element
+                        count += int(elemType['Nodes']) + 1
 
     return mesh
