@@ -89,7 +89,7 @@ def GenerateMesh():
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     from src.mesh.mesh_builtin import MeshCartesian
-    from src.mesh.mesh_external import MeshCGNS
+    from src.mesh.mesh_external import MeshExternal
     # ------------------------------------------------------
 
     hopout.separator()
@@ -99,7 +99,7 @@ def GenerateMesh():
         case 1:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
         case 3:  # External CGNS mesh
-            mesh = MeshCGNS()
+            mesh = MeshExternal()
         case _:  # Default
             hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
             traceback.print_stack(file=sys.stdout)

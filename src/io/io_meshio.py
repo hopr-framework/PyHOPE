@@ -39,60 +39,138 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def edgePointMESHIO(order: int, edge: int, node: int) -> np.ndarray:
-    # TODO: SOMEONE EXPLAIN THIS LOGIC TO ME
+def facePointMatrixFill(matrix, start: int, end: int, count: int, orient: bool):
+    """ Fill the 2D matrix representing the inner points of each faces
+    """
+    if end <= start:
+        return matrix, count
+
+    # Fill the corner nodes first
+    matrix[start, start] = count
+    count += 1
+    if orient:
+        matrix[start, end  ] = count
+        count += 1
+        matrix[end  , end  ] = count
+        count += 1
+        matrix[end  , start] = count
+        count += 1
+    else:
+        matrix[end  , start] = count
+        count += 1
+        matrix[end  , end  ] = count
+        count += 1
+        matrix[start, end  ] = count
+        count += 1
+
+    # Now, fill the edges
+    if orient:
+        for i in range(start+1, end):
+            matrix[start, i    ] = count
+            count += 1
+        for i in range(start+1, end):
+            matrix[i    , end  ] = count
+            count += 1
+        for i in range(end-1, start, -1):
+            matrix[end  , i    ] = count
+            count += 1
+        for i in range(end-1, start, -1):
+            matrix[i    , start] = count
+            count += 1
+    else:
+        for i in range(start+1, end):
+            matrix[i    , start] = count
+            count += 1
+        for i in range(start+1, end):
+            matrix[end  , i    ] = count
+            count += 1
+        for i in range(end-1, start, -1):
+            matrix[i    , end  ] = count
+            count += 1
+        for i in range(end-1, start, -1):
+            matrix[start, i    ] = count
+            count += 1
+
+    return matrix, count
+
+
+def facePointMatrix(order: int, pos: int, orient: bool = True) -> np.ndarray:
+    """ Return the 2D index of the inner points of each faces
+    """
+    # Create a matrix of the required size
+    matrix = np.zeros((order, order), dtype=int)
+
+    count  = 0
+    # Fill the matrix recursively
+    for i in range(np.floor(order/2).astype(int)):
+        matrix, count = facePointMatrixFill(matrix, i, order-i-1, count, orient)
+
+    # Fill the middle point if uneven order
+    if order % 2 != 0:
+        matrix[np.floor(order/2).astype(int), np.floor(order/2).astype(int)] = count
+    return np.argwhere(matrix == pos)[0]
+
+
+def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> np.ndarray:
+    """ Traverse over all 12 edges of the hexahedron
+    """
     match edge:
         case 0:
-            return np.array([node , 0    , 0    ], dtype=int)
+            return np.array([node          , start , start  ], dtype=int)
         case 1:
-            return np.array([0    , node , 0    ], dtype=int)
+            return np.array([start         , node  , start  ], dtype=int)
         case 2:
-            return np.array([0    , 0    , node ], dtype=int)
+            return np.array([start         , start , node   ], dtype=int)
         case 3:
-            return np.array([order, node , 0    ], dtype=int)
+            return np.array([end           , node  , start  ], dtype=int)
         case 4:
-            return np.array([order, 0    , node ], dtype=int)
+            return np.array([end           , start , node   ], dtype=int)
         case 5:
-            return np.array([node , order, 0    ], dtype=int)
+            return np.array([end+start-node, end   , start  ], dtype=int)
         case 6:
-            return np.array([order, order, node ], dtype=int)
+            return np.array([end           , end   , node   ], dtype=int)
         case 7:
-            return np.array([0    , order, node ], dtype=int)
+            return np.array([start         , end   , node   ], dtype=int)
         case 8:
-            return np.array([node , 0    , order], dtype=int)
+            return np.array([node          , start , end    ], dtype=int)
         case 9:
-            return np.array([0    , node , order], dtype=int)
+            return np.array([start         , node  , end    ], dtype=int)
         case 10:
-            return np.array([order, node , order], dtype=int)
+            return np.array([end           , node  , end    ], dtype=int)
         case 11:
-            return np.array([node , order, order], dtype=int)
+            return np.array([end+start-node, end   , end    ], dtype=int)
         case _:
             sys.exit()
 
 
-def facePointMESHIO(order: int, face: int, iNode: int, jNode: int) -> np.ndarray:
-    # TODO: SOMEONE EXPLAIN THIS LOGIC TO ME
+def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
+    """ Translate the 1D position of each of the 6 hexahedron faces to each 2D index
+    """
     match face:
         case 0:
-            return np.array([iNode , jNode , 0     ], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=True)
+            return np.array([start+index[0]+1 , start+index[1]+1 , start           ], dtype=int)
         case 1:
-            return np.array([iNode , 0     , jNode ], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=False)
+            return np.array([start+index[0]+1 , start            , start+index[1]+1], dtype=int)
         case 2:
-            return np.array([0     , iNode , jNode ], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=True)
+            return np.array([start            , start+index[0]+1 , start+index[1]+1], dtype=int)
         case 3:
-            return np.array([order , iNode , jNode ], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=False)
+            return np.array([end              , start+index[0]+1 , start+index[1]+1], dtype=int)
         case 4:
-            return np.array([iNode , order , jNode ], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=False)
+            return np.array([end  -index[0]-1 , end              , start+index[1]+1], dtype=int)
         case 5:
-            return np.array([iNode , jNode , order ], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=False)
+            return np.array([start+index[0]+1 , start+index[1]+1 , end             ], dtype=int)
         case _:
             sys.exit()
 
 
 def genHEXMAPMESHIO(order: int) -> None:
     """ MESHIO -> IJK ordering for high-order hexahedrons
-        > Losely based on [Gmsh] "generatePointsHexCGNS"
-        > [Jens Ulrich Kreber] "paraview-scripts/node_ordering.py"
     """
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
@@ -103,16 +181,6 @@ def genHEXMAPMESHIO(order: int) -> None:
         map[0, 0, 0] = 0
         mesh_vars.HEXMAP = map
         return None
-
-    # Principal vertices
-    map[0      , 0      , 0      ] = 1
-    map[order-1, 0      , 0      ] = 2
-    map[order-1, order-1, 0      ] = 3
-    map[0      , order-1, 0      ] = 4
-    map[0      , 0      , order-1] = 5
-    map[order-1, 0      , order-1] = 6
-    map[order-1, order-1, order-1] = 7
-    map[0      , order-1, order-1] = 8
 
     if order == 2:
         # Python indexing, 1 -> 0
@@ -127,33 +195,43 @@ def genHEXMAPMESHIO(order: int) -> None:
         mesh_vars.HEXMAP = tensor
         return None
 
-    count = 8
-    # Loop over all edges
-    for iEdge in range(12):
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple
-            count += 1
-            edge  = edgePointMESHIO(order-1, iEdge, iNode)
-            index = (int(edge[0]), int(edge[1]), int(edge[2]))
-            map[index] = count
+    count = 0
 
-    # Internal points of upstanding faces
-    for iFace in range(6):
-        for j in range(1, order-1):
-            for i in range(1, order-1):
-                # Assemble mapping to tuple, top  quadrangle -> z = order
+    # Fill the cube recursively from the outside to the inside
+    for iOrder in range(np.floor(order/2).astype(int)):
+        # Principal vertices
+        map[iOrder         , iOrder         , iOrder        ] = count+1
+        map[order-iOrder-1 , iOrder         , iOrder        ] = count+2
+        map[order-iOrder-1 , order-iOrder-1 , iOrder        ] = count+3
+        map[iOrder         , order-iOrder-1 , iOrder        ] = count+4
+        map[iOrder         , iOrder         , order-iOrder-1] = count+5
+        map[order-iOrder-1 , iOrder         , order-iOrder-1] = count+6
+        map[order-iOrder-1 , order-iOrder-1 , order-iOrder-1] = count+7
+        map[iOrder         , order-iOrder-1 , order-iOrder-1] = count+8
+        count += 8
+
+        # Loop over all edges
+        for iEdge in range(12):
+            for iNode in range(iOrder+1, order-iOrder-1):
+                # Assemble mapping to tuple
                 count += 1
-                edge  = facePointMESHIO(order-1, iFace, i, j)
+                edge  = edgePointMESHIO(iOrder, order-iOrder-1, iEdge, iNode)
                 index = (int(edge[0]), int(edge[1]), int(edge[2]))
                 map[index] = count
 
-    # Internal volume points as a tensor product
-    for k in range(1, order-1):
-        for j in range(1, order-1):
-            for i in range(1, order-1):
+        # Internal points of upstanding faces
+        for iFace in range(6):
+            for pos in range((order-2*iOrder-2)**2):
+                # Assemble mapping to tuple, top  quadrangle -> z = order
                 count += 1
-                index = (i  , j  , k  )
+                index = facePointMESHIO(iOrder, order-iOrder-1, iFace, pos)
+                index = (int(index[0]), int(index[1]), int(index[2]))
                 map[index] = count
+
+    # Fill the middle point if uneven order
+    if order % 2 != 0:
+        index = (np.floor(order/2).astype(int), np.floor(order/2).astype(int), np.floor(order/2).astype(int))
+        map[index] = count+1
 
     # Python indexing, 1 -> 0
     map -= 1
@@ -164,5 +242,5 @@ def genHEXMAPMESHIO(order: int) -> None:
         for j in range(order):
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
-    mesh_vars.HEXMAP = tensor
 
+    mesh_vars.HEXMAP = tensor

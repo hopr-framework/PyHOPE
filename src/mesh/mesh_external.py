@@ -46,7 +46,7 @@ from scipy import spatial
 # ==================================================================================================================================
 
 
-def MeshCGNS():
+def MeshExternal():
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
@@ -102,15 +102,15 @@ def MeshCGNS():
         # get file extension
         _, ext = os.path.splitext(fname)
 
+        gmsh.option.setNumber('Mesh.RecombineAll', 1)
         # if not GMSH format convert
-        if ext != '.msh':
+        if ext == '.cgns':
             # Setup GMSH to import required data
             # gmsh.option.setNumber('Mesh.SaveAll', 1)
-            gmsh.option.setNumber('Mesh.RecombineAll', 1)
             gmsh.option.setNumber('Mesh.CgnsImportIgnoreBC', 0)
             gmsh.option.setNumber('Mesh.CgnsImportIgnoreSolution', 1)
 
-            gmsh.merge(fname)
+        gmsh.merge(fname)
 
         # read in boundary conditions from cgns file as gmsh is not capable of reading vertex based boundaries
         # TODO: ACTUALLY NOT NEEDED FOR ANSA CGNS
@@ -131,16 +131,17 @@ def MeshCGNS():
         # Check if GMSH read all BCs
         # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
         # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
-        if nBCs_CGNS is nBCs:
-            for entDim, entTag in entities:
-                # Surfaces are dim-1
-                if entDim == 3:
-                    continue
+        if ext == '.cgns':
+            if nBCs_CGNS is nBCs:
+                for entDim, entTag in entities:
+                    # Surfaces are dim-1
+                    if entDim == 3:
+                        continue
 
-                entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
-                gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
-        else:
-            mesh_vars.CGNS.regenarate_BCs = True
+                    entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
+                    gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
+            else:
+                mesh_vars.CGNS.regenarate_BCs = True
 
         gmsh.model.geo.synchronize()
 
