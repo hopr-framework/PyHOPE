@@ -42,7 +42,7 @@ from scipy import spatial
 # ==================================================================================================================================
 
 
-def flip(side, nbside):
+def flip(side: list, nbside: list) -> int:
     """ Determines the flip of the side-to-side connection
         flip = 1 : 1st node of neighbor side = 1st node of side
         flip = 2 : 2nd node of neighbor side = 1st node of side
@@ -55,7 +55,7 @@ def flip(side, nbside):
     return find_index(nbside, side[0])
 
 
-def ConnectMesh():
+def ConnectMesh() -> None:
     # Local imports ----------------------------------------
     import src.io.io_vars as io_vars
     import src.mesh.mesh_vars as mesh_vars

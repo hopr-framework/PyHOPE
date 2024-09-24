@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -138,7 +139,7 @@ def ELEMTYPE(elemType: int) -> str:
             sys.exit()
 
 
-def DefineIO():
+def DefineIO() -> None:
     # Local imports ----------------------------------------
     from src.io.io_vars import MeshFormat
     from src.readintools.readintools import CreateIntFromString, CreateIntOption, CreateLogical, CreateSection, CreateStr
@@ -152,7 +153,7 @@ def DefineIO():
     CreateLogical(      'DebugVisu'   , default=False, help='Launch the GMSH GUI to see the results')
 
 
-def InitIO():
+def InitIO() -> None:
     # Local imports ----------------------------------------
     import src.io.io_vars as io_vars
     import src.output.output as hopout
@@ -170,7 +171,7 @@ def InitIO():
     hopout.info('INIT OUTPUT DONE!')
 
 
-def IO():
+def IO() -> None:
     # Local imports ----------------------------------------
     import src.io.io_vars as io_vars
     import src.mesh.mesh_vars as mesh_vars
@@ -247,7 +248,7 @@ def IO():
     hopout.info('OUTPUT MESH DONE!')
 
 
-def getMeshInfo():
+def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------

@@ -85,13 +85,13 @@ def ElemTypes(num: int) -> dict[str, str]:
     return types[num]
 
 
-def spiral_matrix(n):
+def spiral_matrix(n: int) -> np.ndarray:
     """ Print a spiral matrix of order n
         > https://rosettacode.org/wiki/Spiral_matrix#Simple_solution
     """
     m = [[0] * n for _ in range(n)]
     dx, dy  = [0, 1, 0, -1], [1, 0, -1, 0]
-    x, y, c =  0,-1, 1
+    x, y, c =  0, -1, 1
     for i in range(n + n - 1):
         for j in range((n + n - i) // 2):
             x += dx[i % 4]

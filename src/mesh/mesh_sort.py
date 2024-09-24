@@ -25,8 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import os
 import sys
+from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,20 +41,14 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def object_meth(object):
-    methods = [method_name for method_name in dir(object)
-               if '__' not in method_name]
-    return methods
-
-
-def Coords2Int(coords, spacing, xmin, xmax) -> np.ndarray:
+def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.ndarray:
     """ Compute the integer discretization in each direction
     """
     disc = np.round((coords - xmin) * spacing)
     return disc
 
 
-def centeroidnp(coords) -> np.ndarray:
+def centeroidnp(coords: np.ndarray) -> np.ndarray:
     """ Compute the centroid (barycenter) of a set of coordinates
     """
     length = coords.shape[0]
@@ -64,7 +58,7 @@ def centeroidnp(coords) -> np.ndarray:
     return np.array([sum_x/length, sum_y/length, sum_z/length])
 
 
-def SFCResolution(kind, xmin, xmax):
+def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, np.ndarray]:
     """ Compute the resolution of the SFC for the given bounding box
         and the given integer kind
     """
@@ -73,10 +67,10 @@ def SFCResolution(kind, xmin, xmax):
     intfact = 2**nbits-1
     spacing = np.ceil(intfact/blen)
 
-    return np.ceil(nbits), spacing
+    return np.ceil(nbits).astype(int), spacing
 
 
-def SortMesh():
+def SortMesh() -> None:
     # Local imports ----------------------------------------
     from hilbertcurve.hilbertcurve import HilbertCurve
     from src.common.common_vars import np_mtp
@@ -132,7 +126,7 @@ def SortMesh():
         ioelems = mesh.get_cells_type(elemType)
 
         for elemID, cell in enumerate(ioelems):
-            elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin, xmax)
+            elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin)
 
     # Generate the space-filling curve and order elements along it
     hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)

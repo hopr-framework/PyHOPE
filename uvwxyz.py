@@ -38,7 +38,7 @@ import time
 # ==================================================================================================================================
 
 
-def main():
+def main() -> None:
     """ Main routine of UVWXYZ
     """
     # Local imports ----------------------------------------
@@ -97,7 +97,7 @@ def main():
 
     # Generate the actual mesh
     GenerateMesh()
-    # SortMesh()
+    SortMesh()
     GenerateSides()
     RegenerateMesh()
     ConnectMesh()

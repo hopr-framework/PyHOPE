@@ -39,7 +39,7 @@ import traceback
 # ==================================================================================================================================
 
 
-def DefineMesh():
+def DefineMesh() -> None:
     """ Define general options for mesh generation / readin
     """
     # Local imports ----------------------------------------
@@ -59,7 +59,7 @@ def DefineMesh():
     CreateStr(      'filename',        multiple=True, help='Name of external mesh file')
 
 
-def InitMesh():
+def InitMesh() -> None:
     """ Readin general option for mesh generation / readin
     """
     # Local imports ----------------------------------------
@@ -80,7 +80,7 @@ def InitMesh():
     hopout.info('INIT MESH DONE!')
 
 
-def GenerateMesh():
+def GenerateMesh() -> None:
     """ Generate the mesh
         Mode 1 - Use internal mesh generation
         Mode 2 - Readin external mesh through MeshIO
@@ -110,7 +110,7 @@ def GenerateMesh():
     hopout.info('GENERATE MESH DONE!')
 
 
-def RegenerateMesh():
+def RegenerateMesh() -> None:
     """ Finish missing mesh information such as BCs
     """
     # Local imports ----------------------------------------

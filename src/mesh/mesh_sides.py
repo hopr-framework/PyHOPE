@@ -39,7 +39,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def GenerateSides():
+def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     from src.mesh.mesh_common import face_to_corner, faces

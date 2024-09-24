@@ -39,7 +39,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def edge_to_dir(edge):
+def edge_to_dir(edge: int) -> int:
     match edge:
         case 0 | 2 |  4 |  6:
             return 0
@@ -47,9 +47,12 @@ def edge_to_dir(edge):
             return 1
         case 8 | 9 | 10 | 11:
             return 2
+        case _:
+            print('Error in edge_to_dir, unknown edge')
+            sys.exit()
 
 
-def faces():
+def faces() -> list:
     return ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
 
 

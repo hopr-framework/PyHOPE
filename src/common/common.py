@@ -40,7 +40,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def DebugEnabled():
+def DebugEnabled() -> bool:
     """ Check if program runs with debugger attached
         > https://stackoverflow.com/a/77627075/23851165
     """
@@ -59,7 +59,7 @@ def DebugEnabled():
     return False
 
 
-def DefineCommon():
+def DefineCommon() -> None:
     """ Define general options for the entire program
     """
     # Local imports ----------------------------------------
@@ -69,7 +69,7 @@ def DefineCommon():
     CreateInt(      'nThreads',        default=4,     help='Number of threads for multiprocessing')
 
 
-def InitCommon():
+def InitCommon() -> None:
     """ Readin general option for the entire program
     """
     # Local imports ----------------------------------------
@@ -92,7 +92,7 @@ def InitCommon():
             try:
                 np_aff = len(os.sched_getaffinity(0))
             except AttributeError:
-                np_aff = os.cpu_count()
+                np_aff = os.cpu_count() or 1
             np_mtp = min(np_req, np_aff)
 
     # If running under debugger, multiprocessing is not available
@@ -107,33 +107,37 @@ def InitCommon():
 
 
 # > https://stackoverflow.com/a/5419576/23851165
-def object_meth(object):
-    methods = [method_name for method_name in dir(object)
-               if '__' not in method_name]
-    return methods
+# def object_meth(object) -> list:
+#     methods = [method_name for method_name in dir(object)
+#                if '__' not in method_name]
+#     return methods
 
 
-def find_key(dict: dict, item):
+def find_key(dict: dict, item) -> int | None:
     """ Find the first occurance of a key in dictionary
     """
     if type(item) is np.ndarray:
         for key, val in dict.items():
-            if np.all(val == item): return key
+            if np.all(val == item):
+                return key
     else:
         for key, val in dict.items():
-            if        val == item : return key
+            if        val == item :
+                return key
     return None
 
 
-def find_keys(dict: dict, item):
+def find_keys(dict: dict, item) -> list | None:
     """ Find all occurance of a key in dictionary
     """
     if type(item) is np.ndarray:
         keys = [key for key, val in dict.items() if np.all(val == item)]
-        if len(keys) > 0: return keys
+        if len(keys) > 0:
+            return keys
     else:
         keys = [key for key, val in dict.items() if        val == item ]
-        if len(keys) > 0: return keys
+        if len(keys) > 0:
+            return keys
     return None
 
 
@@ -151,14 +155,16 @@ def find_index(seq, item) -> int:
 
     if type(item) is np.ndarray:
         for index, val in enumerate(seq):
-            if np.all(val == item): return index
+            if np.all(val == item):
+                return index
     else:
         for index, val in enumerate(seq):
-            if        val == item : return index
+            if        val == item :
+                return index
     return -1
 
 
-def find_indices(seq, item):
+def find_indices(seq, item) -> list:
     """ Find all occurances of a key in a list
     """
     if type(seq) is np.ndarray:

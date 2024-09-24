@@ -24,7 +24,6 @@
 # ==================================================================================================================================
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
-# import os
 import sys
 import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -53,7 +52,7 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strtobool(val) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
+def strtobool(val: int | bool | str) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
         True values  are 'y', 'yes', 't', 'true', 'on', and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
@@ -61,8 +60,11 @@ def strtobool(val) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """
     if type(val) is bool:
         return val
+    if type(val) is int:
+        val = str(val)
+    if type(val) is str:
+        val = val.lower()
 
-    val = val.lower()
     if val in ('y', 'yes', 't', 'true', 'on', '1'):
         return True
     elif val in ('n', 'no', 'f', 'false', 'off', '0'):

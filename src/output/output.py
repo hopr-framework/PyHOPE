@@ -50,7 +50,7 @@ class Colors:
     END = '\033[0m'
 
 
-def header(program, version, commit, length=STD_LENGTH):
+def header(program: str, version: str, commit: str, length: int = STD_LENGTH) -> None:
     """ Print big header with program name and logo to console.
 
         Args:
@@ -65,7 +65,7 @@ def header(program, version, commit, length=STD_LENGTH):
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
 
 
-def banner(string, length=STD_LENGTH):
+def banner(string: str, length: int = STD_LENGTH) -> None:
     """ Print the input `string` in a banner-like output.
 
         Args:
@@ -77,7 +77,7 @@ def banner(string, length=STD_LENGTH):
     print(Colors.BANNERA + '='*length + Colors.END)
 
 
-def small_banner(string, length=STD_LENGTH):
+def small_banner(string: str, length: int = STD_LENGTH) -> None:
     """ Print the input `string` in a small banner-like output.
 
         Args:
@@ -89,7 +89,7 @@ def small_banner(string, length=STD_LENGTH):
     print(Colors.BANNERB + '-'*length + Colors.END)
 
 
-def warning(string):
+def warning(string: str) -> None:
     """ Print the input `string` as a warning with the corresponding color.
 
         Args:
@@ -99,21 +99,21 @@ def warning(string):
     print(Colors.WARN + '\n !! '+string+' !! \n'+Colors.END)
 
 
-def sep(length=5):
+def sep(length: int = 5) -> None:
     print('├' + '─'*(length-1))
 
 
-def separator(length=46):
+def separator(length: int = 46) -> None:
     print('├' + '─'*(length-1))
 
 
-def end(time, length=STD_LENGTH):
+def end(time: float, length: int = STD_LENGTH) -> None:
     print('┢' + '━'*(length-1))
     print('┃ UVWXYZ completed in [{:.2f} sec]'.format(time))
     print('┗' + '━'*(length-1))
 
 
-def info(string, newline=False):
+def info(string: str, newline=False) -> None:
     """ Print the input `string` as generic output without special formatting.
 
         Args:
@@ -126,7 +126,7 @@ def info(string, newline=False):
         print('│', string)
 
 
-def routine(string, newline=False):
+def routine(string: str, newline=False) -> None:
     """ Print the input `string` as generic output without special formatting.
 
         Args:
@@ -139,7 +139,7 @@ def routine(string, newline=False):
         print('├──', string)
 
 
-def printoption(option, value, status, length=31):
+def printoption(option: str, value: str, status: str, length: int = 31) -> None:
     """ Print the input `string` as option string
 
         Args:

@@ -42,21 +42,21 @@ DEF_LENGTH = 20
 # ==================================================================================================================================
 
 
-def info(string, newline=False):
+def info(string: str, newline: bool = False) -> None:
     if newline:
         print('\n!', string)
     else:
         print('!', string)
 
 
-def separator(length=STD_LENGTH):
+def separator(length: int = STD_LENGTH) -> str:
     return '!' + '-'*(length-1)
 
 
 class CommandLine:
     """ Parse command line arguments, both explicit [*.ini] and flags [--]
     """
-    def __init__(self, argv, name, version, commit):
+    def __init__(self, argv, name: str, version: str, commit: str) -> None:
         # Local imports ----------------------------------------
         import src.config.config as config
         from src.output.output import Colors
@@ -116,5 +116,5 @@ class CommandLine:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def helpjoin(self, end):
+    def helpjoin(self, end) -> None:
         self.help = os.linesep.join([self.help, end])

@@ -34,6 +34,7 @@ import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gmsh
 import h5py
+import meshio
 import numpy as np
 import pygmsh
 from scipy import spatial
@@ -46,7 +47,7 @@ from scipy import spatial
 # ==================================================================================================================================
 
 
-def MeshExternal():
+def MeshExternal() -> meshio._mesh.Mesh:
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
@@ -157,7 +158,7 @@ def MeshExternal():
     return mesh
 
 
-def BCCGNS():
+def BCCGNS() -> meshio._mesh.Mesh:
     """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
         > Add them here manually to the meshIO object
     """
