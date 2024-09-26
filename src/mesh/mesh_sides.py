@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
 import string
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -42,7 +43,7 @@ import numpy as np
 def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
-    from src.mesh.mesh_common import face_to_corner, faces
+    from src.mesh.mesh_common import face_to_cgns, faces
     # ------------------------------------------------------
 
     mesh   = mesh_vars.mesh
@@ -79,11 +80,11 @@ def GenerateSides() -> None:
 
             # Create the sides
             for iSide in range(nSides, nSides+nIOSides):
-                sides[iSide]['Type'  ] = 104  # FIXME: THIS NEEDS TREATMENT FOR NON-HEXAS
+                sides[iSide]['Type'  ] = 4  # FIXME: THIS NEEDS TREATMENT FOR NON-HEXAS
 
             # Assign nodes to sides, CGNS format
             for index, face in enumerate(faces()):
-                corners = [ioelems[iElem][s] for s in face_to_corner(face)]
+                corners = [ioelems[iElem][s] for s in face_to_cgns(face)]
                 sides[sCount].update({'ElemID' : iElem})
                 sides[sCount].update({'SideID' : sCount})
                 sides[sCount].update({'LocSide': index+1})

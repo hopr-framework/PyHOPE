@@ -80,9 +80,9 @@ def MeshExternal() -> meshio._mesh.Mesh:
     #     sys.exit()
 
     for iBC, bc in enumerate(bcs):
-        bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
-        bcs[iBC]['BCID'] = iBC + 1
-        bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
+        bc['Name'] = GetStr('BoundaryName', number=iBC)
+        bc['BCID'] = iBC + 1
+        bc['Type'] = GetIntArray('BoundaryType', number=iBC)
 
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]

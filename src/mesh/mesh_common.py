@@ -39,7 +39,15 @@ import numpy as np
 # ==================================================================================================================================
 
 
+def faces() -> list:
+    """ Return a list of all sides of a hexahedron
+    """
+    return ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
+
+
 def edge_to_dir(edge: int) -> int:
+    """ GMSH: Create edges from points in the given direction
+    """
     match edge:
         case 0 | 2 |  4 |  6:
             return 0
@@ -52,11 +60,9 @@ def edge_to_dir(edge: int) -> int:
             sys.exit()
 
 
-def faces() -> list:
-    return ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
-
-
 def face_to_edge(face, dtype=int) -> np.ndarray:
+    """ GMSH: Create faces from edges in the given direction
+    """
     match face:
         case 'z-':
             return np.array([  0,  1,   2,   3], dtype=dtype)
@@ -76,6 +82,8 @@ def face_to_edge(face, dtype=int) -> np.ndarray:
 
 
 def face_to_corner(face, dtype=int) -> np.ndarray:
+    """ GMSH: Get points on faces in the given direction
+    """
     match face:
         case 'z-':
             return np.array([  0,  1,   2,   3], dtype=dtype)
@@ -85,6 +93,27 @@ def face_to_corner(face, dtype=int) -> np.ndarray:
             return np.array([  1,  2,   6,   5], dtype=dtype)
         case 'y+':
             return np.array([  2,  6,   7,   3], dtype=dtype)
+        case 'x-':
+            return np.array([  0,  4,   7,   3], dtype=dtype)
+        case 'z+':
+            return np.array([  4,  5,   6,   7], dtype=dtype)
+        case _:  # Default
+            print('Error in face_to_corner, unknown face')
+            sys.exit()
+
+
+def face_to_cgns(face, dtype=int) -> np.ndarray:
+    """ CGNS: Get points on faces in the given direction
+    """
+    match face:
+        case 'z-':
+            return np.array([  0,  3,   2,   1], dtype=dtype)
+        case 'y-':
+            return np.array([  0,  1,   5,   4], dtype=dtype)
+        case 'x+':
+            return np.array([  1,  2,   6,   5], dtype=dtype)
+        case 'y+':
+            return np.array([  2,  3,   7,   6], dtype=dtype)
         case 'x-':
             return np.array([  0,  4,   7,   3], dtype=dtype)
         case 'z+':

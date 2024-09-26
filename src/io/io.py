@@ -303,7 +303,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10 + side['Flip']
 
             # Periodic sides still have a BCID
-            if 'BCID' in side:
+            if 'BCID' in side and mesh_vars.bcs[side['BCID']]['Type'][0] != 0:
                 sideInfo[iSide, SIDE.BCID      ] = side['BCID'] + 1
             else:
                 sideInfo[iSide, SIDE.BCID      ] = 0
