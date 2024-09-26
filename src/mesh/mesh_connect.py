@@ -157,7 +157,7 @@ def ConnectMesh() -> None:
 
             # Get the list of sides
             for iMap in csetMap:
-                iBCsides = np.array(cset[iMap]) - offsetcs
+                iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
                 mapFaces = mesh.cells[iMap].data
 
                 # Map the unique quad sides to our non-unique elem sides
@@ -174,7 +174,7 @@ def ConnectMesh() -> None:
 
     # Try to connect the periodic sides
     # TODO: SET ANOTHER TOLERANCE
-    tol = 1.E-10
+    # tol = 5.#5.E-1
 
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
@@ -219,19 +219,19 @@ def ConnectMesh() -> None:
             nbmapFaces = []
             nbCorners  = []
             nbPoints   = []
-            for iMap in csetMap:
-                nbFaceSet  =  np.array(nbCellSet[iMap])
-                nbmapFaces = mesh.cells[iMap].data
-                nbCorners  = [np.array(nbmapFaces[s - offsetcs]) for s in nbFaceSet]
-                nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
-                nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+            # for iMap in csetMap:
+            nbFaceSet  =  np.array(nbCellSet[csetMap[0]]).astype(int)
+            nbmapFaces = mesh.cells[csetMap[0]].data
+            nbCorners  = [np.array(nbmapFaces[s - offsetcs]) for s in nbFaceSet]
+            nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+            nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
             del nbCorners
 
             # Build a k-dimensional tree of all points on the opposing side
             stree = spatial.KDTree(nbPoints)
 
             # Get the list of sides on our side
-            iBCsides = np.array(cset[1]) - offsetcs
+            iBCsides = np.array(cset[csetMap[0]]).astype(int) - offsetcs
 
             # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
@@ -251,6 +251,8 @@ def ConnectMesh() -> None:
 
                 # trSide contains the Euclidean distance and the index of the
                 # opposing side in the nbFaceSet
+                # tol = np.max(vvs[iVV]['Dir']) * 1.E-1
+                tol = np.linalg.norm(vvs[iVV]['Dir'], ord=2) * 1.E-1
                 if trSide[0] > tol:
                     hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
                     traceback.print_stack(file=sys.stdout)
@@ -259,13 +261,13 @@ def ConnectMesh() -> None:
                 nbiSide  = nbFaceSet[trSide[1]] - offsetcs
 
                 # Get our corner quad nodes
-                corners   = np.sort(np.array(nbmapFaces[iSide]))
+                corners   = np.sort(np.array(nbmapFaces[iSide][0:4]))
                 corners   = hash(corners.tobytes())
                 sideID    = corner_side[corners][0]
                 del corners
 
                 # Get nb corner quad nodes
-                nbcorners = np.sort(np.array(nbmapFaces[nbiSide]))
+                nbcorners = np.sort(np.array(nbmapFaces[nbiSide][0:4]))
                 nbcorners = hash(nbcorners.tobytes())
                 nbSideID  = corner_side[nbcorners][0]
                 del nbcorners

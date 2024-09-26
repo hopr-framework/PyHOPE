@@ -95,9 +95,9 @@ def MeshExternal() -> meshio._mesh.Mesh:
 
     mesh_vars.CGNS.regenarate_BCs = False
 
-    fnames = CountOption('filename')
+    fnames = CountOption('Filename')
     for iName in range(fnames):
-        fname = GetStr('filename')
+        fname = GetStr('Filename')
         fname = os.path.join(os.getcwd(), fname)
 
         # get file extension
@@ -172,15 +172,33 @@ def BCCGNS() -> meshio._mesh.Mesh:
     # ------------------------------------------------------
 
     mesh    = mesh_vars.mesh
+    points  = mesh_vars.mesh.points
+    cells   = mesh_vars.mesh.cells
     # elems   = mesh_vars.elems
-    sides   = mesh_vars.sides
+    # sides   = mesh_vars.sides
     bcs     = mesh_vars.bcs
 
+    # cell_sets contain the face IDs [dim=2]
+    # > Offset is calculated with entities from [dim=0, dim=1]
+    offsetcs = 0
+    for key, value in mesh.cells_dict.items():
+        if 'vertex' in key:
+            offsetcs += value.shape[0]
+        elif 'line' in key:
+            offsetcs += value.shape[0]
+        # elif 'hexahedron' in key:  # FIXME: Support non-hexahedral meshes
+        #     offsetcs += value.shape[0]
+
     # All non-connected sides (technically all) are potential BC sides
-    nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
+    # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
+    nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
+    nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # FIXME: Support mixed LO/HO meshes
+    nConnNum  = list(mesh.cells_dict).index(nConnType)
+    nConnLen  = len(list(mesh.cells_dict))
 
     # Collapse all opposing corner nodes into an [:, 12] array
-    nbCorners  = [s['Corners'] for s in nConnSide]
+    # nbCorners  = [s['Corners'] for s in nConnSide]
+    nbCorners  = [s[0:4] for s in nConnSide]
     nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
     nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
     del nbCorners
@@ -192,9 +210,9 @@ def BCCGNS() -> meshio._mesh.Mesh:
     tol = 1.E-10
 
     # Now set the missing CGNS boundaries
-    fnames = CountOption('filename')
+    fnames = CountOption('Filename')
     for iName in range(fnames):
-        fname = GetStr('filename', number=iName)
+        fname = GetStr('Filename', number=iName)
         fname = os.path.join(os.getcwd(), fname)
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
@@ -221,9 +239,9 @@ def BCCGNS() -> meshio._mesh.Mesh:
 
                 # Load the CGNS points
                 nPoints = int(zone[' data'][0])
-                points  = [np.zeros(3, dtype='f8') for _ in range(nPoints)]
+                bpoints  = [np.zeros(3, dtype='f8') for _ in range(nPoints)]
 
-                for pointNum, point in enumerate(points):
+                for pointNum, point in enumerate(bpoints):
                     point[0] = float(zone['GridCoordinates']['CoordinateX'][' data'][pointNum])
                     point[1] = float(zone['GridCoordinates']['CoordinateY'][' data'][pointNum])
                     point[2] = float(zone['GridCoordinates']['CoordinateZ'][' data'][pointNum])
@@ -241,14 +259,15 @@ def BCCGNS() -> meshio._mesh.Mesh:
                     count  = 0
 
                     # Loop over all elements and get the type
+                    cellsets = mesh.cell_sets
                     while count < cgnsBC.shape[0]:
 
                         elemType = ElemTypes(cgnsBC[count])
 
                         # Map the unique quad sides to our non-unique elem sides
                         corners  = cgnsBC[count+1:count+elemType['Nodes']+1]
-                        # BCpoints = copy.copy(points[corners])
-                        BCpoints = [points[s-1] for s in corners]
+                        # BCpoints = copy.copy(bpoints[corners])
+                        BCpoints = [bpoints[s-1] for s in corners]
                         BCpoints = np.sort(BCpoints, axis=0)
                         BCpoints = BCpoints.flatten()
 
@@ -263,10 +282,24 @@ def BCCGNS() -> meshio._mesh.Mesh:
                             traceback.print_stack(file=sys.stdout)
                             sys.exit()
 
-                        sideID = int(trSide[1])
-                        sides[sideID].update({'BCID': bcID})
+                        sideID   = int(trSide[1]) + offsetcs
+                        # For the first side on the BC, the dict does not exist
+                        try:
+                            prevSides = cellsets[zoneBC]
+                            prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
+                        except KeyError:
+                            # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
+                            prevSides = [None for _ in range(nConnLen)]
+                            prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
+                            cellsets.update({zoneBC: prevSides})
 
                         # Move to the next element
                         count += int(elemType['Nodes']) + 1
+
+                    mesh   = meshio.Mesh(points=points,
+                                         cells=cells,
+                                         cell_sets=cellsets)
+
+                    mesh_vars.mesh = mesh
 
     return mesh
