@@ -46,6 +46,7 @@ def main() -> None:
     import src.output.output as hopout
     from src.common.common import DefineCommon, InitCommon
     from src.common.common_vars import Common
+    from src.basis.basis_jacobian import CheckJacobians
     from src.io.io import IO, DefineIO, InitIO
     from src.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
     from src.mesh.mesh_connect import ConnectMesh
@@ -101,6 +102,9 @@ def main() -> None:
     GenerateSides()
     RegenerateMesh()
     ConnectMesh()
+
+    # Check the mapping
+    CheckJacobians()
 
     # Output the mesh
     IO()

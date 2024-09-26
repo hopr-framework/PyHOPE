@@ -320,7 +320,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
     nodeCount  = 0
 
     for iElem, elem in enumerate(elems):
-        # Mesh coordinates are stored in VTK sorting
+        # Mesh coordinates are stored in meshIO sorting
         linMap    = LINMAP(elem['Type'], order=mesh_vars.nGeo)
         # meshio accesses them in their own ordering
         # > need to reverse the mapping
