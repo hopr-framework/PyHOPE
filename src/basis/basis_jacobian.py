@@ -82,13 +82,18 @@ def barycentric_weights(order: int, xGP: np.ndarray) -> np.ndarray:
     """ Compute the barycentric weights for a given node set
         > Algorithm 30, Kopriva
     """
-    wBary = np.ones(order)
+    # Create a difference matrix (x_i - x_j) for all i, j
+    diff_matrix = xGP[:, np.newaxis] - xGP[np.newaxis, :]
 
-    for iGP in range(1, order):
-        for jGP in range(iGP):
-            wBary[jGP] = wBary[jGP] * (xGP[jGP]-xGP[iGP])
-            wBary[iGP] = wBary[iGP] * (xGP[iGP]-xGP[jGP])
-    wBary = 1./wBary
+    # Set the diagonal to 1 to avoid division by zero (diagonal elements will not be used)
+    np.fill_diagonal(diff_matrix, 1.0)
+
+    # Compute the product of all differences for each row (excluding the diagonal)
+    wBary = np.prod(diff_matrix, axis=1)
+
+    # Take the reciprocal to get the final barycentric weights
+    wBary = 1.0 / wBary
+
     return wBary
 
 
@@ -139,65 +144,59 @@ def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndar
     return Vdm
 
 
-def change_basis_3D(dim1: int, n_In: int, n_Out: int, Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
+# def change_basis_3D(dim1: int, n_In: int, n_Out: int, Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
+def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
     """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
         to another 3D tensor product node positions (number of nodes N_out+1)
         defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
         xi is defined in the 1DrefElem xi=[-1,1]
     """
-    x3D_Out  = np.zeros((dim1, n_Out, n_Out, n_Out))
-    x3D_Buf1 = np.zeros((dim1, n_Out, n_In , n_In ))  # Change the basis tensor-product style
-    x3D_Buf2 = np.zeros((dim1, n_Out, n_Out, n_In ))  # Change the basis tensor-product style
+    # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
+    x3D_Buf1 = np.tensordot(Vdm, x3D_In, axes=(1, 1))
+    x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
 
-    # First direction iN_In
-    for kN_In in range(n_In):
-        for jN_In in range(n_In):
-            for iN_In in range(n_In):
-                for iN_Out in range(n_Out):
-                    x3D_Buf1[:,iN_Out,jN_In ,kN_In ] = x3D_Buf1[:,iN_Out,jN_In ,kN_In ] + Vdm[iN_Out,iN_In]*x3D_In[  :,iN_In ,jN_In,kN_In]
+    # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
+    x3D_Buf2 = np.tensordot(Vdm, x3D_Buf1, axes=(1, 2))
+    x3D_Buf2 = np.moveaxis(x3D_Buf2, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
 
-    # Second direction jN_In
-    for kN_In in range(n_In):
-        for jN_In in range(n_In):
-            for jN_Out in range(n_Out):
-                for iN_Out in range(n_Out):
-                    x3D_Buf2[:,iN_Out,jN_Out,kN_In ] = x3D_Buf2[:,iN_Out,jN_Out,kN_In ] + Vdm[jN_Out,jN_In]*x3D_Buf1[:,iN_Out,jN_In,kN_In]
+    # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
+    x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
+    x3D_Out  = np.moveaxis(x3D_Out , 0, 1)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
 
-    # Third direction kN_In
-    for kN_In in range(n_In):
-        for kN_Out in range(n_Out):
-            for jN_Out in range(n_Out):
-                for iN_Out in range(n_Out):
-                    x3D_Out[ :,iN_Out,jN_Out,kN_Out] = x3D_Out[ :,iN_Out,jN_Out,kN_Out] + Vdm[kN_Out,kN_In]*x3D_Buf2[:,iN_Out,jN_Out,kN_In]
     return x3D_Out
 
 
-def evaluate_jacobian(xGeo_In: np.ndarray, nGeo: int, nGeoRef: int, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
-    dXdXiGL   = np.zeros((3, nGeo   , nGeo   , nGeo))
-    dXdEtaGL  = np.zeros((3, nGeo   , nGeo   , nGeo))
-    dXdZetaGL = np.zeros((3, nGeo   , nGeo   , nGeo))
+def evaluate_jacobian(xGeo_In: np.ndarray, nGeoRef: int, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
+    # Perform tensor contraction for the first derivative (Xi direction)
+    dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
+    dXdXiGL   = np.moveaxis(dXdXiGL  , 0, -3)  # Correct the shape to (3, nGeo, nGeo, nGeo)
 
-    for k in range(nGeo):
-        for j in range(nGeo):
-            for i in range(nGeo):
-                for l in range(nGeo):
-                    dXdXiGL  [:,i,j,k] = dXdXiGL  [:,i,j,k] + D_EqToGL[i,l]*xGeo_In[:,l,j,k]
-                    dXdEtaGL [:,i,j,k] = dXdEtaGL [:,i,j,k] + D_EqToGL[i,l]*xGeo_In[:,i,l,k]
-                    dXdZetaGL[:,i,j,k] = dXdZetaGL[:,i,j,k] + D_EqToGL[i,l]*xGeo_In[:,i,j,l]
+    # Perform tensor contraction for the second derivative (Eta direction)
+    # dXdEtaGL  = np.tensordot(D_EqToGL, np.moveaxis(xGeo_In, 1, 2), axes=(1, 2))
+    dXdEtaGL  = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 2))
+    dXdEtaGL  = np.moveaxis(dXdEtaGL , 0, -3)  # Correct the shape to (3, nGeo, nGeo, nGeo)
 
-    dXdXiAP   = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdXiGL  )
-    dXdEtaAP  = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdEtaGL )
-    dXdZetaAP = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdZetaGL)
+    # Perform tensor contraction for the third derivative (Zeta direction)
+    dXdZetaGL = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 3))
+    dXdZetaGL = np.moveaxis(dXdZetaGL, 0, -3)  # Correct the shape to (3, nGeo, nGeo, nGeo)
+
+    # dXdXiAP   = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdXiGL  )
+    # dXdEtaAP  = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdEtaGL )
+    # dXdZetaAP = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdZetaGL)
+    dXdXiAP   = change_basis_3D(VdmGLtoAP, dXdXiGL  )
+    dXdEtaAP  = change_basis_3D(VdmGLtoAP, dXdEtaGL )
+    dXdZetaAP = change_basis_3D(VdmGLtoAP, dXdZetaGL)
 
     jacOut = np.zeros((nGeoRef, nGeoRef, nGeoRef))
     for k in range(nGeoRef):
         for j in range(nGeoRef):
             for i in range(nGeoRef):
                 jacOut[i,j,k] = np.sum(dXdXiAP[:,i,j,k] * np.cross(dXdEtaAP[:,i,j,k],dXdZetaAP[:,i,j,k]))
+
     return jacOut
 
 
-def plot_histogram(jacobians: np.ndarray) -> None:
+def plot_histogram(data: np.ndarray) -> None:
     """ Plot a histogram of all Jacobians
     """
     # Local imports ----------------------------------------
@@ -205,7 +204,7 @@ def plot_histogram(jacobians: np.ndarray) -> None:
     from src.output.output import STD_LENGTH
     # ------------------------------------------------------
 
-    ticks = ['│ 0.1      │',
+    ticks = ['│<0.1      │',
              '│ 0.1-0.2  │',
              '│ 0.2-0.3  │',
              '│ 0.3-0.4  │',
@@ -217,38 +216,19 @@ def plot_histogram(jacobians: np.ndarray) -> None:
              '│ 0.9-0.99 │',
              '│     1.0  │']
 
-    # Allocate and sort into categories
-    jac_count = np.zeros(11, dtype=int)
-    for iElem, jacobian in enumerate(jacobians):
-        if jacobian<0.1:
-            jac_count[0] += 1
-        elif jacobian>=0.1 and jacobian<0.2:
-            jac_count[1] += 1
-        elif jacobian>=0.2 and jacobian<0.3:
-            jac_count[2] += 1
-        elif jacobian>=0.3 and jacobian<0.4:
-            jac_count[3] += 1
-        elif jacobian>=0.4 and jacobian<0.5:
-            jac_count[4] += 1
-        elif jacobian>=0.5 and jacobian<0.6:
-            jac_count[5] += 1
-        elif jacobian>=0.6 and jacobian<0.7:
-            jac_count[6] += 1
-        elif jacobian>=0.7 and jacobian<0.8:
-            jac_count[7] += 1
-        elif jacobian>=0.8 and jacobian<0.9:
-            jac_count[8] += 1
-        elif jacobian>=0.9 and jacobian<0.99:
-            jac_count[9] += 1
-        else:
-            jac_count[10] += 1
+    # Define the bins for categorizing jacobians
+    bins     = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, np.inf]
+
+    # Use np.histogram to count jacobians in the defined bins
+    count, _ = np.histogram(data, bins=bins)
 
     # Setup plot
     hopout.separator(STD_LENGTH)
     hopout.info('Scaled Jacobians')
-    plt.simple_bar(ticks, jac_count, width=STD_LENGTH)  #, title='Scaled Jacobians')
+    hopout.separator(18)
+    plt.simple_bar(ticks, count, width=STD_LENGTH)
     plt.show()
-    hopout.separator(STD_LENGTH)
+    hopout.separator(18)
 
 
 def CheckJacobians() -> None:
@@ -303,7 +283,6 @@ def CheckJacobians() -> None:
         mapLin    = {k: v for v, k in enumerate(linMap)}
         elemNodes = elem['Nodes']
 
-        # Access the actual nodeCoords and reorder them
         for iNode, nodeID in enumerate(elemNodes):
             nodeCoords[mapLin[iNode], :] = nodes[nodeID]
 
@@ -315,7 +294,8 @@ def CheckJacobians() -> None:
                     xGeo[:, i, j, k] = nodeCoords[iNode, :]
                     iNode += 1
 
-        jac    = evaluate_jacobian(xGeo, nGeo, nGeoRef, VdmGLtoAP, D_EqToGL)
+        # jac    = evaluate_jacobian(xGeo, nGeo, nGeoRef, VdmGLtoAP, D_EqToGL)
+        jac    = evaluate_jacobian(xGeo, nGeoRef, VdmGLtoAP, D_EqToGL)
         maxJac =  np.max(np.abs(jac))
         minJac =  np.min(       jac)
         jacs[iElem] = minJac / maxJac
