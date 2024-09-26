@@ -223,7 +223,7 @@ def plot_histogram(data: np.ndarray) -> None:
     count, _ = np.histogram(data, bins=bins)
 
     # Setup plot
-    hopout.separator(STD_LENGTH)
+    hopout.separator(18)
     hopout.info('Scaled Jacobians')
     hopout.separator(18)
     plt.simple_bar(ticks, count, width=STD_LENGTH)

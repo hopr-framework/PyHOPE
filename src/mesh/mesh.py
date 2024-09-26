@@ -43,12 +43,12 @@ def DefineMesh() -> None:
     """ Define general options for mesh generation / readin
     """
     # Local imports ----------------------------------------
-    from src.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
+    from src.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
     # ------------------------------------------------------
 
     CreateSection('Mesh')
     CreateInt(      'Mode',                           help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
-    CreateInt(      'BoundaryOrder',   default=2,     help='Order of spline-reconstruction for curved surfaces')
+    # Internal mesh generator
     CreateInt(      'nZones',                         help='Number of mesh zones')
     CreateRealArray('Corner',      24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
     CreateIntArray( 'nElems',       3, multiple=True, help='Number of elements in each direction')
@@ -56,7 +56,11 @@ def DefineMesh() -> None:
     CreateIntArray( 'BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
     CreateRealArray('vv',           3, multiple=True, help='Vector for periodic BC')
-    CreateStr(      'filename',        multiple=True, help='Name of external mesh file')
+    # External mesh readin through GMSH
+    CreateStr(      'Filename',        multiple=True, help='Name of external mesh file')
+    # Common settings
+    CreateInt(      'BoundaryOrder',   default=2,     help='Order of spline-reconstruction for curved surfaces')
+    CreateLogical(  'doSortIJK',       default=False, help='Sort the mesh elements along the I,J,K directions')
 
 
 def InitMesh() -> None:
@@ -82,8 +86,8 @@ def InitMesh() -> None:
 
 def GenerateMesh() -> None:
     """ Generate the mesh
-        Mode 1 - Use internal mesh generation
-        Mode 2 - Readin external mesh through MeshIO
+        Mode 1 - Use internal mesh generator
+        Mode 2 - Readin external mesh through GMSH
     """
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
@@ -98,7 +102,7 @@ def GenerateMesh() -> None:
     match mesh_vars.mode:
         case 1:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
-        case 3:  # External CGNS mesh
+        case 3:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
             hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))

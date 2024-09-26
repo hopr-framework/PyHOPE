@@ -29,6 +29,7 @@ import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -121,3 +122,46 @@ def face_to_cgns(face, dtype=int) -> np.ndarray:
         case _:  # Default
             print('Error in face_to_corner, unknown face')
             sys.exit()
+
+
+def count_elems(mesh: meshio._mesh.Mesh) -> int:
+    # Local imports ----------------------------------------
+    import src.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    nElems = 0
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        ioelems = mesh.get_cells_type(elemType)
+        nElems += ioelems.shape[0]
+    return nElems
+
+
+def centeroidnp(coords: np.ndarray) -> np.ndarray:
+    """ Compute the centroid (barycenter) of a set of coordinates
+    """
+    length = coords.shape[0]
+    sum_x  = np.sum(coords[:, 0])
+    sum_y  = np.sum(coords[:, 1])
+    sum_z  = np.sum(coords[:, 2])
+    return np.array([sum_x/length, sum_y/length, sum_z/length])
+
+
+def calc_elem_bary(mesh: meshio._mesh.Mesh) -> list:
+    # Local imports ----------------------------------------
+    import src.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    nElems   = count_elems(mesh)
+    elemBary = [np.ndarray(3)] * nElems
+    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+            continue
+
+        ioelems = mesh.get_cells_type(elemType)
+
+        for elemID, cell in enumerate(ioelems):
+            elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
+    return elemBary

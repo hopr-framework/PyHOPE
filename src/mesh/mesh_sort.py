@@ -48,16 +48,6 @@ def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.
     return disc
 
 
-def centeroidnp(coords: np.ndarray) -> np.ndarray:
-    """ Compute the centroid (barycenter) of a set of coordinates
-    """
-    length = coords.shape[0]
-    sum_x  = np.sum(coords[:, 0])
-    sum_y  = np.sum(coords[:, 1])
-    sum_z  = np.sum(coords[:, 2])
-    return np.array([sum_x/length, sum_y/length, sum_z/length])
-
-
 def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, np.ndarray]:
     """ Compute the resolution of the SFC for the given bounding box
         and the given integer kind
@@ -70,15 +60,29 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, n
     return np.ceil(nbits).astype(int), spacing
 
 
-def SortMesh() -> None:
+class tBox:
+    def __init__(self, mini, maxi):
+        self.mini = mini
+        self.intfact = 0
+        self.spacing = np.zeros(3)
+        self._set_bounding_box(mini, maxi)
+
+    def _set_bounding_box(self, mini, maxi):
+        blen = maxi - mini
+        nbits = (np.iinfo(np.int64).bits - 1) // 3
+        self.intfact = 2 ** nbits - 1
+        self.spacing = self.intfact / blen
+
+
+def SortMeshBySFC() -> None:
     # Local imports ----------------------------------------
     from hilbertcurve.hilbertcurve import HilbertCurve
     from src.common.common_vars import np_mtp
+    from src.mesh.mesh_common import count_elems, calc_elem_bary
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     # ------------------------------------------------------
 
-    hopout.separator()
     hopout.routine('Sorting elements along space-filling curve')
 
     huge = sys.float_info.max
@@ -86,34 +90,23 @@ def SortMesh() -> None:
     xmax = np.array([-huge, -huge, -huge])
     # We only need the volume cells
     mesh   = mesh_vars.mesh
-    nElems = 0
+    nElems = count_elems(mesh)
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
-        nElems += ioelems.shape[0]
-
         for cell in ioelems:
             for point in mesh_vars.mesh.points[cell]:
                 xmin = np.minimum(xmin, point)
                 xmax = np.maximum(xmax, point)
 
     # Calculate the element bary centers
-    elemBary = [np.ndarray(3)] * nElems
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
-        # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
-            continue
-
-        ioelems = mesh.get_cells_type(elemType)
-
-        for elemID, cell in enumerate(ioelems):
-            elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
+    elemBary = calc_elem_bary(mesh)
 
     # Calculate the space-filling curve resolution for the given KIND
-    kind = 4
+    kind = 8
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions along according to the chosen resolution
@@ -148,3 +141,138 @@ def SortMesh() -> None:
                          cell_sets=cellsets)
 
     mesh_vars.mesh = mesh
+
+
+def SortMeshByIJK():
+    # Local imports ----------------------------------------
+    import src.mesh.mesh_vars as mesh_vars
+    from src.mesh.mesh_common import count_elems, calc_elem_bary
+    import src.output.output as hopout
+    # ------------------------------------------------------
+
+    hopout.routine('Sorting elements along I,J,K direction')
+
+    # We only need the volume cells
+    mesh     = mesh_vars.mesh
+    nElems   = count_elems(mesh)
+    # Calculate the element bary centers
+    elemBary = calc_elem_bary(mesh)
+
+    # Determine extreme vertices for bounding box
+    lower = np.min(elemBary, axis=0) - 0.1 * np.max(np.ptp(elemBary, axis=0))
+    upper = np.max(elemBary, axis=0) + 0.1 * np.max(np.ptp(elemBary, axis=0))
+
+    # Create a bounding box
+    box = tBox(lower, upper)
+
+    # Convert coordinates to integer space
+    intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(int)
+
+    # Initialize lists
+    # IDList    = np.arange(nElems)
+    nElemsIJK = np.zeros(3, dtype=int)
+    structDir = np.zeros(3, dtype=bool)
+
+    nStructDirs = 0
+    tol = 1
+
+    intList = []
+    for dir in range(3):
+        # Sort elements by coordinate directions
+        intList = intCoords[:, dir]
+        sortedIndices = np.argsort(intList)
+        # IDListSorted  = IDList[ sortedIndices]
+        intListSorted = intList[sortedIndices]
+
+        # Determine structured directions
+        nElems_min, nElems_max = nElems, 0
+        counter = 1
+
+        for iElem in range(1, nElems):
+            if abs(intListSorted[iElem] - intListSorted[iElem - 1]) > tol:
+                nElems_min = min(nElems_min, counter)
+                nElems_max = max(nElems_max, counter)
+                counter = 1
+            else:
+                counter += 1
+
+        # print(f'  dir,min,max: {dir + 1}, {nElems_min}, {nElems_max}')
+        if nElems_max != nElems_min:
+            nElemsIJK[dir] = 0  # Not structured
+            structDir[dir] = False
+        else:
+            nElemsIJK[dir] = nElems_max
+            structDir[dir] = True
+
+    nStructDirs = np.sum(structDir)
+
+    if nStructDirs == 0:
+        nElemsIJK = np.array([nElems, 1, 1])
+    elif nStructDirs == 1:
+        structured_dir = np.argmax(structDir)
+        nElemsIJK[structured_dir] = nElems // nElemsIJK[structured_dir]
+        nElemsIJK[(structured_dir + 1) % 3] = nElems // nElemsIJK[structured_dir]
+        nElemsIJK[(structured_dir + 2) % 3] = 1
+    elif nStructDirs == 2:
+        non_structured_dir = np.argmin(structDir)
+        nElemsIJK[non_structured_dir] = 1
+        nElemsIJK[~structDir] = nElemsIJK[~structDir][::-1]
+    else:
+        nElemsIJK[0] = int(np.sqrt(nElemsIJK[1] * nElemsIJK[2] / nElemsIJK[0]))
+        nElemsIJK[1:3] = nElemsIJK[2:4] // nElemsIJK[0]
+
+    if np.prod(nElemsIJK) != nElems:
+        hopout.warning('Problem during sort elements by coordinate: nElems /= nElems_I * Elems_J * nElems_K')
+
+    hopout.sep()
+    hopout.info(' Number of structured dirs: {}'.format(nStructDirs))
+    hopout.info(' Number of elems [I,J,K]  : {}'.format(nElemsIJK))
+
+    # Now sort the elements based on z, y, then x coordinates
+    # elemIndices = np.zeros((nElems, 3), dtype=int)
+    for iElem in range(nElems):
+        intList[iElem] = (intCoords[iElem, 2] * 10000 + intCoords[iElem, 1]) * 10000 + intCoords[iElem, 0]
+
+    # sortedIndices = np.argsort(intList)
+    # IDListSorted = IDList[sortedIndices]
+    #
+    # # Set the ijk indices
+    # iElem = 0
+    # for kk in range(nElemsIJK[2]):
+    #     for jj in range(nElemsIJK[1]):
+    #         for ii in range(nElemsIJK[0]):
+    #             iElem += 1
+    #             elemIndices[IDListSorted[iElem - 1]] = [ii + 1, jj + 1, kk + 1]
+    # Create a new mesh with only volume elements and sorted along SFC
+    points   = mesh_vars.mesh.points
+    cells    = mesh_vars.mesh.cells
+    cellsets = mesh_vars.mesh.cell_sets
+
+    for iCell, cellType in enumerate(cells):
+        if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
+            # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
+            cellType.data = np.asarray([x.tolist() for _, x in sorted(zip(intList, cellType.data))])
+
+    # Overwrite the old mesh
+    mesh   = meshio.Mesh(points=points,
+                         cells=cells,
+                         cell_sets=cellsets)
+
+    mesh_vars.mesh = mesh
+
+
+def SortMesh() -> None:
+    # Local imports ----------------------------------------
+    import src.mesh.mesh_vars as mesh_vars
+    import src.output.output as hopout
+    from src.readintools.readintools import GetLogical
+    # ------------------------------------------------------
+
+    hopout.separator()
+    mesh_vars.sortIJK = GetLogical('doSortIJK')
+    hopout.sep()
+
+    if mesh_vars.sortIJK:
+        SortMeshByIJK()
+    else:
+        SortMeshBySFC()

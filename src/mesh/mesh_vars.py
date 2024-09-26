@@ -37,21 +37,22 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-mode  : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
-mesh  : meshio._mesh.Mesh                        # MeshIO object holding the mesh
-nGeo  : int                                      # Order of spline-reconstruction for curved surfaces
+mode   : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
+mesh   : meshio._mesh.Mesh                        # MeshIO object holding the mesh
+nGeo   : int                                      # Order of spline-reconstruction for curved surfaces
+sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
 
-bcs   : list                                     # [list of dict] - Boundary conditions
-vvs   : list                                     # [list of dict] - Periodic vectors
+bcs    : list                                     # [list of dict] - Boundary conditions
+vvs    : list                                     # [list of dict] - Periodic vectors
 
-elems : list                                     # [list of list] - Element nodes
-sides : list                                     # [list of list] - Side    nodes
+elems  : list                                     # [list of list] - Element nodes
+sides  : list                                     # [list of list] - Side    nodes
 
-HEXMAP: np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
+HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
 
 
 class CGNS:
-    regenarate_BCs: bool                         # Flag if CGNS needs BC regeneration
+    regenarate_BCs: bool                          # Flag if CGNS needs BC regeneration
 
 
 class ELEM:

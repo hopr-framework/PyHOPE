@@ -141,10 +141,10 @@ def find_keys(dict: dict, item) -> list | None:
     return None
 
 
-def find_value(dict, item):
-    """ Find key by value in dictionary
-    """
-    return dict.keys()[dict.values().index(item)]
+# def find_value(dict, item):
+#     """ Find key by value in dictionary
+#     """
+#     return dict.keys()[dict.values().index(item)]
 
 
 def find_index(seq, item) -> int:
