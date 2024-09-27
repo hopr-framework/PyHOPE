@@ -25,8 +25,11 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from multiprocessing import Pool, Queue
 import plotext as plt
+from alive_progress import alive_bar
 from typing import Tuple
+import threading
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -233,6 +236,66 @@ def plot_histogram(data: np.ndarray) -> None:
     hopout.separator(18)
 
 
+def process_chunk(chunk):
+    """Process a chunk of elements by evaluating the Jacobian for each
+    """
+    chunk_results = []
+    for elem in chunk:
+        nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL = elem
+        jac    = evaluate_jacobian(nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL)
+        maxJac = np.max(np.abs(jac))
+        minJac = np.min(jac)
+        chunk_results.append(minJac / maxJac)
+    return chunk_results
+
+
+def distribute_work(elems, chunk_size):
+    """Distribute elements into chunks of a given size
+    """
+    return [elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size)]
+
+
+def run_in_parallel(elems, chunk_size=10):
+    """Run the element processing in parallel using a specified number of processes
+    """
+    # Local imports ----------------------------------------
+    from src.common.common_vars import np_mtp
+    # ------------------------------------------------------
+
+    chunks = distribute_work(elems, chunk_size)
+    total_elements = len(elems)
+    progress_queue = Queue()
+
+    # Use a separate thread for the progress bar
+    progress_thread = threading.Thread(target=update_progress, args=(progress_queue, total_elements))
+    progress_thread.start()
+
+    # Use multiprocessing Pool for parallel processing
+    with Pool(processes=np_mtp) as pool:
+        # Map work across processes in chunks
+        results = []
+        for chunk_result in pool.imap_unordered(process_chunk, chunks):
+            results.extend(chunk_result)
+            # Update progress for each processed element in the chunk
+            for _ in chunk_result:
+                progress_queue.put(1)
+
+    # Wait for the progress bar thread to finish
+    progress_thread.join()
+
+    return results
+
+
+def update_progress(progress_queue, total_elements):
+    """ Function to update the progress bar from the queue
+    """
+    with alive_bar(total_elements, title='│             Processing Elements', length=33) as bar:
+        for _ in range(total_elements):
+            # Block until we receive a progress update from the queue
+            progress_queue.get()
+            bar()
+
+
 def CheckJacobians() -> None:
     # Local imports ----------------------------------------
     from src.io.io import LINMAP
@@ -274,21 +337,19 @@ def CheckJacobians() -> None:
     # Map all points to tensor product
     elems = mesh_vars.elems
     nodes = mesh_vars.mesh.points
-    jacs  = np.zeros(len(elems))
+
+    # Prepare elements for parallel processing
+    jacobian_tasks = []
+
     for iElem, elem in enumerate(elems):
         # Only consider hexahedrons
         if int(elem['Type']) % 100 != 8:
             continue
 
         # Fill the NodeCoords
-        nodeCoords = np.zeros((nGeo**3, 3), dtype=np.float64)
-        # nodeCoords = np.zeros((3, nGeo, nGeo, nGeo), dtype=np.float64)
-
-        # Mesh coordinates are stored in meshIO sorting
-        linMap    = LINMAP(elem['Type'], order=mesh_vars.nGeo)
-        # meshio accesses them in their own ordering
-        # > need to reverse the mapping
-        mapLin    = {k: v for v, k in enumerate(linMap)}
+        nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
+        linMap = LINMAP(elem['Type'], order=mesh_vars.nGeo)
+        mapLin = {k: v for v, k in enumerate(linMap)}
         elemNodes = elem['Nodes']
 
         for iNode, nodeID in enumerate(elemNodes):
@@ -302,10 +363,11 @@ def CheckJacobians() -> None:
                     xGeo[:, i, j, k] = nodeCoords[iNode, :]
                     iNode += 1
 
-        # jac    = evaluate_jacobian(xGeo, nGeo, nGeoRef, VdmGLtoAP, D_EqToGL)
-        jac    = evaluate_jacobian(xGeo, nGeoRef, VdmGLtoAP, D_EqToGL)
-        maxJac =  np.max(np.abs(jac))
-        minJac =  np.min(       jac)
-        jacs[iElem] = minJac / maxJac
+        # Add tasks for parallel processing
+        jacobian_tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
 
-    plot_histogram(jacs)
+    # Run in parallel with a chunk size
+    jacs = run_in_parallel(jacobian_tasks, chunk_size=10)
+
+    # Plot the histogram of the Jacobians
+    plot_histogram(np.array(jacs))

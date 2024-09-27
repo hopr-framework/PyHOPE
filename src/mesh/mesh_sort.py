@@ -53,7 +53,7 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, n
         and the given integer kind
     """
     blen    = xmax - xmin
-    nbits   = (kind*8 - 1) #/ 3.
+    nbits   = (kind*8 - 1)  # / 3.
     intfact = 2**nbits-1
     spacing = np.ceil(intfact/blen)
 
@@ -248,7 +248,7 @@ def SortMeshByIJK():
     cells    = mesh_vars.mesh.cells
     cellsets = mesh_vars.mesh.cell_sets
 
-    for iCell, cellType in enumerate(cells):
+    for cellType in cells:
         if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
             # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
             cellType.data = np.asarray([x.tolist() for _, x in sorted(zip(intList, cellType.data))])
