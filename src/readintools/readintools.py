@@ -292,7 +292,10 @@ def GetParam(name, calltype, default=None, number=None):
 
         # int2str has custom output
         if calltype != 'int2str':
-            hopout.printoption(name, value, '*CUSTOM')
+            if calltype == 'bool':
+                hopout.printoption(name, '{0:}'.format(value), '*CUSTOM')
+            else:
+                hopout.printoption(name, value               , '*CUSTOM')
     else:
         if default:
             value = default
@@ -302,7 +305,10 @@ def GetParam(name, calltype, default=None, number=None):
 
                 # int2str has custom output
                 if calltype != 'int2str':
-                    hopout.printoption(name, value, 'DEFAULT')
+                    if calltype == 'bool':
+                        hopout.printoption(name, '{0:}'.format(value), 'DEFAULT')
+                    else:
+                        hopout.printoption(name, value               , 'DEFAULT')
             else:
                 hopout.warning('Keyword "{}" not found in file and no default given, exiting...'
                                .format(name))

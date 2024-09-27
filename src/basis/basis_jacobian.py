@@ -204,7 +204,8 @@ def plot_histogram(data: np.ndarray) -> None:
     from src.output.output import STD_LENGTH
     # ------------------------------------------------------
 
-    ticks = ['│<0.1      │',
+    ticks = ['│<0.0      │',
+             '│ 0.0-0.1  │',
              '│ 0.1-0.2  │',
              '│ 0.2-0.3  │',
              '│ 0.3-0.4  │',
@@ -213,17 +214,18 @@ def plot_histogram(data: np.ndarray) -> None:
              '│ 0.6-0.7  │',
              '│ 0.7-0.8  │',
              '│ 0.8-0.9  │',
-             '│ 0.9-0.99 │',
-             '│     1.0  │']
+             # '│ 0.9-0.99 │',
+             '│>0.9-1.0  │']
 
     # Define the bins for categorizing jacobians
-    bins     = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, np.inf]
+    # bins     = [ -np.inf, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, np.inf]
+    bins     = [ -np.inf, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,       np.inf]
 
     # Use np.histogram to count jacobians in the defined bins
     count, _ = np.histogram(data, bins=bins)
 
     # Setup plot
-    hopout.separator(18)
+    hopout.sep()
     hopout.info('Scaled Jacobians')
     hopout.separator(18)
     plt.simple_bar(ticks, count, width=STD_LENGTH)
@@ -236,10 +238,16 @@ def CheckJacobians() -> None:
     from src.io.io import LINMAP
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
+    from src.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('CHECK JACOBIANS...')
+    hopout.sep()
+
+    checkElemJacobians = GetLogical('checkElemJacobians')
+    if not checkElemJacobians:
+        return None
 
     nGeo = mesh_vars.nGeo + 1
 

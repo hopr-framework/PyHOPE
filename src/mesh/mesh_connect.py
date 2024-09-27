@@ -148,6 +148,11 @@ def ConnectMesh() -> None:
                 if key in bc['Name']:
                     bcID = iBC
             if bcID is None:
+                # Try again without the leading 'BC_'
+                for iBC, bc in enumerate(bcs):
+                    if key[:3] == 'BC_' and key[3:] in bc['Name']:
+                        bcID = iBC
+            if bcID is None:
                 hopout.warning('Could not find BC {} in list, exiting...'.format(key))
                 traceback.print_stack(file=sys.stdout)
                 sys.exit()
@@ -184,6 +189,11 @@ def ConnectMesh() -> None:
             for iBC, bc in enumerate(bcs):
                 if key in bc['Name']:
                     bcID = iBC
+            if bcID is None:
+                # Try again without the leading 'BC_'
+                for iBC, bc in enumerate(bcs):
+                    if key[:3] == 'BC_' and key[3:] in bc['Name']:
+                        bcID = iBC
             if bcID is None:
                 hopout.warning('Could not find BC {} in list, exiting...'.format(key))
                 traceback.print_stack(file=sys.stdout)
@@ -339,6 +349,7 @@ def ConnectMesh() -> None:
 
         # trSide contains the Euclidean distance and the index of the
         # opposing side in the nbFaceSet
+        tol = 1.E-10
         if trSide[0] > tol:
             hopout.warning('Could not find an internal side within tolerance {}, exiting...'.format(tol))
             traceback.print_stack(file=sys.stdout)

@@ -53,7 +53,7 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, n
         and the given integer kind
     """
     blen    = xmax - xmin
-    nbits   = (kind*8 - 1) / 3.
+    nbits   = (kind*8 - 1) #/ 3.
     intfact = 2**nbits-1
     spacing = np.ceil(intfact/blen)
 
@@ -106,7 +106,7 @@ def SortMeshBySFC() -> None:
     elemBary = calc_elem_bary(mesh)
 
     # Calculate the space-filling curve resolution for the given KIND
-    kind = 8
+    kind = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions along according to the chosen resolution

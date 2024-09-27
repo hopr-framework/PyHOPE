@@ -47,20 +47,22 @@ def DefineMesh() -> None:
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt(      'Mode',                           help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
+    CreateInt(      'Mode',                              help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
     # Internal mesh generator
-    CreateInt(      'nZones',                         help='Number of mesh zones')
-    CreateRealArray('Corner',      24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
-    CreateIntArray( 'nElems',       3, multiple=True, help='Number of elements in each direction')
-    CreateStr(      'BoundaryName',    multiple=True, help='Name of domain boundary')
-    CreateIntArray( 'BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
-    CreateIntArray( 'BCIndex',      6, multiple=True, help='Index of BC for each boundary face')
-    CreateRealArray('vv',           3, multiple=True, help='Vector for periodic BC')
+    CreateInt(      'nZones',                            help='Number of mesh zones')
+    CreateRealArray('Corner',         24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)')
+    CreateIntArray( 'nElems',          3, multiple=True, help='Number of elements in each direction')
+    CreateStr(      'BoundaryName',       multiple=True, help='Name of domain boundary')
+    CreateIntArray( 'BoundaryType',    4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray( 'BCIndex',         6, multiple=True, help='Index of BC for each boundary face')
+    CreateRealArray('vv',              3, multiple=True, help='Vector for periodic BC')
     # External mesh readin through GMSH
-    CreateStr(      'Filename',        multiple=True, help='Name of external mesh file')
+    CreateStr(      'Filename',           multiple=True, help='Name of external mesh file')
+    CreateLogical(  'MeshIsAlreadyCurved',default=False, help='Enables mesh agglomeration')
     # Common settings
-    CreateInt(      'BoundaryOrder',   default=2,     help='Order of spline-reconstruction for curved surfaces')
-    CreateLogical(  'doSortIJK',       default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateInt(      'BoundaryOrder',      default=2,     help='Order of spline-reconstruction for curved surfaces')
+    CreateLogical(  'doSortIJK',          default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateLogical(  'checkElemJacobians', default=True,  help='Check the Jacobian and scaled Jacobian for each element')
 
 
 def InitMesh() -> None:
@@ -123,15 +125,15 @@ def RegenerateMesh() -> None:
     import src.output.output as hopout
     # ------------------------------------------------------
 
-    hopout.separator()
-    hopout.info('REGENERATE MESH...')
-
     match mesh_vars.mode:
         case 1:  # Internal Cartesian Mesh
             mesh = mesh_vars.mesh
         case 3:  # External CGNS mesh
             if mesh_vars.CGNS.regenarate_BCs:
+                hopout.separator()
+                hopout.info('REGENERATE MESH...')
                 mesh = BCCGNS()
+                hopout.info('REGENERATE MESH DONE!')
             else:
                 mesh = mesh_vars.mesh
         case _:  # Default
@@ -140,5 +142,3 @@ def RegenerateMesh() -> None:
             sys.exit()
 
     mesh_vars.mesh = mesh
-
-    hopout.info('REGENERATE MESH DONE!')
