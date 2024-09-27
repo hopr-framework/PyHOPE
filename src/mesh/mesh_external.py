@@ -52,15 +52,17 @@ def MeshExternal() -> meshio._mesh.Mesh:
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     from src.io.io_vars import debugvisu
-    from src.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
+    from src.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr, GetLogical
     # ------------------------------------------------------
 
+    hopout.separator()
+    hopout.info('LOADING EXTERNAL MESH')
+
     gmsh.initialize()
+    # gmsh.option.setString('SetFactory', 'OpenCascade')
     if not debugvisu:
         # Hide the GMSH debug output
         gmsh.option.setNumber('General.Terminal', 0)
-
-    hopout.sep()
 
     # Set default value
     nBCs_CGNS = 0
@@ -87,14 +89,15 @@ def MeshExternal() -> meshio._mesh.Mesh:
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
     vvs = mesh_vars.vvs
-    for iVV, vv in enumerate(vvs):
-        vvs[iVV] = dict()
-        vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
     if len(vvs) > 0:
         hopout.sep()
+    for iVV, _ in enumerate(vvs):
+        vvs[iVV] = dict()
+        vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
     mesh_vars.CGNS.regenarate_BCs = False
 
+    hopout.sep()
     fnames = CountOption('Filename')
     for iName in range(fnames):
         fname = GetStr('Filename')
@@ -111,20 +114,16 @@ def MeshExternal() -> meshio._mesh.Mesh:
             gmsh.option.setNumber('Mesh.CgnsImportIgnoreBC', 0)
             gmsh.option.setNumber('Mesh.CgnsImportIgnoreSolution', 1)
 
+            # Enable agglomeration
+            mesh_vars.CGNS.already_curved = GetLogical('MeshIsAlreadyCurved')
+            hopout.sep()
+            if mesh_vars.CGNS.already_curved and mesh_vars.nGeo > 1:
+                gmsh.option.setNumber('Mesh.CgnsImportOrder', mesh_vars.nGeo)
+                # Set the element order
+                # > Technically, this is only required in generate_mesh but let's be precise here
+                gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+
         gmsh.merge(fname)
-
-        # read in boundary conditions from cgns file as gmsh is not capable of reading vertex based boundaries
-        # TODO: ACTUALLY NOT NEEDED FOR ANSA CGNS
-        # if ext == '.cgns':
-        #     with h5py.File(fname, mode='r') as f:
-        #         domain = f['Base']
-        #         for iZone, zone in enumerate(domain.keys()):
-        #             # skip the data zone
-        #             if zone.strip() == 'data':
-        #                 continue
-
-        gmsh.model.geo.synchronize()
-        # gmsh.model.occ.synchronize()
 
         entities  = gmsh.model.getEntities()
         nBCs_CGNS = len([s for s in entities if s[0] == 2])
@@ -145,16 +144,19 @@ def MeshExternal() -> meshio._mesh.Mesh:
                 mesh_vars.CGNS.regenarate_BCs = True
 
         gmsh.model.geo.synchronize()
+        # gmsh.model.occ.synchronize()
 
     # PyGMSH returns a meshio.mesh datatype
-    mesh = pygmsh.geo.Geometry().generate_mesh(order=mesh_vars.nGeo)
+    mesh = pygmsh.geo.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
+    # mesh = pygmsh.occ.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
 
     if debugvisu:
         gmsh.fltk.run()
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
-
+    hopout.info('LOADING EXTERNAL MESH DONE!')
+    hopout.separator()
     return mesh
 
 
@@ -225,7 +227,11 @@ def BCCGNS() -> meshio._mesh.Mesh:
                 hopout.warning('CGNS file does not contain library version header')
                 sys.exit()
 
-            base = f['Base']
+            try:
+                base = f['Base']
+            except KeyError:
+                hopout.warning('Object [Base] does not exist in CGNS file')
+                sys.exit()
 
             for baseNum, baseZone in enumerate(base.keys()):
                 # Ignore the base dataset

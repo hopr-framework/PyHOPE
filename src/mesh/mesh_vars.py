@@ -53,6 +53,7 @@ HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for hi
 
 class CGNS:
     regenarate_BCs: bool                          # Flag if CGNS needs BC regeneration
+    already_curved: bool                          # Flag if mesh is already curved
 
 
 class ELEM:
