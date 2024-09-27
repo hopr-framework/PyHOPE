@@ -49,11 +49,11 @@ elems  : list                                     # [list of list] - Element nod
 sides  : list                                     # [list of list] - Side    nodes
 
 HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
+already_curved: bool                              # Flag if mesh is already curved
 
 
 class CGNS:
     regenarate_BCs: bool                          # Flag if CGNS needs BC regeneration
-    already_curved: bool                          # Flag if mesh is already curved
 
 
 class ELEM:

@@ -114,14 +114,15 @@ def MeshExternal() -> meshio._mesh.Mesh:
             gmsh.option.setNumber('Mesh.CgnsImportIgnoreBC', 0)
             gmsh.option.setNumber('Mesh.CgnsImportIgnoreSolution', 1)
 
-            # Enable agglomeration
-            mesh_vars.CGNS.already_curved = GetLogical('MeshIsAlreadyCurved')
-            hopout.sep()
-            if mesh_vars.CGNS.already_curved and mesh_vars.nGeo > 1:
+        # Enable agglomeration
+        mesh_vars.already_curved = GetLogical('MeshIsAlreadyCurved')
+        hopout.sep()
+        if mesh_vars.already_curved and mesh_vars.nGeo > 1:
+            if ext == '.cgns':
                 gmsh.option.setNumber('Mesh.CgnsImportOrder', mesh_vars.nGeo)
-                # Set the element order
-                # > Technically, this is only required in generate_mesh but let's be precise here
-                gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+            # Set the element order
+            # > Technically, this is only required in generate_mesh but let's be precise here
+            gmsh.model.mesh.setOrder(mesh_vars.nGeo)
 
         gmsh.merge(fname)
 
