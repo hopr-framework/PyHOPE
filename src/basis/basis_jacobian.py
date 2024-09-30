@@ -306,7 +306,7 @@ def CheckJacobians() -> None:
     hopout.info('CHECK JACOBIANS...')
     hopout.sep()
 
-    checkElemJacobians = GetLogical('checkElemJacobians')
+    checkElemJacobians = GetLogical('CheckElemJacobians')
     if not checkElemJacobians:
         return None
 

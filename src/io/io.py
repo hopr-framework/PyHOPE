@@ -245,6 +245,10 @@ def IO() -> None:
 
             mesh.write(fname, file_format='vtk42')
 
+        case _:  # Default
+            hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))
+            sys.exit()
+
     hopout.info('OUTPUT MESH DONE!')
 
 
