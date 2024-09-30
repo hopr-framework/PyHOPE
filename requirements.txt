@@ -1,0 +1,10 @@
+alive-progress
+gmsh
+h5py
+hilbertcurve
+meshio
+numpy
+packaging
+plotext
+pygmsh
+scipy

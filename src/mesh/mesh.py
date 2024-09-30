@@ -62,7 +62,7 @@ def DefineMesh() -> None:
     # Common settings
     CreateInt(      'BoundaryOrder',      default=2,     help='Order of spline-reconstruction for curved surfaces')
     CreateLogical(  'doSortIJK',          default=False, help='Sort the mesh elements along the I,J,K directions')
-    CreateLogical(  'checkElemJacobians', default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckElemJacobians', default=True,  help='Check the Jacobian and scaled Jacobian for each element')
 
 
 def InitMesh() -> None:
@@ -129,7 +129,7 @@ def RegenerateMesh() -> None:
         case 1:  # Internal Cartesian Mesh
             mesh = mesh_vars.mesh
         case 3:  # External CGNS mesh
-            if mesh_vars.CGNS.regenarate_BCs:
+            if mesh_vars.CGNS.regenerate_BCs:
                 hopout.separator()
                 hopout.info('REGENERATE MESH...')
                 mesh = BCCGNS()

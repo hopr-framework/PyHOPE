@@ -1,0 +1,70 @@
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of UVWXYZ
+#
+# Copyright (c) 2022-2024 Andrea Beck
+#
+# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Continuous Integration/Continuous Deployment
+# ==================================================================================================================================
+
+# Official language image. Look for the different tagged releases at:
+# > https://hub.docker.com/r/library/python/tags/
+image: python:latest
+
+# Change pip's cache directory to be inside the project directory since we can only cache local items.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# https://pip.pypa.io/en/stable/topics/caching/
+cache:
+  paths:
+    - .cache/pip
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Templates ("hidden jobs")
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+.default: &default
+  tags: [dockertag]
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Setup
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+before_script:
+  - ulimit -s unlimited
+  - module list || true
+  - python3 --version
+  - python3 -m pip --version
+  - python3 -m venv venv
+  - source venv/bin/activate
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Stages
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+stages:
+  - lint
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Linter
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+flake8:
+  extends: .default
+  stage: lint
+  script:
+    - python3 -m pip install flake8
+    - flake8 --version
+    - flake8 -qq --statistics --exit-zero uvwxyz.py src

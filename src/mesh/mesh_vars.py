@@ -53,7 +53,7 @@ already_curved: bool                              # Flag if mesh is already curv
 
 
 class CGNS:
-    regenarate_BCs: bool                          # Flag if CGNS needs BC regeneration
+    regenerate_BCs: bool                          # Flag if CGNS needs BC regeneration
 
 
 class ELEM:

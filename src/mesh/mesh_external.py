@@ -95,13 +95,18 @@ def MeshExternal() -> meshio._mesh.Mesh:
         vvs[iVV] = dict()
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
-    mesh_vars.CGNS.regenarate_BCs = False
+    mesh_vars.CGNS.regenerate_BCs = False
 
     hopout.sep()
     fnames = CountOption('Filename')
     for iName in range(fnames):
         fname = GetStr('Filename')
         fname = os.path.join(os.getcwd(), fname)
+
+        # check if the file exists
+        if not os.path.isfile(os.path.join(os.getcwd(), fname)):
+            hopout.warning('File [󰇘]/{} does not exist'.format(os.path.basename(fname)))
+            sys.exit()
 
         # get file extension
         _, ext = os.path.splitext(fname)
@@ -142,7 +147,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
                     entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
                     gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
             else:
-                mesh_vars.CGNS.regenarate_BCs = True
+                mesh_vars.CGNS.regenerate_BCs = True
 
         gmsh.model.geo.synchronize()
         # gmsh.model.occ.synchronize()

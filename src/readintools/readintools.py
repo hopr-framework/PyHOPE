@@ -24,6 +24,8 @@
 # ==================================================================================================================================
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
+import os
+import subprocess
 import sys
 import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -406,7 +408,9 @@ class ReadConfig():
 
     def __enter__(self) -> ConfigParser:
         # Local imports ----------------------------------------
+        from src.common.common_vars import Common
         import src.config.config as config
+        import src.output.output as hopout
         # ------------------------------------------------------
 
         parser = ConfigParser(strict=False,
@@ -415,8 +419,18 @@ class ReadConfig():
                               dict_type=MultiOrderedDict
                               )
 
-        # HOPR does not use conventional sections, so prepend a
-        # fake section header
+        # Check if the file exists
+        if not os.path.isfile(self.parameter):
+            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+            program = Common.program
+            version = Common.version
+            commit  = process.communicate()[0].strip().decode('ascii')
+
+            hopout.header(program, version, commit)
+            hopout.warning('Parameter file [󰇘]/{} does not exist'.format(os.path.basename(self.parameter)))
+            sys.exit()
+
+        # HOPR does not use conventional sections, so prepend a fake section header
         with open(self.parameter) as stream:
             parser.read_string('[general]\n' + stream.read())
         if False:
