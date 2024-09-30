@@ -169,32 +169,29 @@ def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
     return x3D_Out
 
 
-def evaluate_jacobian(xGeo_In: np.ndarray, nGeoRef: int, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
+def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
     # Perform tensor contraction for the first derivative (Xi direction)
     dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
-    dXdXiGL   = np.moveaxis(dXdXiGL  , 0, -3)  # Correct the shape to (3, nGeo, nGeo, nGeo)
+    dXdXiGL   = np.moveaxis(dXdXiGL  , 0, -3)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
 
     # Perform tensor contraction for the second derivative (Eta direction)
-    # dXdEtaGL  = np.tensordot(D_EqToGL, np.moveaxis(xGeo_In, 1, 2), axes=(1, 2))
     dXdEtaGL  = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 2))
-    dXdEtaGL  = np.moveaxis(dXdEtaGL , 0, -3)  # Correct the shape to (3, nGeo, nGeo, nGeo)
+    dXdEtaGL  = np.moveaxis(dXdEtaGL , 0, -3)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
 
     # Perform tensor contraction for the third derivative (Zeta direction)
     dXdZetaGL = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 3))
-    dXdZetaGL = np.moveaxis(dXdZetaGL, 0, -3)  # Correct the shape to (3, nGeo, nGeo, nGeo)
+    dXdZetaGL = np.moveaxis(dXdZetaGL, 0, -3)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
 
-    # dXdXiAP   = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdXiGL  )
-    # dXdEtaAP  = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdEtaGL )
-    # dXdZetaAP = change_basis_3D(3, nGeo, nGeoRef, VdmGLtoAP, dXdZetaGL)
+    # Change basis for each direction
     dXdXiAP   = change_basis_3D(VdmGLtoAP, dXdXiGL  )
     dXdEtaAP  = change_basis_3D(VdmGLtoAP, dXdEtaGL )
     dXdZetaAP = change_basis_3D(VdmGLtoAP, dXdZetaGL)
 
-    jacOut = np.zeros((nGeoRef, nGeoRef, nGeoRef))
-    for k in range(nGeoRef):
-        for j in range(nGeoRef):
-            for i in range(nGeoRef):
-                jacOut[i,j,k] = np.sum(dXdXiAP[:,i,j,k] * np.cross(dXdEtaAP[:,i,j,k],dXdZetaAP[:,i,j,k]))
+    # Precompute cross products between dXdEtaAP and dXdZetaAP for all points
+    cross_eta_zeta = np.cross(dXdEtaAP, dXdZetaAP, axis=0)  # Shape: (3, nGeoRef, nGeoRef, nGeoRef)
+
+    # Fill output Jacobian array
+    jacOut = np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
 
     return jacOut
 
@@ -242,7 +239,7 @@ def process_chunk(chunk):
     chunk_results = []
     for elem in chunk:
         nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL = elem
-        jac    = evaluate_jacobian(nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL)
+        jac    = evaluate_jacobian(nodeCoords, VdmGLtoAP, D_EqToGL)
         maxJac = np.max(np.abs(jac))
         minJac = np.min(jac)
         chunk_results.append(minJac / maxJac)
@@ -298,6 +295,7 @@ def update_progress(progress_queue, total_elements):
 
 def CheckJacobians() -> None:
     # Local imports ----------------------------------------
+    from src.common.common_vars import np_mtp
     from src.io.io import LINMAP
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
@@ -346,13 +344,13 @@ def CheckJacobians() -> None:
         if int(elem['Type']) % 100 != 8:
             continue
 
-        # Fill the NodeCoords
-        nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
+        # Get the mapping
         linMap = LINMAP(elem['Type'], order=mesh_vars.nGeo)
         mapLin = {k: v for v, k in enumerate(linMap)}
-        elemNodes = elem['Nodes']
 
-        for iNode, nodeID in enumerate(elemNodes):
+        # Fill the NodeCoords
+        nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
+        for iNode, nodeID in enumerate(elem['Nodes']):
             nodeCoords[mapLin[iNode], :] = nodes[nodeID]
 
         xGeo = np.zeros((3, nGeo, nGeo, nGeo))
@@ -363,11 +361,20 @@ def CheckJacobians() -> None:
                     xGeo[:, i, j, k] = nodeCoords[iNode, :]
                     iNode += 1
 
-        # Add tasks for parallel processing
-        jacobian_tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
+        if np_mtp > 0:
+            # Add tasks for parallel processing
+            jacobian_tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
+        else:
+            jac = evaluate_jacobian(xGeo, VdmGLtoAP, D_EqToGL)
+            maxJac =  np.max(np.abs(jac))
+            minJac =  np.min(       jac)
+            jacobian_tasks.append(minJac / maxJac)
 
-    # Run in parallel with a chunk size
-    jacs = run_in_parallel(jacobian_tasks, chunk_size=10)
+    if np_mtp > 0:
+        # Run in parallel with a chunk size
+        jacs = run_in_parallel(jacobian_tasks, chunk_size=10)
+    else:
+        jacs = np.array(jacobian_tasks)
 
     # Plot the histogram of the Jacobians
     plot_histogram(np.array(jacs))
