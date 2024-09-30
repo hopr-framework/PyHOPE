@@ -1,5 +1,36 @@
+# Global .gitignore file
+
+# Python files
 __pycache__
+
+# Code coverage
 .coverage
 coverage*
+
+# Code distribution
 dist/
-tutorials/
+
+# Code profiling
+*.data
+*.log
+*.lprof
+
+# CI/CD
+.gitlab-ci-local/
+
+# (C)Tags
+tags
+.tags
+
+# Core dump files
+core
+
+# Mesh files
+*.h5
+*.msh
+*.vtu
+
+# Other output files
+*.old
+*.out
+*.txt
