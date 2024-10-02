@@ -105,12 +105,12 @@ def CheckDefined(name, multiple=False, init=False) -> None:
         if name in config.prms and not multiple:
             hopout.warning('Parameter "{}" already define and not a multiple option, exiting...'.format(name))
             traceback.print_stack(file=sys.stdout)
-            sys.exit()
+            sys.exit(1)
     else:
         if name not in config.prms:
             hopout.warning('Parameter "{}" is not defined, exiting...'.format(name))
             traceback.print_stack(file=sys.stdout)
-            sys.exit()
+            sys.exit(1)
 
 
 def CheckUsed(name) -> None:
@@ -122,7 +122,7 @@ def CheckUsed(name) -> None:
     if config.prms[name]['counter'] > 1 and not config.prms[name]['multiple']:
         hopout.warning('Parameter "{}" already used and not a multiple option, exiting...'.format(name))
         traceback.print_stack(file=sys.stdout)
-        sys.exit()
+        sys.exit(1)
 
 
 def CheckType(name, calltype) -> None:
@@ -134,7 +134,7 @@ def CheckType(name, calltype) -> None:
     if config.prms[name]['type'] is not calltype:
         hopout.warning('Call type of parameter "{}" does not match definition, exiting...'.format(name))
         traceback.print_stack(file=sys.stdout)
-        sys.exit()
+        sys.exit(1)
 
 
 def CheckDimension(name, result) -> None:
@@ -146,7 +146,7 @@ def CheckDimension(name, result) -> None:
     if config.prms[name]['number'] != result:
         hopout.warning('Parameter "{}" has array length mismatch, exiting...'.format(name))
         traceback.print_stack(file=sys.stdout)
-        sys.exit()
+        sys.exit(1)
 
 
 def CreateSection(string) -> None:
@@ -285,8 +285,10 @@ def GetParam(name, calltype, default=None, number=None):
     if config.params.has_option('general', name):
         if config.prms[name]['multiple']:
             # We can request specific indices
-            if number is None: number = config.prms[name]['counter']-1
-            else:              number = number
+            if number is None:
+                number = config.prms[name]['counter']-1
+            else:
+                number = number
 
             value = [s for s in config.params.get('general', name).split('\n') if s != ''][number]
         else:
@@ -315,7 +317,7 @@ def GetParam(name, calltype, default=None, number=None):
                 hopout.warning('Keyword "{}" not found in file and no default given, exiting...'
                                .format(name))
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
     return value
 
 
@@ -352,7 +354,7 @@ def GetIntFromStr(name, default=None, number=None) -> int:
             if len(value) == 0:
                 hopout.warning('Unknown value for parameter {}, exiting...'.format(name))
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
             else:
                 value = int(value[0])
                 hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), '*CUSTOM')
@@ -428,7 +430,7 @@ class ReadConfig():
 
             hopout.header(program, version, commit)
             hopout.warning('Parameter file [󰇘]/{} does not exist'.format(os.path.basename(self.parameter)))
-            sys.exit()
+            sys.exit(1)
 
         # HOPR does not use conventional sections, so prepend a fake section header
         with open(self.parameter) as stream:

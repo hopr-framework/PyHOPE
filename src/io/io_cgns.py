@@ -81,7 +81,7 @@ def ElemTypes(num: int) -> dict[str, str]:
              { 'ElemTypeCGNS': 'HEXA_56',         'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 38
              { 'ElemTypeCGNS': 'HEXA_64',         'ElemTypeMeshIO': 'hexahedron64', 'Nodes': 64 },  # 39
              { 'ElemTypeCGNS': 'Null',            'ElemTypeMeshIO': 'hexahedron24', 'Nodes': 24 },  # 40
-]
+             ]
     return types[num]
 
 
@@ -112,7 +112,7 @@ def edgePointCGNS(order: int, edge: int, node: int) -> np.ndarray:
         case 3:  # y- / base
             return np.array([0         , order-node], dtype=int)
         case _:
-            sys.exit()
+            sys.exit(1)
 
 
 def genHEXMAPCGNS(order: int) -> None:

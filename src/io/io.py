@@ -105,7 +105,7 @@ def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
             return HEXMAP
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
-            sys.exit()
+            sys.exit(1)
 
 
 def ELEMTYPE(elemType: int) -> str:
@@ -136,7 +136,7 @@ def ELEMTYPE(elemType: int) -> str:
             return '        Curved Hexahedra  '
         case _:  # Default
             print('Error in ELEMTYPE, unknown elemType')
-            sys.exit()
+            sys.exit(1)
 
 
 def DefineIO() -> None:
@@ -247,7 +247,7 @@ def IO() -> None:
 
         case _:  # Default
             hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))
-            sys.exit()
+            sys.exit(1)
 
     hopout.info('OUTPUT MESH DONE!')
 

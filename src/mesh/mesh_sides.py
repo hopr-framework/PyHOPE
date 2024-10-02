@@ -101,4 +101,3 @@ def GenerateSides() -> None:
         elemID = side['ElemID']
         sideID = side['SideID']
         elems[elemID]['Sides'].append(sideID)
-

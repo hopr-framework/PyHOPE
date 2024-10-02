@@ -90,4 +90,4 @@ def ELEMMAP(meshioType: str) -> int:
             return 208
     else:
         print('Unknown element type {}'.format(meshioType))
-        sys.exit()
+        sys.exit(1)
