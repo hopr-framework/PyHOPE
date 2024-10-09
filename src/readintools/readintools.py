@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import traceback
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -54,7 +55,7 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strtobool(val: int | bool | str) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
+def strtobool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
         True values  are 'y', 'yes', 't', 'true', 'on', and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
@@ -92,7 +93,7 @@ class DefineConfig:
 
 
 # ==================================================================================================================================
-def CheckDefined(name, multiple=False, init=False) -> None:
+def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -113,7 +114,7 @@ def CheckDefined(name, multiple=False, init=False) -> None:
             sys.exit(1)
 
 
-def CheckUsed(name) -> None:
+def CheckUsed(name: str) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -125,7 +126,7 @@ def CheckUsed(name) -> None:
         sys.exit(1)
 
 
-def CheckType(name, calltype) -> None:
+def CheckType(name: str, calltype: str) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -137,7 +138,7 @@ def CheckType(name, calltype) -> None:
         sys.exit(1)
 
 
-def CheckDimension(name, result) -> None:
+def CheckDimension(name: str, result: int) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -149,7 +150,7 @@ def CheckDimension(name, result) -> None:
         sys.exit(1)
 
 
-def CreateSection(string) -> None:
+def CreateSection(string: str) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -158,7 +159,7 @@ def CreateSection(string) -> None:
     config.prms[string] = dict(type='section', name=string)
 
 
-def CreateStr(string, help=None, default=None, multiple=False) -> None:
+def CreateStr(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -172,7 +173,7 @@ def CreateStr(string, help=None, default=None, multiple=False) -> None:
                                multiple=multiple)
 
 
-def CreateInt(string, help=None, default=None, multiple=False) -> None:
+def CreateInt(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -186,7 +187,7 @@ def CreateInt(string, help=None, default=None, multiple=False) -> None:
                                multiple=multiple)
 
 
-def CreateLogical(string, help=None, default=None, multiple=False) -> None:
+def CreateLogical(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -200,7 +201,7 @@ def CreateLogical(string, help=None, default=None, multiple=False) -> None:
                                multiple=multiple)
 
 
-def CreateIntFromString(string, help=None, default=None, multiple=False) -> None:
+def CreateIntFromString(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -215,7 +216,7 @@ def CreateIntFromString(string, help=None, default=None, multiple=False) -> None
                                multiple=multiple)
 
 
-def CreateIntOption(string, name, number) -> None:
+def CreateIntOption(string: str, name, number) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -225,7 +226,7 @@ def CreateIntOption(string, name, number) -> None:
     config.prms[string]['mapping'].update({number: name})
 
 
-def CreateRealArray(string, nReals, help=None, default=None, multiple=False) -> None:
+def CreateRealArray(string: str, nReals, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -240,7 +241,7 @@ def CreateRealArray(string, nReals, help=None, default=None, multiple=False) -> 
                                multiple=multiple)
 
 
-def CreateIntArray(string, nInts, help=None, default=None, multiple=False) -> None:
+def CreateIntArray(string: str, nInts, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -256,7 +257,7 @@ def CreateIntArray(string, nInts, help=None, default=None, multiple=False) -> No
 
 
 # ==================================================================================================================================
-def CountOption(string) -> int:
+def CountOption(string: str) -> int:
     # Local imports ----------------------------------------
     import src.config.config as config
     from configparser import NoOptionError
@@ -271,7 +272,7 @@ def CountOption(string) -> int:
     return counter
 
 
-def GetParam(name, calltype, default=None, number=None):
+def GetParam(name: str, calltype: str, default: Union[str, None] = None, number: Union[int, None] = None):
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -285,12 +286,10 @@ def GetParam(name, calltype, default=None, number=None):
     if config.params.has_option('general', name):
         if config.prms[name]['multiple']:
             # We can request specific indices
-            if number is None:
-                number = config.prms[name]['counter']-1
-            else:
-                number = number
+            if number is None: num = config.prms[name]['counter']-1  # noqa: E701
+            else:              num = number                          # noqa: E701
 
-            value = [s for s in config.params.get('general', name).split('\n') if s != ''][number]
+            value = [s for s in config.params.get('general', name).split('\n') if s != ''][num]
         else:
             value = config.params.get('general', name)
 
@@ -321,22 +320,22 @@ def GetParam(name, calltype, default=None, number=None):
     return value
 
 
-def GetStr(name, default=None, number=None) -> str:
+def GetStr(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> str:
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
 
 
-def GetInt(name, default=None, number=None) -> int:
+def GetInt(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> int:
     value = GetParam(name=name, default=default, number=number, calltype='int')
     return int(value)
 
 
-def GetLogical(name, default=None, number=None) -> bool:
+def GetLogical(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> bool:
     value = GetParam(name=name, default=default, number=number, calltype='bool')
     return strtobool(value)
 
 
-def GetIntFromStr(name, default=None, number=None) -> int:
+def GetIntFromStr(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> int:
     # Local imports ----------------------------------------
     import src.config.config as config
     import src.output.output as hopout
@@ -362,7 +361,7 @@ def GetIntFromStr(name, default=None, number=None) -> int:
     return int(value)
 
 
-def GetRealArray(name, default=None, number=None) -> np.ndarray:
+def GetRealArray(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='realarray')
 
     # Split the array definitiosn
@@ -380,7 +379,7 @@ def GetRealArray(name, default=None, number=None) -> np.ndarray:
     return value
 
 
-def GetIntArray(name, default=None, number=None) -> np.ndarray:
+def GetIntArray(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
     # Split the array definitiosn
@@ -404,7 +403,7 @@ class ReadConfig():
         format, so we need some hacks around the INI file format
     """
 
-    def __init__(self, parameter) -> None:
+    def __init__(self, parameter: str) -> None:
         self.parameter = parameter
         return None
 
