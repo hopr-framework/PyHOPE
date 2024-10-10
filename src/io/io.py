@@ -199,7 +199,8 @@ def IO() -> None:
             pname = io_vars.projectname
             fname = '{}_mesh.h5'.format(pname)
 
-            elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter = getMeshInfo()
+            # elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter = getMeshInfo()
+            elemInfo, sideInfo, _, nodeCoords, elemCounter = getMeshInfo()
 
             # Print the final output
             hopout.sep()
