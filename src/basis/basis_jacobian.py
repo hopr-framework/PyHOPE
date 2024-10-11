@@ -238,7 +238,8 @@ def process_chunk(chunk):
     """
     chunk_results = []
     for elem in chunk:
-        nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL = elem
+        # nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL = elem
+        nodeCoords, _, VdmGLtoAP, D_EqToGL = elem
         jac    = evaluate_jacobian(nodeCoords, VdmGLtoAP, D_EqToGL)
         maxJac = np.max(np.abs(jac))
         minJac = np.min(jac)

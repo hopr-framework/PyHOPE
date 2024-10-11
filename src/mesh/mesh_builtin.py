@@ -184,7 +184,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
             elif bcs[iBC]['Type'][3] == 0:
                 hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
             else:
                 continue
 

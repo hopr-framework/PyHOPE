@@ -79,7 +79,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
     #     hopout.warning(    'Different number of boundary conditions between CGNS and parameter file\n'
     #                    ' !! Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
     #                    ' !! {} is now exiting ...'.format(Common.program))
-    #     sys.exit()
+    #     sys.exit(1)
 
     for iBC, bc in enumerate(bcs):
         bc['Name'] = GetStr('BoundaryName', number=iBC)
@@ -106,7 +106,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
         # check if the file exists
         if not os.path.isfile(os.path.join(os.getcwd(), fname)):
             hopout.warning('File [󰇘]/{} does not exist'.format(os.path.basename(fname)))
-            sys.exit()
+            sys.exit(1)
 
         # get file extension
         _, ext = os.path.splitext(fname)
@@ -173,7 +173,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
     # Local imports ----------------------------------------
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
-    from src.common.common import find_index
+    # from src.common.common import find_index
     from src.common.common_vars import Common
     from src.io.io_cgns import ElemTypes
     from src.readintools.readintools import CountOption, GetStr
@@ -184,7 +184,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
     cells   = mesh_vars.mesh.cells
     # elems   = mesh_vars.elems
     # sides   = mesh_vars.sides
-    bcs     = mesh_vars.bcs
+    # bcs     = mesh_vars.bcs
 
     # cell_sets contain the face IDs [dim=2]
     # > Offset is calculated with entities from [dim=0, dim=1]
@@ -225,19 +225,19 @@ def BCCGNS() -> meshio._mesh.Mesh:
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
             hopout.warning('{} only support HDF5 CGNS files not following GMSH standard'.format(Common.program))
-            sys.exit()
+            sys.exit(1)
             # TODO: Convert ADF to HDF automatically
 
         with h5py.File(fname, mode='r') as f:
             if 'CGNSLibraryVersion' not in f.keys():
                 hopout.warning('CGNS file does not contain library version header')
-                sys.exit()
+                sys.exit(1)
 
             try:
                 base = f['Base']
             except KeyError:
                 hopout.warning('Object [Base] does not exist in CGNS file')
-                sys.exit()
+                sys.exit(1)
 
             for baseNum, baseZone in enumerate(base.keys()):
                 # Ignore the base dataset
@@ -262,8 +262,8 @@ def BCCGNS() -> meshio._mesh.Mesh:
                 zoneBCs = [s for s in zone['ZoneBC'].keys() if s.strip() != 'innerfaces']
 
                 for zoneBC in zoneBCs:
-                    bcName = zoneBC[3:]
-                    bcID   = find_index([s['Name'] for s in bcs], bcName)
+                    # bcName = zoneBC[3:]
+                    # bcID   = find_index([s['Name'] for s in bcs], bcName)
 
                     cgnsBC = zone[zoneBC]['ElementConnectivity'][' data']
 
@@ -292,7 +292,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
                         if trSide[0] > tol:
                             hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
                             traceback.print_stack(file=sys.stdout)
-                            sys.exit()
+                            sys.exit(1)
 
                         sideID   = int(trSide[1]) + offsetcs
                         # For the first side on the BC, the dict does not exist

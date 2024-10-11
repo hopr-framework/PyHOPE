@@ -50,7 +50,7 @@ def edgePointVTK(order: int, edge: int, node: int) -> np.ndarray:
         case 3:  # y- / base
             return np.array([0         , order-node], dtype=int)
         case _:
-            sys.exit()
+            sys.exit(1)
 
 
 def genHEXMAPVTK(order: int) -> None:

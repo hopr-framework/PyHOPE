@@ -133,7 +133,7 @@ def ConnectMesh() -> None:
             case _:  # Zero or more than 2 sides
                 hopout.warning('Found internal side with more than two adjacent elements, exiting...')
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
 
     # Set BC and periodic sides
     bcs = mesh_vars.bcs
@@ -155,7 +155,7 @@ def ConnectMesh() -> None:
             if bcID is None:
                 hopout.warning('Could not find BC {} in list, exiting...'.format(key))
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
 
             # Find the mapping to the (N-1)-dim elements
             csetMap = [s for s in range(len(cset)) if cset[s] is not None]
@@ -197,7 +197,7 @@ def ConnectMesh() -> None:
             if bcID is None:
                 hopout.warning('Could not find BC {} in list, exiting...'.format(key))
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
 
             # Only periodic BCs
             if bcs[bcID]['Type'][0] != 1:
@@ -222,7 +222,7 @@ def ConnectMesh() -> None:
             # FIXME: TODO HYBRID MESHES
             if len(nbcsetMap) > 1:
                 print('Hybrid meshes currently not supported')
-                sys.exit()
+                sys.exit(1)
 
             # Get the list of sides
             nbFaceSet  = []
@@ -266,7 +266,7 @@ def ConnectMesh() -> None:
                 if trSide[0] > tol:
                     hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
                     traceback.print_stack(file=sys.stdout)
-                    sys.exit()
+                    sys.exit(1)
 
                 nbiSide  = nbFaceSet[trSide[1]] - offsetcs
 
@@ -295,7 +295,7 @@ def ConnectMesh() -> None:
                 if trCorn[0] > tol:
                     hopout.warning('Could not determine flip of a periodic side within tolerance {}, exiting...'.format(tol))
                     traceback.print_stack(file=sys.stdout)
-                    sys.exit()
+                    sys.exit(1)
 
                 flipID    = trCorn[1] + 1
 
@@ -353,7 +353,7 @@ def ConnectMesh() -> None:
         if trSide[0] > tol:
             hopout.warning('Could not find an internal side within tolerance {}, exiting...'.format(tol))
             traceback.print_stack(file=sys.stdout)
-            sys.exit()
+            sys.exit(1)
 
         nbiSide   = trSide[1]
 
@@ -380,7 +380,7 @@ def ConnectMesh() -> None:
         if trCorn[0] > tol:
             hopout.warning('Could not determine flip of an internal side within tolerance {}, exiting...'.format(tol))
             traceback.print_stack(file=sys.stdout)
-            sys.exit()
+            sys.exit(1)
         flipID = trCorn[1] + 1
 
         # Connect the sides
@@ -443,7 +443,7 @@ def ConnectMesh() -> None:
             else:
                 hopout.warning('Found unconnected side which is not a BC side, exiting...')
                 traceback.print_stack(file=sys.stdout)
-                sys.exit()
+                sys.exit(1)
 
     hopout.sep()
     hopout.info(' Number of sides          : {:12d}'.format(nsides))

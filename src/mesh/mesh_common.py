@@ -58,7 +58,7 @@ def edge_to_dir(edge: int) -> int:
             return 2
         case _:
             print('Error in edge_to_dir, unknown edge')
-            sys.exit()
+            sys.exit(1)
 
 
 def face_to_edge(face, dtype=int) -> np.ndarray:
@@ -79,7 +79,7 @@ def face_to_edge(face, dtype=int) -> np.ndarray:
             return np.array([  4,  5,   6,   7], dtype=dtype)
         case _:  # Default
             print('Error in face_to_edge, unknown face')
-            sys.exit()
+            sys.exit(1)
 
 
 def face_to_corner(face, dtype=int) -> np.ndarray:
@@ -100,7 +100,7 @@ def face_to_corner(face, dtype=int) -> np.ndarray:
             return np.array([  4,  5,   6,   7], dtype=dtype)
         case _:  # Default
             print('Error in face_to_corner, unknown face')
-            sys.exit()
+            sys.exit(1)
 
 
 def face_to_cgns(face, dtype=int) -> np.ndarray:
@@ -121,7 +121,7 @@ def face_to_cgns(face, dtype=int) -> np.ndarray:
             return np.array([  4,  5,   6,   7], dtype=dtype)
         case _:  # Default
             print('Error in face_to_corner, unknown face')
-            sys.exit()
+            sys.exit(1)
 
 
 def count_elems(mesh: meshio._mesh.Mesh) -> int:

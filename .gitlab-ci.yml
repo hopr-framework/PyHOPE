@@ -33,13 +33,24 @@ variables:
 # https://pip.pypa.io/en/stable/topics/caching/
 cache:
   paths:
+    - venv
     - .cache/pip
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Templates ("hidden jobs")
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-.default: &default
+.defaults: &defaults
   tags: [dockertag]
+
+.defaults_coverage: &defaults_coverage
+  <<: *defaults
+  artifacts:
+    paths:
+      - coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Setup
@@ -48,23 +59,136 @@ before_script:
   - ulimit -s unlimited
   - module list || true
   - python3 --version
+  # Setup required packages
+  - apt-get update
+  - apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1
+  # Setup Python pip
+  - python3 -m pip install --upgrade pip --root-user-action=ignore
   - python3 -m pip --version
+  # Setup Python virtual environment
   - python3 -m venv venv
   - source venv/bin/activate
+  # Install all pre-requisites
+  - pip install -r requirements.txt --root-user-action=ignore
+  - pip install coverage --root-user-action=ignore
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Stages
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 stages:
   - lint
+  - coverage
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Linter
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-flake8:
-  extends: .default
+ruff:
+  extends: .defaults
   stage: lint
   script:
-    - python3 -m pip install flake8
-    - flake8 --version
-    - flake8 -qq --statistics --exit-zero uvwxyz.py src
+    - python3 -m pip install ruff
+    - ruff --version
+    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview uvwxyz.py src/
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Reggie
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+coverage:
+  extends: .defaults_coverage
+  stage: coverage
+  script:
+    # Store the base directory
+    - basedir=$(pwd)
+
+    # Define colors for PASS/FAIL output
+    - green="\033[32m"
+    - red="\033[31m"
+    - reset="\033[0m"
+
+    # Initialize an array for storing results (directory and pass/fail status)
+    - declare -a results
+
+    # Store all directories with "parameter.ini" files in an array (bash-only)
+    - mapfile -d '' paramfiles < <(find tutorials -type f -name "parameter.ini" -print0)
+    - echo "Found "${#paramfiles[@]}" parameter.ini files..."
+
+    # Calculate max width
+    - max_dir_length=0
+    - | # Literal YAML multiline block scalar indicator
+      for paramfile in "${paramfiles[@]}"; do
+        paramdir=$(dirname "$paramfile")
+        paramlen=${#paramdir}
+
+        if [ "$paramlen" -gt "$max_dir_length" ]; then
+          max_dir_length=$paramlen
+        fi
+      done
+    - box_width=$((max_dir_length + 10))  # Add padding for aesthetics
+    - col_width=$((max_dir_length + 2))   # Add padding for the table
+
+    # Iterate over all directories, run tests, and collect results
+    - echo "Running UVWXYZ with coverage for each parameter.ini file..."
+
+    - | # Literal YAML multiline block scalar indicator
+      for paramfile in "${paramfiles[@]}"; do
+        paramdir=$(dirname  "$paramfile")
+        paramstr=$(basename "$paramdir" )
+        paramini=$(basename "$paramfile")
+
+        # Print a message for the running task
+        echo ""
+        printf "┌─%s─┐\n" "$(printf '─%.0s' $(seq 1 $((box_width))))"
+        printf "│ Running %-$(($box_width-8))s │\n" "$paramdir"
+        printf "└─%s─┘\n" "$(printf '─%.0s' $(seq 1 $((box_width))))"
+
+        # Change directory to where the parameter.ini file is located, suppress output
+        pushd "$paramdir" > /dev/null
+
+        # Run the script under coverage and capture the result
+        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "$basedir/uvwxyz.py" "$paramini"; then
+          results+=("$paramdir: PASS")
+          echo -e "${green}✔ PASS${reset}: $paramini"
+        else
+          results+=("$paramdir: FAIL")
+          echo -e "${red}✖ FAIL${reset}: $paramini"
+        fi
+
+        # Return to the previous directory, suppress output
+        popd > /dev/null
+      done
+
+    # Combine coverage reports from all example directories
+    - echo "Combining coverage reports..."
+    - coverage combine
+
+    # Generate the coverage report in XML format
+    - echo "Generating coverage report..."
+    - coverage xml
+    - coverage report --skip-empty
+
+    # Output the final sorted report as a UTF-8 box-drawing table
+    - | # Literal YAML multiline block scalar indicator
+      echo ""
+      printf "┌─%s─┬────────┐\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+      printf "│ %-$(($col_width-2))s │ %-5s │\n" "Example Directory" "Result"
+      printf "├─%s─┼────────┤\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+      for result in "${results[@]}"; do
+        paramdir=$(echo "$result" | cut -d ':' -f 1)
+        paramres=$(echo "$result" | cut -d ':' -f 2 | tr -d '[:space:]')
+
+        if [[ "$paramres" == "PASS" ]]; then
+          printf "│ %-$(($col_width-2))s │ ${green}%-6s${reset} │\n" "$paramdir" "$paramres"
+        else
+          printf "│ %-$(($col_width-2))s │ ${red}%-6s${reset} │\n" "$paramdir" "$paramres"
+        fi
+      done
+      printf "└─%s─┴────────┘\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+
+    # Fail the job if any examples failed
+    - | # Literal YAML multiline block scalar indicator
+      if [[ "${results[*]}" == *"FAIL"* ]]; then
+        echo "Some examples failed.";
+        exit 1;
+      else
+        echo "All examples passed.";
+      fi
