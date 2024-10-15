@@ -1,5 +1,5 @@
 alive-progress
-gmsh
+gmsh @ https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1-py3-none-linux_x86_64.whl
 h5py
 hilbertcurve
 meshio

@@ -1,0 +1,24 @@
+*.ansa    filter=lfs diff=lfs merge=lfs -text
+*.cgns    filter=lfs diff=lfs merge=lfs -text
+*.h5      filter=lfs diff=lfs merge=lfs -text
+*.mp4     filter=lfs diff=lfs merge=lfs -text
+*.pdf     filter=lfs diff=lfs merge=lfs -text
+*.png     filter=lfs diff=lfs merge=lfs -text
+*.psd     filter=lfs diff=lfs merge=lfs -text
+*.pvtu    filter=lfs diff=lfs merge=lfs -text
+*.docx    filter=lfs diff=lfs merge=lfs -text
+*.tar     filter=lfs diff=lfs merge=lfs -text
+*.tar.zst filter=lfs diff=lfs merge=lfs -text
+*.vtu     filter=lfs diff=lfs merge=lfs -text
+*.whl     filter=lfs diff=lfs merge=lfs -text
+
+# Fix classification
+*.1 linguist-documentation
+*.2 linguist-documentation
+*.3 linguist-documentation
+*.4 linguist-documentation
+*.5 linguist-documentation
+*.6 linguist-documentation
+*.7 linguist-documentation
+*.8 linguist-documentation
+*.9 linguist-documentation
