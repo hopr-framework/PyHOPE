@@ -26,7 +26,10 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+import importlib
+import subprocess
 import sys
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -38,25 +41,6 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-
-
-def DebugEnabled() -> bool:
-    """ Check if program runs with debugger attached
-        > https://stackoverflow.com/a/77627075/23851165
-    """
-    try:
-        if sys.gettrace() is not None:
-            return True
-    except AttributeError:
-        pass
-
-    try:
-        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:
-            return True
-    except AttributeError:
-        pass
-
-    return False
 
 
 def DefineCommon() -> None:
@@ -103,7 +87,89 @@ def InitCommon() -> None:
     # Actually overwrite the global value
     common_vars.np_mtp = np_mtp
 
+    # Check if we are using the NRG Gmsh version
+    if not PkgsMetaData('gmsh', 'Intended Audience: NRG'):
+        if IsInteractive():
+            hopout.info('Detected non-NRG Gmsh version, exiting...')
+            response = input('Do you want to install the correct package version? (Y/n): ')
+            if response.lower() in ['yes', 'y', '']:
+                PkgsInstallGmsh()
+        else:
+            hopout.warning('Detected non-NRG Gmsh version, exiting...')
+            sys.exit(1)
+
     hopout.info('INIT PROGRAM DONE!')
+
+
+def DebugEnabled() -> bool:
+    """ Check if program runs with debugger attached
+        > https://stackoverflow.com/a/77627075/23851165
+    """
+    try:
+        if sys.gettrace() is not None:
+            return True
+    except AttributeError:
+        pass
+
+    try:
+        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:
+            return True
+    except AttributeError:
+        pass
+
+    return False
+
+
+def IsInteractive():
+    return sys.__stdin__.isatty()
+
+
+def PkgsMetaData(pkgs, classifier) -> Union[bool, None]:
+    """ Check if the package contains a given classifier
+    """
+    try:
+        metadata    = importlib.metadata.metadata(pkgs)
+        classifiers = metadata.get_all('Classifier', [])
+        return classifier in classifiers
+
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def PkgsInstallGmsh():
+    # Local imports ----------------------------------------
+    import hashlib
+    import tempfile
+    import src.output.output as hopout
+    from src.common.common_vars import Gitlab
+    # ------------------------------------------------------
+
+    # Gitlab "python-gmsh" access
+    lfs = 'yes'
+    lib = 'gmsh-{}-py3-none-linux_x86_64.whl'.format(Gitlab.LIB_VERSION)
+
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as path:
+        pkgs = os.path.join(path, lib)
+        curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
+        subprocess.run(curl, check=True, shell=True)
+
+        # Compare the hash
+        # > Initialize a new sha256 hash
+        sha256 = hashlib.sha256()
+        with open(pkgs, 'rb') as f:
+            # Read and update hash string value in blocks of 4K
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256.update(chunk)
+
+        if sha256.hexdigest() == Gitlab.LIB_HASH:
+            hopout.info('Hash matches, installing Gmsh wheel...')
+        else:
+            hopout.warning('Hash mismatch, exiting...')
+            sys.exit(1)
+
+        # Install the package in the current environment
+        subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
 
 
 # > https://stackoverflow.com/a/5419576/23851165
@@ -114,7 +180,7 @@ def InitCommon() -> None:
 
 
 def find_key(dict: dict, item) -> int | None:
-    """ Find the first occurance of a key in dictionary
+    """ Find the first occurrence of a key in dictionary
     """
     if type(item) is np.ndarray:
         for key, val in dict.items():
@@ -128,7 +194,7 @@ def find_key(dict: dict, item) -> int | None:
 
 
 def find_keys(dict: dict, item) -> list | None:
-    """ Find all occurance of a key in dictionary
+    """ Find all occurrence of a key in dictionary
     """
     if type(item) is np.ndarray:
         keys = [key for key, val in dict.items() if np.all(val == item)]
@@ -148,7 +214,7 @@ def find_keys(dict: dict, item) -> list | None:
 
 
 def find_index(seq, item) -> int:
-    """ Find the first occurances of a key in a list
+    """ Find the first occurrences of a key in a list
     """
     if type(seq) is np.ndarray:
         seq = seq.tolist()
@@ -165,7 +231,7 @@ def find_index(seq, item) -> int:
 
 
 def find_indices(seq, item) -> list:
-    """ Find all occurances of a key in a list
+    """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:
         seq = seq.tolist()

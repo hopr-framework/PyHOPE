@@ -177,7 +177,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
     import src.mesh.mesh_vars as mesh_vars
     import src.output.output as hopout
     # from src.common.common import find_index
-    from src.common.common_vars import Common
+    # from src.common.common_vars import Common
     from src.io.io_cgns import ElemTypes
     from src.readintools.readintools import CountOption, GetStr
     # ------------------------------------------------------

@@ -42,8 +42,17 @@ class Common():
     __version__ = Version('2.0.0')
     __program__ = 'UVWXYZ'
 
-    program = str(__program__)
-    version = str(__version__)
+    program: str = str(__program__)
+    version: str = str(__version__)
+
+
+class Gitlab():
+    # Gitlab "python-gmsh" access
+    LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
+    # LIB_PROJECT  = 'libs/python-gmsh'
+    LIB_PROJECT: str = '797'
+    LIB_VERSION: str = '4.13.1'
+    LIB_HASH:    str = '82f655d3a7d97da5b4de06fd0af2198a95b8098a10b3f89edc99764f635c5d4d'
 
 
 np_mtp : int                                     # Number of threads for multiprocessing

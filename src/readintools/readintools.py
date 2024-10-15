@@ -173,7 +173,7 @@ def CreateStr(string: str, help: Union[str, None] = None, default: Union[str, No
                                multiple=multiple)
 
 
-def CreateInt(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
+def CreateInt(string: str, help: Union[str, None] = None, default: Union[int, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------
@@ -187,7 +187,7 @@ def CreateInt(string: str, help: Union[str, None] = None, default: Union[str, No
                                multiple=multiple)
 
 
-def CreateLogical(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
+def CreateLogical(string: str, help: Union[str, None] = None, default: Union[bool, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import src.config.config as config
     # ------------------------------------------------------

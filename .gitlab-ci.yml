@@ -66,11 +66,14 @@ before_script:
   - python3 -m pip install --upgrade pip --root-user-action=ignore
   - python3 -m pip --version
   # Setup Python virtual environment
+  - rm -rf venv
   - python3 -m venv venv
   - source venv/bin/activate
+  # # Cleanup previous installs
+  # - pip freeze | xargs pip uninstall -y --root-user-action=ignore
   # Install all pre-requisites
-  - pip install -r requirements.txt --root-user-action=ignore
-  - pip install coverage --root-user-action=ignore
+  - pip install --no-cache-dir -r requirements.txt --root-user-action=ignore
+  - pip install --no-cache-dir coverage --root-user-action=ignore
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Stages
