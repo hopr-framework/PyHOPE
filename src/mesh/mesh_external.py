@@ -27,7 +27,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
 import os
+import subprocess
 import sys
+import tempfile
+import time
 import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -222,11 +225,25 @@ def BCCGNS() -> meshio._mesh.Mesh:
     for iName in range(fnames):
         fname = GetStr('Filename', number=iName)
         fname = os.path.join(os.getcwd(), fname)
+
         # Check if the file is using HDF5 format internally
+        tfile = None
+        # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
-            hopout.warning('{} only support HDF5 CGNS files not following GMSH standard'.format(Common.program))
-            sys.exit(1)
-            # TODO: Convert ADF to HDF automatically
+            # Create a temporary directory and keep it existing until manually cleaned
+            tfile = tempfile.NamedTemporaryFile(delete=False, delete_on_close=False)
+            tname = tfile.name
+
+            hopout.sep()
+            hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
+            tStart = time.time()
+            subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
+            tEnd   = time.time()
+            hopout.info('File {} converted HDF5 CGNS format [{:.2f} sec]'.format(os.path.basename(fname), tEnd - tStart))
+            hopout.sep()
+
+            # Rest of this code operates on the converted file
+            fname = tname
 
         with h5py.File(fname, mode='r') as f:
             if 'CGNSLibraryVersion' not in f.keys():
@@ -313,5 +330,9 @@ def BCCGNS() -> meshio._mesh.Mesh:
                                          cell_sets=cellsets)
 
                     mesh_vars.mesh = mesh
+
+        # Cleanup temporary file
+        if tfile is not None:
+            os.unlink(tfile.name)
 
     return mesh

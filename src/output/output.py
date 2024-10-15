@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -113,7 +114,7 @@ def end(time: float, length: int = STD_LENGTH) -> None:
     print('┗' + '━'*(length-1))
 
 
-def info(string: str, newline=False) -> None:
+def info(string: str, newline: bool = False, end: Union[str, None] = None) -> None:
     """ Print the input `string` as generic output without special formatting.
 
         Args:
@@ -121,9 +122,9 @@ def info(string: str, newline=False) -> None:
             length (int): (Optional.) Number of characters in each line.
     """
     if newline:
-        print('\n│', string)
+        print('\n│ '+ string, end=end)
     else:
-        print('│', string)
+        print('│ '  + string, end=end)
 
 
 def routine(string: str, newline=False) -> None:
@@ -134,9 +135,9 @@ def routine(string: str, newline=False) -> None:
             length (int): (Optional.) Number of characters in each line.
     """
     if newline:
-        print('\n├──', string)
+        print('\n├── ' + string)
     else:
-        print('├──', string)
+        print('├── '   + string)
 
 
 def printoption(option: str, value: str, status: str, length: int = 31) -> None:
