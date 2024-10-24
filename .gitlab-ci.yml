@@ -148,7 +148,7 @@ coverage:
         pushd "$paramdir" > /dev/null
 
         # Run the script under coverage and capture the result
-        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "pyhope" "$paramini"; then
+        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" -m "src" "$paramini"; then
           results+=("$paramdir: PASS")
           echo -e "${green}✔ PASS${reset}: $paramini"
         else
