@@ -11,7 +11,7 @@ authors = [
 description = "A python-based HOPR clone for High-Order mesh generation"
 license = "GPL-3.0"
 readme = "README.md"
-repository = "https://gitlab.iag.uni-stuttgart.de/flexi/codes/uvwxyz"
+repository = "https://gitlab.iag.uni-stuttgart.de/flexi/codes/pyhope"
 keywords = ["hoppy", "something"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -34,4 +34,4 @@ gmsh = { url = "https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/maste
 
 [tool.poetry.scripts]
 # Establishes the entry point for the CLI
-hoppy = "src.uvwxyz:main"
+hoppy = "src.pyhope:main"
