@@ -2,21 +2,21 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of UVWXYZ
+# This file is part of PyHOPE
 #
 # Copyright (c) 2022-2024 Andrea Beck
 #
-# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
 #
-# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License along with
-# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
 
 # ==================================================================================================================================
 # Continuous Integration/Continuous Deployment
@@ -91,7 +91,7 @@ ruff:
   script:
     - python3 -m pip install ruff
     - ruff --version
-    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview uvwxyz.py src/
+    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope.py src/
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Reggie
@@ -130,7 +130,7 @@ coverage:
     - col_width=$((max_dir_length + 2))   # Add padding for the table
 
     # Iterate over all directories, run tests, and collect results
-    - echo "Running UVWXYZ with coverage for each parameter.ini file..."
+    - echo "Running PyHOPE with coverage for each parameter.ini file..."
 
     - | # Literal YAML multiline block scalar indicator
       for paramfile in "${paramfiles[@]}"; do
@@ -148,7 +148,7 @@ coverage:
         pushd "$paramdir" > /dev/null
 
         # Run the script under coverage and capture the result
-        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "$basedir/uvwxyz.py" "$paramini"; then
+        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "$basedir/pyhope.py" "$paramini"; then
           results+=("$paramdir: PASS")
           echo -e "${green}✔ PASS${reset}: $paramini"
         else
