@@ -3,21 +3,21 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of UVWXYZ
+# This file is part of PyHOPE
 #
 # Copyright (c) 2022-2024 Andrea Beck
 #
-# UVWXYZ is free software: you can redistribute it and/or modify it under the
+# PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
 # version.
 #
-# UVWXYZ is distributed in the hope that it will be useful, but WITHOUT ANY
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License along with
-# UVWXYZ. If not, see <http://www.gnu.org/licenses/>.
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
 
 # ==================================================================================================================================
 # Mesh generation library
@@ -60,7 +60,7 @@ def header(program: str, version: str, commit: str, length: int = STD_LENGTH) ->
     # string = 'Parametric Exploration and Control Engine'
     print(Colors.BANNERA + '┏' + '━'*(length-1))
     # print(Colors.BANNERA + '┃')
-    print(Colors.BANNERA + '┃' + ' U V W X Y Z ')
+    print(Colors.BANNERA + '┃' + ' P y H O P E — Python High-Order Preprocessing Environment')
     # print(Colors.BANNERA + '┃' + ' {}'.format(string))
     print(Colors.BANNERA + '┃' + Colors.END + ' {} version {} [commit {}]'.format(program, version, commit))
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
@@ -108,9 +108,9 @@ def separator(length: int = 46) -> None:
     print('├' + '─'*(length-1))
 
 
-def end(time: float, length: int = STD_LENGTH) -> None:
+def end(program: str, time: float, length: int = STD_LENGTH) -> None:
     print('┢' + '━'*(length-1))
-    print('┃ UVWXYZ completed in [{:.2f} sec]'.format(time))
+    print('┃ {} completed in [{:.2f} sec]'.format(program,time))
     print('┗' + '━'*(length-1))
 
 

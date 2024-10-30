@@ -1,6 +1,6 @@
-UVWXYZ (working title) is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
+PyHOPE is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
 
-UVWXYZ has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
+PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
 
 This is a scientific project.
 
@@ -13,12 +13,12 @@ python -m pip install -r requirements.txt
 ```
 
 # Usage
-UVWXYZ is invoked from the command line. Run parameters are read from a configuration file. The following output is obtained when running the example configuration file `tutorials/1-01-cartbox/parameter.ini`.
+PyHOPE is invoked from the command line. Run parameters are read from a configuration file. The following output is obtained when running the example configuration file `tutorials/1-01-cartbox/parameter.ini`.
 ```
-$ uvwxyz tutorials/1-01-cartbox/parameter.ini
+$ pyhope tutorials/1-01-cartbox/parameter.ini
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ U V W X Y Z 
-┃ UVWXYZ version 2.0.0 [commit 69e4106]
+┃ P y H O P E — Python High-Order Preprocessing Environment
+┃ PyHOPE version 0.9.0
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ├─────────────────────────────────────────────
 │ INIT PROGRAM...
@@ -80,7 +80,7 @@ $ uvwxyz tutorials/1-01-cartbox/parameter.ini
 │ CHECK JACOBIANS...
 ├────
 │              CheckElemJacobians │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (30004.72/s) 
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (30004.72/s)
 ├────
 │ Scaled Jacobians
 ├─────────────────
@@ -105,6 +105,6 @@ $ uvwxyz tutorials/1-01-cartbox/parameter.ini
 ├────
 │ OUTPUT MESH DONE!
 ┢━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ UVWXYZ completed in [0.18 sec]
+┃ PyHOPE completed in [0.18 sec]
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
