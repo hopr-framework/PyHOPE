@@ -42,18 +42,18 @@ def main() -> None:
     """ Main routine of PyHOPE
     """
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
-    from src.common.common import DefineCommon, InitCommon
-    from src.common.common_vars import Common
-    from src.basis.basis_jacobian import CheckJacobians
-    from src.io.io import IO, DefineIO, InitIO
-    from src.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
-    from src.mesh.mesh_connect import ConnectMesh
-    from src.mesh.mesh_sides import GenerateSides
-    from src.mesh.mesh_sort import SortMesh
-    from src.readintools.commandline import CommandLine
-    from src.readintools.readintools import DefineConfig, ReadConfig
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
+    from pyhope.common.common import DefineCommon, InitCommon
+    from pyhope.common.common_vars import Common
+    from pyhope.basis.basis_jacobian import CheckJacobians
+    from pyhope.io.io import IO, DefineIO, InitIO
+    from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
+    from pyhope.mesh.mesh_connect import ConnectMesh
+    from pyhope.mesh.mesh_sides import GenerateSides
+    from pyhope.mesh.mesh_sort import SortMesh
+    from pyhope.readintools.commandline import CommandLine
+    from pyhope.readintools.readintools import DefineConfig, ReadConfig
     # ------------------------------------------------------
 
     tStart  = time.time()

@@ -126,7 +126,7 @@ def face_to_cgns(face, dtype=int) -> np.ndarray:
 
 def count_elems(mesh: meshio._mesh.Mesh) -> int:
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     nElems = 0
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
@@ -151,7 +151,7 @@ def centeroidnp(coords: np.ndarray) -> np.ndarray:
 
 def calc_elem_bary(mesh: meshio._mesh.Mesh) -> list:
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     nElems   = count_elems(mesh)
     elemBary = [np.ndarray(3)] * nElems

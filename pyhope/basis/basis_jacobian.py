@@ -200,8 +200,8 @@ def plot_histogram(data: np.ndarray) -> None:
     """ Plot a histogram of all Jacobians
     """
     # Local imports ----------------------------------------
-    import src.output.output as hopout
-    from src.output.output import STD_LENGTH
+    import pyhope.output.output as hopout
+    from pyhope.output.output import STD_LENGTH
     # ------------------------------------------------------
 
     ticks = ['│<0.0      │',
@@ -257,7 +257,7 @@ def run_in_parallel(elems, chunk_size=10):
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------
-    from src.common.common_vars import np_mtp
+    from pyhope.common.common_vars import np_mtp
     # ------------------------------------------------------
 
     chunks = distribute_work(elems, chunk_size)
@@ -296,11 +296,11 @@ def update_progress(progress_queue, total_elements):
 
 def CheckJacobians() -> None:
     # Local imports ----------------------------------------
-    from src.common.common_vars import np_mtp
-    from src.io.io import LINMAP
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.readintools.readintools import GetLogical
+    from pyhope.common.common_vars import np_mtp
+    from pyhope.io.io import LINMAP
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
     hopout.separator()

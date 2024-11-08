@@ -37,7 +37,7 @@ from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
-import src.output.output as hopout
+import pyhope.output.output as hopout
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ def flip_analytic(side: list, nbside: list) -> int:
         flip = 4 : 4th node of neighbor side = 1st node of side
     """
     # Local imports ----------------------------------------
-    from src.common.common import find_index
+    from pyhope.common.common import find_index
     # ------------------------------------------------------
     return find_index(nbside, side[0])
 
@@ -131,10 +131,10 @@ def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
 
 def ConnectMesh() -> None:
     # Local imports ----------------------------------------
-    import src.io.io_vars as io_vars
-    import src.mesh.mesh_vars as mesh_vars
-    from src.common.common import find_index
-    from src.io.io_vars import MeshFormat
+    import pyhope.io.io_vars as io_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.common.common import find_index
+    from pyhope.io.io_vars import MeshFormat
     # ------------------------------------------------------
 
     match io_vars.outputformat:

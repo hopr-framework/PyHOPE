@@ -46,12 +46,12 @@ import pygmsh
 
 def MeshCartesian() -> meshio._mesh.Mesh:
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.common.common import find_index, find_indices
-    from src.io.io_vars import debugvisu
-    from src.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
-    from src.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.common.common import find_index, find_indices
+    from pyhope.io.io_vars import debugvisu
+    from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()

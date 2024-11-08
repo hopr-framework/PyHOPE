@@ -58,8 +58,8 @@ class CommandLine:
     """
     def __init__(self, argv, name: str, version: str, commit: str) -> None:
         # Local imports ----------------------------------------
-        import src.config.config as config
-        from src.output.output import Colors
+        import pyhope.config.config as config
+        from pyhope.output.output import Colors
         # ------------------------------------------------------
 
         # Read the command line arguments and store everything

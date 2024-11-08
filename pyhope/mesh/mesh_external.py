@@ -52,10 +52,10 @@ from scipy import spatial
 
 def MeshExternal() -> meshio._mesh.Mesh:
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.io.io_vars import debugvisu
-    from src.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr, GetLogical
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.io.io_vars import debugvisu
+    from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr, GetLogical
     # ------------------------------------------------------
 
     hopout.separator()
@@ -174,12 +174,12 @@ def BCCGNS() -> meshio._mesh.Mesh:
         > Add them here manually to the meshIO object
     """
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    # from src.common.common import find_index
-    # from src.common.common_vars import Common
-    from src.io.io_cgns import ElemTypes
-    from src.readintools.readintools import CountOption, GetStr
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    # from pyhope.common.common import find_index
+    # from pyhope.common.common_vars import Common
+    from pyhope.io.io_cgns import ElemTypes
+    from pyhope.readintools.readintools import CountOption, GetStr
     # ------------------------------------------------------
 
     mesh    = mesh_vars.mesh

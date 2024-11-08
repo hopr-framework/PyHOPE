@@ -95,8 +95,8 @@ class DefineConfig:
 # ==================================================================================================================================
 def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     # Check if already defined which is allowed if
@@ -116,8 +116,8 @@ def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
 
 def CheckUsed(name: str) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     if config.prms[name]['counter'] > 1 and not config.prms[name]['multiple']:
@@ -128,8 +128,8 @@ def CheckUsed(name: str) -> None:
 
 def CheckType(name: str, calltype: str) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     if config.prms[name]['type'] is not calltype:
@@ -140,8 +140,8 @@ def CheckType(name: str, calltype: str) -> None:
 
 def CheckDimension(name: str, result: int) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     if config.prms[name]['number'] != result:
@@ -152,7 +152,7 @@ def CheckDimension(name: str, result: int) -> None:
 
 def CreateSection(string: str) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple=False, init=True)
@@ -161,7 +161,7 @@ def CreateSection(string: str) -> None:
 
 def CreateStr(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
@@ -175,7 +175,7 @@ def CreateStr(string: str, help: Union[str, None] = None, default: Union[str, No
 
 def CreateInt(string: str, help: Union[str, None] = None, default: Union[int, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
@@ -189,7 +189,7 @@ def CreateInt(string: str, help: Union[str, None] = None, default: Union[int, No
 
 def CreateLogical(string: str, help: Union[str, None] = None, default: Union[bool, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
@@ -203,7 +203,7 @@ def CreateLogical(string: str, help: Union[str, None] = None, default: Union[boo
 
 def CreateIntFromString(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
@@ -218,7 +218,7 @@ def CreateIntFromString(string: str, help: Union[str, None] = None, default: Uni
 
 def CreateIntOption(string: str, name, number) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     multiple = config.prms[string]['multiple']
@@ -228,7 +228,7 @@ def CreateIntOption(string: str, name, number) -> None:
 
 def CreateRealArray(string: str, nReals, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
@@ -243,7 +243,7 @@ def CreateRealArray(string: str, nReals, help: Union[str, None] = None, default:
 
 def CreateIntArray(string: str, nInts, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
@@ -259,7 +259,7 @@ def CreateIntArray(string: str, nInts, help: Union[str, None] = None, default: U
 # ==================================================================================================================================
 def CountOption(string: str) -> int:
     # Local imports ----------------------------------------
-    import src.config.config as config
+    import pyhope.config.config as config
     from configparser import NoOptionError
     # ------------------------------------------------------
 
@@ -274,8 +274,8 @@ def CountOption(string: str) -> int:
 
 def GetParam(name: str, calltype: str, default: Union[str, None] = None, number: Union[int, None] = None):
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     CheckDefined(name)
@@ -337,8 +337,8 @@ def GetLogical(name: str, default: Union[str, None] = None, number: Union[int, N
 
 def GetIntFromStr(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> int:
     # Local imports ----------------------------------------
-    import src.config.config as config
-    import src.output.output as hopout
+    import pyhope.config.config as config
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
     value = GetParam(name=name, default=default, number=number, calltype='int2str')
     # Check if we already received the int. Otherwise, get the value from the
@@ -409,9 +409,9 @@ class ReadConfig():
 
     def __enter__(self) -> ConfigParser:
         # Local imports ----------------------------------------
-        from src.common.common_vars import Common
-        import src.config.config as config
-        import src.output.output as hopout
+        from pyhope.common.common_vars import Common
+        import pyhope.config.config as config
+        import pyhope.output.output as hopout
         # ------------------------------------------------------
 
         parser = ConfigParser(strict=False,
@@ -421,6 +421,15 @@ class ReadConfig():
                               )
 
         # Check if the file exists
+        if not self.parameter:
+            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+            program = Common.program
+            version = Common.version
+            commit  = process.communicate()[0].strip().decode('ascii')
+
+            hopout.header(program, version, commit)
+            hopout.warning('No parameter file given')
+            sys.exit(1)
         if not os.path.isfile(self.parameter):
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
             program = Common.program

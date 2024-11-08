@@ -77,10 +77,10 @@ class tBox:
 def SortMeshBySFC() -> None:
     # Local imports ----------------------------------------
     from hilbertcurve.hilbertcurve import HilbertCurve
-    from src.common.common_vars import np_mtp
-    from src.mesh.mesh_common import count_elems, calc_elem_bary
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
+    from pyhope.common.common_vars import np_mtp
+    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along space-filling curve')
@@ -145,9 +145,9 @@ def SortMeshBySFC() -> None:
 
 def SortMeshByIJK():
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    from src.mesh.mesh_common import count_elems, calc_elem_bary
-    import src.output.output as hopout
+    import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along I,J,K direction')
@@ -263,9 +263,9 @@ def SortMeshByIJK():
 
 def SortMesh() -> None:
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.readintools.readintools import GetLogical
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
     hopout.separator()
