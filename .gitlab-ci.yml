@@ -4,7 +4,7 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (c) 2022-2024 Andrea Beck
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
 #
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
@@ -72,7 +72,7 @@ before_script:
   # # Cleanup previous installs
   # - pip freeze | xargs pip uninstall -y --root-user-action=ignore
   # Install all pre-requisites
-  - pip install --no-cache-dir . --root-user-action=ignore
+  - pip install --no-cache-dir -e . --root-user-action=ignore
   - pip install --no-cache-dir coverage --root-user-action=ignore
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -148,7 +148,7 @@ coverage:
         pushd "$paramdir" > /dev/null
 
         # Run the script under coverage and capture the result
-        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "$basedir/pyhope/pyhope.py" "$paramini"; then
+        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" -m pyhope "$paramini"; then
           results+=("$paramdir: PASS")
           echo -e "${green}✔ PASS${reset}: $paramini"
         else
