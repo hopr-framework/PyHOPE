@@ -5,7 +5,7 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (c) 2022-2024 Andrea Beck
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
 #
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
