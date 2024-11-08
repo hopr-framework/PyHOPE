@@ -47,7 +47,7 @@ def DefineCommon() -> None:
     """ Define general options for the entire program
     """
     # Local imports ----------------------------------------
-    from src.readintools.readintools import CreateInt, CreateSection
+    from pyhope.readintools.readintools import CreateInt, CreateSection
     # ------------------------------------------------------
     CreateSection('Common')
     CreateInt(      'nThreads',        default=4,     help='Number of threads for multiprocessing')
@@ -57,9 +57,9 @@ def InitCommon() -> None:
     """ Readin general option for the entire program
     """
     # Local imports ----------------------------------------
-    import src.output.output as hopout
-    import src.common.common_vars as common_vars
-    from src.readintools.readintools import GetInt
+    import pyhope.output.output as hopout
+    import pyhope.common.common_vars as common_vars
+    from pyhope.readintools.readintools import GetInt
     # ------------------------------------------------------
 
     hopout.separator()
@@ -140,8 +140,8 @@ def PkgsInstallGmsh():
     # Local imports ----------------------------------------
     import hashlib
     import tempfile
-    import src.output.output as hopout
-    from src.common.common_vars import Gitlab
+    import pyhope.output.output as hopout
+    from pyhope.common.common_vars import Gitlab
     # ------------------------------------------------------
 
     # Gitlab "python-gmsh" access

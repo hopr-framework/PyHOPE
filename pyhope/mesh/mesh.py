@@ -43,7 +43,7 @@ def DefineMesh() -> None:
     """ Define general options for mesh generation / readin
     """
     # Local imports ----------------------------------------
-    from src.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
+    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
     # ------------------------------------------------------
 
     CreateSection('Mesh')
@@ -70,9 +70,9 @@ def InitMesh() -> None:
     """ Readin general option for mesh generation / readin
     """
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.readintools.readintools import GetInt
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.readintools.readintools import GetInt
     # ------------------------------------------------------
 
     hopout.separator()
@@ -93,10 +93,10 @@ def GenerateMesh() -> None:
         Mode 2 - Readin external mesh through GMSH
     """
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.mesh.mesh_builtin import MeshCartesian
-    from src.mesh.mesh_external import MeshExternal
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_builtin import MeshCartesian
+    from pyhope.mesh.mesh_external import MeshExternal
     # ------------------------------------------------------
 
     hopout.separator()
@@ -121,9 +121,9 @@ def RegenerateMesh() -> None:
     """ Finish missing mesh information such as BCs
     """
     # Local imports ----------------------------------------
-    from src.mesh.mesh_external import BCCGNS
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
+    from pyhope.mesh.mesh_external import BCCGNS
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     match mesh_vars.mode:

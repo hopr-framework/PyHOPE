@@ -174,7 +174,7 @@ def genHEXMAPMESHIO(order: int) -> None:
     """ MESHIO -> IJK ordering for high-order hexahedrons
     """
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     map = np.zeros((order, order, order), dtype=int)
 

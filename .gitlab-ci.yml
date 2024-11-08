@@ -91,7 +91,7 @@ ruff:
   script:
     - python3 -m pip install ruff
     - ruff --version
-    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview src/
+    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope/
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Reggie
@@ -148,7 +148,7 @@ coverage:
         pushd "$paramdir" > /dev/null
 
         # Run the script under coverage and capture the result
-        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "$basedir/src/pyhope.py" "$paramini"; then
+        if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" "$basedir/pyhope/pyhope.py" "$paramini"; then
           results+=("$paramdir: PASS")
           echo -e "${green}✔ PASS${reset}: $paramini"
         else

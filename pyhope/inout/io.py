@@ -66,9 +66,9 @@ def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
     """ CGNS -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
-    # from src.io.io_cgns import genHEXMAPCGNS
-    # from src.io.io_vtk import genHEXMAPVTK
-    from src.io.io_meshio import genHEXMAPMESHIO
+    # from pyhope.io.io_cgns import genHEXMAPCGNS
+    # from pyhope.io.io_vtk import genHEXMAPVTK
+    from pyhope.io.io_meshio import genHEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
@@ -84,24 +84,24 @@ def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
         case 208:  # Hexaeder
             # # CGNS
             # try:
-            #     from src.mesh.mesh_vars import HEXMAP
+            #     from pyhope.mesh.mesh_vars import HEXMAP
             # except ImportError:
             #     genHEXMAP(order+1)
-            #     from src.mesh.mesh_vars import HEXMAP
+            #     from pyhope.mesh.mesh_vars import HEXMAP
 
             # # VTK
             # try:
-            #     from src.mesh.mesh_vars import HEXMAP
+            #     from pyhope.mesh.mesh_vars import HEXMAP
             # except ImportError:
             #     genHEXMAPVTK(order+1)
-            #     from src.mesh.mesh_vars import HEXMAP
+            #     from pyhope.mesh.mesh_vars import HEXMAP
 
             # MESHIO
             try:
-                from src.mesh.mesh_vars import HEXMAP
+                from pyhope.mesh.mesh_vars import HEXMAP
             except ImportError:
                 genHEXMAPMESHIO(order+1)
-                from src.mesh.mesh_vars import HEXMAP
+                from pyhope.mesh.mesh_vars import HEXMAP
             return HEXMAP
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
@@ -141,8 +141,8 @@ def ELEMTYPE(elemType: int) -> str:
 
 def DefineIO() -> None:
     # Local imports ----------------------------------------
-    from src.io.io_vars import MeshFormat
-    from src.readintools.readintools import CreateIntFromString, CreateIntOption, CreateLogical, CreateSection, CreateStr
+    from pyhope.io.io_vars import MeshFormat
+    from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption, CreateLogical, CreateSection, CreateStr
     # ------------------------------------------------------
 
     CreateSection('Output')
@@ -155,9 +155,9 @@ def DefineIO() -> None:
 
 def InitIO() -> None:
     # Local imports ----------------------------------------
-    import src.io.io_vars as io_vars
-    import src.output.output as hopout
-    from src.readintools.readintools import GetIntFromStr, GetLogical, GetStr
+    import pyhope.io.io_vars as io_vars
+    import pyhope.output.output as hopout
+    from pyhope.readintools.readintools import GetIntFromStr, GetLogical, GetStr
     # ------------------------------------------------------
 
     hopout.separator()
@@ -173,11 +173,11 @@ def InitIO() -> None:
 
 def IO() -> None:
     # Local imports ----------------------------------------
-    import src.io.io_vars as io_vars
-    import src.mesh.mesh_vars as mesh_vars
-    import src.output.output as hopout
-    from src.common.common_vars import Common
-    from src.io.io_vars import MeshFormat
+    import pyhope.io.io_vars as io_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.common.common_vars import Common
+    from pyhope.io.io_vars import MeshFormat
     # ------------------------------------------------------
 
     hopout.separator()
@@ -255,7 +255,7 @@ def IO() -> None:
 
 def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
     # Local imports ----------------------------------------
-    import src.mesh.mesh_vars as mesh_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
     mesh  = mesh_vars.mesh

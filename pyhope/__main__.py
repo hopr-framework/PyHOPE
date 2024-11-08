@@ -20,7 +20,7 @@
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
 
 
-from src.pyhope import main
+from pyhope.pyhope import main
 
 
 if __name__ == '__main__':
