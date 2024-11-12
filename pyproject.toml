@@ -7,7 +7,7 @@ name = "PyHOPE"
 authors = [
     "Numerics Research Group (NRG) <numerics@iag.uni-stuttgart.de>",
 ]
-version = "0.0.1"
+version = "0.0.2"
 description = "Coming soon"
 license = "GPL-3.0"
 readme = "README.md"
@@ -17,7 +17,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
 ]
 
 [tool.poetry.dependencies]

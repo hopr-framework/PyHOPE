@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import textwrap
 from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -90,6 +91,22 @@ def small_banner(string: str, length: int = STD_LENGTH) -> None:
     print(Colors.BANNERB + '-'*length + Colors.END)
 
 
+def warn(string: str, length: int = STD_LENGTH) -> str:
+    """ Format the input `string` as a warning with the corresponding color.
+
+        Args:
+                string (str): String to be printed in banner.
+                length (int): (Optional.) Number of characters in each line.
+    """
+    prefix   = Colors.WARN + ' WARNING  ┃ '  + Colors.END
+    lprefix  = len(' WARNING  ┃ ')
+    wrap_msg = textwrap.fill(string, width=length - lprefix)
+
+    # Add prefix to each line
+    format_msg = '\n'.join(f'{prefix}{line}' for line in wrap_msg.splitlines())
+    return format_msg
+
+
 def warning(string: str) -> None:
     """ Print the input `string` as a warning with the corresponding color.
 
@@ -97,7 +114,7 @@ def warning(string: str) -> None:
             string (str): String to be printed in banner.
             length (int): (Optional.) Number of characters in each line.
     """
-    print(Colors.WARN + '\n !! '+string+' !! \n'+Colors.END)
+    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END)
 
 
 def sep(length: int = 5) -> None:
@@ -110,7 +127,7 @@ def separator(length: int = 46) -> None:
 
 def end(program: str, time: float, length: int = STD_LENGTH) -> None:
     print('┢' + '━'*(length-1))
-    print('┃ {} completed in [{:.2f} sec]'.format(program,time))
+    print('┃ {} completed in [{:.2f} sec]'.format(program, time))
     print('┗' + '━'*(length-1))
 
 

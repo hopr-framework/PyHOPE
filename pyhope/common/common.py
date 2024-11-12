@@ -26,10 +26,13 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import importlib
+import platform
 import subprocess
 import sys
-from typing import Union
+from importlib import metadata
+from io import TextIOWrapper
+from packaging.version import Version
+from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -87,16 +90,8 @@ def InitCommon() -> None:
     # Actually overwrite the global value
     common_vars.np_mtp = np_mtp
 
-    # Check if we are using the NRG Gmsh version
-    if not PkgsMetaData('gmsh', 'Intended Audience: NRG'):
-        if IsInteractive():
-            hopout.info('Detected non-NRG Gmsh version, exiting...')
-            response = input('Do you want to install the correct package version? (Y/n): ')
-            if response.lower() in ['yes', 'y', '']:
-                PkgsInstallGmsh()
-        else:
-            hopout.warning('Detected non-NRG Gmsh version, exiting...')
-            sys.exit(1)
+    # Check if we are using the NRG Gmsh version and install it if not
+    PkgsCheckGmsh()
 
     hopout.info('INIT PROGRAM DONE!')
 
@@ -121,19 +116,79 @@ def DebugEnabled() -> bool:
 
 
 def IsInteractive():
-    return sys.__stdin__.isatty()
+    return cast(TextIOWrapper, sys.__stdin__).isatty()
 
 
 def PkgsMetaData(pkgs, classifier) -> Union[bool, None]:
     """ Check if the package contains a given classifier
     """
     try:
-        metadata    = importlib.metadata.metadata(pkgs)
-        classifiers = metadata.get_all('Classifier', [])
+        meta = metadata.metadata(pkgs)
+        classifiers = meta.get_all('Classifier', [])
         return classifier in classifiers
 
-    except importlib.metadata.PackageNotFoundError:
+    except metadata.PackageNotFoundError:
         return None
+
+
+def PkgsMetaVersion(pkgs) -> Union[str, None]:
+    """ Check the package version
+    """
+    try:
+        version = metadata.version(pkgs)
+        return version
+
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def PkgsCheckGmsh() -> None:
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+    gmsh_version  = PkgsMetaVersion('gmsh')
+    if gmsh_version is None:
+        # Gmsh is not installed
+        if IsInteractive():
+            warning = 'Gmsh is not installed. For compability, the NRG Gmsh version will be installed. Continue? (Y/n):'
+            response = input('\n' + hopout.warn(warning) + '\n')
+            if response.lower() in ['yes', 'y', '']:
+                PkgsInstallGmsh()
+                return None
+        else:
+            hopout.warning('Gmsh is not installed, exiting...')
+            sys.exit(1)
+
+    gmsh_version = cast(str, gmsh_version)
+    # Assume that newer versions have updated CGNS
+    gmsh_expected = '4.14'
+    if Version(gmsh_version) > Version(gmsh_expected):
+        return None
+
+    # Check if the installed version is the NRG version
+    if PkgsMetaData('gmsh', 'Intended Audience: NRG'):
+        return None
+
+    # Check the current platform
+    system = platform.system()
+    arch   = platform.machine()
+
+    if system != 'Linux' or arch != 'x86_64':
+        hopout.warning(f'Detected non-NRG Gmsh version on unsupported platform [{platform} {arch}]. Functionality may be limited.')
+        return None
+
+    if not PkgsMetaData('gmsh', 'Intended Audience: NRG'):
+        if IsInteractive():
+            warning  = 'Detected Gmsh package uses an outdated CGNS (v3.4). For compatibility, ' \
+                       'the package will be uninstalled and replaced with the updated NRG GMSH ' \
+                       'version. Continue? (Y/n):'
+            response = input('\n' + hopout.warn(warning) + '\n')
+            if response.lower() in ['yes', 'y', '']:
+                PkgsInstallGmsh()
+                return None
+        else:
+            hopout.warning('Detected Gmsh package uses an outdated CGNS (v3.4). Functionality may be limited.')
+            return None
 
 
 def PkgsInstallGmsh():
@@ -168,6 +223,15 @@ def PkgsInstallGmsh():
             hopout.warning('Hash mismatch, exiting...')
             sys.exit(1)
 
+        # Remove the old version
+        try:
+            meta = metadata.metadata('gmsh')
+            if meta is not None:
+                subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'gmsh'], check=True)
+
+        except metadata.PackageNotFoundError:
+            pass
+
         # Install the package in the current environment
         subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
 
@@ -188,7 +252,7 @@ def find_key(dict: dict, item) -> int | None:
                 return key
     else:
         for key, val in dict.items():
-            if        val == item :
+            if        val == item :  # noqa: E271
                 return key
     return None
 
@@ -201,7 +265,7 @@ def find_keys(dict: dict, item) -> list | None:
         if len(keys) > 0:
             return keys
     else:
-        keys = [key for key, val in dict.items() if        val == item ]
+        keys = [key for key, val in dict.items() if        val == item ]  # noqa: E271
         if len(keys) > 0:
             return keys
     return None
@@ -225,7 +289,7 @@ def find_index(seq, item) -> int:
                 return index
     else:
         for index, val in enumerate(seq):
-            if        val == item :
+            if        val == item :  # noqa: E271
                 return index
     return -1
 
