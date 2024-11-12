@@ -150,7 +150,7 @@ def PkgsCheckGmsh() -> None:
     if gmsh_version is None:
         # Gmsh is not installed
         if IsInteractive():
-            warning = 'Gmsh is not installed. For compability, the NRG Gmsh version will be installed. Continue? (Y/n):'
+            warning = 'Gmsh is not installed. For compatibility, the NRG Gmsh version will be installed. Continue? (Y/n):'
             response = input('\n' + hopout.warn(warning) + '\n')
             if response.lower() in ['yes', 'y', '']:
                 PkgsInstallGmsh()
@@ -174,7 +174,9 @@ def PkgsCheckGmsh() -> None:
     arch   = platform.machine()
 
     if system != 'Linux' or arch != 'x86_64':
-        hopout.warning(f'Detected non-NRG Gmsh version on unsupported platform [{system}/{arch}]. Functionality may be limited.')
+        warning = hopout.warn(f'Detected non-NRG Gmsh version on unsupported platform [{system}/{arch}]. ' +
+                              'Functionality may be limited.')
+        print(warning)
         return None
 
     if not PkgsMetaData('gmsh', 'Intended Audience: NRG'):
@@ -187,7 +189,8 @@ def PkgsCheckGmsh() -> None:
                 PkgsInstallGmsh()
                 return None
         else:
-            hopout.warning('Detected Gmsh package uses an outdated CGNS (v3.4). Functionality may be limited.')
+            warning = hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). Functionality may be limited.')
+            print(warning)
             return None
 
 
