@@ -174,7 +174,7 @@ def PkgsCheckGmsh() -> None:
     arch   = platform.machine()
 
     if system != 'Linux' or arch != 'x86_64':
-        hopout.warning(f'Detected non-NRG Gmsh version on unsupported platform [{platform} {arch}]. Functionality may be limited.')
+        hopout.warning(f'Detected non-NRG Gmsh version on unsupported platform [{system}/{arch}]. Functionality may be limited.')
         return None
 
     if not PkgsMetaData('gmsh', 'Intended Audience: NRG'):
