@@ -73,6 +73,10 @@ before_script:
   # - pip freeze | xargs pip uninstall -y --root-user-action=ignore
   # Install all pre-requisites
   - pip install --no-cache-dir -e . --root-user-action=ignore
+  # Regression checks needs NRG Gmsh
+  - pip uninstall -y gmsh --root-user-action=ignore
+  - pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1-py3-none-linux_x86_64.whl --root-user-action=ignore
+  # Install coverage
   - pip install --no-cache-dir coverage --root-user-action=ignore
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,15 +1,17 @@
-PyHOPE is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
+PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
 
 PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
 
-This is a scientific project.
+PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and share the same input/output format. For more information and tutorials, please visit the [HOPR documentation](https://hopr.readthedocs.io)
+
+This is a scientific project. If you use pyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
 
 # Installation
-UVWYZ is built using standard Python packages. It is recommended to use a virtual environment for installation. The following commands create a virtual environment called `venv` and install all required packages.
+PyHOPE is built using standard Python packages. It is recommended to use a virtual environment for installation. The following commands create a virtual environment, here called `venv`, and install all required packages.
 ```
 python -m venv venv
 source venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install pyhope
 ```
 
 # Usage
@@ -18,7 +20,7 @@ PyHOPE is invoked from the command line. Run parameters are read from a configur
 $ pyhope tutorials/1-01-cartbox/parameter.ini
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ P y H O P E — Python High-Order Preprocessing Environment
-┃ PyHOPE version 0.9.0
+┃ PyHOPE version 0.0.2
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ├─────────────────────────────────────────────
 │ INIT PROGRAM...

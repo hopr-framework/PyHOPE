@@ -7,7 +7,7 @@ name = "PyHOPE"
 authors = [
     "Numerics Research Group (NRG) <numerics@iag.uni-stuttgart.de>",
 ]
-version = "0.0.1"
+version = "0.0.2"
 description = "Coming soon"
 license = "GPL-3.0"
 readme = "README.md"
@@ -17,7 +17,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
 ]
 
 [tool.poetry.dependencies]
@@ -30,7 +30,7 @@ packaging = "*"
 plotext = "*"
 pygmsh = "*"
 scipy = "*"
-gmsh = { url = "https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1-py3-none-linux_x86_64.whl" }
+gmsh = "*"
 
 [tool.poetry.scripts]
 # Establishes the entry point for the CLI

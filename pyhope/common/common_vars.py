@@ -39,7 +39,7 @@ from packaging.version import Version
 
 
 class Common():
-    __version__ = Version('0.9.0')
+    __version__ = Version('0.0.2')
     __program__ = 'PyHOPE'
 
     program: str = str(__program__)
