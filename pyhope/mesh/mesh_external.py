@@ -32,6 +32,7 @@ import sys
 import tempfile
 import time
 import traceback
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -178,7 +179,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
     import pyhope.output.output as hopout
     # from pyhope.common.common import find_index
     # from pyhope.common.common_vars import Common
-    from pyhope.io.io_cgns import ElemTypes
+    # from pyhope.io.io_cgns import ElemTypes
     from pyhope.readintools.readintools import CountOption, GetStr
     # ------------------------------------------------------
 
@@ -250,89 +251,120 @@ def BCCGNS() -> meshio._mesh.Mesh:
                 hopout.warning('CGNS file does not contain library version header')
                 sys.exit(1)
 
-            try:
-                base = f['Base']
-            except KeyError:
+            key = [s for s in f.keys() if "base" in s.lower()]
+            if len(key) == 0:
                 hopout.warning('Object [Base] does not exist in CGNS file')
                 sys.exit(1)
+            elif len(key) > 1:
+                hopout.warning('More than one object [Base] exists in CGNS file')
+                sys.exit(1)
+
+            if not isinstance(f[key[0]], h5py.Group):
+                hopout.warning('Object [Base] is not a group in CGNS file')
+                sys.exit(1)
+            base = cast(h5py.Group, f[key[0]])
 
             for baseNum, baseZone in enumerate(base.keys()):
                 # Ignore the base dataset
                 if baseZone.strip() == 'data':
                     continue
 
-                zone = base[baseZone]
+                zone = cast(h5py.Group, base[baseZone])
                 # Check if the zone contains BCs
                 if 'ZoneBC' not in zone.keys():
                     continue
 
-                # Load the CGNS points
-                nPoints = int(zone[' data'][0])
-                bpoints  = [np.zeros(3, dtype='f8') for _ in range(nPoints)]
-
-                for pointNum, point in enumerate(bpoints):
-                    point[0] = float(zone['GridCoordinates']['CoordinateX'][' data'][pointNum])
-                    point[1] = float(zone['GridCoordinates']['CoordinateY'][' data'][pointNum])
-                    point[2] = float(zone['GridCoordinates']['CoordinateZ'][' data'][pointNum])
-
-                # Loop over all BCs
-                zoneBCs = [s for s in zone['ZoneBC'].keys() if s.strip() != 'innerfaces']
-
-                for zoneBC in zoneBCs:
-                    # bcName = zoneBC[3:]
-                    # bcID   = find_index([s['Name'] for s in bcs], bcName)
-
-                    cgnsBC = zone[zoneBC]['ElementConnectivity'][' data']
-
-                    # Read the surface elements, one at a time
-                    count  = 0
-
-                    # Loop over all elements and get the type
-                    cellsets = mesh.cell_sets
-                    while count < cgnsBC.shape[0]:
-
-                        elemType = ElemTypes(cgnsBC[count])
-
-                        # Map the unique quad sides to our non-unique elem sides
-                        corners  = cgnsBC[count+1:count+elemType['Nodes']+1]
-                        # BCpoints = copy.copy(bpoints[corners])
-                        BCpoints = [bpoints[s-1] for s in corners]
-                        BCpoints = np.sort(BCpoints, axis=0)
-                        BCpoints = BCpoints.flatten()
-
-                        # Query the try for the opposing side
-                        trSide = copy.copy(stree.query(BCpoints))
-                        del BCpoints
-
-                        # trSide contains the Euclidean distance and the index of the
-                        # opposing side in the nbFaceSet
-                        if trSide[0] > tol:
-                            hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
-                            traceback.print_stack(file=sys.stdout)
-                            sys.exit(1)
-
-                        sideID   = int(trSide[1]) + offsetcs
-                        # For the first side on the BC, the dict does not exist
-                        try:
-                            prevSides = cellsets[zoneBC]
-                            prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
-                        except KeyError:
-                            # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
-                            prevSides = [None for _ in range(nConnLen)]
-                            prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
-                            cellsets.update({zoneBC: prevSides})
-
-                        # Move to the next element
-                        count += int(elemType['Nodes']) + 1
-
-                    mesh   = meshio.Mesh(points=points,
-                                         cells=cells,
-                                         cell_sets=cellsets)
-
-                    mesh_vars.mesh = mesh
+                zonedata = cast(h5py.Dataset, zone[' data'])
+                match len(zonedata[0]):
+                    case 1:  # Unstructured mesh, 1D arrays
+                        if mesh_vars.nGeo > 1:
+                            hopout.warning('Setting nGeo > 1 not supported for unstructured meshes')
+                        BCCGNS_Uncurved(mesh, points, cells, stree, zone, tol, offsetcs, nConnNum, nConnLen)
+                    case 3:  # Structured 3D mesh, 3D arrays
+                        # TODO: Implement this
+                        print('here')
+                        sys.exit()
+                    case _:  # Unsupported number of dimensions
+                        # raise ValueError('Unsupported number of dimensions')
+                        hopout.warning('Unsupported number of dimensions')
+                        sys.exit(1)
 
         # Cleanup temporary file
         if tfile is not None:
             os.unlink(tfile.name)
 
     return mesh
+
+
+def BCCGNS_Uncurved(mesh, points, cells, stree, zone, tol, offsetcs, nConnNum, nConnLen):
+    """ Set the CGNS boundary conditions for uncurved (unstructured) grids
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.io.io_cgns import ElemTypes
+    # ------------------------------------------------------
+    # Load the CGNS points
+    nPoints = int(zone[' data'][0])
+    bpoints  = [np.zeros(3, dtype='f8') for _ in range(nPoints)]
+
+    for pointNum, point in enumerate(bpoints):
+        point[0] = float(zone['GridCoordinates']['CoordinateX'][' data'][pointNum])
+        point[1] = float(zone['GridCoordinates']['CoordinateY'][' data'][pointNum])
+        point[2] = float(zone['GridCoordinates']['CoordinateZ'][' data'][pointNum])
+
+    # Loop over all BCs
+    zoneBCs = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+
+    for zoneBC in zoneBCs:
+        # bcName = zoneBC[3:]
+        # bcID   = find_index([s['Name'] for s in bcs], bcName)
+
+        cgnsBC = cast(h5py.Dataset, zone[zoneBC]['ElementConnectivity'][' data'])
+
+        # Read the surface elements, one at a time
+        count  = 0
+
+        # Loop over all elements and get the type
+        cellsets = mesh.cell_sets
+        while count < cgnsBC.shape[0]:
+
+            elemType = ElemTypes(cgnsBC[count])
+
+            # Map the unique quad sides to our non-unique elem sides
+            corners  = cgnsBC[count+1:count+elemType['Nodes']+1]
+            # BCpoints = copy.copy(bpoints[corners])
+            BCpoints = [bpoints[s-1] for s in corners]
+            BCpoints = np.sort(BCpoints, axis=0)
+            BCpoints = BCpoints.flatten()
+
+            # Query the try for the opposing side
+            trSide = copy.copy(stree.query(BCpoints))
+            del BCpoints
+
+            # trSide contains the Euclidean distance and the index of the
+            # opposing side in the nbFaceSet
+            if trSide[0] > tol:
+                hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+
+            sideID   = int(trSide[1]) + offsetcs
+            # For the first side on the BC, the dict does not exist
+            try:
+                prevSides = cellsets[zoneBC]
+                prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
+            except KeyError:
+                # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
+                prevSides = [np.empty((0,), dtype=np.uint64) for _ in range(nConnLen)]
+                prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
+                cellsets.update({zoneBC: prevSides})
+
+            # Move to the next element
+            count += int(elemType['Nodes']) + 1
+
+        mesh   = meshio.Mesh(points=points,
+                             cells=cells,
+                             cell_sets=cellsets)
+
+        mesh_vars.mesh = mesh
