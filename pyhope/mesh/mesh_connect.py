@@ -255,7 +255,7 @@ def ConnectMesh() -> None:
         # Collapse all opposing corner nodes into an [:, 12] array
         nbCellSet  = mesh.cell_sets[nbBCName]
         # Find the mapping to the (N-1)-dim elements
-        nbcsetMap  = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None]
+        nbcsetMap  = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None and nbCellSet[s].size > 0]
 
         # FIXME: TODO HYBRID MESHES
         if len(nbcsetMap) > 1:
