@@ -47,23 +47,24 @@ def DefineMesh() -> None:
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt(      'Mode',                              help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
+    CreateInt(      'Mode',                               help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
     # Internal mesh generator
-    CreateInt(      'nZones',                            help='Number of mesh zones')
-    CreateRealArray('Corner',         24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, '
-                                                                                       '... ,, x_8,y_8,z_8/)')  # noqa: E127
-    CreateIntArray( 'nElems',          3, multiple=True, help='Number of elements in each direction')
-    CreateStr(      'BoundaryName',       multiple=True, help='Name of domain boundary')
-    CreateIntArray( 'BoundaryType',    4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
-    CreateIntArray( 'BCIndex',         6, multiple=True, help='Index of BC for each boundary face')
-    CreateRealArray('vv',              3, multiple=True, help='Vector for periodic BC')
+    CreateInt(      'nZones',                             help='Number of mesh zones')
+    CreateRealArray('Corner',         24,  multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, '
+                                                                                        '... ,, x_8,y_8,z_8/)')  # noqa: E127
+    CreateIntArray( 'nElems',          3,  multiple=True, help='Number of elements in each direction')
+    CreateStr(      'BoundaryName',        multiple=True, help='Name of domain boundary')
+    CreateIntArray( 'BoundaryType',    4,  multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray( 'BCIndex',         6,  multiple=True, help='Index of BC for each boundary face')
+    CreateRealArray('vv',              3,  multiple=True, help='Vector for periodic BC')
     # External mesh readin through GMSH
-    CreateStr(      'Filename',           multiple=True, help='Name of external mesh file')
-    CreateLogical(  'MeshIsAlreadyCurved',default=False, help='Enables mesh agglomeration')
+    CreateStr(      'Filename',            multiple=True, help='Name of external mesh file')
+    CreateLogical(  'MeshIsAlreadyCurved', default=False, help='Enables mesh agglomeration')
     # Common settings
-    CreateInt(      'BoundaryOrder',      default=2,     help='Order of spline-reconstruction for curved surfaces')
-    CreateLogical(  'doSortIJK',          default=False, help='Sort the mesh elements along the I,J,K directions')
-    CreateLogical(  'CheckElemJacobians', default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateInt(      'NGeo'         ,       default=1,     help='Order of spline-reconstruction for curved surfaces')
+    CreateInt(      'BoundaryOrder',       default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
+    CreateLogical(  'doSortIJK',           default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateLogical(  'CheckElemJacobians',  default=True,  help='Check the Jacobian and scaled Jacobian for each element')
 
 
 def InitMesh() -> None:
@@ -72,17 +73,28 @@ def InitMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.readintools.readintools import GetInt
+    from pyhope.readintools.readintools import GetInt, CountOption
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('INIT MESH...')
 
     mesh_vars.mode = GetInt('Mode')
-    mesh_vars.nGeo = GetInt('BoundaryOrder') - 1
-    if mesh_vars.nGeo < 1:
-        hopout.warning('Effective boundary order < 1. Try increasing the BoundaryOrder parameter!')
+
+    NGeo     = GetInt('NGeo')          if CountOption('NGeo')          else None
+    BCOrder  = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None
+
+    if not NGeo and not BCOrder:
+        mesh_vars.nGeo = 1
+    elif NGeo and BCOrder and NGeo != BCOrder - 1:
+        hopout.warning('NGeo / BoundaryOrder must be equal to NGeo + 1!')
         sys.exit(1)
+    else:
+        mesh_vars.nGeo = NGeo or (BCOrder - 1)
+
+        if mesh_vars.nGeo < 1:
+            hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
+            sys.exit(1)
 
     hopout.info('INIT MESH DONE!')
 
