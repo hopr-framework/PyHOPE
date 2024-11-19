@@ -423,8 +423,9 @@ class ReadConfig():
         # Check if the file exists
         if not self.parameter:
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
-            program = Common.program
-            version = Common.version
+            common  = Common()
+            program = common.program
+            version = common.version
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
@@ -432,8 +433,9 @@ class ReadConfig():
             sys.exit(1)
         if not os.path.isfile(self.parameter):
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
-            program = Common.program
-            version = Common.version
+            common  = Common()
+            program = common.program
+            version = common.version
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
@@ -443,8 +445,6 @@ class ReadConfig():
         # HOPR does not use conventional sections, so prepend a fake section header
         with open(self.parameter) as stream:
             parser.read_string('[general]\n' + stream.read())
-        if False:
-            print(dict(parser.items('general')))
 
         config.std_length = max(len(s) for s in config.prms.keys())
         config.std_length = max(32, config.std_length+1)

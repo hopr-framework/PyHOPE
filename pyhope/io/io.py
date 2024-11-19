@@ -213,8 +213,9 @@ def IO() -> None:
 
             with h5py.File(fname, mode='w') as f:
                 # Store same basic information
-                f.attrs['HoprVersion'   ] = Common.version
-                f.attrs['HoprVersionInt'] = Common.__version__.micro + Common.__version__.minor*100 + Common.__version__.major*10000
+                common = Common()
+                f.attrs['HoprVersion'   ] = common.version
+                f.attrs['HoprVersionInt'] = common.__version__.micro + common.__version__.minor*100 + common.__version__.major*10000
 
                 # Store mesh information
                 f.attrs['Ngeo'          ] = mesh_vars.nGeo

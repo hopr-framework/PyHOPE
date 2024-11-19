@@ -7,7 +7,7 @@ name = "PyHOPE"
 authors = [
     "Numerics Research Group (NRG) <numerics@iag.uni-stuttgart.de>",
 ]
-version = "0.0.2"
+version = "0.0.3"
 description = "Coming soon"
 license = "GPL-3.0"
 readme = "README.md"

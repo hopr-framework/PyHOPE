@@ -25,6 +25,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import importlib.metadata
+import pathlib
+import re
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,11 +42,51 @@ from packaging.version import Version
 
 
 class Common():
-    __version__ = Version('0.0.2')
-    __program__ = 'PyHOPE'
+    # Set class as singleton
+    # > https://www.python.org/download/releases/2.2.3/descrintro
+    def __new__(cls, *args, **kwds):
+        it = cls.__dict__.get("__it__")
+        if it is not None:
+            return it
+        cls.__it__ = it = object.__new__(cls)
+        it.init(*args, **kwds)
+        return it
 
-    program: str = str(__program__)
-    version: str = str(__version__)
+    # Override __init__ for singleton
+    def init(self, *args, **kwds):
+        pass
+
+    @property
+    def __version__(self):
+        # Retrieve version from package metadata
+        try:
+            package = pathlib.Path(__file__).parent.name
+            version = importlib.metadata.version(package)
+        # Fallback to pyproject.toml
+        except importlib.metadata.PackageNotFoundError:
+            pyproject = pathlib.Path(__file__).parent.parent.parent / 'pyproject.toml'
+            if not pyproject.exists():
+                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}')
+
+            with pyproject.open('r') as p:
+                match = re.search(r'version\s*=\s*["\'](.+?)["\']', p.read())
+            if not match:
+                raise ValueError('Version not found in pyproject.toml')
+            version = match.group(1)
+
+        return Version(version)
+
+    @property
+    def __program__(self):
+        return 'PyHOPE'
+
+    @property
+    def program(self):
+        return str(self.__program__)
+
+    @property
+    def version(self):
+        return str(self.__version__)
 
 
 class Gitlab():
@@ -55,4 +98,4 @@ class Gitlab():
     LIB_HASH:    str = '82f655d3a7d97da5b4de06fd0af2198a95b8098a10b3f89edc99764f635c5d4d'
 
 
-np_mtp : int                                     # Number of threads for multiprocessing
+np_mtp : int  # Number of threads for multiprocessing
