@@ -32,7 +32,7 @@ import sys
 import tempfile
 import time
 import traceback
-from typing import cast
+from typing import cast, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -168,41 +168,6 @@ def MeshExternal() -> meshio._mesh.Mesh:
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.separator()
     return mesh
-
-
-def generate_quads(constant_dim: int, length1: int, length2: int) -> list:
-    """ Function to generate quads for a specific constant dimension
-    """
-    quads = []
-
-    for idx in range((length1 - 1) * (length2 - 1)):
-        d2 = idx // (length1 - 1)  # Varying dimension 1
-        d1 = idx %  (length1 - 1)  # Varying dimension 2
-
-        # Define the quad corners
-        match constant_dim:
-            case 0:
-                top_left     = (0     , d1    , d2    )
-                top_right    = (0     , d1    , d2 + 1)
-                bottom_left  = (0     , d1 + 1, d2    )
-                bottom_right = (0     , d1 + 1, d2 + 1)
-            case 1:
-                top_left     = (d1    , 0     , d2    )
-                top_right    = (d1 + 1, 0     , d2    )
-                bottom_left  = (d1    , 0     , d2 + 1)
-                bottom_right = (d1 + 1, 0     , d2 + 1)
-            case 2:
-                top_left     = (d1    , d2    , 0     )
-                top_right    = (d1 + 1, d2    , 0     )
-                bottom_left  = (d1    , d2 + 1, 0     )
-                bottom_right = (d1 + 1, d2 + 1, 0     )
-            case _:
-                print('Error in generate_quads, invalid dimension')
-                sys.exit(1)
-
-        # Store the quad
-        quads.append((top_left, top_right, bottom_left, bottom_right))
-    return quads
 
 
 def BCCGNS() -> meshio._mesh.Mesh:
@@ -438,78 +403,62 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
         if 'DEFAULT' in cgnsName:
             continue
 
+        # FIXME: This assumes that the BCs are associated with a family
         # try:
         cgnsPointRange = zone['ZoneBC'][zoneBC]['PointRange'][' data']
         cgnsPointRange = np.array(cgnsPointRange, dtype=int) - 1
-        cgnsPointSize  = np.zeros(4, dtype=int)
-        cgnsPointSize[0] = 3
-        for i in range(3):
-            cgnsPointSize[i+1] = cgnsPointRange[1, i] - cgnsPointRange[0, i]
-            if cgnsPointSize[i+1] == 0:
-                cgnsPointSize[i+1] = 1
-
-        # Create a numpy array of the required size
-        if any(cgnsPointSize <  0):
-            continue
-
-        bpoints  = np.zeros(cgnsPointSize, dtype='f8')
 
         # Calculate the ranges of the indices
-        iStart, iEnd = cgnsPointRange[0, 0], cgnsPointRange[1, 0]
-        jStart, jEnd = cgnsPointRange[0, 1], cgnsPointRange[1, 1]
-        kStart, kEnd = cgnsPointRange[0, 2], cgnsPointRange[1, 2]
+        iStart, iEnd = cgnsPointRange[:, 0]
+        jStart, jEnd = cgnsPointRange[:, 1]
+        kStart, kEnd = cgnsPointRange[:, 2]
 
-        iRange = (iStart, iEnd ) if iEnd > iStart else (iStart, iStart + 1)
-        jRange = (jStart, jEnd ) if jEnd > jStart else (jStart, jStart + 1)
-        kRange = (kStart, kEnd ) if kEnd > kStart else (kStart, kStart + 1)
+        # Load the grid coordinates
+        iCoords = np.array(zone['GridCoordinates']['CoordinateX'][' data'])
+        jCoords = np.array(zone['GridCoordinates']['CoordinateY'][' data'])
+        kCoords = np.array(zone['GridCoordinates']['CoordinateZ'][' data'])
 
-        # Use numpy slicing and broadcasting
-        iCoords = np.array(zone['GridCoordinates']['CoordinateX'][' data'])[kRange[0]:kRange[1],
-                                                                            jRange[0]:jRange[1],
-                                                                            iRange[0]:iRange[1]].astype(float)
-        jCoords = np.array(zone['GridCoordinates']['CoordinateY'][' data'])[kRange[0]:kRange[1],
-                                                                            jRange[0]:jRange[1],
-                                                                            iRange[0]:iRange[1]].astype(float)
-        kCoords = np.array(zone['GridCoordinates']['CoordinateZ'][' data'])[kRange[0]:kRange[1],
-                                                                            jRange[0]:jRange[1],
-                                                                            iRange[0]:iRange[1]].astype(float)
+        # Slice the grid
+        xSurf = iCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
+        ySurf = jCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
+        zSurf = kCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
 
-        bpoints[0, :, :, :] = iCoords.transpose(2, 1, 0)
-        bpoints[1, :, :, :] = jCoords.transpose(2, 1, 0)
-        bpoints[2, :, :, :] = kCoords.transpose(2, 1, 0)
+        # Dimensions of the surface grid
+        iDim, jDim = xSurf.shape
 
-        # Slice the array to get the high-order points
-        hpoints = bpoints[0:3, ::mesh_vars.nGeo, ::mesh_vars.nGeo, ::mesh_vars.nGeo]
+        # Check if the grid dimensions can be sliced
+        if (iDim - 1) % mesh_vars.nGeo != 0 or (jDim - 1) % mesh_vars.nGeo != 0:
+            raise ValueError(f"Grid dimensions ({iDim}, {jDim}) are not divisible by the agglomeration factor {mesh_vars.nGeo}")
 
-        iLength = hpoints[0, :, :, :].shape[0]
-        jLength = hpoints[0, :, :, :].shape[1]
-        kLength = hpoints[0, :, :, :].shape[2]
+        # Slice the grid for agglomeration
+        xSurfNGeo = xSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
+        ySurfNGeo = ySurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
+        zSurfNGeo = zSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
 
-        # Create the corner points
-        lengths      = np.array([iLength, jLength, kLength])
-        constant_dim = np.where(lengths == 1)[0]
+        # Updated dimensions after agglomeration
+        iDimNGeo, jDimNGeo = xSurfNGeo.shape
 
-        if len(constant_dim) != 1:
-            print('Error in reading structured boundary conditions, multiple flat dimensions')
-            sys.exit(1)
+        # Generate quads for the agglomerated grid
+        quads = []
+        for j in range(iDimNGeo - 1):
+            for k in range(jDimNGeo - 1):
+                # Define the quad by its four corner points
+                quads.append([(xSurfNGeo[j    , k    ], ySurfNGeo[j    , k    ], zSurfNGeo[j    , k    ]),
+                              (xSurfNGeo[j + 1, k    ], ySurfNGeo[j + 1, k    ], zSurfNGeo[j + 1, k    ]),
+                              (xSurfNGeo[j + 1, k + 1], ySurfNGeo[j + 1, k + 1], zSurfNGeo[j + 1, k + 1]),
+                              (xSurfNGeo[j    , k + 1], ySurfNGeo[j    , k + 1], zSurfNGeo[j    , k + 1]),])
 
-        constant_dim = constant_dim[0]
-        varying_dims = [dim for dim in range(3) if dim != constant_dim]
+        # Convert to numpy array if needed
+        quads = np.array(quads)
 
-        quads = generate_quads(constant_dim, lengths[varying_dims[0]], lengths[varying_dims[1]])
-
-        # Read the surface elements, one at a time
-        count  = 0
-
-        # Loop over all elements and get the type
+        # Loop over all elements
         cellsets = mesh.cell_sets
-        while count < len(quads):
+        for idx, quad in enumerate(quads):
 
             # elemType = ElemTypes(cgnsBC[count])
 
             # Map the unique quad sides to our non-unique elem sides
-            corners  = np.array(quads[count])
-            BCpoints = [hpoints[:, corners[i, 0], corners[i, 1], corners[i, 2]] for i in range(4)]
+            BCpoints = quad
             BCpoints = np.sort(BCpoints, axis=0)
             BCpoints = BCpoints.flatten()
 
@@ -537,7 +486,6 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
 
             # Move to the next element
             # count += int(elemType['Nodes']) + 1
-            count += 1
 
         mesh   = meshio.Mesh(points    = points,    # noqa: E251
                              cells     = cells,     # noqa: E251
