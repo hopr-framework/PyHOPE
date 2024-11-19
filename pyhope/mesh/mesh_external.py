@@ -32,7 +32,7 @@ import sys
 import tempfile
 import time
 import traceback
-from typing import cast, Tuple
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -295,6 +295,40 @@ def BCCGNS() -> meshio._mesh.Mesh:
     return mesh
 
 
+def BCCGNS_SetBC(BCpoints: np.ndarray,
+                 cellsets,
+                 nConnLen: int,
+                 nConnNum: int,
+                 offsetcs: int,
+                 stree:    spatial._kdtree.cKDTree,
+                 tol:      float,
+                 BCName:   str) -> dict:
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+    # Query the try for the opposing side
+    trSide = copy.copy(stree.query(BCpoints))
+
+    # trSide contains the Euclidean distance and the index of the
+    # opposing side in the nbFaceSet
+    if trSide[0] > tol:
+        hopout.warning('Could not find a boundary side within tolerance {}, exiting...'.format(tol))
+        traceback.print_stack(file=sys.stdout)
+        sys.exit(1)
+
+    sideID   = int(trSide[1]) + offsetcs
+    # For the first side on the BC, the dict does not exist
+    try:
+        prevSides = cellsets[BCName]
+        prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
+    except KeyError:
+        # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
+        prevSides = [np.empty((0,), dtype=np.uint64) for _ in range(nConnLen)]
+        prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
+        cellsets.update({BCName: prevSides})
+    return cellsets
+
+
 def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
                       points:   np.ndarray,
                       cells:    list,
@@ -308,7 +342,6 @@ def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
     from pyhope.io.io_cgns import ElemTypes
     # ------------------------------------------------------
     # Load the CGNS points
@@ -326,7 +359,7 @@ def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
     for zoneBC in zoneBCs:
         # bcName = zoneBC[3:]
         # bcID   = find_index([s['Name'] for s in bcs], bcName)
-
+        zoneBC = cast(str, zoneBC)
         cgnsBC = cast(h5py.Dataset, zone[zoneBC]['ElementConnectivity'][' data'])
 
         # Read the surface elements, one at a time
@@ -344,28 +377,8 @@ def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
             BCpoints = [bpoints[s-1] for s in corners]
             BCpoints = np.sort(BCpoints, axis=0)
             BCpoints = BCpoints.flatten()
-
-            # Query the try for the opposing side
-            trSide = copy.copy(stree.query(BCpoints))
+            cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
             del BCpoints
-
-            # trSide contains the Euclidean distance and the index of the
-            # opposing side in the nbFaceSet
-            if trSide[0] > tol:
-                hopout.warning('Could not find a boundary side within tolerance {}, exiting...'.format(tol))
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
-
-            sideID   = int(trSide[1]) + offsetcs
-            # For the first side on the BC, the dict does not exist
-            try:
-                prevSides = cellsets[zoneBC]
-                prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
-            except KeyError:
-                # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
-                prevSides = [np.empty((0,), dtype=np.uint64) for _ in range(nConnLen)]
-                prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
-                cellsets.update({zoneBC: prevSides})
 
             # Move to the next element
             count += int(elemType['Nodes']) + 1
@@ -397,16 +410,22 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
     zoneBCs = zone['ZoneBC']
 
     for zoneBC in zoneBCs:
-        cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'][' data'])
-        cgnsName = cast(str, ''.join(map(chr, cgnsBC)))
+        try:
+            cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'])
+            cgnsName = cast(str, ''.join(map(chr, cgnsBC)))
+        except KeyError:
+            cgnsName = zoneBC.rpartition('_')[0]
 
+        # Ignore internal DEFAULT BCs
         if 'DEFAULT' in cgnsName:
             continue
 
-        # FIXME: This assumes that the BCs are associated with a family
-        # try:
         cgnsPointRange = zone['ZoneBC'][zoneBC]['PointRange'][' data']
         cgnsPointRange = np.array(cgnsPointRange, dtype=int) - 1
+        # Sanity check the CGNS point range
+        if any(cgnsPointRange[1, :] - cgnsPointRange[0, :] < 0):
+            hopout.warning('Point range is not monotonically increasing, exiting...')
+            sys.exit(1)
 
         # Calculate the ranges of the indices
         iStart, iEnd = cgnsPointRange[:, 0]
@@ -454,35 +473,13 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
         # Loop over all elements
         cellsets = mesh.cell_sets
         for idx, quad in enumerate(quads):
-
             # elemType = ElemTypes(cgnsBC[count])
 
             # Map the unique quad sides to our non-unique elem sides
             BCpoints = quad
             BCpoints = np.sort(BCpoints, axis=0)
             BCpoints = BCpoints.flatten()
-
-            # Query the try for the opposing side
-            trSide = copy.copy(stree.query(BCpoints))
-            del BCpoints
-
-            # trSide contains the Euclidean distance and the index of the
-            # opposing side in the nbFaceSet
-            if trSide[0] > tol:
-                hopout.warning('Could not find a periodic side within tolerance {}, exiting...'.format(tol))
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
-
-            sideID   = int(trSide[1]) + offsetcs
-            # For the first side on the BC, the dict does not exist
-            try:
-                prevSides = cellsets[cgnsName]
-                prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
-            except KeyError:
-                # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
-                prevSides = [np.empty((0,), dtype=np.uint64) for _ in range(nConnLen)]
-                prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
-                cellsets.update({cgnsName: prevSides})
+            cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, cgnsName)
 
             # Move to the next element
             # count += int(elemType['Nodes']) + 1
