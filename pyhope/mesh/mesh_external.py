@@ -420,52 +420,56 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
         if 'DEFAULT' in cgnsName:
             continue
 
-        cgnsPointRange = zone['ZoneBC'][zoneBC]['PointRange'][' data']
-        cgnsPointRange = np.array(cgnsPointRange, dtype=int) - 1
-        # Sanity check the CGNS point range
-        if any(cgnsPointRange[1, :] - cgnsPointRange[0, :] < 0):
-            hopout.warning(f'Point range is not monotonically increasing on BC "{cgnsName}", exiting...')
+        try:
+            cgnsPointRange = zone['ZoneBC'][zoneBC]['PointRange'][' data']
+            cgnsPointRange = np.array(cgnsPointRange, dtype=int) - 1
+            # Sanity check the CGNS point range
+            if any(cgnsPointRange[1, :] - cgnsPointRange[0, :] < 0):
+                hopout.warning(f'Point range is not monotonically increasing on BC "{cgnsName}", exiting...')
+                sys.exit(1)
+
+            # Calculate the ranges of the indices
+            iStart, iEnd = cgnsPointRange[:, 0]
+            jStart, jEnd = cgnsPointRange[:, 1]
+            kStart, kEnd = cgnsPointRange[:, 2]
+
+            # Load the grid coordinates
+            iCoords = np.array(zone['GridCoordinates']['CoordinateX'][' data'])
+            jCoords = np.array(zone['GridCoordinates']['CoordinateY'][' data'])
+            kCoords = np.array(zone['GridCoordinates']['CoordinateZ'][' data'])
+
+            # Slice the grid
+            xSurf = iCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
+            ySurf = jCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
+            zSurf = kCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
+
+            # Dimensions of the surface grid
+            iDim, jDim = xSurf.shape
+
+            # Check if the grid dimensions can be sliced
+            if (iDim - 1) % mesh_vars.nGeo != 0 or (jDim - 1) % mesh_vars.nGeo != 0:
+                raise ValueError(f"Grid dimensions ({iDim}, {jDim}) are not divisible by the agglomeration factor {mesh_vars.nGeo}")
+
+            # Slice the grid for agglomeration
+            xSurfNGeo = xSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
+            ySurfNGeo = ySurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
+            zSurfNGeo = zSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
+
+            # Updated dimensions after agglomeration
+            iDimNGeo, jDimNGeo = xSurfNGeo.shape
+
+            # Generate quads for the agglomerated grid
+            quads = []
+            for j in range(iDimNGeo - 1):
+                for k in range(jDimNGeo - 1):
+                    # Define the quad by its four corner points
+                    quads.append([(xSurfNGeo[j    , k    ], ySurfNGeo[j    , k    ], zSurfNGeo[j    , k    ]),
+                                  (xSurfNGeo[j + 1, k    ], ySurfNGeo[j + 1, k    ], zSurfNGeo[j + 1, k    ]),
+                                  (xSurfNGeo[j + 1, k + 1], ySurfNGeo[j + 1, k + 1], zSurfNGeo[j + 1, k + 1]),
+                                  (xSurfNGeo[j    , k + 1], ySurfNGeo[j    , k + 1], zSurfNGeo[j    , k + 1]),])
+        except KeyError:
+            hopout.warning(f'ZoneBC "{zoneBC}" does not have a PointRange. PointLists are currently not supported.')
             sys.exit(1)
-
-        # Calculate the ranges of the indices
-        iStart, iEnd = cgnsPointRange[:, 0]
-        jStart, jEnd = cgnsPointRange[:, 1]
-        kStart, kEnd = cgnsPointRange[:, 2]
-
-        # Load the grid coordinates
-        iCoords = np.array(zone['GridCoordinates']['CoordinateX'][' data'])
-        jCoords = np.array(zone['GridCoordinates']['CoordinateY'][' data'])
-        kCoords = np.array(zone['GridCoordinates']['CoordinateZ'][' data'])
-
-        # Slice the grid
-        xSurf = iCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
-        ySurf = jCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
-        zSurf = kCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
-
-        # Dimensions of the surface grid
-        iDim, jDim = xSurf.shape
-
-        # Check if the grid dimensions can be sliced
-        if (iDim - 1) % mesh_vars.nGeo != 0 or (jDim - 1) % mesh_vars.nGeo != 0:
-            raise ValueError(f"Grid dimensions ({iDim}, {jDim}) are not divisible by the agglomeration factor {mesh_vars.nGeo}")
-
-        # Slice the grid for agglomeration
-        xSurfNGeo = xSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
-        ySurfNGeo = ySurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
-        zSurfNGeo = zSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
-
-        # Updated dimensions after agglomeration
-        iDimNGeo, jDimNGeo = xSurfNGeo.shape
-
-        # Generate quads for the agglomerated grid
-        quads = []
-        for j in range(iDimNGeo - 1):
-            for k in range(jDimNGeo - 1):
-                # Define the quad by its four corner points
-                quads.append([(xSurfNGeo[j    , k    ], ySurfNGeo[j    , k    ], zSurfNGeo[j    , k    ]),
-                              (xSurfNGeo[j + 1, k    ], ySurfNGeo[j + 1, k    ], zSurfNGeo[j + 1, k    ]),
-                              (xSurfNGeo[j + 1, k + 1], ySurfNGeo[j + 1, k + 1], zSurfNGeo[j + 1, k + 1]),
-                              (xSurfNGeo[j    , k + 1], ySurfNGeo[j    , k + 1], zSurfNGeo[j    , k + 1]),])
 
         # Convert to numpy array if needed
         quads = np.array(quads)
