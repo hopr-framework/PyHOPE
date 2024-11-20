@@ -59,8 +59,9 @@ def main() -> None:
     tStart  = time.time()
     process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
 
-    program = Common.program
-    version = Common.version
+    common  = Common()
+    program = common.program
+    version = common.version
     commit  = process.communicate()[0].strip().decode('ascii')
 
     with DefineConfig() as dc:
