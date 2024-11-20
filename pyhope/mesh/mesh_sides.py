@@ -42,6 +42,7 @@ import numpy as np
 def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
     from pyhope.mesh.mesh_common import face_to_cgns, faces
     # ------------------------------------------------------
 
@@ -53,6 +54,19 @@ def GenerateSides() -> None:
     mesh_vars.sides = []
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+
+    hopout.sep()
+    hopout.routine('Eliminating duplicate points')
+
+    # Eliminate duplicate points
+    mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)
+
+    # Update the mesh
+    for cell in mesh_vars.mesh.cells:
+        # Map the old indices to the new ones
+        # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
+        # Efficiently map all indices in one operation
+        cell.data = inverseIndices[cell.data]
 
     # Loop over all element types
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
