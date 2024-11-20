@@ -411,7 +411,7 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
 
     for zoneBC in zoneBCs:
         try:
-            cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'])
+            cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'][' data'])
             cgnsName = cast(str, ''.join(map(chr, cgnsBC)))
         except KeyError:
             cgnsName = zoneBC.rpartition('_')[0]
@@ -424,7 +424,7 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
         cgnsPointRange = np.array(cgnsPointRange, dtype=int) - 1
         # Sanity check the CGNS point range
         if any(cgnsPointRange[1, :] - cgnsPointRange[0, :] < 0):
-            hopout.warning('Point range is not monotonically increasing, exiting...')
+            hopout.warning(f'Point range is not monotonically increasing on BC "{cgnsName}", exiting...')
             sys.exit(1)
 
         # Calculate the ranges of the indices
