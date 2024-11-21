@@ -28,6 +28,7 @@
 import importlib.metadata
 import pathlib
 import re
+from typing import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,20 +42,23 @@ from packaging.version import Version
 # ==================================================================================================================================
 
 
-class Common():
-    # Set class as singleton
-    # > https://www.python.org/download/releases/2.2.3/descrintro
-    def __new__(cls, *args, **kwds):
-        it = cls.__dict__.get("__it__")
-        if it is not None:
-            return it
-        cls.__it__ = it = object.__new__(cls)
-        it.init(*args, **kwds)
-        return it
+# PEP 318 – Decorators for Functions and Methods
+# > https://peps.python.org/pep-0318/
+def singleton(cls):
+    instances = {}
 
-    # Override __init__ for singleton
-    def init(self, *args, **kwds):
-        pass
+    def getinstance():
+        if cls not in instances:
+            instances[cls] = cls()
+        return instances[cls]
+    return getinstance
+
+
+@singleton
+class Common():
+    def __init__(self: Self) -> None:
+        self._version = self.__version__
+        self._program = self.__program__
 
     @property
     def __version__(self):
@@ -82,11 +86,11 @@ class Common():
 
     @property
     def program(self):
-        return str(self.__program__)
+        return str(self._program)
 
     @property
     def version(self):
-        return str(self.__version__)
+        return str(self._version)
 
 
 class Gitlab():
