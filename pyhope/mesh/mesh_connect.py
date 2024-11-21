@@ -26,9 +26,10 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import itertools
 import sys
 import traceback
-from typing import Union
+from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -106,7 +107,7 @@ def find_bc_index(bcs: list, key: str) -> Union[int, None]:
     return None
 
 
-def find_closest_side(points: np.ndarray, stree: spatial._kdtree.cKDTree, tol: float, msg: str) -> int:
+def find_closest_side(points: np.ndarray, stree: spatial._kdtree.cKDTree, tol: float, msg: str, doMortars: bool = False) -> int:
     """ Query the tree for the closest side
     """
     trSide = stree.query(points)
@@ -115,10 +116,53 @@ def find_closest_side(points: np.ndarray, stree: spatial._kdtree.cKDTree, tol: f
     # trSide contains the Euclidean distance and the index of the
     # opposing side in the nbFaceSet
     if trSide[0] > tol:
+        # Mortar sides are allowed to be not connected
+        if doMortars:
+            return -1
+
         hopout.warning(f'Could not find {msg} side within tolerance {tol}, exiting...')
         traceback.print_stack(file=sys.stdout)
         sys.exit(1)
     return trSide[1]
+
+
+def find_mortar_match(targetPoints: np.ndarray, comboPoints: np.ndarray, tol: float) -> bool:
+    """ Check if the combined points of candidate sides match the target side within tolerance.
+    """
+    ttree = spatial.KDTree(targetPoints)
+    distances, indices = ttree.query(comboPoints)
+
+    # At least one combo point must match each target point
+    matchedIndices = np.unique(indices[distances <= tol])
+    if len(matchedIndices) < 4:
+        return False
+
+    # Check if exactly one combo point matches each target point
+    for point in targetPoints:
+        distancesToPoints = np.linalg.norm(comboPoints - point, axis=1)
+        if np.sum(distancesToPoints <= tol) != 1:
+            return False
+
+    # Build the remaining points
+    unmatchedPoints  = comboPoints[distances > tol]
+
+    # Check if there are at no single combo points, i.e., the small sides are connected
+    if len(np.unique(unmatchedPoints, axis=0)) < 2:
+        return False
+
+    # For each remaining comboPoint, ensure it matches at least one other remaining comboPoint
+    for i, point in enumerate(unmatchedPoints):
+        otherPoints       = np.delete(unmatchedPoints, i, axis=0)
+        distancesToPoints = np.linalg.norm(otherPoints - point, axis=1)
+        # We allow only 2-1 and 4-1 matches, so either 1 or 3 points must match
+        match np.sum(distancesToPoints < tol):
+            case 1 | 3:
+                pass
+            case _:
+                return False
+
+    # Found a valid match
+    return True
 
 
 def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
@@ -135,6 +179,7 @@ def ConnectMesh() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import find_index
     from pyhope.io.io_vars import MeshFormat
+    from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
     match io_vars.outputformat:
@@ -145,6 +190,10 @@ def ConnectMesh() -> None:
 
     hopout.separator()
     hopout.info('CONNECT MESH...')
+    hopout.sep()
+
+    mesh_vars.doMortars = GetLogical('doMortars')
+    doMortars = mesh_vars.doMortars
 
     mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
@@ -231,9 +280,6 @@ def ConnectMesh() -> None:
                 sides[sideID].update(bcid=bcID)
 
     # Try to connect the periodic sides
-    # TODO: SET ANOTHER TOLERANCE
-    # tol = 5.#5.E-1
-
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
         bcID = find_bc_index(bcs, key)
@@ -255,7 +301,8 @@ def ConnectMesh() -> None:
         # Collapse all opposing corner nodes into an [:, 12] array
         nbCellSet  = mesh.cell_sets[nbBCName]
         # Find the mapping to the (N-1)-dim elements
-        nbcsetMap  = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None and nbCellSet[s].size > 0]
+        nbcsetMap  = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None
+                      and cast(np.ndarray, nbCellSet[s]).size > 0]
 
         # FIXME: TODO HYBRID MESHES
         if len(nbcsetMap) > 1:
@@ -287,7 +334,7 @@ def ConnectMesh() -> None:
             points    = np.sort(points, axis=0).flatten()
 
             # Query the try for the opposing side
-            tol       = np.linalg.norm(vvs[iVV]['Dir'], ord=2).astype(float) * 1.E-1
+            tol       = np.linalg.norm(vvs[iVV]['Dir'], ord=2).astype(float) * mesh_vars.tolPeriodic
             nbSideIdx = find_closest_side(points, stree, tol, 'periodic')
             nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
 
@@ -309,20 +356,27 @@ def ConnectMesh() -> None:
             connect_sides(sideIDs, sides, flipID)
 
     # Non-connected sides without BCID are possible inner sides
-    nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
+    nConnSide   = [s for s in sides if s.connection is None and s.bcid is None]
     # Append the inner BCs
     for s in (s for s in sides if s.bcid is not None and s.connection is None):
         if mesh_vars.bcs[s.bcid].type[0] == 0:
             nConnSide.append(s)
+    nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
 
     nInterZoneConnect = len(nConnSide)
 
     hopout.separator()
 
     # Loop over all sides and try to connect
-    while len(nConnSide) > 1:
+    iter    = 0
+    maxIter = copy.copy(len(nConnSide))
+    while len(nConnSide) > 1 and iter <= maxIter:
+        # Ensure the loop exits after cehcking every side
+        iter += 1
+
         # Remove the first side from the list
-        targetSide = nConnSide.pop(0)
+        targetSide   = nConnSide  .pop(0)
+        targetCenter = nConnCenter.pop(0)
 
         # Collapse all opposing corner nodes into an [:, 12] array
         nbCorners  = [s.corners for s in nConnSide]
@@ -332,36 +386,89 @@ def ConnectMesh() -> None:
 
         # Build a k-dimensional tree of all points on the opposing side
         stree      = spatial.KDTree(nbPoints)
+        ctree      = spatial.KDTree(nConnCenter)
 
         # Map the unique quad sides to our non-unique elem sides
         corners    = targetSide.corners
         points     = np.sort(mesh.points[corners], axis=0).flatten()
 
         # Query the tree for the opposing side
-        tol = 1.E-10
-        nbSideIdx = find_closest_side(points, stree, tol, 'internal')
-        nbiSide   = nbSideIdx
+        tol        = mesh_vars.tolInternal
+        nbSideIdx  = find_closest_side(points, stree, tol, 'internal', doMortars)
 
-        # Get our and neighbor corner quad nodes
-        sideID    = get_side_id(targetSide.corners        , corner_side)
-        nbSideID  = get_side_id(nConnSide[nbiSide].corners, corner_side)
+        # Regular internal side
+        if nbSideIdx >= 0:
+            nbiSide   = nbSideIdx
 
-        # Build the connection, including flip
-        sideIDs   = [sideID, nbSideID]
-        points    = mesh.points[sides[sideIDs[0]].corners]
-        # > Find the first neighbor point to determine the flip
-        nbcorners = mesh.points[sides[sideIDs[1]].corners]
-        flipID    = flip_physical(points, nbcorners, tol, 'periodic')
+            # Get our and neighbor corner quad nodes
+            sideID    = get_side_id(targetSide.corners        , corner_side)
+            nbSideID  = get_side_id(nConnSide[nbiSide].corners, corner_side)
 
-        # Connect the sides
-        connect_sides(sideIDs, sides, flipID)
+            # Build the connection, including flip
+            sideIDs   = [sideID, nbSideID]
+            points    = mesh.points[sides[sideIDs[0]].corners]
+            # > Find the first neighbor point to determine the flip
+            nbcorners = mesh.points[sides[sideIDs[1]].corners]
+            flipID    = flip_physical(points, nbcorners, tol, 'internal')
 
-        # Update the list
-        nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
-        # Append the inner BCs
-        for s in (s for s in sides if s.bcid is not None and s.connection is None):
-            if mesh_vars.bcs[s.bcid].type[0] == 0:
-                nConnSide.append(s)
+            # Connect the sides
+            connect_sides(sideIDs, sides, flipID)
+
+            # Update the list
+            nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
+            # Append the inner BCs
+            for s in (s for s in sides if s.bcid is not None and s.connection is None):
+                if mesh_vars.bcs[s.bcid].type[0] == 0:
+                    nConnSide.append(s)
+            nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
+
+        # Mortar side
+        # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
+        # > generates no match, we simply append the side again at the end and try again. As the loop exists after checking
+        # > len(nConnSide), we will check each side once.
+        else:
+            if not doMortars:
+                hopout.warning(f'Could not find internal side within tolerance {tol}, exiting...')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+
+            # Calculate the radius of the convex hull
+            targetPoints = mesh.points[targetSide.corners]
+            targetMinMax = (targetPoints.min(axis=0), targetPoints.max(axis=0))
+            targetRadius = np.linalg.norm(targetMinMax[1] - targetMinMax[0], ord=2) / 2.
+
+            # Find nearby sides to consider as candidate mortar sides
+            targetNeighbors = ctree.query_ball_point(targetCenter, targetRadius)
+
+            # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
+            candidate_combinations = []
+            if len(targetNeighbors) >= 2:
+                candidate_combinations += list(itertools.combinations(targetNeighbors, 2))
+            if len(targetNeighbors) >= 4:
+                candidate_combinations += list(itertools.combinations(targetNeighbors, 4))
+
+            # Attempt to match the target side with candidate combinations
+            matchFound = False
+            for comboIDs in candidate_combinations:
+                # Get the candidate sides
+                comboSides   = [nConnSide[iSide] for iSide in comboIDs]
+                comboCorners = [s.corners for s in comboSides]
+                comboPoints  = np.concatenate([mesh.points[c] for c in comboCorners], axis=0)
+
+                # Found a valid match
+                # print(find_mortar_match(targetPoints, comboPoints, tol))
+                if find_mortar_match(targetPoints, comboPoints, tol):
+                    matchFound = True
+                    break
+            if matchFound:
+                # TODO: Implement mortar connection
+                print('Actually connecting is not implemented yet')
+                sys.exit()
+
+            # No connection, attach the side at the end
+            else:
+                nConnSide  .append(targetSide)
+                nConnCenter.append(targetCenter)
 
     if nInterZoneConnect > 0:
         hopout.sep()

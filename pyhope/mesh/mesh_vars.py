@@ -31,6 +31,7 @@ from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -51,6 +52,12 @@ sides  : list                                     # [list of list] - Side    nod
 
 HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
 already_curved: bool                              # Flag if mesh is already curved
+
+doMortars: bool                                   # Flag if mortars are enabled
+
+# Internal variables
+tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
+tolPeriodic: Final[float] = 1.E-1                 # Tolerance for mesh connect (periodic sides)
 
 
 class CGNS:
