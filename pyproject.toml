@@ -1,37 +1,46 @@
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
+# pyporject.toml compatible with Poetry (version 2.0.0.dev0)
+[project]
 name = "PyHOPE"
-authors = [
-    "Numerics Research Group (NRG) <numerics@iag.uni-stuttgart.de>",
-]
 version = "0.0.3"
 description = "Python High-Order Preprocessing Environment"
-license = "GPL-3.0"
+license = {text = "GPL-3.0-only"}
+requires-python = ">=3.8"
 readme = "README.md"
-repository = "https://gitlab.iag.uni-stuttgart.de/flexi/codes/pyhope"
+authors = [
+    {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},
+]
+dependencies = [
+    'alive-progress',
+    'h5py',
+    'hilbertcurve',
+    'meshio',
+    'numpy>=2.0.0',
+    'packaging',
+    'plotext',
+    'pygmsh',
+    'scipy',
+    'gmsh',
+]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-    "Programming Language :: Python :: 3",
-    "Operating System :: POSIX :: Linux",
+  "Development Status :: 3 - Alpha",
+  "Operating System :: POSIX :: Linux",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13"
 ]
 
-[tool.poetry.dependencies]
-alive-progress = "*"
-h5py = "*"
-hilbertcurve = "*"
-meshio = "*"
-numpy = "*"
-packaging = "*"
-plotext = "*"
-pygmsh = "*"
-scipy = "*"
-gmsh = "*"
+[project.urls]
+homepage = "https://numericsresearchgroup.org"
+repository = "https://gitlab.iag.uni-stuttgart.de/flexi/codes/pyhope"
 
-[tool.poetry.scripts]
-# Establishes the entry point for the CLI
+[project.scripts]
 pyhope = "pyhope.pyhope:main"
+
+[tool.setuptools]
+packages = ["pyhope"]
