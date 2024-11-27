@@ -44,6 +44,8 @@ def DefineMesh() -> None:
     """
     # Local imports ----------------------------------------
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
+    from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
+    from pyhope.mesh.mesh_vars import ELEM
     # ------------------------------------------------------
 
     CreateSection('Mesh')
@@ -53,6 +55,9 @@ def DefineMesh() -> None:
     CreateRealArray('Corner',         24,  multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, '
                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
     CreateIntArray( 'nElems',          3,  multiple=True, help='Number of elements in each direction')
+    CreateIntFromString('ElemType'      ,  multiple=True, default='hexahedron', help='Element type')
+    for key, val in ELEM.name.items():
+        CreateIntOption('ElemType', number=val, name=key)
     CreateStr(      'BoundaryName',        multiple=True, help='Name of domain boundary')
     CreateIntArray( 'BoundaryType',    4,  multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',         6,  multiple=True, help='Index of BC for each boundary face')

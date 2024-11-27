@@ -96,8 +96,9 @@ def GenerateSides() -> None:
                 sides[iSide]['Type'  ] = 4  # FIXME: THIS NEEDS TREATMENT FOR NON-HEXAS
 
             # Assign nodes to sides, CGNS format
-            for index, face in enumerate(faces()):
-                corners = [ioelems[iElem][s] for s in face_to_cgns(face)]
+            for index, face in enumerate(faces(elemType)):
+                corners = [ioelems[iElem][s] for s in face_to_cgns(face, elemType)]
+                sides[sCount].update({'Face'   : face})
                 sides[sCount].update({'ElemID' : iElem})
                 sides[sCount].update({'SideID' : sCount})
                 sides[sCount].update({'LocSide': index+1})

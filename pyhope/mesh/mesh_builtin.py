@@ -51,7 +51,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     from pyhope.common.common import find_index, find_indices
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
-    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()
@@ -75,8 +75,9 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     for zone in range(nZones):
         hopout.routine('Generating zone {}'.format(zone+1))
 
-        corners = GetRealArray('Corner', number=zone)
-        nElems  = GetIntArray( 'nElems', number=zone)
+        corners  = GetRealArray( 'Corner'  , number=zone)
+        nElems   = GetIntArray(  'nElems'  , number=zone)
+        elemType = GetIntFromStr('ElemType', number=zone)
 
         # Create all the corner points
         p = [None for _ in range(len(corners))]
@@ -97,21 +98,21 @@ def MeshCartesian() -> meshio._mesh.Mesh:
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
             # We set the number of nodes, so Elems+1
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index)]+1)
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index, elemType)]+1)
 
         # Create the curve loop
-        el = [None for _ in range(len(faces()))]
-        for index, face in enumerate(faces()):
-            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)], s) for s in face_to_edge(face)])
+        el = [None for _ in range(len(faces(elemType)))]
+        for index, face in enumerate(faces(elemType)):
+            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)], s) for s in face_to_edge(face, elemType)])
 
         # Create the surfaces
-        s = [None for _ in range(len(faces()))]
+        s = [None for _ in range(len(faces(elemType)))]
         for index, surface in enumerate(s):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=offsets+index+1)
 
         # We need to define the surfaces as transfinite surface
-        for index, face in enumerate(faces()):
-            gmsh.model.geo.mesh.setTransfiniteSurface(offsets+index+1, face, [p[s] for s in face_to_corner(face)])
+        for index, face in enumerate(faces(elemType)):
+            gmsh.model.geo.mesh.setTransfiniteSurface(offsets+index+1, face, [p[s] for s in face_to_corner(face, elemType)])
             gmsh.model.geo.mesh.setRecombine(2, 1)
 
         # Create the surface loop
@@ -128,7 +129,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
 
         # Calculate all offsets
         offsetp += len(corners)
-        offsets += len(faces())
+        offsets += len(faces(elemType))
 
         # Read the BCs for the zone
         # > Need to wait with defining phyiscal boundaries until all zones are created
