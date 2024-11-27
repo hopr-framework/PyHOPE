@@ -231,7 +231,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     # Final count
     nElems = 0
     for iType, cellType in enumerate(mesh.cells):
-        if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
     hopout.sep()
     hopout.routine('Generated mesh with {} cells'.format(nElems))

@@ -52,7 +52,7 @@ def faces(elemType: Union[int, str]) -> list:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEM.name[elemType]
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
@@ -73,7 +73,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
                }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEM.name[elemType]
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
 
     if elemType % 100 not in dir_map:
         raise ValueError(f'Error in edge_to_direction: elemType {elemType} is not supported')
@@ -105,7 +105,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarra
                }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEM.name[elemType]
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
 
     if elemType % 100 not in edge_map:
         raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
@@ -134,7 +134,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEM.name[elemType]
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
@@ -161,7 +161,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEM.name[elemType]
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
@@ -188,7 +188,7 @@ def face_to_cgns(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEM.name[elemType]
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
@@ -206,7 +206,7 @@ def count_elems(mesh: meshio._mesh.Mesh) -> int:
     nElems = 0
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
@@ -232,7 +232,7 @@ def calc_elem_bary(mesh: meshio._mesh.Mesh) -> list:
     elemBary = [np.ndarray(3)] * nElems
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)

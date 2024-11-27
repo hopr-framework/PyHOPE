@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,7 +57,54 @@ class CGNS:
     regenerate_BCs: bool                          # Flag if CGNS needs BC regeneration
 
 
-class ELEM:
+class SIDE:
+    def __init__(self,
+                 elemID      : Optional[int] = None,
+                 sideID      : Optional[int] = None,
+                 locSide     : Optional[int] = None,
+                 face        : Optional[str] = None,
+                 corners     : Optional[np.ndarray] = None,
+                 sideType    : Optional[int] = None,
+                 # Sorting
+                 globalSideID: Optional[int] = None,
+                 # Connection
+                 MS          : Optional[int] = None,
+                 connection  : Optional[int] = None,
+                 flip        : Optional[int] = None,
+                 nbLocSide   : Optional[int] = None,
+                 # Boundary Conditions
+                 bcid        : Optional[int] = None,
+                ):
+        self.elemID      : Optional[int] = elemID
+        self.sideID      : Optional[int] = sideID
+        self.locSide     : Optional[int] = locSide
+        self.face        : Optional[str] = face
+        self.corners     : Optional[np.ndarray] = corners
+        self.sideType    : Optional[int] = sideType
+        # Sorting
+        self.globalSideID: Optional[int] = globalSideID
+        # Connection
+        self.MS          : Optional[int] = MS
+        self.connection  : Optional[int] = connection
+        self.flip        : Optional[int] = flip
+        self.nbLocSide   : Optional[int] = nbLocSide
+        # Boundary Conditions
+        self.bcid        : Optional[int] = bcid
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                raise AttributeError(f'"SIDE" object has no attribute "{key}"')
+
+    def dict(self):
+        """Return a dictionary of the SIDE object
+        """
+        return {key: value for key, value in self.__dict__.items() if value is not None}
+
+
+class ELEMTYPE:
     type = {'tetra'     : 4,
             'pyramid'   : 5,
             'wedge'     : 5,

@@ -79,19 +79,19 @@ def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: s
 def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
     """ Connect the master and slave sides
     """
-    sides[sideIDs[0]].update({
+    sides[sideIDs[0]].update(
         # Master side contains positive global side ID
-        'MS'        : 1,
-        'Connection': sideIDs[1],
-        'Flip'      : 0,
-        'nbLocSide' : sides[sideIDs[1]]['LocSide']
-    })
-    sides[sideIDs[1]].update({
-        'MS'        : 0,
-        'Connection': sideIDs[0],
-        'Flip'      : flipID,
-        'nbLocSide' : sides[sideIDs[0]]['LocSide']
-    })
+        MS         = 1,                         # noqa: E251
+        connection = sideIDs[1],                # noqa: E251
+        flip       = 0,                         # noqa: E251
+        nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    )
+    sides[sideIDs[1]].update(
+        MS         = 0,                         # noqa: E251
+        connection = sideIDs[0],                # noqa: E251
+        flip       = flipID,                    # noqa: E251
+        nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
+    )
 
 
 def find_bc_index(bcs: list, key: str) -> Union[int, None]:
@@ -168,7 +168,7 @@ def ConnectMesh() -> None:
     #     side_corners.update({iSide: corners})
     for iElem, elem in enumerate(elems):
         for iSide, side in enumerate(elem['Sides']):
-            corners = np.sort(sides[side]['Corners'])
+            corners = np.sort(sides[side].corners)
             corners = hash(corners.tobytes())
             side_corners.update({side: corners})
 
@@ -188,8 +188,8 @@ def ConnectMesh() -> None:
                 continue
             case 2:  # Internal side
                 sideIDs   = val
-                corners   = sides[sideIDs[0]]['Corners']
-                nbcorners = sides[sideIDs[1]]['Corners']
+                corners   = sides[sideIDs[0]].corners
+                nbcorners = sides[sideIDs[1]].corners
                 flipID    = flip_analytic(corners, nbcorners) + 1
                 # Connect the sides
                 connect_sides(sideIDs, sides, flipID)
@@ -228,7 +228,7 @@ def ConnectMesh() -> None:
                 # Boundary faces are unique
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
-                sides[sideID].update({'BCID': bcID})
+                sides[sideID].update(bcid=bcID)
 
     # Try to connect the periodic sides
     # TODO: SET ANOTHER TOLERANCE
@@ -297,22 +297,22 @@ def ConnectMesh() -> None:
 
             # Build the connection, including flip
             sideIDs   = [sideID, nbSideID]
-            points    = mesh.points[sides[sideIDs[0]]['Corners']]
+            points    = mesh.points[sides[sideIDs[0]].corners]
             for iPoint in range(points.shape[0]):
                 points[iPoint, :] += vvs[iVV]['Dir']
 
             # > Find the first neighbor point to determine the flip
-            nbcorners = mesh.points[sides[sideIDs[1]]['Corners']]
+            nbcorners = mesh.points[sides[sideIDs[1]].corners]
             flipID    = flip_physical(points, nbcorners, tol, 'periodic')
 
             # Connect the sides
             connect_sides(sideIDs, sides, flipID)
 
     # Non-connected sides without BCID are possible inner sides
-    nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
+    nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
     # Append the inner BCs
-    for s in (s for s in sides if 'BCID' in s and 'Connection' not in s):
-        if mesh_vars.bcs[s['BCID']]['Type'][0] == 0:
+    for s in (s for s in sides if s.bcid is not None and s.connection is None):
+        if mesh_vars.bcs[s.bcid]['Type'][0] == 0:
             nConnSide.append(s)
 
     nInterZoneConnect = len(nConnSide)
@@ -325,7 +325,7 @@ def ConnectMesh() -> None:
         targetSide = nConnSide.pop(0)
 
         # Collapse all opposing corner nodes into an [:, 12] array
-        nbCorners  = [s['Corners'] for s in nConnSide]
+        nbCorners  = [s.corners for s in nConnSide]
         nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
         nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
         del nbCorners
@@ -334,7 +334,7 @@ def ConnectMesh() -> None:
         stree      = spatial.KDTree(nbPoints)
 
         # Map the unique quad sides to our non-unique elem sides
-        corners    = targetSide['Corners']
+        corners    = targetSide.corners
         points     = np.sort(mesh.points[corners], axis=0).flatten()
 
         # Query the tree for the opposing side
@@ -343,24 +343,24 @@ def ConnectMesh() -> None:
         nbiSide   = nbSideIdx
 
         # Get our and neighbor corner quad nodes
-        sideID    = get_side_id(targetSide[        'Corners'], corner_side)
-        nbSideID  = get_side_id(nConnSide[nbiSide]['Corners'], corner_side)
+        sideID    = get_side_id(targetSide.corners        , corner_side)
+        nbSideID  = get_side_id(nConnSide[nbiSide].corners, corner_side)
 
         # Build the connection, including flip
         sideIDs   = [sideID, nbSideID]
-        points    = mesh.points[sides[sideIDs[0]]['Corners']]
+        points    = mesh.points[sides[sideIDs[0]].corners]
         # > Find the first neighbor point to determine the flip
-        nbcorners = mesh.points[sides[sideIDs[1]]['Corners']]
+        nbcorners = mesh.points[sides[sideIDs[1]].corners]
         flipID    = flip_physical(points, nbcorners, tol, 'periodic')
 
         # Connect the sides
         connect_sides(sideIDs, sides, flipID)
 
         # Update the list
-        nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
+        nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
         # Append the inner BCs
-        for s in (s for s in sides if 'BCID' in s and 'Connection' not in s):
-            if mesh_vars.bcs[s['BCID']]['Type'][0] == 0:
+        for s in (s for s in sides if s.bcid is not None and s.connection is None):
+            if mesh_vars.bcs[s.bcid]['Type'][0] == 0:
                 nConnSide.append(s)
 
     if nInterZoneConnect > 0:
@@ -371,24 +371,24 @@ def ConnectMesh() -> None:
     globalSideID = 0
     for iSide, side in enumerate(sides):
         # Already counted the side
-        if 'GlobalSideID' in side:
+        if side.globalSideID is not None:
             continue
 
         globalSideID += 1
-        if 'Connection' not in side:  # BC side
-            side.update({'GlobalSideID':  globalSideID })
-        elif side['MS'] == 1:         # Internal / periodic side (master side)
+        if side.connection is None:  # BC side
+            side.update(globalSideID=globalSideID)
+        elif side.MS == 1:           # Internal / periodic side (master side)
             # Master side does not have a flip
             # Set the positive globalSideID of the master side
-            side.update({'GlobalSideID':  globalSideID })
+            side.update(globalSideID=globalSideID)
             # Set the negative globalSideID of the slave  side
-            nbSideID = side['Connection']
-            sides[nbSideID].update({'GlobalSideID': -(globalSideID)})
+            nbSideID = side.connection
+            sides[nbSideID].update(globalSideID=-(globalSideID))
 
     # Count the sides
     nsides         = len(sides)
-    sides_conn     = np.array(['Connection' in side for side in sides])  # noqa: E272
-    sides_bc       = np.array(['BCID'       in side for side in sides])  # noqa: E272
+    sides_conn     = np.array([s.connection is not None for s in sides])  # noqa: E272
+    sides_bc       = np.array([s.bcid       is not None for s in sides])  # noqa: E272
 
     # Count each type of side
     ninnersides    = np.sum( sides_conn & ~sides_bc)

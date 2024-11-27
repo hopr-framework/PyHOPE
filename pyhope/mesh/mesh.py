@@ -45,7 +45,7 @@ def DefineMesh() -> None:
     # Local imports ----------------------------------------
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
-    from pyhope.mesh.mesh_vars import ELEM
+    from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
     CreateSection('Mesh')
@@ -56,7 +56,7 @@ def DefineMesh() -> None:
                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
     CreateIntArray( 'nElems',          3,  multiple=True, help='Number of elements in each direction')
     CreateIntFromString('ElemType'      ,  multiple=True, default='hexahedron', help='Element type')
-    for key, val in ELEM.name.items():
+    for key, val in ELEMTYPE.name.items():
         CreateIntOption('ElemType', number=val, name=key)
     CreateStr(      'BoundaryName',        multiple=True, help='Name of domain boundary')
     CreateIntArray( 'BoundaryType',    4,  multiple=True, help='(/ Type, curveIndex, State, alpha /)')

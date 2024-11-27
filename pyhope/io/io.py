@@ -296,27 +296,27 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
     for iSide, side in enumerate(sides):
-        sideInfo[iSide, SIDE.TYPE     ] = side['Type'  ]
-        sideInfo[iSide, SIDE.ID       ] = side['GlobalSideID']
+        sideInfo[iSide, SIDE.TYPE     ] = side.sideType
+        sideInfo[iSide, SIDE.ID       ] = side.globalSideID
         # Connected sides
-        if 'Connection' in side:
-            nbSideID = side['Connection']
-            nbElemID = sides[nbSideID]['ElemID'] + 1  # Python -> HOPR index
+        if side.connection is not None:
+            nbSideID = side.connection
+            nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            if side['Flip'] == 0:  # Master side
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10
+            if side.flip == 0:  # Master side
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
             else:
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10 + side['Flip']
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10 + side.flip
 
             # Periodic sides still have a BCID
-            if 'BCID' in side:
-                sideInfo[iSide, SIDE.BCID      ] = side['BCID'] + 1
+            if side.bcid is not None:
+                sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
             else:
                 sideInfo[iSide, SIDE.BCID      ] = 0
         else:
             sideInfo[iSide, SIDE.NBELEMID      ] = 0
             sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
-            sideInfo[iSide, SIDE.BCID          ] = side['BCID'] + 1
+            sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
 
     # Fill the NodeInfo
     nodeInfo = np.zeros((ELEM.INFOSIZE, nNodes), dtype=np.int32)
