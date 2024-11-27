@@ -342,7 +342,7 @@ def GetIntFromStr(name: str, default: Union[str, None] = None, number: Union[int
     # ------------------------------------------------------
     value = GetParam(name=name, default=default, number=number, calltype='int2str')
     # Check if we already received the int. Otherwise, get the value from the
-    #  mapping
+    # mapping
     mapping = config.prms[name]['mapping']
     if type(value) is int:
         value = value
