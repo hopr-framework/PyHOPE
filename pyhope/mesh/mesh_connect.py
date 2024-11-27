@@ -98,10 +98,10 @@ def find_bc_index(bcs: list, key: str) -> Union[int, None]:
     """ Find the index of a BC from its name in the list of BCs
     """
     for iBC, bc in enumerate(bcs):
-        if key in bc['Name']:
+        if key in bc.name:
             return iBC
         # Try again without the leading 'BC_'
-        if key[:3] == 'BC_' and key[3:] in bc['Name']:
+        if key[:3] == 'BC_' and key[3:] in bc.name:
             return iBC
     return None
 
@@ -242,15 +242,15 @@ def ConnectMesh() -> None:
             sys.exit(1)
 
         # Only periodic BCs and only try to connect in positive direction
-        if bcs[bcID]['Type'][0] != 1 or bcs[bcID]['Type'][3] < 0:
+        if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
             continue
 
         # Get the opposite side
-        iVV        = bcs[bcID]['Type'][3] - 1
-        nbType     = copy.copy(bcs[bcID]['Type'])
+        iVV        = bcs[bcID].type[3] - 1
+        nbType     = copy.copy(bcs[bcID].type)
         nbType[3] *= -1
-        nbBCID     = find_index([s['Type'] for s in bcs], nbType)
-        nbBCName   = bcs[nbBCID]['Name']
+        nbBCID     = find_index([s.type for s in bcs], nbType)
+        nbBCName   = bcs[nbBCID].name
 
         # Collapse all opposing corner nodes into an [:, 12] array
         nbCellSet  = mesh.cell_sets[nbBCName]
@@ -312,7 +312,7 @@ def ConnectMesh() -> None:
     nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
     # Append the inner BCs
     for s in (s for s in sides if s.bcid is not None and s.connection is None):
-        if mesh_vars.bcs[s.bcid]['Type'][0] == 0:
+        if mesh_vars.bcs[s.bcid].type[0] == 0:
             nConnSide.append(s)
 
     nInterZoneConnect = len(nConnSide)
@@ -360,7 +360,7 @@ def ConnectMesh() -> None:
         nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
         # Append the inner BCs
         for s in (s for s in sides if s.bcid is not None and s.connection is None):
-            if mesh_vars.bcs[s.bcid]['Type'][0] == 0:
+            if mesh_vars.bcs[s.bcid].type[0] == 0:
                 nConnSide.append(s)
 
     if nInterZoneConnect > 0:

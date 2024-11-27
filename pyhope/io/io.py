@@ -230,10 +230,10 @@ def IO() -> None:
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
-                bcNames = [f'{s["Name"]:<255}' for s in bcs]
+                bcNames = [f'{s.name:<255}' for s in bcs]
                 bcTypes = np.zeros((nBCs, 4), dtype=np.int32)
                 for iBC, bc in enumerate(bcs):
-                    bcTypes[iBC, :] = bc['Type']
+                    bcTypes[iBC, :] = bc.type
 
                 f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
                 f.create_dataset('BCType'    , data=bcTypes)

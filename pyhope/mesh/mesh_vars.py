@@ -129,6 +129,31 @@ class ELEM:
         return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
+class BC:
+    def __init__(self,
+                 name        : Optional[str]  = None,
+                 bcid        : Optional[int]  = None,
+                 type        : Optional[list] = None,
+                 dir         : Optional[list] = None,
+                 ):
+        self.name        : Optional[str]  = name
+        self.bcid        : Optional[int]  = bcid
+        self.type        : Optional[list] = type
+        self.dir         : Optional[list] = dir
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                raise AttributeError(f'"BC" object has no attribute "{key}"')
+
+    def dict(self):
+        """Return a dictionary of the BC object
+        """
+        return {key: value for key, value in self.__dict__.items() if value is not None}
+
+
 class ELEMTYPE:
     type = {'tetra'     : 4,
             'pyramid'   : 5,

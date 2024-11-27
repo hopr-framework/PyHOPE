@@ -51,6 +51,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     from pyhope.common.common import find_index, find_indices
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
+    from pyhope.mesh.mesh_vars import BC
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
@@ -143,13 +144,13 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     hopout.routine('Setting boundary conditions')
     hopout.sep()
     nBCs = CountOption('BoundaryName')
-    mesh_vars.bcs = [dict() for _ in range(nBCs)]
+    mesh_vars.bcs = [BC() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
 
     for iBC, bc in enumerate(bcs):
-        bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
-        bcs[iBC]['BCID'] = iBC + 1
-        bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
+        bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
+                        bcid = iBC + 1,                             # noqa: E251
+                        type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
 
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
@@ -166,41 +167,42 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     bc = [None for _ in range(max(bcIndex))]
     for iBC in range(max(bcIndex)):
         # if mesh_vars.bcs[iBC-1] is None:
-        if 'Name' not in bcs[iBC]:
+        # if 'Name' not in bcs[iBC]:
+        if bcs[iBC] is None:
             continue
 
         # Format [dim of group, list, name)
         # > Here, we return ALL surfaces on the BC, irrespective of the zone
         surfID  = [s+1 for s in find_indices(bcIndex, iBC+1)]
-        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=bcs[iBC]['Name'])
+        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=bcs[iBC].name)
 
         # For periodic sides, we need to impose the periodicity constraint
-        if bcs[iBC]['Type'][0] == 1:
+        if bcs[iBC].type[0] == 1:
             # > Periodicity transform is provided as a 4x4 affine transformation matrix, given by row
             # > Rotation matrix [columns 0-2], translation vector [column 3], bottom row [0, 0, 0, 1]
 
             # Only define the positive translation
-            if bcs[iBC]['Type'][3] > 0:
+            if bcs[iBC].type[3] > 0:
                 pass
-            elif bcs[iBC]['Type'][3] == 0:
+            elif bcs[iBC].type[3] == 0:
                 hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
                 traceback.print_stack(file=sys.stdout)
                 sys.exit(1)
             else:
                 continue
 
-            hopout.routine('Generated periodicity constraint with vector {}'.format(vvs[int(bcs[iBC]['Type'][3])-1]['Dir']))
+            hopout.routine('Generated periodicity constraint with vector {}'.format(vvs[int(bcs[iBC].type[3])-1]['Dir']))
 
-            translation = [1., 0., 0., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][0]),
-                           0., 1., 0., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][1]),
-                           0., 0., 1., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][2]),
+            translation = [1., 0., 0., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][0]),
+                           0., 1., 0., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][1]),
+                           0., 0., 1., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][2]),
                            0., 0., 0., 1.]
 
             # Find the opposing side(s)
             # > copy, otherwise we modify bcs
-            nbType     = copy.copy(bcs[iBC]['Type'])
+            nbType     = copy.copy(bcs[iBC].type)
             nbType[3] *= -1
-            nbBCID     = find_index([s['Type'] for s in bcs], nbType)
+            nbBCID     = find_index([s.type for s in bcs], nbType)
             # nbSurfID can hold multiple surfaces, depending on the number of zones
             # > find_indices returns all we need!
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
