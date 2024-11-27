@@ -44,7 +44,7 @@ def GenerateSides() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_common import face_to_cgns, faces
-    from pyhope.mesh.mesh_vars import SIDE
+    from pyhope.mesh.mesh_vars import ELEM, SIDE
     # ------------------------------------------------------
 
     mesh   = mesh_vars.mesh
@@ -70,7 +70,7 @@ def GenerateSides() -> None:
         cell.data = inverseIndices[cell.data]
 
     # Loop over all element types
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+    for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
@@ -82,15 +82,15 @@ def GenerateSides() -> None:
         nIOSides   = mesh_vars.ELEMTYPE.type[baseElem]
 
         # Create non-unique sides
-        mesh_vars.elems.extend([dict() for _ in range(nIOElems         )])
+        mesh_vars.elems.extend([ELEM() for _ in range(nIOElems         )])
         mesh_vars.sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
 
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
-            elems[iElem]['Type'  ] = mesh_vars.ELEMMAP(elemType)
-            elems[iElem]['ElemID'] = iElem
-            elems[iElem]['Sides' ] = []
-            elems[iElem]['Nodes' ] = ioelems[iElem]
+            elems[iElem].update(type   = mesh_vars.ELEMMAP(elemType),  # noqa: E251
+                                elemID = iElem,                        # noqa: E251
+                                sides  = [],                           # noqa: E251
+                                nodes  = ioelems[iElem])               # noqa: E251
 
             # Create the sides
             for iSide in range(nSides, nSides+nIOSides):
@@ -99,11 +99,11 @@ def GenerateSides() -> None:
             # Assign nodes to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
                 corners = [ioelems[iElem][s] for s in face_to_cgns(face, elemType)]
-                sides[sCount].update(face=face)
-                sides[sCount].update(elemID=iElem)
-                sides[sCount].update(sideID=sCount)
-                sides[sCount].update(locSide=index+1)
-                sides[sCount].update(corners=np.array(corners))
+                sides[sCount].update(face    = face,                   # noqa: E251
+                                     elemID  = iElem,                  # noqa: E251
+                                     sideID  = sCount,                 # noqa: E251
+                                     locSide = index+1,                # noqa: E251
+                                     corners = np.array(corners))      # noqa: E251
                 sCount += 1
 
             # Add to nSides
@@ -116,4 +116,4 @@ def GenerateSides() -> None:
     for iSide, side in enumerate(sides):
         elemID = side.elemID
         sideID = side.sideID
-        elems[elemID]['Sides'].append(sideID)
+        elems[elemID].sides.append(sideID)

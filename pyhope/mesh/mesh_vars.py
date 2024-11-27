@@ -104,6 +104,31 @@ class SIDE:
         return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
+class ELEM:
+    def __init__(self,
+                 type        : Optional[int]  = None,
+                 elemID      : Optional[int]  = None,
+                 sides       : Optional[list] = None,
+                 nodes       : Optional[list] = None,
+                ):
+        self.type        : Optional[int]  = type
+        self.elemID      : Optional[int]  = elemID
+        self.sides       : Optional[list] = sides
+        self.nodes       : Optional[list] = nodes
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                raise AttributeError(f'"ELEM" object has no attribute "{key}"')
+
+    def dict(self):
+        """Return a dictionary of the ELEM object
+        """
+        return {key: value for key, value in self.__dict__.items() if value is not None}
+
+
 class ELEMTYPE:
     type = {'tetra'     : 4,
             'pyramid'   : 5,

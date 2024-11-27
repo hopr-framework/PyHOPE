@@ -191,7 +191,7 @@ def IO() -> None:
 
             nElems = len(elems)
             nSides = len(sides)
-            nNodes = np.sum([s['Nodes'].size for s in elems])  # number of non-unique nodes
+            nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
             bcs   = mesh_vars.bcs
             nBCs  = len(bcs)
@@ -266,7 +266,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     nElems = len(elems)
     nSides = len(sides)
-    nNodes = np.sum([s['Nodes'].size for s in elems])  # number of non-unique nodes
+    nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
     elemCounter = dict()
@@ -279,18 +279,18 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
     nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
     for iElem, elem in enumerate(elems):
-        elemInfo[iElem, ELEM.TYPE     ] = elem['Type']
+        elemInfo[iElem, ELEM.TYPE     ] = elem.type
         elemInfo[iElem, ELEM.ZONE     ] = 1  # FIXME
 
         elemInfo[iElem, ELEM.FIRSTSIDE] = sideCount
-        elemInfo[iElem, ELEM.LASTSIDE ] = sideCount + len(elem['Sides'])
-        sideCount += len(elem['Sides'])
+        elemInfo[iElem, ELEM.LASTSIDE ] = sideCount + len(elem.sides)
+        sideCount += len(elem.sides)
 
         elemInfo[iElem, ELEM.FIRSTNODE] = nodeCount
-        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem['Nodes'])
-        nodeCount += len(elem['Nodes'])
+        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem.sides)
+        nodeCount += len(elem.nodes)
 
-        elemCounter[elem['Type']] += 1
+        elemCounter[elem.type] += 1
 
     # Fill the SideInfo
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
@@ -327,11 +327,11 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        linMap    = LINMAP(elem['Type'], order=mesh_vars.nGeo)
+        linMap    = LINMAP(elem.type, order=mesh_vars.nGeo)
         # meshio accesses them in their own ordering
         # > need to reverse the mapping
         mapLin    = {k: v for v, k in enumerate(linMap)}
-        elemNodes = elem['Nodes']
+        elemNodes = elem.nodes
 
         # Access the actual nodeCoords and reorder them
         for iNode, nodeID in enumerate(elemNodes):

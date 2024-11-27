@@ -167,7 +167,7 @@ def ConnectMesh() -> None:
     #     corners = hash(corners.tobytes())
     #     side_corners.update({iSide: corners})
     for iElem, elem in enumerate(elems):
-        for iSide, side in enumerate(elem['Sides']):
+        for iSide, side in enumerate(elem.sides):
             corners = np.sort(sides[side].corners)
             corners = hash(corners.tobytes())
             side_corners.update({side: corners})
