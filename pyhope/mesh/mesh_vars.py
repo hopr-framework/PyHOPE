@@ -81,6 +81,8 @@ class SIDE:
                  nbLocSide   : Optional[int] = None,
                  # Boundary Conditions
                  bcid        : Optional[int] = None,
+                 # Mortar
+                 locMortar   : Optional[int] = None,
                 ):
         self.elemID      : Optional[int] = elemID
         self.sideID      : Optional[int] = sideID
@@ -97,6 +99,8 @@ class SIDE:
         self.nbLocSide   : Optional[int] = nbLocSide
         # Boundary Conditions
         self.bcid        : Optional[int] = bcid
+        # Mortar
+        self.locMortar   : Optional[int] = locMortar
 
     def update(self, **kwargs):
         for key, value in kwargs.items():

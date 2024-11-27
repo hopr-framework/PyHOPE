@@ -95,6 +95,105 @@ def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
     )
 
 
+def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
+    """ Connect the master (big mortar) and the slave (small mortar) sides
+        > Create the virtual sides as needed
+    """
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_vars import SIDE
+    # ------------------------------------------------------
+
+    # Get the master and slave sides
+    masterSide    = sides[sideIDs[0]]
+    masterElem    = elems[masterSide.elemID]
+    # masterType    = masterElem['Type']
+    masterCorners = masterSide.corners
+
+    # Build mortar type and orientation
+    nMortars = len(sideIDs[1])
+    match nMortars:
+        case 2:
+            # Check which edges of big and small side are identical to determine the mortar type
+            slaveSide    = sides[sideIDs[1][0]]
+            slaveCorners = slaveSide.corners
+
+            if   all(s in slaveCorners for s in [masterCorners[0], masterCorners[1]]) or \
+                 all(s in slaveCorners for s in [masterCorners[2], masterCorners[3]]):  # noqa: E271
+                mortarType = 2
+            elif all(s in slaveCorners for s in [masterCorners[1], masterCorners[2]]) or \
+                 all(s in slaveCorners for s in [masterCorners[0], masterCorners[3]]):
+                mortarType = 3
+            else:
+                hopout.warning('Could not determine mortar type, exiting...')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+
+            del slaveSide
+            del slaveCorners
+
+            # Sort the small sides
+            # > Order according to master corners, [0, 1]
+            slaveSides = [ sides[sideID] for i in [0, 1      ]
+                                         for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
+
+        case 4:
+            mortarType = 1
+            # Sort the small sides
+            # > Order according to master corners, [0, 1, 3, 2]
+            slaveSides = [ sides[sideID] for i in [0, 1, 3, 2]
+                                         for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
+
+        case _:
+            hopout.warning('Found invalid number of sides for mortar side, exiting...')
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+    # Update the master side
+    sides[sideIDs[0]].update(
+        # Master side contains positive global side ID
+        MS          = 1,            # noqa: E251
+        connection  = -mortarType,  # noqa: E251
+        flip        = 0,            # noqa: E251
+        nbLocSide   = 0,            # noqa: E251
+    )
+
+    # Update the elems
+    for elem in elems:
+        for key, val in enumerate(elem.sides):
+            if val > masterSide.sideID:
+                sides[val].sideID += nMortars
+                elem.sides[key]   += nMortars
+
+    # Insert the virtual sides
+    for key, val in enumerate(slaveSides):
+        side = SIDE(sideType   = -4,                           # noqa: E251
+                    elemID     = masterElem.elemID,            # noqa: E251
+                    sideID     = masterSide.sideID + key + 1,  # noqa: E251
+                    locSide    = masterSide.locSide,           # noqa: E251
+                    locMortar  = key + 1,                      # noqa: E251
+                    # TODO:
+                    # MS          = 1,                           # noqa: E251
+                    # flip        = 0,                           # noqa: E251
+                    connection = val.elemID,                   # noqa: E251
+                    nbLocSide  = val.locSide                   # noqa: E251
+                   )
+        # sides.insert(masterSide['SideID'] + key + 1, side)
+        # elems[masterElem['ElemID']]['Sides'].insert(masterSide['LocSide'] + key, side['SideID'])
+        sides.insert(masterSide.sideID + key + 1, side)
+        elems[masterElem.elemID].sides.insert(masterSide.locSide + key, side.sideID)
+
+    # Connect the small (slave) sides to the master side
+    for side in slaveSides:
+        side.connection = masterSide.sideID
+        # TODO:
+        side.MS         = 0
+
+    # for elem in elems:
+    #     print(elem)
+    #     for side in elem['Sides']:
+    #         print(sides[side])
+
+
 def find_bc_index(bcs: list, key: str) -> Union[int, None]:
     """ Find the index of a BC from its name in the list of BCs
     """
@@ -448,7 +547,9 @@ def ConnectMesh() -> None:
                 candidate_combinations += list(itertools.combinations(targetNeighbors, 4))
 
             # Attempt to match the target side with candidate combinations
-            matchFound = False
+            matchFound   = False
+            comboSides   = []
+            comboCorners = []
             for comboIDs in candidate_combinations:
                 # Get the candidate sides
                 comboSides   = [nConnSide[iSide] for iSide in comboIDs]
@@ -460,10 +561,29 @@ def ConnectMesh() -> None:
                 if find_mortar_match(targetPoints, comboPoints, tol):
                     matchFound = True
                     break
+
             if matchFound:
+                # Get our and neighbor corner quad nodes
+                # sideID    =  get_side_id(targetSide['Corners'], corner_side)
+                # nbSideID  = [get_side_id(cast(np.ndarray, c)  , corner_side) for c in comboCorners]
+                sideID    =  targetSide.sideID
+                nbSideID  = [side.sideID for side in comboSides]
+
+                # Build the connection, including flip
+                sideIDs   = [sideID, nbSideID]
+
+                connect_mortar_sides(sideIDs, elems, sides)
                 # TODO: Implement mortar connection
                 print('Actually connecting is not implemented yet')
-                sys.exit()
+                # sys.exit()
+
+                # Update the list
+                nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
+
+                # Append the inner BCs
+                for s in (s for s in sides if s.bcid is not None and s.connection is None):
+                    if mesh_vars.bcs[s.bcid].type[0] == 0:
+                        nConnSide.append(s)
 
             # No connection, attach the side at the end
             else:
@@ -482,31 +602,41 @@ def ConnectMesh() -> None:
             continue
 
         globalSideID += 1
-        if side.connection is None:  # BC side
-            side.update(globalSideID=globalSideID)
-        elif side.MS == 1:           # Internal / periodic side (master side)
+        side.update(globalSideID=globalSideID)
+        if side.connection is None:       # BC side
+            pass
+        elif side.locMortar is not None:  # Mortar side
+            pass
+        elif side.MS == 1:                # Internal / periodic side (master side)
             # Master side does not have a flip
             # Set the positive globalSideID of the master side
-            side.update(globalSideID=globalSideID)
+            # side.update({'GlobalSideID':  globalSideID })
             # Set the negative globalSideID of the slave  side
             nbSideID = side.connection
             sides[nbSideID].update(globalSideID=-(globalSideID))
 
     # Count the sides
-    nsides         = len(sides)
-    sides_conn     = np.array([s.connection is not None for s in sides])  # noqa: E272
-    sides_bc       = np.array([s.bcid       is not None for s in sides])  # noqa: E272
+    nsides             = len(sides)
+    sides_conn         = np.array([s.connection is not None                      for s in sides])  # noqa: E271, E272
+    sides_bc           = np.array([s.bcid       is not None                      for s in sides])  # noqa: E271, E272
+    sides_mortar_big   = np.array([s.connection is not None and s.connection < 0 for s in sides])  # noqa: E271, E272
+    sides_mortar_small = np.array([s.locMortar  is not None                      for s in sides])  # noqa: E271, E272
 
     # Count each type of side
-    ninnersides    = np.sum( sides_conn & ~sides_bc)
-    nperiodicsides = np.sum( sides_conn &  sides_bc)
-    nbcsides       = np.sum(~sides_conn &  sides_bc)
+    ninnersides        = np.sum( sides_conn & ~sides_bc & ~sides_mortar_small & ~sides_mortar_big)
+    nperiodicsides     = np.sum( sides_conn &  sides_bc & ~sides_mortar_small & ~sides_mortar_big)
+    nbcsides           = np.sum(~sides_conn &  sides_bc & ~sides_mortar_small & ~sides_mortar_big)
+    nmortarbigsides    = np.sum(                                                 sides_mortar_big)
+    nmortarsmallsides  = np.sum(                           sides_mortar_small                    )
+    nsides             = len(sides) - nmortarsmallsides
 
     hopout.sep()
-    hopout.info(' Number of sides          : {:12d}'.format(nsides))
-    hopout.info(' Number of inner sides    : {:12d}'.format(ninnersides))
-    hopout.info(' Number of boundary sides : {:12d}'.format(nbcsides))
-    hopout.info(' Number of periodic sides : {:12d}'.format(nperiodicsides))
+    hopout.info(' Number of sides                : {:12d}'.format(nsides))
+    hopout.info(' Number of inner sides          : {:12d}'.format(ninnersides))
+    hopout.info(' Number of mortar sides (big)   : {:12d}'.format(nmortarbigsides))
+    hopout.info(' Number of mortar sides (small) : {:12d}'.format(nmortarsmallsides))
+    hopout.info(' Number of boundary sides       : {:12d}'.format(nbcsides))
+    hopout.info(' Number of periodic sides       : {:12d}'.format(nperiodicsides))
     hopout.sep()
 
     hopout.info('CONNECT MESH DONE!')
