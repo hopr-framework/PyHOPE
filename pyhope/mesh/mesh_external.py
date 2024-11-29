@@ -56,6 +56,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.io.io_vars import debugvisu
+    from pyhope.mesh.mesh_vars import BC
     from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr, GetLogical
     # ------------------------------------------------------
 
@@ -75,7 +76,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
     hopout.routine('Setting boundary conditions')
     hopout.sep()
     nBCs = CountOption('BoundaryName')
-    mesh_vars.bcs = [dict() for _ in range(nBCs)]
+    mesh_vars.bcs = [BC() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
 
     # Check if the number of BCs matches
@@ -86,9 +87,9 @@ def MeshExternal() -> meshio._mesh.Mesh:
     #     sys.exit(1)
 
     for iBC, bc in enumerate(bcs):
-        bc['Name'] = GetStr('BoundaryName', number=iBC)
-        bc['BCID'] = iBC + 1
-        bc['Type'] = GetIntArray('BoundaryType', number=iBC)
+        bc.update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
+                  bcid = iBC + 1,                                  # noqa: E251
+                  type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
 
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]

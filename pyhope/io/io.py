@@ -191,7 +191,7 @@ def IO() -> None:
 
             nElems = len(elems)
             nSides = len(sides)
-            nNodes = np.sum([s['Nodes'].size for s in elems])  # number of non-unique nodes
+            nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
             bcs   = mesh_vars.bcs
             nBCs  = len(bcs)
@@ -230,10 +230,10 @@ def IO() -> None:
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
-                bcNames = [f'{s["Name"]:<255}' for s in bcs]
+                bcNames = [f'{s.name:<255}' for s in bcs]
                 bcTypes = np.zeros((nBCs, 4), dtype=np.int32)
                 for iBC, bc in enumerate(bcs):
-                    bcTypes[iBC, :] = bc['Type']
+                    bcTypes[iBC, :] = bc.type
 
                 f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
                 f.create_dataset('BCType'    , data=bcTypes)
@@ -266,7 +266,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     nElems = len(elems)
     nSides = len(sides)
-    nNodes = np.sum([s['Nodes'].size for s in elems])  # number of non-unique nodes
+    nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
     elemCounter = dict()
@@ -279,44 +279,44 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
     nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
     for iElem, elem in enumerate(elems):
-        elemInfo[iElem, ELEM.TYPE     ] = elem['Type']
+        elemInfo[iElem, ELEM.TYPE     ] = elem.type
         elemInfo[iElem, ELEM.ZONE     ] = 1  # FIXME
 
         elemInfo[iElem, ELEM.FIRSTSIDE] = sideCount
-        elemInfo[iElem, ELEM.LASTSIDE ] = sideCount + len(elem['Sides'])
-        sideCount += len(elem['Sides'])
+        elemInfo[iElem, ELEM.LASTSIDE ] = sideCount + len(elem.sides)
+        sideCount += len(elem.sides)
 
         elemInfo[iElem, ELEM.FIRSTNODE] = nodeCount
-        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem['Nodes'])
-        nodeCount += len(elem['Nodes'])
+        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem.nodes)
+        nodeCount += len(elem.nodes)
 
-        elemCounter[elem['Type']] += 1
+        elemCounter[elem.type] += 1
 
     # Fill the SideInfo
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
     for iSide, side in enumerate(sides):
-        sideInfo[iSide, SIDE.TYPE     ] = side['Type'  ]
-        sideInfo[iSide, SIDE.ID       ] = side['GlobalSideID']
+        sideInfo[iSide, SIDE.TYPE     ] = side.sideType
+        sideInfo[iSide, SIDE.ID       ] = side.globalSideID
         # Connected sides
-        if 'Connection' in side:
-            nbSideID = side['Connection']
-            nbElemID = sides[nbSideID]['ElemID'] + 1  # Python -> HOPR index
+        if side.connection is not None:
+            nbSideID = side.connection
+            nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            if side['Flip'] == 0:  # Master side
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10
+            if side.flip == 0:  # Master side
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
             else:
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID]['LocSide']*10 + side['Flip']
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10 + side.flip
 
             # Periodic sides still have a BCID
-            if 'BCID' in side:
-                sideInfo[iSide, SIDE.BCID      ] = side['BCID'] + 1
+            if side.bcid is not None:
+                sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
             else:
                 sideInfo[iSide, SIDE.BCID      ] = 0
         else:
             sideInfo[iSide, SIDE.NBELEMID      ] = 0
             sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
-            sideInfo[iSide, SIDE.BCID          ] = side['BCID'] + 1
+            sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
 
     # Fill the NodeInfo
     nodeInfo = np.zeros((ELEM.INFOSIZE, nNodes), dtype=np.int32)
@@ -327,11 +327,11 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        linMap    = LINMAP(elem['Type'], order=mesh_vars.nGeo)
+        linMap    = LINMAP(elem.type, order=mesh_vars.nGeo)
         # meshio accesses them in their own ordering
         # > need to reverse the mapping
         mapLin    = {k: v for v, k in enumerate(linMap)}
-        elemNodes = elem['Nodes']
+        elemNodes = elem.nodes
 
         # Access the actual nodeCoords and reorder them
         for iNode, nodeID in enumerate(elemNodes):

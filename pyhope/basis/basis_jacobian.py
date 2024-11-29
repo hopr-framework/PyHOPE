@@ -342,16 +342,16 @@ def CheckJacobians() -> None:
 
     for iElem, elem in enumerate(elems):
         # Only consider hexahedrons
-        if int(elem['Type']) % 100 != 8:
+        if int(elem.type) % 100 != 8:
             continue
 
         # Get the mapping
-        linMap = LINMAP(elem['Type'], order=mesh_vars.nGeo)
+        linMap = LINMAP(elem.type, order=mesh_vars.nGeo)
         mapLin = {k: v for v, k in enumerate(linMap)}
 
         # Fill the NodeCoords
         nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
-        for iNode, nodeID in enumerate(elem['Nodes']):
+        for iNode, nodeID in enumerate(elem.nodes):
             nodeCoords[mapLin[iNode], :] = nodes[nodeID]
 
         xGeo = np.zeros((3, nGeo, nGeo, nGeo))

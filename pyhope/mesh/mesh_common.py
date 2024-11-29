@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -34,94 +34,169 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
 
-def faces() -> list:
+def faces(elemType: Union[int, str]) -> list:
     """ Return a list of all sides of a hexahedron
     """
-    return ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
+                }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in faces: elemType {elemType} is not supported')
+
+    return faces_map[elemType % 100]
 
 
-def edge_to_dir(edge: int) -> int:
+def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
     """ GMSH: Create edges from points in the given direction
     """
-    match edge:
-        case 0 | 2 |  4 |  6:
-            return 0
-        case 1 | 3 |  5 |  7:
-            return 1
-        case 8 | 9 | 10 | 11:
-            return 2
-        case _:
-            print('Error in edge_to_dir, unknown edge')
-            sys.exit(1)
+    dir_map  = {  # Tetrahedron
+                  # Pyramid
+                  # Wedge / Prism
+                  # Hexahedron
+                  8: {  0:  0,  2:  0,  4:  0,  6:  0,  # Direction 0
+                        1:  1,  3:  1,  5:  1,  7:  1,  # Direction 1
+                        8:  2,  9:  2, 10:  2, 11:  2}  # Direction 2
+               }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in dir_map:
+        raise ValueError(f'Error in edge_to_direction: elemType {elemType} is not supported')
+
+    dir = dir_map[elemType % 100]
+
+    try:
+        return dir[edge]
+    except KeyError:
+        raise KeyError(f'Error in edge_to_dir: edge {edge} is not supported')
 
 
-def face_to_edge(face, dtype=int) -> np.ndarray:
+def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarray:
+    """ GMSH: Get points on edges
+    """
+    edge_map = {  # Tetrahedron
+                  4: [ [0, 1], [1, 2], [2, 1], [0, 3],
+                       [1, 3], [2, 3]                 ],
+                  # Pyramid
+                  5: [ [0, 1], [1, 2], [2, 3], [3, 0],
+                       [0, 4], [1, 5], [2, 4], [3, 4] ],
+                  # Wedge / Prism
+                  6: [ [0, 1], [1, 2], [2, 0], [0, 3],
+                       [2, 3], [3, 4], [4, 5], [5, 4] ],
+                  # Hexahedron
+                  8: [ [0, 1], [1, 2], [2, 3], [3, 0],
+                       [0, 4], [1, 5], [2, 6], [3, 7],
+                       [4, 5], [5, 6], [6, 7], [7, 4] ],
+               }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in edge_map:
+        raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
+
+    edges = edge_map[elemType % 100]
+
+    try:
+        return np.array(edges[edge], dtype=dtype)
+    except KeyError:
+        raise KeyError(f'Error in edge_to_corner: edge {edge} is not supported')
+
+
+def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ GMSH: Create faces from edges in the given direction
     """
-    match face:
-        case 'z-':
-            return np.array([  0,  1,   2,   3], dtype=dtype)
-        case 'y-':
-            return np.array([  0,  9,  -4,  -8], dtype=dtype)
-        case 'x+':
-            return np.array([  1, 10,  -5,  -9], dtype=dtype)
-        case 'y+':
-            return np.array([ -2, 10,   6, -11], dtype=dtype)
-        case 'x-':
-            return np.array([  8, -7, -11,   3], dtype=dtype)
-        case 'z+':
-            return np.array([  4,  5,   6,   7], dtype=dtype)
-        case _:  # Default
-            print('Error in face_to_edge, unknown face')
-            sys.exit(1)
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: {  'z-': np.array([  0,  1,   2,   3], dtype=dtype),
+                         'y-': np.array([  0,  9,  -4,  -8], dtype=dtype),
+                         'x+': np.array([  1, 10,  -5,  -9], dtype=dtype),
+                         'y+': np.array([ -2, 10,   6, -11], dtype=dtype),
+                         'x-': np.array([  8, -7, -11,   3], dtype=dtype),
+                         'z+': np.array([  4,  5,   6,   7], dtype=dtype)}
+                }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
+
+    try:
+        return faces_map[elemType % 100][face]
+    except KeyError:
+        raise KeyError(f'Error in face_to_edge: face {face} is not supported')
 
 
-def face_to_corner(face, dtype=int) -> np.ndarray:
+def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ GMSH: Get points on faces in the given direction
     """
-    match face:
-        case 'z-':
-            return np.array([  0,  1,   2,   3], dtype=dtype)
-        case 'y-':
-            return np.array([  0,  1,   5,   4], dtype=dtype)
-        case 'x+':
-            return np.array([  1,  2,   6,   5], dtype=dtype)
-        case 'y+':
-            return np.array([  2,  6,   7,   3], dtype=dtype)
-        case 'x-':
-            return np.array([  0,  4,   7,   3], dtype=dtype)
-        case 'z+':
-            return np.array([  4,  5,   6,   7], dtype=dtype)
-        case _:  # Default
-            print('Error in face_to_corner, unknown face')
-            sys.exit(1)
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: {  'z-': np.array([  0,  1,   2,   3], dtype=dtype),
+                         'y-': np.array([  0,  1,   5,   4], dtype=dtype),
+                         'x+': np.array([  1,  2,   6,   5], dtype=dtype),
+                         'y+': np.array([  2,  6,   7,   3], dtype=dtype),
+                         'x-': np.array([  0,  4,   7,   3], dtype=dtype),
+                         'z+': np.array([  4,  5,   6,   7], dtype=dtype)}
+                }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
+
+    try:
+        return faces_map[elemType % 100][face]
+    except KeyError:
+        raise KeyError(f'Error in face_to_corner: face {face} is not supported')
 
 
-def face_to_cgns(face, dtype=int) -> np.ndarray:
+def face_to_cgns(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ CGNS: Get points on faces in the given direction
     """
-    match face:
-        case 'z-':
-            return np.array([  0,  3,   2,   1], dtype=dtype)
-        case 'y-':
-            return np.array([  0,  1,   5,   4], dtype=dtype)
-        case 'x+':
-            return np.array([  1,  2,   6,   5], dtype=dtype)
-        case 'y+':
-            return np.array([  2,  3,   7,   6], dtype=dtype)
-        case 'x-':
-            return np.array([  0,  4,   7,   3], dtype=dtype)
-        case 'z+':
-            return np.array([  4,  5,   6,   7], dtype=dtype)
-        case _:  # Default
-            print('Error in face_to_corner, unknown face')
-            sys.exit(1)
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),
+                       'y-': np.array([  0,  1,  5,  4], dtype=dtype),
+                       'x+': np.array([  1,  2,  6,  5], dtype=dtype),
+                       'y+': np.array([  2,  3,  7,  6], dtype=dtype),
+                       'x-': np.array([  0,  4,  7,  3], dtype=dtype),
+                       'z+': np.array([  4,  5,  6,  7], dtype=dtype)}
+                }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
+
+    try:
+        return faces_map[elemType % 100][face]
+    except KeyError:
+        raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
 def count_elems(mesh: meshio._mesh.Mesh) -> int:
@@ -131,7 +206,7 @@ def count_elems(mesh: meshio._mesh.Mesh) -> int:
     nElems = 0
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
@@ -157,7 +232,7 @@ def calc_elem_bary(mesh: meshio._mesh.Mesh) -> list:
     elemBary = [np.ndarray(3)] * nElems
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)

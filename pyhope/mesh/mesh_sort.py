@@ -93,7 +93,7 @@ def SortMeshBySFC() -> None:
     nElems = count_elems(mesh)
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
@@ -113,7 +113,7 @@ def SortMeshBySFC() -> None:
     elemDisc = [np.ndarray(3)] * nElems
     for iType, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEM.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
@@ -131,7 +131,7 @@ def SortMeshBySFC() -> None:
     cellsets = mesh_vars.mesh.cell_sets
 
     for iCell, cellType in enumerate(cells):
-        if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
             cellType.data = np.asarray([x.tolist() for _, x in sorted(zip(distances, cellType.data))])
 
@@ -249,7 +249,7 @@ def SortMeshByIJK():
     cellsets = mesh_vars.mesh.cell_sets
 
     for cellType in cells:
-        if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
             cellType.data = np.asarray([x.tolist() for _, x in sorted(zip(intList, cellType.data))])
 

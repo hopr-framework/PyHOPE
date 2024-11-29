@@ -51,7 +51,8 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     from pyhope.common.common import find_index, find_indices
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
-    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
+    from pyhope.mesh.mesh_vars import BC
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()
@@ -75,8 +76,9 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     for zone in range(nZones):
         hopout.routine('Generating zone {}'.format(zone+1))
 
-        corners = GetRealArray('Corner', number=zone)
-        nElems  = GetIntArray( 'nElems', number=zone)
+        corners  = GetRealArray( 'Corner'  , number=zone)
+        nElems   = GetIntArray(  'nElems'  , number=zone)
+        elemType = GetIntFromStr('ElemType', number=zone)
 
         # Create all the corner points
         p = [None for _ in range(len(corners))]
@@ -97,21 +99,21 @@ def MeshCartesian() -> meshio._mesh.Mesh:
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
             # We set the number of nodes, so Elems+1
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index)]+1)
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index, elemType)]+1)
 
         # Create the curve loop
-        el = [None for _ in range(len(faces()))]
-        for index, face in enumerate(faces()):
-            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)], s) for s in face_to_edge(face)])
+        el = [None for _ in range(len(faces(elemType)))]
+        for index, face in enumerate(faces(elemType)):
+            el[index] = gmsh.model.geo.addCurveLoop([math.copysign(e[abs(s)], s) for s in face_to_edge(face, elemType)])
 
         # Create the surfaces
-        s = [None for _ in range(len(faces()))]
+        s = [None for _ in range(len(faces(elemType)))]
         for index, surface in enumerate(s):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=offsets+index+1)
 
         # We need to define the surfaces as transfinite surface
-        for index, face in enumerate(faces()):
-            gmsh.model.geo.mesh.setTransfiniteSurface(offsets+index+1, face, [p[s] for s in face_to_corner(face)])
+        for index, face in enumerate(faces(elemType)):
+            gmsh.model.geo.mesh.setTransfiniteSurface(offsets+index+1, face, [p[s] for s in face_to_corner(face, elemType)])
             gmsh.model.geo.mesh.setRecombine(2, 1)
 
         # Create the surface loop
@@ -128,7 +130,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
 
         # Calculate all offsets
         offsetp += len(corners)
-        offsets += len(faces())
+        offsets += len(faces(elemType))
 
         # Read the BCs for the zone
         # > Need to wait with defining phyiscal boundaries until all zones are created
@@ -142,13 +144,13 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     hopout.routine('Setting boundary conditions')
     hopout.sep()
     nBCs = CountOption('BoundaryName')
-    mesh_vars.bcs = [dict() for _ in range(nBCs)]
+    mesh_vars.bcs = [BC() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
 
     for iBC, bc in enumerate(bcs):
-        bcs[iBC]['Name'] = GetStr('BoundaryName', number=iBC)
-        bcs[iBC]['BCID'] = iBC + 1
-        bcs[iBC]['Type'] = GetIntArray('BoundaryType', number=iBC)
+        bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
+                        bcid = iBC + 1,                                  # noqa: E251
+                        type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
 
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
@@ -165,41 +167,42 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     bc = [None for _ in range(max(bcIndex))]
     for iBC in range(max(bcIndex)):
         # if mesh_vars.bcs[iBC-1] is None:
-        if 'Name' not in bcs[iBC]:
+        # if 'Name' not in bcs[iBC]:
+        if bcs[iBC] is None:
             continue
 
         # Format [dim of group, list, name)
         # > Here, we return ALL surfaces on the BC, irrespective of the zone
         surfID  = [s+1 for s in find_indices(bcIndex, iBC+1)]
-        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=bcs[iBC]['Name'])
+        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=bcs[iBC].name)
 
         # For periodic sides, we need to impose the periodicity constraint
-        if bcs[iBC]['Type'][0] == 1:
+        if bcs[iBC].type[0] == 1:
             # > Periodicity transform is provided as a 4x4 affine transformation matrix, given by row
             # > Rotation matrix [columns 0-2], translation vector [column 3], bottom row [0, 0, 0, 1]
 
             # Only define the positive translation
-            if bcs[iBC]['Type'][3] > 0:
+            if bcs[iBC].type[3] > 0:
                 pass
-            elif bcs[iBC]['Type'][3] == 0:
+            elif bcs[iBC].type[3] == 0:
                 hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
                 traceback.print_stack(file=sys.stdout)
                 sys.exit(1)
             else:
                 continue
 
-            hopout.routine('Generated periodicity constraint with vector {}'.format(vvs[int(bcs[iBC]['Type'][3])-1]['Dir']))
+            hopout.routine('Generated periodicity constraint with vector {}'.format(vvs[int(bcs[iBC].type[3])-1]['Dir']))
 
-            translation = [1., 0., 0., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][0]),
-                           0., 1., 0., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][1]),
-                           0., 0., 1., float(vvs[int(bcs[iBC]['Type'][3])-1]['Dir'][2]),
+            translation = [1., 0., 0., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][0]),
+                           0., 1., 0., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][1]),
+                           0., 0., 1., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][2]),
                            0., 0., 0., 1.]
 
             # Find the opposing side(s)
             # > copy, otherwise we modify bcs
-            nbType     = copy.copy(bcs[iBC]['Type'])
+            nbType     = copy.copy(bcs[iBC].type)
             nbType[3] *= -1
-            nbBCID     = find_index([s['Type'] for s in bcs], nbType)
+            nbBCID     = find_index([s.type for s in bcs], nbType)
             # nbSurfID can hold multiple surfaces, depending on the number of zones
             # > find_indices returns all we need!
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
@@ -230,7 +233,7 @@ def MeshCartesian() -> meshio._mesh.Mesh:
     # Final count
     nElems = 0
     for iType, cellType in enumerate(mesh.cells):
-        if any(s in cellType.type for s in mesh_vars.ELEM.type.keys()):
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
     hopout.sep()
     hopout.routine('Generated mesh with {} cells'.format(nElems))
