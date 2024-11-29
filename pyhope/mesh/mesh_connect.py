@@ -29,10 +29,11 @@ import copy
 import itertools
 import sys
 import traceback
-from typing import Union, cast
+from typing import Union, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import meshio
 import numpy as np
 from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -67,7 +68,7 @@ def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: s
     """
     ptree     = spatial.KDTree(nbcorners)
 
-    trCorn    = ptree.query(corners[0])
+    trCorn    = ptree.query(corners)
     if trCorn[0] > tol:
         hopout.warning(f'Could not determine flip of {msg} side within tolerance {tol}, exiting...')
         traceback.print_stack(file=sys.stdout)
@@ -100,6 +101,7 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
         > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_vars import SIDE
     # ------------------------------------------------------
 
@@ -166,32 +168,52 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
 
     # Insert the virtual sides
     for key, val in enumerate(slaveSides):
-        side = SIDE(sideType   = -4,                           # noqa: E251
+        side = SIDE(sideType   = 104,                          # noqa: E251
                     elemID     = masterElem.elemID,            # noqa: E251
                     sideID     = masterSide.sideID + key + 1,  # noqa: E251
                     locSide    = masterSide.locSide,           # noqa: E251
                     locMortar  = key + 1,                      # noqa: E251
-                    # TODO:
-                    # MS          = 1,                           # noqa: E251
-                    # flip        = 0,                           # noqa: E251
+                    # Virtual sides are always master sides
+                    MS          = 1,                           # noqa: E251
+                    flip        = 0,                           # noqa: E251
                     connection = val.elemID,                   # noqa: E251
                     nbLocSide  = val.locSide                   # noqa: E251
                    )
-        # sides.insert(masterSide['SideID'] + key + 1, side)
-        # elems[masterElem['ElemID']]['Sides'].insert(masterSide['LocSide'] + key, side['SideID'])
+
         sides.insert(masterSide.sideID + key + 1, side)
         elems[masterElem.elemID].sides.insert(masterSide.locSide + key, side.sideID)
 
     # Connect the small (slave) sides to the master side
-    for side in slaveSides:
-        side.connection = masterSide.sideID
-        # TODO:
-        side.MS         = 0
-
-    # for elem in elems:
-    #     print(elem)
-    #     for side in elem['Sides']:
-    #         print(sides[side])
+    for key, val in enumerate(slaveSides):
+        tol        = mesh_vars.tolInternal
+        points     = mesh_vars.mesh.points[masterSide.corners]
+        nbcorners  = mesh_vars.mesh.points[val.corners]
+        match mortarType:
+            case 1:  # 4-1 mortar
+                flipID = flip_physical(points[key]               , nbcorners, tol, 'mortar')
+                # Correct for the corner offset
+                flipID = (flipID - key + 1) % 4
+                val.update(flip=flipID)
+            case 2:  # 2-1 mortar, split in eta
+                mortarCorners = [0, -1]  # Prepare for non-quad mortars
+                flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
+                # Correct for the corner offset
+                mortarLength  = [0, len(masterSide.corners)]
+                flipID = (flipID - mortarLength[key] + 4) % 4
+            case 3:  # 2-1 mortar, split in xi
+                mortarCorners = [0, -2]  # Prepare for non-quad mortars
+                flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
+                # Correct for the corner offset
+                mortarLength  = [0, len(masterSide.corners) - 1]
+                flipID = (flipID - mortarLength[key] + 4) % 4
+        # TODO: Check if this is correct
+        print('FLIP still needs to be checked')
+        val.update(connection = masterSide.sideID,             # noqa: E251
+                   # Small sides are always slave sides
+                   sideType   = -104,                          # noqa: E251
+                   MS         = 0,                             # noqa: E251
+                   flip       = flipID,                        # noqa: E251
+                  )
 
 
 def find_bc_index(bcs: list, key: str) -> Union[int, None]:
@@ -270,6 +292,23 @@ def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
     corners_sorted = np.sort(corners)
     corners_hash = hash(corners_sorted.tobytes())
     return side_dict[corners_hash][0]
+
+
+def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> Tuple[list, list]:
+    """ Get a list of internal sides that are not connected to any
+        other side together with a list of their centers
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    # Update the list
+    nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
+    # Append the inner BCs
+    for s in (s for s in sides if s.bcid is not None and s.connection is None):
+        if mesh_vars.bcs[s.bcid].type[0] == 0:
+            nConnSide.append(s)
+    nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
+    return nConnSide, nConnCenter
 
 
 def ConnectMesh() -> None:
@@ -449,20 +488,14 @@ def ConnectMesh() -> None:
 
             # > Find the first neighbor point to determine the flip
             nbcorners = mesh.points[sides[sideIDs[1]].corners]
-            flipID    = flip_physical(points, nbcorners, tol, 'periodic')
+            flipID    = flip_physical(points[0], nbcorners, tol, 'periodic')
 
             # Connect the sides
             connect_sides(sideIDs, sides, flipID)
 
     # Non-connected sides without BCID are possible inner sides
-    nConnSide   = [s for s in sides if s.connection is None and s.bcid is None]
-    # Append the inner BCs
-    for s in (s for s in sides if s.bcid is not None and s.connection is None):
-        if mesh_vars.bcs[s.bcid].type[0] == 0:
-            nConnSide.append(s)
-    nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
-
-    nInterZoneConnect = len(nConnSide)
+    nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+    nInterZoneConnect      = len(nConnSide)
 
     hopout.separator()
 
@@ -470,7 +503,7 @@ def ConnectMesh() -> None:
     iter    = 0
     maxIter = copy.copy(len(nConnSide))
     while len(nConnSide) > 1 and iter <= maxIter:
-        # Ensure the loop exits after cehcking every side
+        # Ensure the loop exits after checking every side
         iter += 1
 
         # Remove the first side from the list
@@ -508,18 +541,13 @@ def ConnectMesh() -> None:
             points    = mesh.points[sides[sideIDs[0]].corners]
             # > Find the first neighbor point to determine the flip
             nbcorners = mesh.points[sides[sideIDs[1]].corners]
-            flipID    = flip_physical(points, nbcorners, tol, 'internal')
+            flipID    = flip_physical(points[0], nbcorners, tol, 'internal')
 
             # Connect the sides
             connect_sides(sideIDs, sides, flipID)
 
             # Update the list
-            nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
-            # Append the inner BCs
-            for s in (s for s in sides if s.bcid is not None and s.connection is None):
-                if mesh_vars.bcs[s.bcid].type[0] == 0:
-                    nConnSide.append(s)
-            nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
+            nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
         # Mortar side
         # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
@@ -572,18 +600,11 @@ def ConnectMesh() -> None:
                 # Build the connection, including flip
                 sideIDs   = [sideID, nbSideID]
 
+                # Connect the sides
                 connect_mortar_sides(sideIDs, elems, sides)
-                # TODO: Implement mortar connection
-                print('Actually connecting is not implemented yet')
-                # sys.exit()
 
                 # Update the list
-                nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
-
-                # Append the inner BCs
-                for s in (s for s in sides if s.bcid is not None and s.connection is None):
-                    if mesh_vars.bcs[s.bcid].type[0] == 0:
-                        nConnSide.append(s)
+                nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
             # No connection, attach the side at the end
             else:

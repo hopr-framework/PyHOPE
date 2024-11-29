@@ -40,7 +40,7 @@ from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 mode   : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
-mesh   : meshio._mesh.Mesh                        # MeshIO object holding the mesh
+mesh   : meshio.Mesh                              # MeshIO object holding the mesh
 nGeo   : int                                      # Order of spline-reconstruction for curved surfaces
 sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
 

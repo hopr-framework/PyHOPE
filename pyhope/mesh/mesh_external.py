@@ -51,7 +51,7 @@ from scipy import spatial
 # ==================================================================================================================================
 
 
-def MeshExternal() -> meshio._mesh.Mesh:
+def MeshExternal() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -171,7 +171,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
     return mesh
 
 
-def BCCGNS() -> meshio._mesh.Mesh:
+def BCCGNS() -> meshio.Mesh:
     """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
         > Add them here manually to the meshIO object
     """
@@ -330,7 +330,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
     return cellsets
 
 
-def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
+def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
                       stree:    spatial._kdtree.cKDTree,
@@ -391,7 +391,7 @@ def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
         mesh_vars.mesh = mesh
 
 
-def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
+def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
                       stree:    spatial._kdtree.cKDTree,

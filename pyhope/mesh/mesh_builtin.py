@@ -44,7 +44,7 @@ import pygmsh
 # ==================================================================================================================================
 
 
-def MeshCartesian() -> meshio._mesh.Mesh:
+def MeshCartesian() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout

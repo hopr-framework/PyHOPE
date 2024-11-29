@@ -199,7 +199,7 @@ def face_to_cgns(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
-def count_elems(mesh: meshio._mesh.Mesh) -> int:
+def count_elems(mesh: meshio.Mesh) -> int:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
@@ -224,7 +224,7 @@ def centeroidnp(coords: np.ndarray) -> np.ndarray:
     return np.array([sum_x/length, sum_y/length, sum_z/length])
 
 
-def calc_elem_bary(mesh: meshio._mesh.Mesh) -> list:
+def calc_elem_bary(mesh: meshio.Mesh) -> list:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
