@@ -35,6 +35,8 @@ cache:
   paths:
     - venv
     - .cache/pip
+    - flexi
+    - convergence_test
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Templates ("hidden jobs")
@@ -55,7 +57,9 @@ cache:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Setup
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-before_script:
+
+# Define a reusable global before_script with YAML anchors
+.global-before-script: &global-before-script
   - ulimit -s unlimited
   - module list || true
   - python3 --version
@@ -79,12 +83,15 @@ before_script:
   # Install coverage
   - pip install --no-cache-dir coverage --root-user-action=ignore
 
+before_script: *global-before-script
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Stages
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 stages:
   - lint
   - coverage
+  - convergence
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Linter
@@ -199,3 +206,49 @@ coverage:
       else
         echo "All examples passed.";
       fi
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# FLEXI convergence tests
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+convergence:
+  extends: .defaults
+  stage: convergence
+  image: ubuntu:latest
+  before_script:
+    # Install FLEXI dependencies
+    - apt install git cmake-extras cmake-curses-gui g++ gfortran mpi-default-dev zlib1g-dev libopenblas-dev libhdf5-mpi-dev
+    - apt install python3 python3-pip
+    # Reuse global before_script to avoid duplicate code for python
+    - *global-before-script
+    # Install FLEXI
+    - git clone https://github.com/flexi-framework/flexi.git
+    - cd flexi
+    - cmake -B build
+    - cmake --build build
+    - FLEXIDIR=$(pwd)
+    - alias flexi='$FLEXIDIR/build/bin/flexi'
+    - cd ..
+  script:
+    # Generate Meshes
+    - mkdir convergence_test
+    - cd convergence_test
+    - cp ../tutorials/5-02-convtest_flipped/parameter_FLIPPED_template_hopr.ini .
+    - cp ../tutorials/5-02-convtest_flipped/parameter_flexi.ini .
+    # Generate Meshes
+    - meshres=("001" "002" "004" "008")
+    - template_file="parameter_FLIPPED_template_hopr.ini"
+    - | # Literal YAML multiline block scalar indicator
+      for value in "${meshres[@]}"; do
+        # Calculate nElem2 as half the integer value of nElem
+        nElem2=$((10#$value / 2)) # Use 10#$value to interpret value as a base-10 integer
+        # Create a temporary parameter file
+        temp_file=$(mktemp)
+        # Replace placeholders in the template and save to the temporary file
+        sed -e "s/<nElem>/$value/g" -e "s/<nElem2>/$nElem2/g" "$template_file" > "$temp_file"
+        # Build the mesh
+        pyhope "$temp_file"
+        # Clean up the temporary file
+        rm "$temp_file"
+      done
+    # Call convergence script
+    - python3 $FLEXIDIR/tutorials/convergence_test/convergence_grid --N 3 --dim 3 --procs 1 flexi parameter_flexi.ini
