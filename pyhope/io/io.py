@@ -287,7 +287,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
         sideCount += len(elem.sides)
 
         elemInfo[iElem, ELEM.FIRSTNODE] = nodeCount
-        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem.sides)
+        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem.nodes)
         nodeCount += len(elem.nodes)
 
         elemCounter[elem.type] += 1
