@@ -129,7 +129,7 @@ coverage:
     - declare -a results
 
     # Store all directories with "parameter.ini" files in an array (bash-only)
-    - mapfile -d '' paramfiles < <(find tutorials -type f -name "parameter.ini" -print0)
+    - mapfile -d '' paramfiles < <(find tutorials -type f -name "parameter.ini" -print0 | sort -z)
     - echo "Found "${#paramfiles[@]}" parameter.ini files..."
 
     # Calculate max width

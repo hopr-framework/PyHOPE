@@ -134,8 +134,8 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
             del slaveCorners
 
             # Sort the small sides
-            # > Order according to master corners, [0, 1]
-            slaveSides = [ sides[sideID] for i in [0, 1      ]
+            # > Order according to master corners, [0, 2]
+            slaveSides = [ sides[sideID] for i in [0, 2      ]
                                          for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
 
         case 4:
@@ -179,18 +179,15 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
         nbcorners  = mesh_vars.mesh.points[val.corners]
         match mortarType:
             case 1:  # 4-1 mortar
-                flipID = flip_physical(points[key]               , nbcorners, tol, 'mortar')
+                mortarCorners = [0, 1, 3, 2]  # Prepare for non-quad mortars
+                flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
                 flipID = (flipID - key + 1) % 4
-                print('This mortar flip still needs to be checked')
-                sys.exit()
             case 2:  # 2-1 mortar, split in eta
                 mortarCorners = [0, -1]  # Prepare for non-quad mortars
                 flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
                 mortarLength  = [0, 1]
-                print('This mortar flip still needs to be checked')
-                sys.exit()
                 flipID = (flipID - mortarLength[key] + 4) % 4
             case 3:  # 2-1 mortar, split in xi
                 mortarCorners = [0, -2]  # Prepare for non-quad mortars
@@ -619,7 +616,15 @@ def ConnectMesh() -> None:
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
         hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
+
+        for side in nConnSide:
+            hopout.info('SideID : {}'.format(side.sideID))
+            hopout.info('{}'.format(side.dict()))
+            hopout.info('Corners:')
+            print('{}'.format(mesh.points[side.corners]))
         sys.exit(1)
+
+    # TODO: Check if mortars are watertight
 
     if nInterZoneConnect > 0:
         hopout.sep()
