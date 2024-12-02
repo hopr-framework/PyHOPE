@@ -255,11 +255,11 @@ convergence:
     - rm -rf convergence_test || true
     - mkdir convergence_test
     - cd convergence_test
-    - cp ../tutorials/5-02-convtest_flipped/parameter_FLIPPED_template_hopr.ini .
+    - cp ../tutorials/5-02-convtest_flipped/parameter_FLIPPED_template_pyhope.ini .
     - cp ../tutorials/5-02-convtest_flipped/parameter_flexi.ini .
     # Generate Meshes
     - meshres=("001" "002" "004" "008")
-    - template_file="parameter_FLIPPED_template_hopr.ini"
+    - template_file="parameter_FLIPPED_template_pyhope.ini"
     - | # Literal YAML multiline block scalar indicator
       for res in "${meshres[@]}"; do
         # Calculate nElem2 as half the integer res of nElem
