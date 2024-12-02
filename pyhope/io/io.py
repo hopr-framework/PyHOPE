@@ -304,15 +304,19 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
             sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
             sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
         elif side.locMortar is not None:                           # Small mortar side
-            print('Actual output of small mortar sides is not implemented yet')
+            nbSideID = side.connection
+            nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
+            sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
         elif side.connection is not None and side.connection < 0:  # Big mortar side
             # TODO: Does this even need special treatment?
-            print('Actual output of big   mortar sides is not implemented yet')
+            sideInfo[iSide, SIDE.NBELEMID      ] = side.connection
         else:                                                      # Internal side
             nbSideID = side.connection
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            if side.flip == 0:  # Master side
+            if side.sideType < 0:  # Small mortar side
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 1
+            elif side.flip == 0:     # Master side
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
             else:
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10 + side.flip

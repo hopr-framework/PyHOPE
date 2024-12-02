@@ -85,7 +85,7 @@ def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
         # Master side contains positive global side ID
         MS         = 1,                         # noqa: E251
         connection = sideIDs[1],                # noqa: E251
-        flip       = 0,                         # noqa: E251
+        flip       = flipID,                    # noqa: E251
         nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
     )
     sides[sideIDs[1]].update(
@@ -162,28 +162,17 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
     # Update the elems
     for elem in elems:
         for key, val in enumerate(elem.sides):
+            # Update the sideIDs
             if val > masterSide.sideID:
                 sides[val].sideID += nMortars
                 elem.sides[key]   += nMortars
+            # Update the connections
+            if sides[val].connection is not None and sides[val].connection > masterSide.sideID:
+                sides[val].connection += nMortars
 
     # Insert the virtual sides
-    for key, val in enumerate(slaveSides):
-        side = SIDE(sideType   = 104,                          # noqa: E251
-                    elemID     = masterElem.elemID,            # noqa: E251
-                    sideID     = masterSide.sideID + key + 1,  # noqa: E251
-                    locSide    = masterSide.locSide,           # noqa: E251
-                    locMortar  = key + 1,                      # noqa: E251
-                    # Virtual sides are always master sides
-                    MS          = 1,                           # noqa: E251
-                    flip        = 0,                           # noqa: E251
-                    connection = val.elemID,                   # noqa: E251
-                    nbLocSide  = val.locSide                   # noqa: E251
-                   )
+    # for key, val in enumerate(slaveSides):
 
-        sides.insert(masterSide.sideID + key + 1, side)
-        elems[masterElem.elemID].sides.insert(masterSide.locSide + key, side.sideID)
-
-    # Connect the small (slave) sides to the master side
     for key, val in enumerate(slaveSides):
         tol        = mesh_vars.tolInternal
         points     = mesh_vars.mesh.points[masterSide.corners]
@@ -193,21 +182,41 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
                 flipID = flip_physical(points[key]               , nbcorners, tol, 'mortar')
                 # Correct for the corner offset
                 flipID = (flipID - key + 1) % 4
-                val.update(flip=flipID)
+                print('This mortar flip still needs to be checked')
+                sys.exit()
             case 2:  # 2-1 mortar, split in eta
                 mortarCorners = [0, -1]  # Prepare for non-quad mortars
                 flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
-                mortarLength  = [0, len(masterSide.corners)]
+                mortarLength  = [0, 1]
+                print('This mortar flip still needs to be checked')
+                sys.exit()
                 flipID = (flipID - mortarLength[key] + 4) % 4
             case 3:  # 2-1 mortar, split in xi
                 mortarCorners = [0, -2]  # Prepare for non-quad mortars
                 flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
-                mortarLength  = [0, len(masterSide.corners) - 1]
+                mortarLength  = [0, 2]
                 flipID = (flipID - mortarLength[key] + 4) % 4
-        # TODO: Check if this is correct
-        print('FLIP still needs to be checked')
+        val.update(flip=flipID)
+
+        # Insert the virtual sides
+        side = SIDE(sideType   = 104,                          # noqa: E251
+                    elemID     = masterElem.elemID,            # noqa: E251
+                    sideID     = masterSide.sideID + key + 1,  # noqa: E251
+                    locSide    = masterSide.locSide,           # noqa: E251
+                    locMortar  = key + 1,                      # noqa: E251
+                    # Virtual sides are always master sides
+                    MS         = 1,                            # noqa: E251
+                    flip       = flipID,                       # noqa: E251
+                    connection = val.sideID,                   # noqa: E251
+                    nbLocSide  = val.locSide                   # noqa: E251
+                   )
+
+        sides.insert(masterSide.sideID + key + 1, side)
+        elems[masterElem.elemID].sides.insert(masterSide.locSide + key, side.sideID)
+
+        # Connect the small (slave) sides to the master side
         val.update(connection = masterSide.sideID,             # noqa: E251
                    # Small sides are always slave sides
                    sideType   = -104,                          # noqa: E251
@@ -349,11 +358,7 @@ def ConnectMesh() -> None:
     # Map sides to BC
     # > Create a dict containing only the face corners
     side_corners = dict()
-    # for iSide, side in enumerate(sides):
-    #     corners = np.sort(side['Corners'])
-    #     corners = hash(corners.tobytes())
-    #     side_corners.update({iSide: corners})
-    for iElem, elem in enumerate(elems):
+    for elem in elems:
         for iSide, side in enumerate(elem.sides):
             corners = np.sort(sides[side].corners)
             corners = hash(corners.tobytes())
@@ -611,6 +616,11 @@ def ConnectMesh() -> None:
                 nConnSide  .append(targetSide)
                 nConnCenter.append(targetCenter)
 
+    nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+    if len(nConnSide) > 0:
+        hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
+        sys.exit(1)
+
     if nInterZoneConnect > 0:
         hopout.sep()
         hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
@@ -624,11 +634,11 @@ def ConnectMesh() -> None:
 
         globalSideID += 1
         side.update(globalSideID=globalSideID)
-        if side.connection is None:       # BC side
+        if side.connection is None:         # BC side
             pass
-        elif side.locMortar is not None:  # Mortar side
+        elif side.connection < 0:           # Big mortar side
             pass
-        elif side.MS == 1:                # Internal / periodic side (master side)
+        elif side.MS == 1:                  # Internal / periodic side (master side)
             # Master side does not have a flip
             # Set the positive globalSideID of the master side
             # side.update({'GlobalSideID':  globalSideID })
