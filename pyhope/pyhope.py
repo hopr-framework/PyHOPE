@@ -47,6 +47,7 @@ def main() -> None:
     from pyhope.common.common import DefineCommon, InitCommon
     from pyhope.common.common_vars import Common
     from pyhope.basis.basis_jacobian import CheckJacobians
+    from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.io.io import IO, DefineIO, InitIO
     from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
     from pyhope.mesh.mesh_connect import ConnectMesh
@@ -107,7 +108,8 @@ def main() -> None:
     RegenerateMesh()
     ConnectMesh()
 
-    # Check the mapping
+    # Perform the mesh checks
+    CheckWatertight()
     CheckJacobians()
 
     # Output the mesh

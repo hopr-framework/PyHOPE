@@ -70,6 +70,7 @@ def DefineMesh() -> None:
     CreateInt(      'BoundaryOrder',       default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
     CreateLogical(  'doSortIJK',           default=False, help='Sort the mesh elements along the I,J,K directions')
     CreateLogical(  'CheckElemJacobians',  default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckWatertightness', default=True,  help='Check if the mesh is watertight')
     # Mortars
     CreateLogical(  'doMortars',           default=True,  help='Enables mortars')
 
