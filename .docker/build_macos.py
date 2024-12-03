@@ -1,4 +1,4 @@
-#!/opt/python/cp310-cp310/bin/python
+#!python3
 # -*- coding: utf-8 -*-
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -113,7 +113,9 @@ def compile(install_cmd: Optional[list] = None, ncores: int = 1, cwd: Optional[s
 
 
 # Define paths
-WORK_DIR     = '/io'
+WORK_DIR     = os.path.join(os.getcwd(), 'build_macos')
+os.makedirs(WORK_DIR, exist_ok=True)
+
 BUILD_DIR    = os.path.join(WORK_DIR, 'build')
 INSTALL_DIR  = os.path.join(WORK_DIR, 'gmsh_install')
 Doxygen_DIR  = os.path.join(WORK_DIR, 'doxygen')
@@ -369,10 +371,10 @@ def build_libpng():
 
     conf_cmd  = ['./configure',
                  '--prefix={}'.format(LIBPNG_DIR),
-                 '--disable-static',
-                 # '--enable-static',
-                 # '--disable-shared',
-                 '--enable-shared',
+                 #'--disable-static',
+                 '--enable-static',
+                 '--disable-shared',
+                 #'--enable-shared',
                  ]
     conf_env = os.environ.copy()
     conf_env['CFLAGS']   = '-fPIC'
@@ -517,32 +519,6 @@ def build_fontconfig():
 def build_fltk():
     print_header('BUILDING FLTK')
 
-    # Add system libjpeg-turbo-devel to PATH
-    # lfs = 'yes'
-    # lib = 'libjpeg-turbo-devel-1.2.1-3.el6_5.x86_64'
-    # subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
-    #                check=True,
-    #                cwd=BUILD_DIR,
-    #                shell=True)
-    # extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
-    #
-    # # Move files into common directory
-    # shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/')  , '/io/build/include'  , dirs_exist_ok=True)
-    #
-    # # Add system libpng-devel to PATH
-    # lib = 'libpng-devel-1.2.49-2.el6_7.x86_64'
-    # subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
-    #                check=True,
-    #                cwd=BUILD_DIR,
-    #                shell=True)
-    # extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
-    #
-    # # Move files into common directory
-    # shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/')  , '/io/build/include'  , dirs_exist_ok=True)
-    #
-    # os.environ['CPPFLAGS'] = '-I{}'.format( os.path.join(BUILD_DIR, 'include'))
-    # subprocess.check_call(['yum', 'install', '-y', 'libjpeg-turbo-devel', 'libpng-devel'])
-
     fltk_src_dir = os.path.join(BUILD_DIR, f'fltk-{FLTK_VERSION}')
     if os.path.exists(fltk_src_dir):
         shutil.rmtree(fltk_src_dir)
@@ -581,7 +557,7 @@ def build_fltk():
     conf_env['LDFLAGS'        ] = '-L{}'   .format(os.path.join(LIBPNG_DIR       , 'lib'    ))
     conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(LIBXFT_DIR       , 'lib'    ), conf_env['LDFLAGS' ])
     conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(FONTCONFIG_DIR   , 'lib'    ), conf_env['LDFLAGS' ])
-    conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib64'  ), conf_env['LDFLAGS' ])
+    conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib'  ), conf_env['LDFLAGS' ])
     if 'LD_LIBRARY_PATH' in conf_env:
         conf_env['LD_LIBRARY_PATH'] = '{}{}{}'.format(os.path.join(LIBPNG_DIR,        'lib'  ), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
@@ -589,7 +565,7 @@ def build_fltk():
         conf_env['LD_LIBRARY_PATH'] = '{}'    .format(os.path.join(LIBPNG_DIR,        'lib'  ))
     conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(LIBXFT_DIR,        'lib'  ), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
-    conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(LIBJPEG_TURBO_DIR, 'lib64'), os.pathsep,
+    conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(LIBJPEG_TURBO_DIR, 'lib'), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
     conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(FONTCONFIG_DIR,    'lib'), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
@@ -602,7 +578,7 @@ def build_fltk():
                                                   conf_env['PKG_CONFIG_PATH'])
     conf_env['PKG_CONFIG_PATH'] = '{}{}{}'.format(os.path.join(LIBXFT_DIR,        'lib',   'pkgconfig'), os.pathsep,
                                                   conf_env['PKG_CONFIG_PATH'])
-    conf_env['PKG_CONFIG_PATH'] = '{}{}{}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib64', 'pkgconfig'), os.pathsep,
+    conf_env['PKG_CONFIG_PATH'] = '{}{}{}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib', 'pkgconfig'), os.pathsep,
                                                   conf_env['PKG_CONFIG_PATH'])
 
     build_cmd = ['make', 'install']
@@ -713,8 +689,8 @@ def build_occt() -> None:
     subprocess.run(['git', 'checkout', OCC_VERSION          ], check=True, cwd=occ_dir)
 
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-pthread -lrt'
-    conf_env['CXXFLAGS'] = '-pthread -lrt'
+    conf_env['CFLAGS']   = '-pthread'
+    conf_env['CXXFLAGS'] = '-pthread'
     conf_cmd = [
         'cmake', occ_dir,
         '-DCMAKE_BUILD_TYPE=Release',
@@ -742,121 +718,10 @@ def build_occt() -> None:
 
 
 # ------------------------------------------------------------------------
-# Build GLU (Static)
-# ------------------------------------------------------------------------
-# def build_glu():
-#     print_header('Building GLU...')
-#
-#     glu_src_dir = os.path.join(BUILD_DIR, f'glu-{GLU_VERSION}')
-#     glu_bld_dir = os.path.join(BUILD_DIR, f'glu-{GLU_VERSION}', 'build')
-#     os.makedirs(glu_bld_dir, exist_ok=True)
-#
-#     subprocess.check_call(['yum', 'install', '-y', 'libglvnd-devel'])
-#
-#     # GLU requires the meson build system
-#     subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', '-t',
-#                            os.path.join(BUILD_DIR, 'meson', 'meson')])
-#     # commit  = '47b9353c331318a13eb050887eacfd61eb075746285f9baf7ef7de6ae235'
-#     # version = '1.5.2'
-#     # url  = f'https://files.pythonhosted.org/packages/55/a6/{commit}/meson-{version}-py3-none-any.whl'
-#     # file = download(url, BUILD_DIR)
-#     # zfil = os.path.join(BUILD_DIR, f'meson-{version}-py3-none-any.zip')
-#     # shutil.move(file, zfil)
-#     # # extract(zfil, BUILD_DIR)
-#     # subprocess.call(['unzip', '-j', '-d', 'meson', zfil], cwd=os.path.join(BUILD_DIR))
-#
-#     # Download and extract libglu
-#     url = f'https://mesa.freedesktop.org/archive/glu/glu-{GLU_VERSION}.tar.xz'
-#     file = download(url, BUILD_DIR)
-#     extract(file, BUILD_DIR)
-#
-#     # Configure and build glu with freetype dependency
-#     setup_cmd = [
-#             'meson',
-#             'setup',
-#             'build',
-#     ]
-#     conf_cmd = [
-#             'meson',
-#             'configure',
-#             'build',
-#             # '--buildtype=release',
-#     ]
-#     conf_env  = os.environ.copy()
-#     # conf_env['FREETYPE_LIBS'  ] = os.path.join(FREETYPE_DIR, 'lib')
-#     # conf_env['PKG_CONFIG_PATH'] = '{}:{}'.format(os.path.join(FREETYPE_DIR,   'lib', 'pkgconfig'),
-#     #                                              os.path.join(FONTCONFIG_DIR, 'lib', 'pkgconfig'))
-#
-#     # Add meson to path
-#     conf_env['PATH']       = '{}{}{}'.format(os.path.join(BUILD_DIR, 'meson', 'bin'), conf_env['PATH'])
-#     try:
-#         conf_env['PYTHONPATH'] = '{}{}{}'.format(os.path.join(BUILD_DIR, 'meson'  ), os.pathsep, conf_env['PYTHONPATH'])
-#     except KeyError:
-#         conf_env['PYTHONPATH'] = '{}'.format(    os.path.join(BUILD_DIR, 'meson'  ))
-#     build_cmd = ['make', 'install']
-#
-#     configure(setup_cmd,              env=conf_env, cwd=glu_src_dir)
-#     configure( conf_cmd,              env=conf_env, cwd=glu_src_dir)
-#     build(    build_cmd, build_cores, env=conf_env, cwd=glu_bld_dir)
-
-
-# ------------------------------------------------------------------------
 # Build Gmsh with CGNS and OpenCASCADE (Static)
 # ------------------------------------------------------------------------
 def build_gmsh() -> None:
     print_header('BUILDING GMSH...')
-
-    # Install system GLU
-    # subprocess.check_call(['yum', 'install', '-y', 'mesa-libGLU-devel'])
-
-    # Add system libGLU to PATH
-    lfs = 'yes'
-    lib = 'mesa-libGLU-11.0.7-4.el6.x86_64'
-    subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
-                   check=True,
-                   cwd=BUILD_DIR,
-                   shell=True)
-    extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
-    os.environ['PKG_CONFIG_PATH'   ] = '{}'.format( os.path.join(BUILD_DIR, 'lib64', 'pkgconfig'))
-    os.environ['CMAKE_PREFIX_PATH' ] = '{}'.format( os.path.join(BUILD_DIR))
-    os.environ['CMAKE_LIBRARY_PATH'] = '{}'.format( os.path.join(BUILD_DIR, 'lib64'  ))
-    os.environ['CMAKE_INCLUDE_PATH'] = '{}'.format( os.path.join(BUILD_DIR, 'include'))
-    os.environ['GLU_INCLUDE_DIR'   ] = '{}'.format( os.path.join(BUILD_DIR, 'include'))
-    os.environ['GLU_LIBRARY'       ] = '{}'.format( os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-
-    # Move files into common directory
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib') , dirs_exist_ok=True)
-    try:
-        os.symlink(os.path.join(BUILD_DIR, 'lib64', 'libGLU.so.1'), os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            os.remove(os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-            os.symlink(os.path.join(BUILD_DIR, 'lib64', 'libGLU.so.1'), os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-        else:
-            raise e
-
-    lib = 'mesa-libGLU-devel-11.0.7-4.el6.x86_64'
-    subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
-                   check=True,
-                   cwd=BUILD_DIR,
-                   shell=True)
-    extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
-
-    # Move files into common directory
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64'  ) , dirs_exist_ok=True)
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/'), os.path.join(WORK_DIR, 'build', 'include') , dirs_exist_ok=True)
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'share/')  , os.path.join(WORK_DIR, 'build', 'share'  ) , dirs_exist_ok=True)
-
-    # Now, patch the file paths
-    with open(os.path.join(BUILD_DIR, 'lib64', 'pkgconfig', 'glu.pc'), 'r') as file:
-        filedata = file.read()
-
-    # Replace the target string
-    filedata = filedata.replace('/usr', os.path.join(WORK_DIR, 'build'))
-
-    # Write the file out again
-    with open(os.path.join(BUILD_DIR, 'lib', 'pkgconfig', 'glu.pc'), 'w') as file:
-        file.write(filedata)
 
     gmsh_dir = os.path.join(WORK_DIR, 'gmsh')
     if os.path.exists(gmsh_dir):
@@ -870,7 +735,7 @@ def build_gmsh() -> None:
 
     # We need to include a whole bunch of our libraries manually, so here we go ...
     fltk_flags = subprocess.check_output([f'{FLTK_DIR}/bin/fltk-config', '--use-images', '--ldstaticflags']).decode('utf-8')
-    conf_env['LDFLAGS']   = f'-Wl,-lrt,{fltk_flags.rstrip()}'
+    conf_env['LDFLAGS']   = f'-Wl,{fltk_flags.rstrip()}'
     fltk_flags = subprocess.check_output([f'{FLTK_DIR}/bin/fltk-config', '--use-images', '--cflags'       ]).decode('utf-8')
     conf_env['CFLAGS']    = f'{fltk_flags.rstrip()}'
     fltk_flags = subprocess.check_output([f'{FLTK_DIR}/bin/fltk-config', '--use-images', '--cxxflags'     ]).decode('utf-8')
@@ -884,7 +749,7 @@ def build_gmsh() -> None:
     conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(LIBPNG_DIR       , 'lib'     ), conf_env['LDFLAGS' ])
     conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(LIBXFT_DIR       , 'lib'     ), conf_env['LDFLAGS' ])
     conf_env['LDFLAGS'        ] = '-L{} {}'.format(os.path.join(FONTCONFIG_DIR   , 'lib'     ), conf_env['LDFLAGS' ])
-    conf_env['LDFLAGS'        ] = '-L{} -ljpeg {}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib64'   ), conf_env['LDFLAGS' ])
+    conf_env['LDFLAGS'        ] = '-L{} -ljpeg {}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib'   ), conf_env['LDFLAGS' ])
     if 'LD_LIBRARY_PATH' in conf_env:
         conf_env['LD_LIBRARY_PATH'] = '{}{}{}'.format(os.path.join(LIBPNG_DIR,        'lib'  ), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
@@ -892,12 +757,11 @@ def build_gmsh() -> None:
         conf_env['LD_LIBRARY_PATH'] = '{}'    .format(os.path.join(LIBPNG_DIR,        'lib'  ))
     conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(LIBXFT_DIR,        'lib'  ), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
-    conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(LIBJPEG_TURBO_DIR, 'lib64'), os.pathsep,
+    conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(LIBJPEG_TURBO_DIR, 'lib'), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
     conf_env['LD_LIBRARY_PATH'] = '{}{}{}'    .format(os.path.join(FONTCONFIG_DIR,    'lib'  ), os.pathsep,
                                                       conf_env['LD_LIBRARY_PATH'])
-    conf_env['CMAKE_INCLUDE_PATH'] = '{}{}{}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib64', 'cmake', 'libjpeg-turbo'), os.pathsep,
-                                                     conf_env['CMAKE_INCLUDE_PATH'])
+    conf_env['CMAKE_INCLUDE_PATH'] = '{}'.format(os.path.join(LIBJPEG_TURBO_DIR, 'lib', 'cmake', 'libjpeg-turbo'))
 
     # Now, patch the file paths
     with open(os.path.join(WORK_DIR, 'gmsh', 'CMakeLists.txt'), 'r') as file:
@@ -926,22 +790,25 @@ def build_gmsh() -> None:
         '-DFREETYPE_LIBRARY={}/lib/libfreetype.a'.format(FREETYPE_DIR),
         '-DFREETYPE_INCLUDE_DIRS={}/include'.format(FREETYPE_DIR),
         '-DHDF5_INCLUDE_DIRS={}/include'.format(HDF5_DIR),
-        '-DJPEG_LIBRARY={}/lib64/libjpeg.a'.format(LIBJPEG_TURBO_DIR),
+        '-DJPEG_LIBRARY={}/lib/libjpeg.a'.format(LIBJPEG_TURBO_DIR),
         '-DJPEG_INCLUDE_DIR={}/include'.format(LIBJPEG_TURBO_DIR),
-        '-DPNG_LIBRARY={}/lib/libpng.so'.format(LIBPNG_DIR),
+        '-DPNG_LIBRARY={}/lib/libpng.a'.format(LIBPNG_DIR),
         '-DPNG_INCLUDE_DIR={}/include'.format(LIBPNG_DIR),
         '-DPNG_PNG_INCLUDE_DIR={}/include'.format(LIBPNG_DIR),
         '-DENABLE_BUILD_LIB=ON',
         '-DENABLE_BUILD_SHARED=ON',
         '-DENABLE_MPEG_ENCODE=OFF',
+        '-DENABLE_CAIRO=OFF',
         '-DENABLE_CGNS=ON',
         '-DENABLE_DOMHEX=OFF',
         '-DENABLE_FLTK=ON',
         '-DENABLE_GETDP=OFF',
+        '-DENABLE_GMP=OFF',
         '-DENABLE_MESH=ON',
         '-DENABLE_MPEG_ENCODE=OFF',
         '-DENABLE_OCC=ON',
         '-DENABLE_OCC_STATIC=ON',
+        '-DENABLE_OPENMP=OFF',
         '-DENABLE_PETSC=OFF',
         '-DENABLE_PLUGINS=ON',
         '-DENABLE_POPPLER=OFF',
@@ -949,7 +816,7 @@ def build_gmsh() -> None:
         # '-DENABLE_SOLVER=OFF',
         '-DENABLE_TOUCHBAR=OFF',
         '-DENABLE_SYSTEM_CONTRIB=OFF',
-        '-DENABLE_PACKAGE_STRIP=ON',
+        # '-DENABLE_PACKAGE_STRIP=ON',
         '-DX11_ICE_LIB=OFF'  # Force disable libICE support with a very ugly hack
     ]
 
@@ -962,17 +829,12 @@ def build_gmsh() -> None:
     configure(conf_cmd,              env=conf_env, cwd=gmsh_build_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=gmsh_build_dir)
 
-    print_step('Stripping generated libraries')
-
-    subprocess.run(['strip', os.path.join('bin'  , 'gmsh'             ) ], check=True, cwd=INSTALL_DIR)
-    subprocess.run(['strip', os.path.join('lib64', 'libgmsh.so.4.13.1') ], check=True, cwd=INSTALL_DIR)
-
 
 def package() -> None:
     print_header('PREPARING GMSH PYTHON WHEEL...')
     PYTHON_DIR   = os.path.join(INSTALL_DIR, 'python')
     # PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-manylinux_{platform.machine()}.whl'
-    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-linux_{platform.machine()}.whl'
+    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-macosx_14_0_{platform.machine()}.whl'
     GMESH_PY_API = os.path.join(WORK_DIR   , 'gmsh', 'api'    , 'gmsh.py')
     # GMESH_PY_DST = os.path.join(PYTHON_DIR , 'gmsh', 'gmsh.py')
     GMESH_PY_DST = os.path.join(WORK_DIR   , 'gmsh.py')
@@ -980,10 +842,6 @@ def package() -> None:
     # Create the required directory structure for packaging
     python_gmsh_dir = os.path.join(PYTHON_DIR, 'gmsh')
     os.makedirs(python_gmsh_dir, exist_ok=True)
-
-    # Strip the Gmsh files
-    subprocess.run(['strip', 'bin/gmsh'               ], check=True, cwd=INSTALL_DIR)
-    subprocess.run(['strip', 'lib64/libgmsh.so.4.13.1'], check=True, cwd=INSTALL_DIR)
 
     # Copy the CGNS adf2hdf executable
     CGNS_ADF2HDF = os.path.join(WORK_DIR   , 'CGNS', 'install', 'bin', 'adf2hdf')
@@ -996,36 +854,6 @@ def package() -> None:
     CGNS_CGN_DIR = os.path.join(INSTALL_DIR, 'bin' , 'cgnsconvert')
     print_step('Copying cgnsconvert from {} to {}'.format(CGNS_CGNSCON, CGNS_CGN_DIR))
     shutil.copy(CGNS_CGNSCON, CGNS_CGN_DIR)
-
-    # Copy the Gmsh files to the Python directory
-    # print_step('Copying Gmsh files to {}'.format(python_gmsh_dir))
-    # gmsh_share_dir = os.path.join(INSTALL_DIR, 'share/gmsh')
-    # shutil.copytree(gmsh_share_dir, python_gmsh_dir, dirs_exist_ok=True)
-
-    # Copy the libJPEG library file
-    # LIBJPG_NAM = 'libjpeg.so'
-    # LIBJPG_LIB = os.path.join(LIBJPEG_TURBO_DIR, 'lib64', LIBJPG_NAM)
-    # LIBJPG_DST = os.path.join(INSTALL_DIR      , 'lib64', LIBJPG_NAM)
-    # print_step('Copying libJPEG from {} to {}'.format(LIBJPG_LIB, LIBJPG_DST))
-    # if os.path.exists(os.path.join(LIBJPG_DST, LIBJPG_NAM)):
-    #     shutil.rmtree(os.path.join(LIBJPG_DST, LIBJPG_NAM))
-    # shutil.copy(LIBJPG_LIB, LIBJPG_DST, follow_symlinks=False)
-    #
-    # LIBJPG_NAM = 'libjpeg.so.62'
-    # LIBJPG_LIB = os.path.join(LIBJPEG_TURBO_DIR, 'lib64', LIBJPG_NAM)
-    # LIBJPG_DST = os.path.join(INSTALL_DIR      , 'lib64', LIBJPG_NAM)
-    # print_step('Copying libJPEG from {} to {}'.format(LIBJPG_LIB, LIBJPG_DST))
-    # if os.path.exists(os.path.join(LIBJPG_DST, LIBJPG_NAM)):
-    #     shutil.rmtree(os.path.join(LIBJPG_DST, LIBJPG_NAM))
-    # shutil.copy(LIBJPG_LIB, LIBJPG_DST, follow_symlinks=False)
-    #
-    # LIBJPG_NAM = 'libjpeg.so.62.4.0'
-    # LIBJPG_LIB = os.path.join(LIBJPEG_TURBO_DIR, 'lib64', LIBJPG_NAM)
-    # LIBJPG_DST = os.path.join(INSTALL_DIR      , 'lib64', LIBJPG_NAM)
-    # print_step('Copying libJPEG from {} to {}'.format(LIBJPG_LIB, LIBJPG_DST))
-    # if os.path.exists(os.path.join(LIBJPG_DST, LIBJPG_NAM)):
-    #     shutil.rmtree(os.path.join(LIBJPG_DST, LIBJPG_NAM))
-    # shutil.copy(LIBJPG_LIB, LIBJPG_DST, follow_symlinks=False)
 
     # Copy the Gmsh Python API file
     print_step('Copying gmsh.py from {} to {}'.format(GMESH_PY_API, GMESH_PY_DST))
@@ -1045,14 +873,15 @@ def package() -> None:
     description = 'Gmsh with updated CGNS, OpenCASCADE, and local static libraries'
     readme      = 'README.md'
     authors     = [
-                    { name='Patrick Kopper', email='kopper@iag.uni-stuttgart.de' }
+                    { name='Patrick Kopper', email='kopper@iag.uni-stuttgart.de' },
+                    { name='Marcel Blind',   email='blind@iag.uni-stuttgart.de' }
     ]
     requires-python = '>=3.6'
     license     = { text = 'GNU General Public License v2 (GPLv2)' }
     classifiers = [
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
-        'Operating System :: Linux',
+        'Operating System :: MacOS',
     ]
     dependencies = []  # Add any required dependencies
 
@@ -1082,12 +911,9 @@ def package() -> None:
         'gmsh_install/bin/gmsh'
     ]
     'lib' = [
-        'gmsh_install/lib64/libgmsh.so',
-        'gmsh_install/lib64/libgmsh.so.4.13',
-        'gmsh_install/lib64/libgmsh.so.4.13.1',
-        # 'gmsh_install/lib64/libjpeg.so',
-        # 'gmsh_install/lib64/libjpeg.so.62',
-        # 'gmsh_install/lib64/libjpeg.so.62.4.0'
+        'gmsh_install/lib/libgmsh.dylib',
+        'gmsh_install/lib/libgmsh.4.13.dylib',
+        'gmsh_install/lib/libgmsh.4.13.1.dylib',
     ]
     """
 
