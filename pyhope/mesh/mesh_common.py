@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
 from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -172,7 +173,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_corner: face {face} is not supported')
 
 
-def face_to_cgns(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -199,12 +200,43 @@ def face_to_cgns(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+def face_to_nodes(face: str, elemType: int) -> np.ndarray:
+    """ Returns the nodes associated with a face
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    order     = mesh_vars.nGeo
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: { 'z-': LINMAP(elemType, order=order)[:      , :      , 0      ],
+                        'y-': LINMAP(elemType, order=order)[:      , 0      , :      ],
+                        'x+': LINMAP(elemType, order=order)[order-1, :      , :      ],
+                        'y+': LINMAP(elemType, order=order)[:      , order-1, :      ],
+                        'x-': LINMAP(elemType, order=order)[0      , :      , :      ],
+                        'z+': LINMAP(elemType, order=order)[:      , :      , order-1]}
+
+                }
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
+
+    try:
+        return faces_map[elemType % 100][face]
+    except KeyError:
+        raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
+
+
 def count_elems(mesh: meshio.Mesh) -> int:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     nElems = 0
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+    for _, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
@@ -240,3 +272,104 @@ def calc_elem_bary(mesh: meshio.Mesh) -> list:
         for elemID, cell in enumerate(ioelems):
             elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
     return elemBary
+
+
+def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
+    """ CGNS -> IJK ordering for element corner nodes
+    """
+    # Local imports ----------------------------------------
+    # from pyhope.io.io_cgns import genHEXMAPCGNS
+    # from pyhope.io.io_vtk import genHEXMAPVTK
+    from pyhope.io.io_meshio import genHEXMAPMESHIO
+    # ------------------------------------------------------
+    match elemType:
+        # Straight-sided elements, hard-coded
+        case 104:  # Tetraeder
+            return np.array([0, 1, 2, 3])
+        case 105:  # Pyramid
+            return np.array([0, 1, 3, 2, 4])
+        case 106:  # Prism
+            return np.array([0, 1, 2, 3, 4, 5])
+        case 108:  # Hexaeder
+            return np.array([0, 1, 3, 2, 4, 5, 7, 6])
+        # Curved elements, use mapping
+        case 208:  # Hexaeder
+            # # CGNS
+            # try:
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # except ImportError:
+            #     genHEXMAP(order+1)
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+
+            # # VTK
+            # try:
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # except ImportError:
+            #     genHEXMAPVTK(order+1)
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+
+            # MESHIO
+            try:
+                from pyhope.mesh.mesh_vars import HEXTEN
+            except ImportError:
+                genHEXMAPMESHIO(order+1)
+                from pyhope.mesh.mesh_vars import HEXTEN
+            return HEXTEN
+        case _:  # Default
+            print('Error in LINMAP, unknown elemType')
+            sys.exit(1)
+
+
+def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
+    """ CGNS -> IJK ordering for element corner nodes
+    """
+    # Local imports ----------------------------------------
+    # from pyhope.io.io_cgns import genHEXMAPCGNS
+    # from pyhope.io.io_vtk import genHEXMAPVTK
+    from pyhope.io.io_meshio import genHEXMAPMESHIO
+    # ------------------------------------------------------
+    match elemType:
+        # Straight-sided elements, hard-coded
+        case 104:  # Tetraeder
+            sys.exit(1)
+            return np.array([0, 1, 2, 3])
+        case 105:  # Pyramid
+            sys.exit(1)
+            return np.array([0, 1, 3, 2, 4])
+        case 106:  # Prism
+            sys.exit(1)
+            return np.array([0, 1, 2, 3, 4, 5])
+        case 108:  # Hexaeder
+            linmap = np.zeros((2, 2, 2), dtype=int)
+            indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),
+                        (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1) ]
+            for i, index in enumerate(indices):
+                linmap[index] = i
+            return linmap
+
+        # Curved elements, use mapping
+        case 208:  # Hexaeder
+            # # CGNS
+            # try:
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # except ImportError:
+            #     genHEXMAP(order+1)
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+
+            # # VTK
+            # try:
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # except ImportError:
+            #     genHEXMAPVTK(order+1)
+            #     from pyhope.mesh.mesh_vars import HEXMAP
+
+            # MESHIO
+            try:
+                from pyhope.mesh.mesh_vars import HEXMAP
+            except ImportError:
+                genHEXMAPMESHIO(order+1)
+                from pyhope.mesh.mesh_vars import HEXMAP
+            return HEXMAP
+        case _:  # Default
+            print('Error in LINMAP, unknown elemType')
+            sys.exit(1)

@@ -117,7 +117,7 @@ def edgePointCGNS(order: int, edge: int, node: int) -> np.ndarray:
 
 def genHEXMAPCGNS(order: int) -> None:
     """ CGNS -> IJK ordering for high-order hexahedrons
-        > Losely based on [Gmsh] "generatePointsHexCGNS"
+        > Loosely based on [Gmsh] "generatePointsHexCGNS"
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -126,7 +126,7 @@ def genHEXMAPCGNS(order: int) -> None:
 
     if order == 1:
         map[0, 0, 0] = 0
-        mesh_vars.HEXMAP = map
+        mesh_vars.HEXTEN = map
         return None
 
     # Principal vertices
@@ -149,7 +149,7 @@ def genHEXMAPCGNS(order: int) -> None:
                 for i in range(order):
                     tensor.append(int(map[i, j, k]))
 
-        mesh_vars.HEXMAP = tensor
+        mesh_vars.HEXTEN = tensor
         return None
 
     # Internal points of base quadrangle edges (x-)
@@ -254,4 +254,4 @@ def genHEXMAPCGNS(order: int) -> None:
         for j in range(order):
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
-    mesh_vars.HEXMAP = tensor
+    mesh_vars.HEXTEN = tensor

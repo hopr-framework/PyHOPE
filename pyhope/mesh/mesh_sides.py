@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import string
+import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -43,7 +44,7 @@ def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import face_to_cgns, faces
+    from pyhope.mesh.mesh_common import faces, face_to_cgns, face_to_nodes
     from pyhope.mesh.mesh_vars import ELEM, SIDE
     # ------------------------------------------------------
 
@@ -96,14 +97,16 @@ def GenerateSides() -> None:
             for iSide in range(nSides, nSides+nIOSides):
                 sides[iSide].update(sideType=4)
 
-            # Assign nodes to sides, CGNS format
+            # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in face_to_cgns(face, elemType)]
+                corners = [ioelems[iElem][s] for s in face_to_cgns( face, elemType)]
+                nodes   = [ioelems[iElem][s] for s in face_to_nodes(face, elemType)]
                 sides[sCount].update(face    = face,                   # noqa: E251
                                      elemID  = iElem,                  # noqa: E251
                                      sideID  = sCount,                 # noqa: E251
                                      locSide = index+1,                # noqa: E251
-                                     corners = np.array(corners))      # noqa: E251
+                                     corners = np.array(corners),      # noqa: E251
+                                     nodes   = np.array(nodes))        # noqa: E251
                 sCount += 1
 
             # Add to nSides

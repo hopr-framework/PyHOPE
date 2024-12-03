@@ -50,7 +50,8 @@ vvs    : list                                     # [list of dict] - Periodic ve
 elems  : list                                     # [list of list] - Element nodes
 sides  : list                                     # [list of list] - Side    nodes
 
-HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
+HEXTEN : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (3D mapping)
 already_curved: bool                              # Flag if mesh is already curved
 
 doMortars: bool                                   # Flag if mortars are enabled
@@ -71,6 +72,7 @@ class SIDE:
                  locSide     : Optional[int] = None,
                  face        : Optional[str] = None,
                  corners     : Optional[np.ndarray] = None,
+                 nodes       : Optional[np.ndarray] = None,
                  sideType    : Optional[int] = None,
                  # Sorting
                  globalSideID: Optional[int] = None,
@@ -89,6 +91,7 @@ class SIDE:
         self.locSide     : Optional[int] = locSide
         self.face        : Optional[str] = face
         self.corners     : Optional[np.ndarray] = corners
+        self.nodes       : Optional[np.ndarray] = nodes
         self.sideType    : Optional[int] = sideType
         # Sorting
         self.globalSideID: Optional[int] = globalSideID
