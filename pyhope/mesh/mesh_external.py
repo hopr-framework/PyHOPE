@@ -233,7 +233,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
             # Create a temporary directory and keep it existing until manually cleaned
-            tfile = tempfile.NamedTemporaryFile(delete=False, delete_on_close=False)
+            tfile = tempfile.NamedTemporaryFile(delete=False)
             tname = tfile.name
 
             hopout.sep()
