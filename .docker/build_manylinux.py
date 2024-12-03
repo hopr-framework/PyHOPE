@@ -111,6 +111,8 @@ def compile(install_cmd: Optional[list] = None, ncores: int = 1, cwd: Optional[s
         print_step('Installing...')
         subprocess.run(install_cmd, check=True, cwd=cwd, stderr=sys.stderr, stdout=sys.stdout)
 
+# Get systemc architecture
+arch = platform.machine()
 
 # Define paths
 WORK_DIR     = '/io'
@@ -519,7 +521,7 @@ def build_fltk():
 
     # Add system libjpeg-turbo-devel to PATH
     # lfs = 'yes'
-    # lib = 'libjpeg-turbo-devel-1.2.1-3.el6_5.x86_64'
+    # lib = f'libjpeg-turbo-devel-1.2.90-8.el7.{arch}'
     # subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
     #                check=True,
     #                cwd=BUILD_DIR,
@@ -530,7 +532,7 @@ def build_fltk():
     # shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/')  , '/io/build/include'  , dirs_exist_ok=True)
     #
     # # Add system libpng-devel to PATH
-    # lib = 'libpng-devel-1.2.49-2.el6_7.x86_64'
+    # lib = f'libpng-devel-1.5.13-8.el7.{arch}'
     # subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
     #                check=True,
     #                cwd=BUILD_DIR,
@@ -811,7 +813,7 @@ def build_gmsh() -> None:
 
     # Add system libGLU to PATH
     lfs = 'yes'
-    lib = 'mesa-libGLU-11.0.7-4.el6.x86_64'
+    lib = f'mesa-libGLU-9.0.0-4.el7.{arch}'
     subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
                    check=True,
                    cwd=BUILD_DIR,
@@ -825,17 +827,11 @@ def build_gmsh() -> None:
     os.environ['GLU_LIBRARY'       ] = '{}'.format( os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
 
     # Move files into common directory
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib') , dirs_exist_ok=True)
-    try:
-        os.symlink(os.path.join(BUILD_DIR, 'lib64', 'libGLU.so.1'), os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            os.remove(os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-            os.symlink(os.path.join(BUILD_DIR, 'lib64', 'libGLU.so.1'), os.path.join(BUILD_DIR, 'lib64', 'libGLU.so'))
-        else:
-            raise e
+    if os.path.exists(os.path.join(WORK_DIR, 'build', 'lib64')):
+        shutil.rmtree(os.path.join(WORK_DIR, 'build', 'lib64'))
+    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64') , dirs_exist_ok=True)
 
-    lib = 'mesa-libGLU-devel-11.0.7-4.el6.x86_64'
+    lib = f'mesa-libGLU-devel-9.0.0-4.el7.{arch}'
     subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
                    check=True,
                    cwd=BUILD_DIR,
@@ -843,9 +839,8 @@ def build_gmsh() -> None:
     extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
 
     # Move files into common directory
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64'  ) , dirs_exist_ok=True)
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/'), os.path.join(WORK_DIR, 'build', 'include') , dirs_exist_ok=True)
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'share/')  , os.path.join(WORK_DIR, 'build', 'share'  ) , dirs_exist_ok=True)
+    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64'  ) , dirs_exist_ok=True, symlinks=True)
+    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/'), os.path.join(WORK_DIR, 'build', 'include') , dirs_exist_ok=True, symlinks=True)
 
     # Now, patch the file paths
     with open(os.path.join(BUILD_DIR, 'lib64', 'pkgconfig', 'glu.pc'), 'r') as file:
@@ -855,7 +850,7 @@ def build_gmsh() -> None:
     filedata = filedata.replace('/usr', os.path.join(WORK_DIR, 'build'))
 
     # Write the file out again
-    with open(os.path.join(BUILD_DIR, 'lib', 'pkgconfig', 'glu.pc'), 'w') as file:
+    with open(os.path.join(BUILD_DIR, 'lib64', 'pkgconfig', 'glu.pc'), 'w') as file:
         file.write(filedata)
 
     gmsh_dir = os.path.join(WORK_DIR, 'gmsh')
@@ -971,8 +966,8 @@ def build_gmsh() -> None:
 def package() -> None:
     print_header('PREPARING GMSH PYTHON WHEEL...')
     PYTHON_DIR   = os.path.join(INSTALL_DIR, 'python')
-    # PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-manylinux_{platform.machine()}.whl'
-    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-linux_{platform.machine()}.whl'
+    # PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-manylinux_{arch}.whl'
+    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-linux_{arch}.whl'
     GMESH_PY_API = os.path.join(WORK_DIR   , 'gmsh', 'api'    , 'gmsh.py')
     # GMESH_PY_DST = os.path.join(PYTHON_DIR , 'gmsh', 'gmsh.py')
     GMESH_PY_DST = os.path.join(WORK_DIR   , 'gmsh.py')
