@@ -166,27 +166,33 @@ def PkgsCheckGmsh() -> None:
         return None
 
     # Check if the installed version is the NRG version
-    if PkgsMetaData('gmsh', 'Intended Audience: NRG'):
+    if PkgsMetaData('gmsh', 'Intended Audience :: NRG'):
         return None
 
     # Check the current platform
-    system = platform.system()
-    arch   = platform.machine()
+    system = platform.system().lower()
+    arch   = platform.machine().lower()
 
-    if system != 'Linux' or arch != 'x86_64':
+    # Define currently supported systems
+    NRGsupport = {
+        "linux": ["x86_64", "aarch64"],
+        "darwin": ["arm64"],
+    }
+
+    if system not in NRGsupport and arch not in NRGsupport[system]:
         warning = hopout.warn(f'Detected non-NRG Gmsh version on unsupported platform [{system}/{arch}]. ' +
                               'Functionality may be limited.')
         print(warning)
         return None
 
-    if not PkgsMetaData('gmsh', 'Intended Audience: NRG'):
+    if not PkgsMetaData('gmsh', 'Intended Audience :: NRG'):
         if IsInteractive():
             warning  = 'Detected Gmsh package uses an outdated CGNS (v3.4). For compatibility, ' \
                        'the package will be uninstalled and replaced with the updated NRG GMSH ' \
                        'version. Continue? (Y/n):'
             response = input('\n' + hopout.warn(warning) + '\n')
             if response.lower() in ['yes', 'y', '']:
-                PkgsInstallGmsh()
+                PkgsInstallGmsh(system,arch)
                 return None
         else:
             warning = hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). Functionality may be limited.')
@@ -194,7 +200,7 @@ def PkgsCheckGmsh() -> None:
             return None
 
 
-def PkgsInstallGmsh():
+def PkgsInstallGmsh(system: str,arch: str):
     # Local imports ----------------------------------------
     import hashlib
     import tempfile
@@ -204,11 +210,18 @@ def PkgsInstallGmsh():
 
     # Gitlab "python-gmsh" access
     lfs = 'yes'
-    lib = 'gmsh-{}-py3-none-linux_x86_64.whl'.format(Gitlab.LIB_VERSION)
+    lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION,system,arch)
 
     # Create a temporary directory
     with tempfile.TemporaryDirectory() as path:
-        pkgs = os.path.join(path, lib)
+        # On macOS add major version string to filename an rename darwin to macosx in whl filename
+        if system == 'darwin':
+            mac_ver = platform.mac_ver()[0].split('.')[0]
+            lib  = lib.replace('darwin','macosx')
+            pkgs = os.path.join(path, lib.replace('macosx_',f'macosx_{mac_ver}_0_'))
+        else:
+            pkgs = os.path.join(path, lib)
+
         curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
         subprocess.run(curl, check=True, shell=True)
 

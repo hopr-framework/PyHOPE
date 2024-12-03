@@ -1048,6 +1048,7 @@ def package() -> None:
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
         'Operating System :: Linux',
+        'Intended Audience :: NRG'
     ]
     dependencies = []  # Add any required dependencies
 

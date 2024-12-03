@@ -834,7 +834,7 @@ def package() -> None:
     print_header('PREPARING GMSH PYTHON WHEEL...')
     PYTHON_DIR   = os.path.join(INSTALL_DIR, 'python')
     # PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-manylinux_{platform.machine()}.whl'
-    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-macosx_14_0_{platform.machine()}.whl'
+    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-macosx_{platform.machine()}.whl'
     GMESH_PY_API = os.path.join(WORK_DIR   , 'gmsh', 'api'    , 'gmsh.py')
     # GMESH_PY_DST = os.path.join(PYTHON_DIR , 'gmsh', 'gmsh.py')
     GMESH_PY_DST = os.path.join(WORK_DIR   , 'gmsh.py')
@@ -882,6 +882,7 @@ def package() -> None:
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
         'Operating System :: MacOS',
+        'Intended Audience :: NRG'
     ]
     dependencies = []  # Add any required dependencies
 
