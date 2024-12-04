@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,7 +57,7 @@ def separator(length: int = STD_LENGTH) -> str:
 class CommandLine:
     """ Parse command line arguments, both explicit [*.ini] and flags [--]
     """
-    def __init__(self, argv, name: str, version: str, commit: str) -> None:
+    def __init__(self, argv, name: str, version: str, commit: Optional[str]) -> None:
         # Local imports ----------------------------------------
         import pyhope.config.config as config
         from pyhope.output.output import Colors
@@ -71,7 +72,7 @@ class CommandLine:
 
         # Print the header
         self.help = (Colors.BANNERA + '!' + '='*(STD_LENGTH-1))
-        self.helpjoin('! {} version {} [commit {}]'.format(name, version, commit))
+        self.helpjoin(f'! {name} version {version}' + (f' [commit {commit}]' if commit else ''))
         self.helpjoin(Colors.BANNERA + '!' + '='*(STD_LENGTH-1) + Colors.END)
 
         # Assemble the help output
