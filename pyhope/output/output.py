@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import textwrap
-from typing import Union
+from typing import Union, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ class Colors:
     END = '\033[0m'
 
 
-def header(program: str, version: str, commit: str, length: int = STD_LENGTH) -> None:
+def header(program: str, version: str, commit: Optional[str], length: int = STD_LENGTH) -> None:
     """ Print big header with program name and logo to console.
 
         Args:
@@ -63,7 +63,7 @@ def header(program: str, version: str, commit: str, length: int = STD_LENGTH) ->
     # print(Colors.BANNERA + '┃')
     print(Colors.BANNERA + '┃' + ' P y H O P E — Python High-Order Preprocessing Environment')
     # print(Colors.BANNERA + '┃' + ' {}'.format(string))
-    print(Colors.BANNERA + '┃' + Colors.END + ' {} version {} [commit {}]'.format(program, version, commit))
+    print(f'{Colors.BANNERA}┃{Colors.END} {program} version {version}' + (f' [commit {commit}]' if commit else ''))
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
 
 

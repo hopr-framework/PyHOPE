@@ -64,7 +64,7 @@ class Common():
     def __version__(self):
         # Retrieve version from package metadata
         try:
-            package = pathlib.Path(__file__).parent.name
+            package = pathlib.Path(__file__).parent.parent.name
             version = importlib.metadata.version(package)
         # Fallback to pyproject.toml
         except importlib.metadata.PackageNotFoundError:

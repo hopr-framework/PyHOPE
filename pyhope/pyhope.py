@@ -57,12 +57,15 @@ def main() -> None:
     # ------------------------------------------------------
 
     tStart  = time.time()
-    process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+    process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
+                                                                                     stderr=subprocess.DEVNULL)
 
     common  = Common()
     program = common.program
     version = common.version
-    commit  = process.communicate()[0].strip().decode('ascii')
+    commit = process.communicate()[0].strip().decode('ascii')
+    if process.returncode != 0:
+        commit = None
 
     with DefineConfig() as dc:
         config.prms = dc
@@ -77,7 +80,7 @@ def main() -> None:
 
     # Exit with version if requested
     if args.version:
-        print('{} version {} [commit {}]'.format(program, version, commit))
+        print(f'{program} version {version}' + (f' [commit {commit}]' if commit else ''))
         sys.exit(0)
 
     # Check if there are unrecognized arguments
