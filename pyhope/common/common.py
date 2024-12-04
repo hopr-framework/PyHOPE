@@ -145,16 +145,29 @@ def PkgsMetaVersion(pkgs) -> Union[str, None]:
 def PkgsCheckGmsh() -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
+    from pyhope.common.common_vars import Gitlab
     # ------------------------------------------------------
+
+    # Check the current platform
+    system = platform.system().lower()
+    arch   = platform.machine().lower()
+
     gmsh_version  = PkgsMetaVersion('gmsh')
     if gmsh_version is None:
         # Gmsh is not installed
         if IsInteractive():
-            warning = 'Gmsh is not installed. For compatibility, the NRG Gmsh version will be installed. Continue? (Y/n):'
-            response = input('\n' + hopout.warn(warning) + '\n')
-            if response.lower() in ['yes', 'y', '']:
-                PkgsInstallGmsh()
-                return None
+            if system in Gitlab.LIB_SUPPORT and arch in Gitlab.LIB_SUPPORT[system]:
+                warning = 'Gmsh is not installed. For compatibility, the NRG Gmsh version will be installed. Continue? (Y/n):'
+                response = input('\n' + hopout.warn(warning) + '\n')
+                if response.lower() in ['yes', 'y', '']:
+                    PkgsInstallGmsh(system,arch,version='nrg')
+                    return None
+            else:
+                warning = 'Gmsh is not installed. As NRG does not provide a compatible Gmsh version, the PyPI Gmsh version will be installed. Continue? (Y/n):'
+                response = input('\n' + hopout.warn(warning) + '\n')
+                if response.lower() in ['yes', 'y', '']:
+                    PkgsInstallGmsh(system,arch,version='pypi')
+                    return None
         else:
             hopout.warning('Gmsh is not installed, exiting...')
             sys.exit(1)
@@ -169,17 +182,7 @@ def PkgsCheckGmsh() -> None:
     if PkgsMetaData('gmsh', 'Intended Audience :: NRG'):
         return None
 
-    # Check the current platform
-    system = platform.system().lower()
-    arch   = platform.machine().lower()
-
-    # Define currently supported systems
-    NRGsupport = {
-        "linux": ["x86_64", "aarch64"],
-        "darwin": ["arm64"],
-    }
-
-    if system not in NRGsupport and arch not in NRGsupport[system]:
+    if system not in Gitlab.LIB_SUPPORT or arch not in Gitlab.LIB_SUPPORT[system]:
         warning = hopout.warn(f'Detected non-NRG Gmsh version on unsupported platform [{system}/{arch}]. ' +
                               'Functionality may be limited.')
         print(warning)
@@ -192,7 +195,7 @@ def PkgsCheckGmsh() -> None:
                        'version. Continue? (Y/n):'
             response = input('\n' + hopout.warn(warning) + '\n')
             if response.lower() in ['yes', 'y', '']:
-                PkgsInstallGmsh(system,arch)
+                PkgsInstallGmsh(system,arch,version='nrg')
                 return None
         else:
             warning = hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). Functionality may be limited.')
@@ -200,7 +203,7 @@ def PkgsCheckGmsh() -> None:
             return None
 
 
-def PkgsInstallGmsh(system: str,arch: str):
+def PkgsInstallGmsh(system: str, arch: str, version: str):
     # Local imports ----------------------------------------
     import hashlib
     import tempfile
@@ -208,48 +211,52 @@ def PkgsInstallGmsh(system: str,arch: str):
     from pyhope.common.common_vars import Gitlab
     # ------------------------------------------------------
 
-    # Gitlab "python-gmsh" access
-    lfs = 'yes'
-    lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION,system,arch)
+    if version == 'nrg':
+        # Gitlab "python-gmsh" access
+        lfs = 'yes'
+        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION,system,arch)
 
-    # Create a temporary directory
-    with tempfile.TemporaryDirectory() as path:
-        # On macOS add major version string to filename an rename darwin to macosx in whl filename
-        if system == 'darwin':
-            mac_ver = platform.mac_ver()[0].split('.')[0]
-            lib  = lib.replace('darwin','macosx')
-            pkgs = os.path.join(path, lib.replace('macosx_',f'macosx_{mac_ver}_0_'))
-        else:
-            pkgs = os.path.join(path, lib)
+        # Create a temporary directory
+        with tempfile.TemporaryDirectory() as path:
+            # On macOS add major version string to filename an rename darwin to macosx in whl filename
+            if system == 'darwin':
+                mac_ver = platform.mac_ver()[0].split('.')[0]
+                lib  = lib.replace('darwin','macosx')
+                pkgs = os.path.join(path, lib.replace('macosx_',f'macosx_{mac_ver}_0_'))
+            else:
+                pkgs = os.path.join(path, lib)
 
-        curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
-        subprocess.run(curl, check=True, shell=True)
+            curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
+            subprocess.run(curl, check=True, shell=True)
 
-        # Compare the hash
-        # > Initialize a new sha256 hash
-        sha256 = hashlib.sha256()
-        with open(pkgs, 'rb') as f:
-            # Read and update hash string value in blocks of 4K
-            for chunk in iter(lambda: f.read(4096), b""):
-                sha256.update(chunk)
+            # Compare the hash
+            # > Initialize a new sha256 hash
+            sha256 = hashlib.sha256()
+            with open(pkgs, 'rb') as f:
+                # Read and update hash string value in blocks of 4K
+                for chunk in iter(lambda: f.read(4096), b""):
+                    sha256.update(chunk)
 
-        if sha256.hexdigest() == Gitlab.LIB_HASH:
-            hopout.info('Hash matches, installing Gmsh wheel...')
-        else:
-            hopout.warning('Hash mismatch, exiting...')
-            sys.exit(1)
+            if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
+                hopout.info('Hash matches, installing Gmsh wheel...')
+            else:
+                hopout.warning('Hash mismatch, exiting...')
+                sys.exit(1)
 
-        # Remove the old version
-        try:
-            meta = metadata.metadata('gmsh')
-            if meta is not None:
-                subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'gmsh'], check=True)
+            # Remove the old version
+            try:
+                meta = metadata.metadata('gmsh')
+                if meta is not None:
+                    subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'gmsh'], check=True)
 
-        except metadata.PackageNotFoundError:
-            pass
+            except metadata.PackageNotFoundError:
+                pass
 
+            # Install the package in the current environment
+            subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
+    else:
         # Install the package in the current environment
-        subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'gmsh'], check=True)
 
 
 # > https://stackoverflow.com/a/5419576/23851165
