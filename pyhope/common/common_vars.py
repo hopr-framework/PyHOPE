@@ -99,7 +99,15 @@ class Gitlab():
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
     LIB_VERSION: str = '4.13.1'
-    LIB_HASH:    str = '82f655d3a7d97da5b4de06fd0af2198a95b8098a10b3f89edc99764f635c5d4d'
+    LIB_SUPPORT         = {
+        "linux": {
+            "x86_64" : "00a42b3b9c9ae51297052a9e9a16646d34743fa0b0742d1998df297c48a212ce",
+            "aarch64": "c57abb56759cc476752c21b6b19127888bd3fed67c4a0dd38f6755603d8d6b74"
+        },
+        "darwin": {
+            "arm64"  : "ed03477fa3cdee5594a18e46a450acadf63b3d41c7bd575ef71192f221719361"
+        }
+    }
 
 
 np_mtp : int  # Number of threads for multiprocessing
