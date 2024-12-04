@@ -20,7 +20,7 @@ PyHOPE is invoked from the command line. Run parameters are read from a configur
 $ pyhope tutorials/1-01-cartbox/parameter.ini
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ P y H O P E — Python High-Order Preprocessing Environment
-┃ PyHOPE version 0.0.2
+┃ PyHOPE version x.x.x
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ├─────────────────────────────────────────────
 │ INIT PROGRAM...
