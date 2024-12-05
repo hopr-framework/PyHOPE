@@ -225,7 +225,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     # Create the ElemCounter
     elemCounter = dict()
-    for _, elemType in enumerate(ELEM.TYPES):
+    for elemType in ELEM.TYPES:
         elemCounter[elemType] = 0
 
     # Fill the ElemInfo

@@ -95,8 +95,13 @@ def check_sides(elem,
         success  = True
         nSurfErr = 0.
 
+        # Small mortar side
+        if side.sideType < 0:
+            # Small mortar sides connect to big mortar side, so we will never match
+            nSurfErr = 0.
+
         # Big mortar side
-        if side.connection < 0:
+        elif side.connection < 0:
             mortarType = abs(side.connection)
             nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
             nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)

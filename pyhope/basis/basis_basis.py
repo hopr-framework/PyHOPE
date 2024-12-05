@@ -185,15 +185,15 @@ def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
 def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
     # Perform tensor contraction for the first derivative (Xi direction)
     dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
-    dXdXiGL   = np.moveaxis(dXdXiGL  , 0, -3)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    dXdXiGL   = np.moveaxis(dXdXiGL  , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
 
     # Perform tensor contraction for the second derivative (Eta direction)
     dXdEtaGL  = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 2))
-    dXdEtaGL  = np.moveaxis(dXdEtaGL , 0, -3)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    dXdEtaGL  = np.moveaxis(dXdEtaGL , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
 
     # Perform tensor contraction for the third derivative (Zeta direction)
     dXdZetaGL = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 3))
-    dXdZetaGL = np.moveaxis(dXdZetaGL, 0, -3)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    dXdZetaGL = np.moveaxis(dXdZetaGL, 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
 
     # Change basis for each direction
     dXdXiAP   = change_basis_3D(VdmGLtoAP, dXdXiGL  )

@@ -394,7 +394,7 @@ def ConnectMesh() -> None:
     for key, value in mesh.cells_dict.items():
         if 'vertex' in key:
             offsetcs += value.shape[0]
-        # elif 'line' in key:
+        elif 'line' in key:
             offsetcs += value.shape[0]
 
     # Map sides to BC
