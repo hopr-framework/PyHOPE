@@ -71,6 +71,7 @@ def DefineMesh() -> None:
     CreateLogical(  'doSortIJK',           default=False, help='Sort the mesh elements along the I,J,K directions')
     CreateLogical(  'CheckElemJacobians',  default=True,  help='Check the Jacobian and scaled Jacobian for each element')
     CreateLogical(  'CheckWatertightness', default=True,  help='Check if the mesh is watertight')
+    CreateLogical(  'CheckSurfaceNormals', default=True,  help='Check if the surface normals point outwards')
     # Mortars
     CreateLogical(  'doMortars',           default=True,  help='Enables mortars')
 
@@ -89,8 +90,8 @@ def InitMesh() -> None:
 
     mesh_vars.mode = GetInt('Mode')
 
-    NGeo     = GetInt('NGeo')          if CountOption('NGeo')          else None
-    BCOrder  = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None
+    NGeo     = GetInt('NGeo')          if CountOption('NGeo')          else None  # noqa: E272
+    BCOrder  = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None  # noqa: E272
 
     if not NGeo and not BCOrder:
         mesh_vars.nGeo = 1

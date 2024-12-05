@@ -232,7 +232,7 @@ def face_to_nodes(face: str, elemType: int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
-def dir_to_nodes(dir: str, elemType: int, elemNodes: np.ndarray) -> np.ndarray:
+def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
     # Local imports ----------------------------------------

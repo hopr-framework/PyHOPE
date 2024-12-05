@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from multiprocessing import Pool, Queue
 import plotext as plt
-from alive_progress import alive_bar
 import threading
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -76,7 +75,7 @@ def plot_histogram(data: np.ndarray) -> None:
     hopout.separator(18)
 
 
-def process_chunk(chunk):
+def process_chunk(chunk) -> list:
     """Process a chunk of elements by evaluating the Jacobian for each
     """
     # Local imports ----------------------------------------
@@ -93,17 +92,12 @@ def process_chunk(chunk):
     return chunk_results
 
 
-def distribute_work(elems, chunk_size):
-    """Distribute elements into chunks of a given size
-    """
-    return [elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size)]
-
-
-def run_in_parallel(elems, chunk_size=10):
+def run_in_parallel(elems, chunk_size=10) -> list:
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------
     from pyhope.common.common_vars import np_mtp
+    from pyhope.common.common_parallel import update_progress, distribute_work
     # ------------------------------------------------------
 
     chunks = distribute_work(elems, chunk_size)
@@ -126,18 +120,7 @@ def run_in_parallel(elems, chunk_size=10):
 
     # Wait for the progress bar thread to finish
     progress_thread.join()
-
     return results
-
-
-def update_progress(progress_queue, total_elements):
-    """ Function to update the progress bar from the queue
-    """
-    with alive_bar(total_elements, title='│             Processing Elements', length=33) as bar:
-        for _ in range(total_elements):
-            # Block until we receive a progress update from the queue
-            progress_queue.get()
-            bar()
 
 
 def CheckJacobians() -> None:
@@ -186,9 +169,9 @@ def CheckJacobians() -> None:
     nodes = mesh_vars.mesh.points
 
     # Prepare elements for parallel processing
-    jacobian_tasks = []
+    tasks = []
 
-    for _, elem in enumerate(elems):
+    for elem in elems:
         # Only consider hexahedrons
         if int(elem.type) % 100 != 8:
             continue
@@ -206,18 +189,18 @@ def CheckJacobians() -> None:
 
         if np_mtp > 0:
             # Add tasks for parallel processing
-            jacobian_tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
+            tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
         else:
             jac = evaluate_jacobian(xGeo, VdmGLtoAP, D_EqToGL)
             maxJac =  np.max(np.abs(jac))
             minJac =  np.min(       jac)
-            jacobian_tasks.append(minJac / maxJac)
+            tasks.append(minJac / maxJac)
 
     if np_mtp > 0:
         # Run in parallel with a chunk size
-        jacs = run_in_parallel(jacobian_tasks, chunk_size=10)
+        jacs = run_in_parallel(tasks, chunk_size=10)
     else:
-        jacs = np.array(jacobian_tasks)
+        jacs = np.array(tasks)
 
     # Plot the histogram of the Jacobians
     plot_histogram(np.array(jacs))

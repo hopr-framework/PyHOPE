@@ -27,6 +27,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 import string
+import threading
+from multiprocessing import Pool, Queue
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,11 +43,95 @@ import numpy as np
 # ==================================================================================================================================
 
 
+def check_orientation(ionodes : np.ndarray,
+                      elemType: Union[str, int],
+                      mapLin  : np.ndarray,
+                      iopoints: np.ndarray) -> tuple[bool, Union[None, str]]:
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_common import dir_to_nodes, faces
+    # ------------------------------------------------------
+    nodes  = ionodes[mapLin]
+    points = iopoints[ionodes[mapLin]]
+
+    # Center of element
+    cElem = points.reshape(-1, points.shape[-1]).sum(axis=0) / np.prod(ionodes.shape)
+
+    success = True
+    sface   = None
+    for face in faces(elemType):
+        # Center of face
+        fnodes = dir_to_nodes(face, elemType, nodes)
+        fpoints = iopoints[fnodes]
+        match face:
+            case 'y-' | 'x+' | 'z+':
+                fpoints = fpoints.transpose(1, 0, 2)
+        cFace = fpoints.reshape(-1, fpoints.shape[-1]).sum(axis=0) / np.prod(fnodes.shape)
+
+        # Tangent and normal vectors
+        nVecFace = cElem - cFace
+        nVecFace = nVecFace / np.linalg.norm(nVecFace)
+        vec1 = fpoints[-1, 0, :] - fpoints[0, 0, :]
+        vec2 = fpoints[0, -1, :] - fpoints[0, 0, :]
+        normal = np.cross(vec1, vec2) / np.linalg.norm(np.cross(vec1, vec2))
+
+        # Dot product and check if normal points outwards
+        dotprod = np.dot(nVecFace, normal)
+        if dotprod < 0:
+            success = False
+            sface   = face
+            break
+    return success, sface
+
+
+def process_chunk(chunk) -> list:
+    """Process a chunk of elements by checking surface normal orientation."""
+
+    chunk_results = []
+    for elem_data in chunk:
+        iElem, ionodes, elemType, mapLin, iopoints = elem_data
+        success, sface = check_orientation(ionodes, elemType, mapLin, iopoints)
+        chunk_results.append((success, iElem, sface))
+    return chunk_results
+
+
+def run_in_parallel(elems, chunk_size=10):
+    """Run the element processing in parallel using a specified number of processes
+    """
+    # Local imports ----------------------------------------
+    from pyhope.common.common_vars import np_mtp
+    from pyhope.common.common_parallel import update_progress, distribute_work
+    # ------------------------------------------------------
+
+    chunks = distribute_work(elems, chunk_size)
+    total_elements = len(elems)
+    progress_queue = Queue()
+
+    # Use a separate thread for the progress bar
+    progress_thread = threading.Thread(target=update_progress, args=(progress_queue, total_elements))
+    progress_thread.start()
+
+    # Use multiprocessing Pool for parallel processing
+    with Pool(processes=np_mtp) as pool:
+        # Map work across processes in chunks
+        results = []
+        for chunk_result in pool.imap_unordered(process_chunk, chunks):
+            results.extend(chunk_result)
+            # Update progress for each processed element in the chunk
+            for _ in chunk_result:
+                progress_queue.put(1)
+
+    # Wait for the progress bar thread to finish
+    progress_thread.join()
+    return results
+
+
 def OrientMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import LINMAP, faces, dir_to_nodes
+    from pyhope.mesh.mesh_common import LINMAP
+    from pyhope.common.common_vars import np_mtp
+    from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
     hopout.sep()
@@ -62,6 +149,11 @@ def OrientMesh() -> None:
 
     hopout.sep()
     hopout.routine('Checking if surface normal vectors point outwards')
+    hopout.sep()
+
+    checkSurfaceNormals = GetLogical('CheckSurfaceNormals')
+    if not checkSurfaceNormals:
+        return None
 
     mesh   = mesh_vars.mesh
     nElems = 0
@@ -80,37 +172,29 @@ def OrientMesh() -> None:
             baseElem = mesh_vars.ELEMTYPE.name[baseElem]
         mapLin = LINMAP(baseElem, order=mesh_vars.nGeo)
 
-        # Orient the elements
-        for iElem in range(nElems, nElems+nIOElems):
-            ionodes  = ioelems[iElem]
-            nodes    = ionodes[mapLin]
-            points   = mesh_vars.mesh.points[nodes]
+        # Prepare elements for parallel processing
+        tasks = []
 
-            # Center of element
-            cElem    = points.reshape(-1, points.shape[-1]).sum(axis=0) / np.prod(nodes.shape)
+        # Check the element orientation
+        if np_mtp > 0:
+            for iElem in range(nElems, nElems+nIOElems):
+                tasks.append((iElem, ioelems[iElem], elemType, mapLin, mesh_vars.mesh.points))
+        else:
+            for iElem in range(nElems, nElems+nIOElems):
+                success, sface = check_orientation(ioelems[iElem], elemType, mapLin, mesh_vars.mesh.points)
+                tasks.append((success, iElem, sface))
 
-            for face in faces(elemType):
-                # Center of face
-                fnodes   = dir_to_nodes(face, elemType, nodes)
-                fpoints  = mesh_vars.mesh.points[fnodes]
-                match face:
-                    case 'y-' | 'x+' | 'z+':
-                        fpoints = fpoints.transpose(1, 0, 2)
-                cFace      = fpoints.reshape(-1, fpoints.shape[-1]).sum(axis=0) / np.prod(fnodes.shape)
+        if np_mtp > 0:
+            # Run in parallel with a chunk size
+            res = run_in_parallel(tasks, chunk_size=10)
+        else:
+            res = np.array(tasks)
 
-                # Tangent and normal vectors
-                nVecFace   = cElem - cFace
-                nVecFace   = nVecFace / np.linalg.norm(nVecFace)
-                vec1       = fpoints[-1, 0, :] - fpoints[0, 0, :]
-                vec2       = fpoints[0, -1, :] - fpoints[0, 0, :]
-                normal     = np.cross(vec1, vec2) / np.linalg.norm(np.cross(vec1, vec2))
-
-                # Dot product and check if normal points outwards
-                dotprod    = np.dot(nVecFace, normal)
-                if dotprod < 0:
-                    hopout.warning('Surface normals are not pointing outwards, exiting...')
-                    print(hopout.warn(f'> Element {iElem+1}, Side {face}'))  # noqa: E501
-                    sys.exit(1)
+        for success, iElem, face in res:
+            if not success:
+                hopout.warning('Surface normals are not pointing outwards, exiting...')
+                print(hopout.warn(f'> Element {iElem+1}, Side {face}'))  # noqa: E501
+                sys.exit(1)
 
         # Add to nElems
         nElems += nIOElems
