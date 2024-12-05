@@ -25,9 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from multiprocessing import Pool, Queue
 import plotext as plt
-import threading
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -92,43 +90,13 @@ def process_chunk(chunk) -> list:
     return chunk_results
 
 
-def run_in_parallel(elems, chunk_size=10) -> list:
-    """Run the element processing in parallel using a specified number of processes
-    """
-    # Local imports ----------------------------------------
-    from pyhope.common.common_vars import np_mtp
-    from pyhope.common.common_parallel import update_progress, distribute_work
-    # ------------------------------------------------------
-
-    chunks = distribute_work(elems, chunk_size)
-    total_elements = len(elems)
-    progress_queue = Queue()
-
-    # Use a separate thread for the progress bar
-    progress_thread = threading.Thread(target=update_progress, args=(progress_queue, total_elements))
-    progress_thread.start()
-
-    # Use multiprocessing Pool for parallel processing
-    with Pool(processes=np_mtp) as pool:
-        # Map work across processes in chunks
-        results = []
-        for chunk_result in pool.imap_unordered(process_chunk, chunks):
-            results.extend(chunk_result)
-            # Update progress for each processed element in the chunk
-            for _ in chunk_result:
-                progress_queue.put(1)
-
-    # Wait for the progress bar thread to finish
-    progress_thread.join()
-    return results
-
-
 def CheckJacobians() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.basis.basis_basis import barycentric_weights, polynomial_derivative_matrix, calc_vandermonde
     from pyhope.basis.basis_basis import legendre_gauss_lobatto_nodes, evaluate_jacobian
+    from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.mesh_common import LINTEN
@@ -198,7 +166,7 @@ def CheckJacobians() -> None:
 
     if np_mtp > 0:
         # Run in parallel with a chunk size
-        jacs = run_in_parallel(tasks, chunk_size=10)
+        jacs = run_in_parallel(process_chunk, tasks, chunk_size=10)
     else:
         jacs = np.array(tasks)
 

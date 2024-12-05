@@ -26,9 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-import string
-import threading
-from multiprocessing import Pool, Queue
 from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -94,42 +91,12 @@ def process_chunk(chunk) -> list:
     return chunk_results
 
 
-def run_in_parallel(elems, chunk_size=10):
-    """Run the element processing in parallel using a specified number of processes
-    """
-    # Local imports ----------------------------------------
-    from pyhope.common.common_vars import np_mtp
-    from pyhope.common.common_parallel import update_progress, distribute_work
-    # ------------------------------------------------------
-
-    chunks = distribute_work(elems, chunk_size)
-    total_elements = len(elems)
-    progress_queue = Queue()
-
-    # Use a separate thread for the progress bar
-    progress_thread = threading.Thread(target=update_progress, args=(progress_queue, total_elements))
-    progress_thread.start()
-
-    # Use multiprocessing Pool for parallel processing
-    with Pool(processes=np_mtp) as pool:
-        # Map work across processes in chunks
-        results = []
-        for chunk_result in pool.imap_unordered(process_chunk, chunks):
-            results.extend(chunk_result)
-            # Update progress for each processed element in the chunk
-            for _ in chunk_result:
-                progress_queue.put(1)
-
-    # Wait for the progress bar thread to finish
-    progress_thread.join()
-    return results
-
-
 def OrientMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_common import LINMAP
+    from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
@@ -165,12 +132,11 @@ def OrientMesh() -> None:
 
         # Get the elements
         ioelems  = mesh.get_cells_type(elemType)
-        baseElem = elemType.rstrip(string.digits)
         nIOElems = ioelems.shape[0]
 
-        if isinstance(baseElem, str):
-            baseElem = mesh_vars.ELEMTYPE.name[baseElem]
-        mapLin = LINMAP(baseElem, order=mesh_vars.nGeo)
+        if isinstance(elemType, str):
+            elemType = mesh_vars.ELEMTYPE.name[elemType]
+        mapLin = LINMAP(elemType, order=mesh_vars.nGeo)
 
         # Prepare elements for parallel processing
         tasks = []
@@ -186,7 +152,7 @@ def OrientMesh() -> None:
 
         if np_mtp > 0:
             # Run in parallel with a chunk size
-            res = run_in_parallel(tasks, chunk_size=10)
+            res = run_in_parallel(process_chunk, tasks, chunk_size=10)
         else:
             res = np.array(tasks)
 
