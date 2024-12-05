@@ -58,7 +58,8 @@ doMortars: bool                                   # Flag if mortars are enabled
 
 # Internal variables
 tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
-tolPeriodic: Final[float] = 1.E-1                 # Tolerance for mesh connect (periodic sides)
+tolExternal: Final[float] = 1.E-5                 # Tolerance for mesh connect (external sides)
+tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
 class CGNS:

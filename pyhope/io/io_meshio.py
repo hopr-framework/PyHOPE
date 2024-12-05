@@ -186,6 +186,14 @@ def genHEXMAPMESHIO(order: int) -> None:
 
     if order == 2:
         # Python indexing, 1 -> 0
+        map[0 , 0 , 0 ] = 1
+        map[1 , 0 , 0 ] = 2
+        map[1 , 1 , 0 ] = 3
+        map[0 , 1 , 0 ] = 4
+        map[0 , 0 , 1 ] = 5
+        map[1 , 0 , 1 ] = 6
+        map[1 , 1 , 1 ] = 7
+        map[0 , 1 , 1 ] = 8
         map -= 1
         mesh_vars.HEXMAP = map
 

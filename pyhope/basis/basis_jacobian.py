@@ -199,16 +199,10 @@ def CheckJacobians() -> None:
 
         # Fill the NodeCoords
         nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
-        for iNode, nodeID in enumerate(elem.nodes):
-            nodeCoords[mapLin[iNode], :] = nodes[nodeID]
+        nodeCoords[[mapLin[np.int64(iNode)] for iNode in range(len(elem.nodes))]] = nodes[elem.nodes]
 
         xGeo = np.zeros((3, nGeo, nGeo, nGeo))
-        iNode = 0
-        for k in range(nGeo):
-            for j in range(nGeo):
-                for i in range(nGeo):
-                    xGeo[:, i, j, k] = nodeCoords[iNode, :]
-                    iNode += 1
+        xGeo = nodeCoords[:nGeo**3].reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
 
         if np_mtp > 0:
             # Add tasks for parallel processing

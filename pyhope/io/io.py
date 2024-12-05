@@ -263,7 +263,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
         elif side.connection is not None and side.connection < 0:  # Big mortar side
-            # TODO: Does this even need special treatment?
+            # WARNING: This is not a sideID, but the mortar type
             sideInfo[iSide, SIDE.NBELEMID      ] = side.connection
         else:                                                      # Internal side
             nbSideID = side.connection

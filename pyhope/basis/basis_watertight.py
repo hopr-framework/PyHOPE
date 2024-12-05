@@ -49,20 +49,21 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, wGP: np.ndarr
     # Compute derivatives at all Gauss points
     dXdxiGP  = np.tensordot(DGP, xGP, axes=(1, 1))  # Shape: (3, N_GP+1, N_GP+1)
     dXdetaGP = np.tensordot(DGP, xGP, axes=(1, 2))  # Shape: (3, N_GP+1, N_GP+1)
+    dXdxiGP  = np.moveaxis(dXdxiGP , 1, 0)
+    dXdetaGP = np.moveaxis(dXdetaGP, 1, 0)
 
     # Compute the cross product at each Gauss point
-    dXdxiGP  = dXdxiGP.reshape(3, -1)   # Flatten for cross computation
+    dXdxiGP  = dXdxiGP .reshape(3, -1)              # Flatten for cross computation
     dXdetaGP = dXdetaGP.reshape(3, -1)
     nVec     = np.cross(dXdxiGP, dXdetaGP, axis=0)  # Shape: (3, N_GP*N_GP)
     nVec     = nVec.reshape(3, wGP.size, wGP.size)  # Reshape to (3, N_GP+1, N_GP+1)
 
     # Compute the weighted normals
-    weights  = np.outer(wGP, wGP)  # Shape: (N_GP+1, N_GP+1)
-    nVecW    = nVec * weights  # Broadcast weights to shape (3, N_GP+1, N_GP+1)
+    weights  = np.outer(wGP, wGP)                   # Shape: (N_GP+1, N_GP+1)
+    nVecW    = nVec * weights                       # Broadcast weights to shape (3, N_GP+1, N_GP+1)
 
     # Integrate over the Gauss points
-    NSurf    = np.sum(nVecW, axis=(1, 2))  # Sum over the last two axes
-
+    NSurf    = - np.sum(nVecW, axis=(1, 2))         # Sum over the last two axes
     return NSurf
 
 
@@ -122,9 +123,8 @@ def CheckWatertight() -> None:
                 mortarType = abs(side.connection)
                 nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
                 nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
+                tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
                 checked[SideID] = True
-
-                tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolInternal
 
                 # Mortar sides are the following virtual sides
                 nMortar = 4 if mortarType == 1 else 2
@@ -144,22 +144,44 @@ def CheckWatertight() -> None:
 
                 nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
                 nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
+                tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
                 checked[SideID] = True
-
-                tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolInternal
 
                 # Connected side
                 nbside  = side.connection
-                nbnodes = sides[nbside].nodes
-                nnbSurf = eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+                nbnodes = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
+                nnbSurf = eval_nsurf(nbnodes, VdmEqToGP, DGP, wGP)
                 checked[nbside] = True
 
             # Check if side normals are within tolerance
-            nSurfErr = np.sum(np.abs(nnbSurf - nSurf))
+            nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
             if nSurfErr > tol:
                 strLen = max(len(str(side.sideID+1)), len(str(nbside)))
                 hopout.warning('Watertightness check failed!')
-                print(hopout.warn(f'Side {side.sideID+1:>{strLen}}: {nSurf}'))
-                print(hopout.warn(f'Side {nbside     +1:>{strLen}}: {nnbSurf}'))
-                hopout.warning(f'Surface normals are not within tolerance {nSurfErr} > {tol}, exiting...')
+                print(hopout.warn(f'> Element {elem.elemID+1:>{strLen}}, Side {side.face}, Side {side.sideID+1:>{strLen}}'))  # noqa: E501
+                print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nSurf) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
+                print()
+                print(hopout.warn(f'> Element {sides[nbside].elemID+1:>{strLen}}, Side {sides[nbside].face}, Side {nbside+1:>{strLen}}'))  # noqa: E501
+                print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nnbSurf) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:,  0,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:,  0, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:, -1,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:, -1, -1]) + ']'))
+
+                for node in elem.nodes:
+                    print(mesh_vars.mesh.points[node])
+
+                print()
+                for node in elems[sides[nbside].elemID].nodes:
+                    print(mesh_vars.mesh.points[node])
+
+                # Check if side is oriented inwards
+                if np.sum(np.abs(nnbSurf - nSurf)) < tol:
+                    hopout.warning('Side is oriented inwards, exiting...')
+                else:
+                    hopout.warning(f'Surface normals are not within tolerance {nSurfErr} > {tol}, exiting...')
                 sys.exit(1)

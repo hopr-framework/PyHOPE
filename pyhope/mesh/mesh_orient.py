@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import sys
 import string
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -39,23 +40,32 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def GenerateSides() -> None:
+def OrientMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.mesh.mesh_common import faces, face_to_cgns, face_to_nodes
-    from pyhope.mesh.mesh_vars import ELEM, SIDE
+    import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_common import LINMAP, faces, dir_to_nodes
     # ------------------------------------------------------
+
+    hopout.sep()
+    hopout.routine('Eliminating duplicate points')
+
+    # Eliminate duplicate points
+    mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)
+
+    # Update the mesh
+    for cell in mesh_vars.mesh.cells:
+        # Map the old indices to the new ones
+        # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
+        # Efficiently map all indices in one operation
+        cell.data = inverseIndices[cell.data]
+
+    hopout.sep()
+    hopout.routine('Checking if surface normal vectors point outwards')
 
     mesh   = mesh_vars.mesh
     nElems = 0
-    nSides = 0
-    sCount = 0
-    mesh_vars.elems = []
-    mesh_vars.sides = []
-    elems   = mesh_vars.elems
-    sides   = mesh_vars.sides
 
-    # Loop over all element types
     for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
@@ -65,43 +75,42 @@ def GenerateSides() -> None:
         ioelems  = mesh.get_cells_type(elemType)
         baseElem = elemType.rstrip(string.digits)
         nIOElems = ioelems.shape[0]
-        nIOSides   = mesh_vars.ELEMTYPE.type[baseElem]
 
-        # Create non-unique sides
-        mesh_vars.elems.extend([ELEM() for _ in range(nIOElems         )])
-        mesh_vars.sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
+        if isinstance(baseElem, str):
+            baseElem = mesh_vars.ELEMTYPE.name[baseElem]
+        mapLin = LINMAP(baseElem, order=mesh_vars.nGeo)
 
-        # Create dictionaries
+        # Orient the elements
         for iElem in range(nElems, nElems+nIOElems):
-            elems[iElem].update(type   = mesh_vars.ELEMMAP(elemType),  # noqa: E251
-                                elemID = iElem,                        # noqa: E251
-                                sides  = [],                           # noqa: E251
-                                nodes  = ioelems[iElem])               # noqa: E251
+            ionodes  = ioelems[iElem]
+            nodes    = ionodes[mapLin]
+            points   = mesh_vars.mesh.points[nodes]
 
-            # Create the sides
-            for iSide in range(nSides, nSides+nIOSides):
-                sides[iSide].update(sideType=4)
+            # Center of element
+            cElem    = points.reshape(-1, points.shape[-1]).sum(axis=0) / np.prod(nodes.shape)
 
-            # Assign corners to sides, CGNS format
-            for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in face_to_cgns( face, elemType)]
-                nodes   = [ioelems[iElem][s] for s in face_to_nodes(face, elemType)]
-                sides[sCount].update(face    = face,                   # noqa: E251
-                                     elemID  = iElem,                  # noqa: E251
-                                     sideID  = sCount,                 # noqa: E251
-                                     locSide = index+1,                # noqa: E251
-                                     corners = np.array(corners),      # noqa: E251
-                                     nodes   = np.array(nodes))        # noqa: E251
-                sCount += 1
+            for face in faces(elemType):
+                # Center of face
+                fnodes   = dir_to_nodes(face, elemType, nodes)
+                fpoints  = mesh_vars.mesh.points[fnodes]
+                match face:
+                    case 'y-' | 'x+' | 'z+':
+                        fpoints = fpoints.transpose(1, 0, 2)
+                cFace      = fpoints.reshape(-1, fpoints.shape[-1]).sum(axis=0) / np.prod(fnodes.shape)
 
-            # Add to nSides
-            nSides += nIOSides
+                # Tangent and normal vectors
+                nVecFace   = cElem - cFace
+                nVecFace   = nVecFace / np.linalg.norm(nVecFace)
+                vec1       = fpoints[-1, 0, :] - fpoints[0, 0, :]
+                vec2       = fpoints[0, -1, :] - fpoints[0, 0, :]
+                normal     = np.cross(vec1, vec2) / np.linalg.norm(np.cross(vec1, vec2))
+
+                # Dot product and check if normal points outwards
+                dotprod    = np.dot(nVecFace, normal)
+                if dotprod < 0:
+                    hopout.warning('Surface normals are not pointing outwards, exiting...')
+                    print(hopout.warn(f'> Element {iElem+1}, Side {face}'))  # noqa: E501
+                    sys.exit(1)
 
         # Add to nElems
         nElems += nIOElems
-
-    # Append sides to elem
-    for iSide, side in enumerate(sides):
-        elemID = side.elemID
-        sideID = side.sideID
-        elems[elemID].sides.append(sideID)

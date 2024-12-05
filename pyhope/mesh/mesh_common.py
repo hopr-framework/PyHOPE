@@ -32,6 +32,7 @@ from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -201,7 +202,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
 
 
 def face_to_nodes(face: str, elemType: int) -> np.ndarray:
-    """ Returns the nodes associated with a face
+    """ Returns the tensor-product nodes associated with a face
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -214,12 +215,12 @@ def face_to_nodes(face: str, elemType: int) -> np.ndarray:
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: { 'z-': LINMAP(elemType, order=order)[:      , :      , 0      ],
-                        'y-': LINMAP(elemType, order=order)[:      , 0      , :      ],
-                        'x+': LINMAP(elemType, order=order)[order-1, :      , :      ],
-                        'y+': LINMAP(elemType, order=order)[:      , order-1, :      ],
-                        'x-': LINMAP(elemType, order=order)[0      , :      , :      ],
-                        'z+': LINMAP(elemType, order=order)[:      , :      , order-1]}
+                   8: { 'z-':              LINMAP(elemType, order=order)[:    , :    , 0    ],
+                        'y-': np.transpose(LINMAP(elemType, order=order)[:    , 0    , :    ]),
+                        'x+': np.transpose(LINMAP(elemType, order=order)[order, :    , :    ]),
+                        'y+':              LINMAP(elemType, order=order)[:    , order, :    ],
+                        'x-':              LINMAP(elemType, order=order)[0    , :    , :    ],
+                        'z+': np.transpose(LINMAP(elemType, order=order)[:    , :    , order])}
 
                 }
     if elemType % 100 not in faces_map:
@@ -229,6 +230,36 @@ def face_to_nodes(face: str, elemType: int) -> np.ndarray:
         return faces_map[elemType % 100][face]
     except KeyError:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
+
+
+def dir_to_nodes(dir: str, elemType: int, elemNodes: np.ndarray) -> np.ndarray:
+    """ Returns the tensor-product nodes associated with a face
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    order     = mesh_vars.nGeo
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: { 'z-': elemNodes[:    , :    , 0    ],
+                        'y-': elemNodes[:    , 0    , :    ],
+                        'x+': elemNodes[order, :    , :    ],
+                        'y+': elemNodes[:    , order, :    ],
+                        'x-': elemNodes[0    , :    , :    ],
+                        'z+': elemNodes[:    , :    , order]}
+                 }
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
+
+    try:
+        return faces_map[elemType % 100][dir]
+    except KeyError:
+        raise KeyError(f'Error in face_to_cgns: face {dir} is not supported')
 
 
 def count_elems(mesh: meshio.Mesh) -> int:
@@ -262,7 +293,7 @@ def calc_elem_bary(mesh: meshio.Mesh) -> list:
     # ------------------------------------------------------
     nElems   = count_elems(mesh)
     elemBary = [np.ndarray(3)] * nElems
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+    for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
@@ -320,7 +351,7 @@ def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
             sys.exit(1)
 
 
-def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
+def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
     """ CGNS -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------

@@ -371,7 +371,7 @@ def ConnectMesh() -> None:
 
     # Try to connect the inner sides
     ninner = 0
-    for index, (key, val) in enumerate(corner_side.items()):
+    for (key, val) in corner_side.items():
         match len(val):
             case 1:  # BC side
                 continue

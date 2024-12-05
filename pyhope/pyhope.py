@@ -51,6 +51,7 @@ def main() -> None:
     from pyhope.io.io import IO, DefineIO, InitIO
     from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
     from pyhope.mesh.mesh_connect import ConnectMesh
+    from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
     from pyhope.readintools.commandline import CommandLine
@@ -104,6 +105,9 @@ def main() -> None:
     # Generate the actual mesh
     GenerateMesh()
     SortMesh()
+    OrientMesh()
+
+    # Build our data structures
     GenerateSides()
     RegenerateMesh()
     ConnectMesh()

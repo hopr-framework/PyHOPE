@@ -272,6 +272,7 @@ def SortMesh() -> None:
     mesh_vars.sortIJK = GetLogical('doSortIJK')
     hopout.sep()
 
+    # Sort the mesh
     if mesh_vars.sortIJK:
         SortMeshByIJK()
     else:
