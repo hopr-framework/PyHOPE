@@ -67,14 +67,95 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, wGP: np.ndarr
     return NSurf
 
 
+def check_sides(elem,
+                points   : np.ndarray,
+                VdmEqToGP: np.ndarray,
+                DGP      : np.ndarray,
+                wGP      : np.ndarray) -> list:
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    sides   = mesh_vars.sides
+    results = []
+
+    for SideID in elem.sides:
+        # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
+        # if checked[SideID]:
+        #     continue
+
+        side   = sides[SideID]
+        nbside = 0
+        # Only connected sides
+        if side.connection is None:
+            continue
+
+        nSurf   = np.full((3,), sys.float_info.max, dtype=float)
+        nnbSurf = np.full((3,), sys.float_info.max, dtype=float)
+        tol     = 0.
+
+        # Big mortar side
+        if side.connection < 0:
+            mortarType = abs(side.connection)
+            nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
+            nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
+            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
+            # checked[SideID] = True
+
+            # Mortar sides are the following virtual sides
+            nMortar = 4 if mortarType == 1 else 2
+            nnbSurf = np.full((3,), 0., dtype=float)
+            for mortarSide in range(nMortar):
+                # Get the matching side
+                nbside   = sides[SideID + mortarSide + 1].connection
+                nbnodes  = sides[nbside].nodes
+                nnbSurf += eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+                # checked[nbside] = True
+
+        # Internal side
+        elif side.connection > 0:
+            # Ignore the virtual mortar sides
+            if side.locMortar is not None:
+                continue
+
+            nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
+            nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
+            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
+            # checked[SideID] = True
+
+            # Connected side
+            nbside  = side.connection
+            nbnodes = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
+            nnbSurf = eval_nsurf(nbnodes, VdmEqToGP, DGP, wGP)
+            # checked[nbside] = True
+
+        # Check if side normals are within tolerance
+        nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
+        success  = nSurfErr < tol
+        results.append((success, SideID, nSurf, nnbSurf, nSurfErr, tol))
+    return results
+
+
+def process_chunk(chunk) -> list:
+    """Process a chunk of elements by checking surface normal orientation."""
+
+    chunk_results = []
+    for elem_data in chunk:
+        elem, points, VdmEqToGP, DGP, wGP = elem_data
+        results = check_sides(elem, points, VdmEqToGP, DGP, wGP)
+        chunk_results.append(results)
+    return chunk_results
+
+
 def CheckWatertight() -> None:
     """ Check if the mesh is watertight
     """
     # Local imports ----------------------------------------
-    from pyhope.basis.basis_basis import barycentric_weights, legendre_gauss_nodes
-    from pyhope.basis.basis_basis import calc_vandermonde, polynomial_derivative_matrix
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.basis.basis_basis import barycentric_weights, legendre_gauss_nodes
+    from pyhope.basis.basis_basis import calc_vandermonde, polynomial_derivative_matrix
+    from pyhope.common.common_parallel import run_in_parallel
+    from pyhope.common.common_vars import np_mtp
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
@@ -102,60 +183,43 @@ def CheckWatertight() -> None:
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
     points  = mesh_vars.mesh.points
-    checked = np.zeros((len(sides)), dtype=bool)
-    for elem in elems:
-        for SideID in elem.sides:
-            if checked[SideID]:
-                continue
+    # checked = np.zeros((len(sides)), dtype=bool)
 
-            side   = sides[SideID]
-            nbside = 0
-            # Only connected sides
-            if side.connection is None:
-                continue
+    # Prepare elements for parallel processing
+    tasks = []
 
-            nSurf   = np.full((3,), sys.float_info.max, dtype=float)
-            nnbSurf = np.full((3,), sys.float_info.max, dtype=float)
-            tol     = 0.
+    # Check the element orientation
+    if np_mtp > 0:
+        for elem in elems:
+            tasks.append((elem, points, VdmEqToGP, DGP, wGP))
+    else:
+        for elem in elems:
+            results = check_sides(elem, points, VdmEqToGP, DGP, wGP)
+            tasks.append(results)
 
-            # Big mortar side
-            if side.connection < 0:
-                mortarType = abs(side.connection)
-                nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
-                nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
-                tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
-                checked[SideID] = True
+    if np_mtp > 0:
+        # Run in parallel with a chunk size
+        res = run_in_parallel(process_chunk, tasks, chunk_size=10)
+    else:
+        res = tasks
 
-                # Mortar sides are the following virtual sides
-                nMortar = 4 if mortarType == 1 else 2
-                nnbSurf = np.full((3,), 0., dtype=float)
-                for mortarSide in range(nMortar):
-                    # Get the matching side
-                    nbside   = sides[SideID + mortarSide + 1].connection
-                    nbnodes  = sides[nbside].nodes
-                    nnbSurf += eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
-                    checked[nbside] = True
+    for r in res:
+        for result in r:
+            if bool(result[0]) is not True:
+                # Unpack the results
+                side     = sides[result[1]]
+                elem     = elems[side.elemID]
+                nbside   = side.connection
 
-            # Internal side
-            elif side.connection > 0:
-                # Ignore the virtual mortar sides
-                if side.locMortar is not None:
-                    continue
+                nSurf    = result[2]
+                nnbSurf  = result[3]
 
-                nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
-                nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
-                tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
-                checked[SideID] = True
+                nSurfErr = result[4]
+                tol      = result[5]
 
-                # Connected side
-                nbside  = side.connection
-                nbnodes = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
-                nnbSurf = eval_nsurf(nbnodes, VdmEqToGP, DGP, wGP)
-                checked[nbside] = True
+                nodes    = np.transpose(points[side.nodes]         , axes=(2, 0, 1))
+                nnbodes  = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
 
-            # Check if side normals are within tolerance
-            nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
-            if nSurfErr > tol:
                 strLen = max(len(str(side.sideID+1)), len(str(nbside)))
                 hopout.warning('Watertightness check failed!')
                 print(hopout.warn(f'> Element {elem.elemID+1:>{strLen}}, Side {side.face}, Side {side.sideID+1:>{strLen}}'))  # noqa: E501
@@ -167,10 +231,10 @@ def CheckWatertight() -> None:
                 print()
                 print(hopout.warn(f'> Element {sides[nbside].elemID+1:>{strLen}}, Side {sides[nbside].face}, Side {nbside+1:>{strLen}}'))  # noqa: E501
                 print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nnbSurf) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:,  0,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:,  0, -1]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:, -1,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:, -1, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:,  0,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:,  0, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:, -1,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:, -1, -1]) + ']'))
 
                 for node in elem.nodes:
                     print(mesh_vars.mesh.points[node])
@@ -180,7 +244,7 @@ def CheckWatertight() -> None:
                     print(mesh_vars.mesh.points[node])
 
                 # Check if side is oriented inwards
-                if np.sum(np.abs(nnbSurf - nSurf)) < tol:
+                if nSurfErr < 0:
                     hopout.warning('Side is oriented inwards, exiting...')
                 else:
                     hopout.warning(f'Surface normals are not within tolerance {nSurfErr} > {tol}, exiting...')
