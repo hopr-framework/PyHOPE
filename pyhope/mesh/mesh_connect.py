@@ -317,6 +317,49 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> Tuple[list, list]:
     return nConnSide, nConnCenter
 
 
+def periodic_update(sideIDs: list[int], vv: dict) -> None:
+    """Update the mesh after connecting periodic sides
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+
+    sides   = [mesh_vars.sides[s] for s in sideIDs]
+    # Build a k-dimensional tree of all points on the opposing side
+    Points   = mesh_vars.mesh.points[sides[0].nodes]
+    PShape   = Points.shape
+    Points   = np.reshape(Points  , (Points  .shape[0]*Points  .shape[1], Points  .shape[2]))
+
+    nbPoints = mesh_vars.mesh.points[sides[1].nodes]
+    nbPShape = nbPoints.shape
+    nbPoints = np.reshape(nbPoints, (nbPoints.shape[0]*nbPoints.shape[1], nbPoints.shape[2]))
+    stree    = spatial.KDTree(nbPoints)
+
+    for iPoint, point in enumerate(Points):
+        p = copy.copy(point)
+        for key, val in enumerate(vv['Dir']):
+            p[key] += val
+        trPoint = stree.query(p)
+
+        # Calculate the 2D array index
+        PointAr   = np.array([np.floor(iPoint     /   PShape[0]),  iPoint    %   PShape[0]], dtype=int)
+        PointID   = sides[0].nodes[  PointAr[0],   PointAr[1]]
+        nbPointAr = np.array([np.floor(trPoint[1] / nbPShape[0]), trPoint[1] % nbPShape[0]], dtype=int)
+        nbPointID = sides[1].nodes[nbPointAr[0], nbPointAr[1]]
+
+        # Center between both points
+        center = 0.5 * (point + mesh_vars.mesh.points[sides[1].nodes[nbPointAr[0], nbPointAr[1]]])
+
+        lowerP = copy.copy(center)
+        upperP = copy.copy(center)
+        for key, val in enumerate(vv['Dir']):
+            lowerP[key] -= 0.5 * val
+            upperP[key] += 0.5 * val
+
+        mesh_vars.mesh.points[  PointID] = lowerP
+        mesh_vars.mesh.points[nbPointID] = upperP
+
+
 def ConnectMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
@@ -336,8 +379,10 @@ def ConnectMesh() -> None:
     hopout.info('CONNECT MESH...')
     hopout.sep()
 
-    mesh_vars.doMortars = GetLogical('doMortars')
-    doMortars = mesh_vars.doMortars
+    mesh_vars.doPeriodicCorrect = GetLogical('doPeriodicCorrect')
+    mesh_vars.doMortars         = GetLogical('doMortars')
+    doPeriodicCorrect = mesh_vars.doPeriodicCorrect
+    doMortars         = mesh_vars.doMortars
 
     mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
@@ -349,7 +394,7 @@ def ConnectMesh() -> None:
     for key, value in mesh.cells_dict.items():
         if 'vertex' in key:
             offsetcs += value.shape[0]
-        elif 'line' in key:
+        # elif 'line' in key:
             offsetcs += value.shape[0]
 
     # Map sides to BC
@@ -494,6 +539,10 @@ def ConnectMesh() -> None:
 
             # Connect the sides
             connect_sides(sideIDs, sides, flipID)
+
+            # Update the sides
+            if doPeriodicCorrect:
+                periodic_update(sideIDs, vvs[iVV])
 
     # Non-connected sides without BCID are possible inner sides
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)

@@ -55,10 +55,11 @@ HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for hi
 already_curved: bool                              # Flag if mesh is already curved
 
 doMortars: bool                                   # Flag if mortars are enabled
+doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
 
 # Internal variables
 tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
-tolExternal: Final[float] = 1.E-5                 # Tolerance for mesh connect (external sides)
+tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 

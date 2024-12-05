@@ -89,9 +89,11 @@ def check_sides(elem,
         if side.connection is None:
             continue
 
-        nSurf   = np.full((3,), sys.float_info.max, dtype=float)
-        nnbSurf = np.full((3,), sys.float_info.max, dtype=float)
-        tol     = 0.
+        nSurf    = np.full((3,), sys.float_info.max, dtype=float)
+        nnbSurf  = np.full((3,), sys.float_info.max, dtype=float)
+        tol      = 0.
+        success  = True
+        nSurfErr = 0.
 
         # Big mortar side
         if side.connection < 0:
@@ -111,6 +113,10 @@ def check_sides(elem,
                 nnbSurf += eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
                 # checked[nbside] = True
 
+            # Check if side normals are within tolerance
+            nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
+            success  = nSurfErr < tol
+
         # Internal side
         elif side.connection > 0:
             # Ignore the virtual mortar sides
@@ -128,9 +134,10 @@ def check_sides(elem,
             nnbSurf = eval_nsurf(nbnodes, VdmEqToGP, DGP, wGP)
             # checked[nbside] = True
 
-        # Check if side normals are within tolerance
-        nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
-        success  = nSurfErr < tol
+            # Check if side normals are within tolerance
+            nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
+            success  = nSurfErr < tol
+
         results.append((success, SideID, nSurf, nnbSurf, nSurfErr, tol))
     return results
 
@@ -235,13 +242,6 @@ def CheckWatertight() -> None:
                 print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:,  0, -1]) + ']'))
                 print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:, -1,  0]) + ']'))
                 print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:, -1, -1]) + ']'))
-
-                for node in elem.nodes:
-                    print(mesh_vars.mesh.points[node])
-
-                print()
-                for node in elems[sides[nbside].elemID].nodes:
-                    print(mesh_vars.mesh.points[node])
 
                 # Check if side is oriented inwards
                 if nSurfErr < 0:

@@ -61,7 +61,9 @@ def DefineMesh() -> None:
     CreateStr(      'BoundaryName',        multiple=True, help='Name of domain boundary')
     CreateIntArray( 'BoundaryType',    4,  multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',         6,  multiple=True, help='Index of BC for each boundary face')
+    # Periodicity
     CreateRealArray('vv',              3,  multiple=True, help='Vector for periodic BC')
+    CreateLogical(  'doPeriodicCorrect',   default=True,  help='Enables periodic correction')
     # External mesh readin through GMSH
     CreateStr(      'Filename',            multiple=True, help='Name of external mesh file')
     CreateLogical(  'MeshIsAlreadyCurved', default=False, help='Enables mesh agglomeration')
