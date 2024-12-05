@@ -102,19 +102,6 @@ def OrientMesh() -> None:
     # ------------------------------------------------------
 
     hopout.sep()
-    hopout.routine('Eliminating duplicate points')
-
-    # Eliminate duplicate points
-    mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)
-
-    # Update the mesh
-    for cell in mesh_vars.mesh.cells:
-        # Map the old indices to the new ones
-        # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
-        # Efficiently map all indices in one operation
-        cell.data = inverseIndices[cell.data]
-
-    hopout.sep()
     hopout.routine('Checking if surface normal vectors point outwards')
     hopout.sep()
 

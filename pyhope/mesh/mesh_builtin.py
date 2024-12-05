@@ -59,6 +59,8 @@ def MeshCartesian() -> meshio.Mesh:
     if not debugvisu:
         # Hide the GMSH debug output
         gmsh.option.setNumber('General.Terminal', 0)
+        gmsh.option.setNumber('Geometry.Tolerance'         , 1e-12)  # default: 1e-6
+        gmsh.option.setNumber('Geometry.MatchMeshTolerance', 1e-09)  # default: 1e-8
 
     hopout.sep()
 
@@ -211,14 +213,16 @@ def MeshCartesian() -> meshio.Mesh:
             gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
 
     # To generate connect the generated cells, we can simply set
-    gmsh.option.setNumber('Mesh.RecombineAll', 1)
+    gmsh.option.setNumber('Mesh.RecombineAll'  , 1)
+    gmsh.option.setNumber('Mesh.Recombine3DAll', 1)
+    gmsh.option.setNumber('Geometry.AutoCoherence', 2)
+    gmsh.model.mesh.recombine()
     # Force Gmsh to output all mesh elements
     gmsh.option.setNumber('Mesh.SaveAll', 1)
 
     # Set the element order
     # > Technically, this is only required in generate_mesh but let's be precise here
     gmsh.model.mesh.setOrder(mesh_vars.nGeo)
-
     gmsh.model.geo.synchronize()
 
     # PyGMSH returns a meshio.mesh datatype

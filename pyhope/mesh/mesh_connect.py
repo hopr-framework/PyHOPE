@@ -667,10 +667,13 @@ def ConnectMesh() -> None:
         hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
 
         for side in nConnSide:
-            hopout.info('SideID : {}'.format(side.sideID))
-            hopout.info('{}'.format(side.dict()))
-            hopout.info('Corners:')
-            print('{}'.format(mesh.points[side.corners]))
+            print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
+            nodes = np.transpose(mesh_vars.mesh.points[side.nodes]         , axes=(2, 0, 1))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
+            print()
         sys.exit(1)
 
     # TODO: Check if mortars are watertight

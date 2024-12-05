@@ -61,6 +61,8 @@ def DefineMesh() -> None:
     CreateStr(      'BoundaryName',        multiple=True, help='Name of domain boundary')
     CreateIntArray( 'BoundaryType',    4,  multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',         6,  multiple=True, help='Index of BC for each boundary face')
+    # Gmsh
+    CreateLogical(  'EliminateNearDuplicates', default=True, help='Enables elimination of near duplicate points')
     # Periodicity
     CreateRealArray('vv',              3,  multiple=True, help='Vector for periodic BC')
     CreateLogical(  'doPeriodicCorrect',   default=True,  help='Enables periodic correction')
