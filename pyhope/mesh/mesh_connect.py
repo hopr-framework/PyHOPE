@@ -171,8 +171,6 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
                 sides[val].connection += nMortars
 
     # Insert the virtual sides
-    # for key, val in enumerate(slaveSides):
-
     for key, val in enumerate(slaveSides):
         tol        = mesh_vars.tolInternal
         points     = mesh_vars.mesh.points[masterSide.corners]
@@ -552,8 +550,10 @@ def ConnectMesh() -> None:
 
     # Loop over all sides and try to connect
     iter    = 0
-    maxIter = copy.copy(len(nConnSide))
-    while len(nConnSide) > 1 and iter <= 2*maxIter:
+    maxIter = copy.copy(nInterZoneConnect)
+    # While maxIter should be enough, this results in non-connected mortar sides. We can append a maximum of 4 virtual sides,
+    # so let's set the maxIter to 5 just to be safe.
+    while len(nConnSide) > 1 and iter <= 5*maxIter:
         # Ensure the loop exits after checking every side
         iter += 1
 
@@ -636,15 +636,12 @@ def ConnectMesh() -> None:
                 comboPoints  = np.concatenate([mesh.points[c] for c in comboCorners], axis=0)
 
                 # Found a valid match
-                # print(find_mortar_match(targetPoints, comboPoints, tol))
                 if find_mortar_match(targetPoints, comboPoints, tol):
                     matchFound = True
                     break
 
             if matchFound:
                 # Get our and neighbor corner quad nodes
-                # sideID    =  get_side_id(targetSide['Corners'], corner_side)
-                # nbSideID  = [get_side_id(cast(np.ndarray, c)  , corner_side) for c in comboCorners]
                 sideID    =  targetSide.sideID
                 nbSideID  = [side.sideID for side in comboSides]
 
@@ -675,8 +672,6 @@ def ConnectMesh() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
             print()
         sys.exit(1)
-
-    # TODO: Check if mortars are watertight
 
     if nInterZoneConnect > 0:
         hopout.sep()

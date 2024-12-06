@@ -51,25 +51,26 @@ def check_orientation(ionodes : np.ndarray,
     points = iopoints[ionodes[mapLin]]
 
     # Center of element
-    cElem = points.reshape(-1, points.shape[-1]).sum(axis=0) / np.prod(ionodes.shape)
+    cElem = np.mean(points, axis=(0, 1, 2))
 
     success = True
     sface   = None
     for face in faces(elemType):
         # Center of face
-        fnodes = dir_to_nodes(face, elemType, nodes)
+        fnodes  = dir_to_nodes(face, elemType, nodes)
         fpoints = iopoints[fnodes]
-        match face:
-            case 'y-' | 'x+' | 'z+':
-                fpoints = fpoints.transpose(1, 0, 2)
-        cFace = fpoints.reshape(-1, fpoints.shape[-1]).sum(axis=0) / np.prod(fnodes.shape)
+        # cFace  = fpoints.mean(axis=tuple(range(fpoints.ndim - 1)))
+        cFace  = np.mean(fpoints, axis=(0, 1))
 
         # Tangent and normal vectors
         nVecFace = cElem - cFace
-        nVecFace = nVecFace / np.linalg.norm(nVecFace)
+        # nVecFace = nVecFace / np.linalg.norm(nVecFace)
+        nVecFace = nVecFace / np.sqrt(np.dot(nVecFace, nVecFace))
         vec1 = fpoints[-1, 0, :] - fpoints[0, 0, :]
         vec2 = fpoints[0, -1, :] - fpoints[0, 0, :]
-        normal = np.cross(vec1, vec2) / np.linalg.norm(np.cross(vec1, vec2))
+        normal = np.cross(vec1, vec2)
+        # normal /= np.linalg.norm(normal)
+        normal /= np.sqrt(np.dot(normal, normal))
 
         # Dot product and check if normal points outwards
         dotprod = np.dot(nVecFace, normal)
@@ -80,14 +81,12 @@ def check_orientation(ionodes : np.ndarray,
     return success, sface
 
 
-def process_chunk(chunk) -> list:
+def process_chunk(chunk) -> np.ndarray:
     """Process a chunk of elements by checking surface normal orientation."""
 
-    chunk_results = []
-    for elem_data in chunk:
-        iElem, ionodes, elemType, mapLin, iopoints = elem_data
-        success, sface = check_orientation(ionodes, elemType, mapLin, iopoints)
-        chunk_results.append((success, iElem, sface))
+    chunk_results    = np.empty(len(chunk), dtype=object)
+    chunk_results[:] = [(check_orientation(ionodes, elemType, mapLin, iopoints), iElem)
+                        for iElem, ionodes, elemType, mapLin, iopoints in chunk]
     return chunk_results
 
 
@@ -126,28 +125,21 @@ def OrientMesh() -> None:
         mapLin = LINMAP(elemType, order=mesh_vars.nGeo)
 
         # Prepare elements for parallel processing
-        tasks = []
-
-        # Check the element orientation
         if np_mtp > 0:
-            for iElem in range(nElems, nElems+nIOElems):
-                tasks.append((iElem, ioelems[iElem], elemType, mapLin, mesh_vars.mesh.points))
-        else:
-            for iElem in range(nElems, nElems+nIOElems):
-                success, sface = check_orientation(ioelems[iElem], elemType, mapLin, mesh_vars.mesh.points)
-                tasks.append((success, iElem, sface))
-
-        if np_mtp > 0:
+            tasks = [(iElem, ioelems[iElem - nElems], elemType, mapLin, mesh_vars.mesh.points)
+                     for iElem in range(nElems, nElems + nIOElems)]
             # Run in parallel with a chunk size
-            res = run_in_parallel(process_chunk, tasks, chunk_size=10)
+            res   = run_in_parallel(process_chunk, tasks, chunk_size=10)
         else:
-            res = np.array(tasks)
+            res   = np.empty(nIOElems, dtype=object)
+            res[:] = [(check_orientation(ioelems[iElem - nElems], elemType, mapLin, mesh_vars.mesh.points), iElem)
+                      for iElem in range(nElems, nElems + nIOElems)]
 
-        for success, iElem, face in res:
-            if not success:
-                hopout.warning('Surface normals are not pointing outwards, exiting...')
-                print(hopout.warn(f'> Element {iElem+1}, Side {face}'))  # noqa: E501
-                sys.exit(1)
+        if not np.all([success for (success, _), _ in res]):
+            failed_elems = [(iElem + 1, face) for (success, face), iElem in res if not success]
+            for iElem, face in failed_elems:
+                print(hopout.warn(f'> Element {iElem}, Side {face}'))
+            sys.exit(1)
 
         # Add to nElems
         nElems += nIOElems

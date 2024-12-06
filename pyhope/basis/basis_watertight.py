@@ -147,14 +147,12 @@ def check_sides(elem,
     return results
 
 
-def process_chunk(chunk) -> list:
-    """Process a chunk of elements by checking surface normal orientation."""
-
-    chunk_results = []
-    for elem_data in chunk:
-        elem, points, VdmEqToGP, DGP, wGP = elem_data
-        results = check_sides(elem, points, VdmEqToGP, DGP, wGP)
-        chunk_results.append(results)
+def process_chunk(chunk) -> np.ndarray:
+    """Process a chunk of elements by checking surface normal orientation
+    """
+    chunk_results    = np.empty(len(chunk), dtype=object)
+    # elem, points, VdmEqToGP, DGP, wGP = elem_data
+    chunk_results[:] = [check_sides(*elem_data) for elem_data in chunk]
     return chunk_results
 
 
@@ -198,22 +196,14 @@ def CheckWatertight() -> None:
     # checked = np.zeros((len(sides)), dtype=bool)
 
     # Prepare elements for parallel processing
-    tasks = []
-
-    # Check the element orientation
     if np_mtp > 0:
-        for elem in elems:
-            tasks.append((elem, points, VdmEqToGP, DGP, wGP))
-    else:
-        for elem in elems:
-            results = check_sides(elem, points, VdmEqToGP, DGP, wGP)
-            tasks.append(results)
-
-    if np_mtp > 0:
+        tasks = [(elem, points, VdmEqToGP, DGP, wGP)
+                 for elem in elems]
         # Run in parallel with a chunk size
-        res = run_in_parallel(process_chunk, tasks, chunk_size=10)
+        res   = run_in_parallel(process_chunk, tasks, chunk_size=10)
     else:
-        res = tasks
+        res   = np.empty(len(elems), dtype=object)
+        res[:] = [check_sides(elem, points, VdmEqToGP, DGP, wGP) for elem in elems]
 
     for r in res:
         for result in r:

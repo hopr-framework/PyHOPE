@@ -246,12 +246,12 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray) -> 
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: { 'z-': elemNodes[:    , :    , 0    ],
-                        'y-': elemNodes[:    , 0    , :    ],
-                        'x+': elemNodes[order, :    , :    ],
-                        'y+': elemNodes[:    , order, :    ],
-                        'x-': elemNodes[0    , :    , :    ],
-                        'z+': elemNodes[:    , :    , order]}
+                   8: { 'z-':              elemNodes[:    , :    , 0    ],
+                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
+                        'x+': np.transpose(elemNodes[order, :    , :    ]),
+                        'y+':              elemNodes[:    , order, :    ],
+                        'x-':              elemNodes[0    , :    , :    ],
+                        'z+': np.transpose(elemNodes[:    , :    , order])}
                  }
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
