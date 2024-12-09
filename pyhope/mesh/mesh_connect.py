@@ -679,9 +679,10 @@ def ConnectMesh() -> None:
     # Loop over all sides and try to connect
     iter    = 0
     maxIter = copy.copy(nInterZoneConnect)
+    tol     = mesh_vars.tolInternal
     # While maxIter should be enough, this results in non-connected mortar sides. We can append a maximum of 4 virtual sides,
     # so let's set the maxIter to 5 just to be safe.
-    while len(nConnSide) > 1 and iter <= 5*maxIter:
+    while len(nConnSide) > 1 and iter <= maxIter:
         # Ensure the loop exits after checking every side
         iter += 1
 
@@ -704,7 +705,6 @@ def ConnectMesh() -> None:
         points     = np.sort(mesh.points[corners], axis=0).flatten()
 
         # Query the tree for the opposing side
-        tol        = mesh_vars.tolInternal
         nbSideIdx  = find_closest_side(points, stree, tol, 'internal', doMortars)
 
         # Regular internal side
@@ -728,15 +728,52 @@ def ConnectMesh() -> None:
             # Update the list
             nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
-        # Mortar side
-        # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
-        # > generates no match, we simply append the side again at the end and try again. As the loop exists after checking
-        # > len(nConnSide), we will check each side once.
-        else:
             if not doMortars:
                 hopout.warning(f'Could not find internal side within tolerance {tol}, exiting...')
                 traceback.print_stack(file=sys.stdout)
                 sys.exit(1)
+
+    # Mortar sides
+    if doMortars:
+        nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+        nInterZoneConnect      = len(nConnSide)
+
+        iter    = 0
+        maxIter = copy.copy(nInterZoneConnect)
+        tol     = mesh_vars.tolInternal
+        # While maxIter should be enough, this results in non-connected mortar sides. We can append a maximum of 4 virtual sides,
+        # so let's set the maxIter to 5 just to be safe.
+        while len(nConnSide) > 1 and iter <= 5*maxIter:
+            # Ensure the loop exits after checking every side
+            iter += 1
+
+            # Remove the first side from the list
+            targetSide   = nConnSide  .pop(0)
+            targetCenter = nConnCenter.pop(0)
+
+            # Collapse all opposing corner nodes into an [:, 12] array
+            nbCorners  = [s.corners for s in nConnSide]
+            nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+            nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+            del nbCorners
+
+            # Build a k-dimensional tree of all points on the opposing side
+            stree      = spatial.KDTree(nbPoints)
+            ctree      = spatial.KDTree(nConnCenter)
+
+            # Map the unique quad sides to our non-unique elem sides
+            corners    = targetSide.corners
+            points     = np.sort(mesh.points[corners], axis=0).flatten()
+
+            # Query the tree for the opposing side
+            nbSideIdx  = find_closest_side(points, stree, tol, 'internal', doMortars)
+
+            # Mortar side
+            # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
+            # > generates no match, we simply append the side again at the end and try again. As the loop exists after checking
+            # > len(nConnSide), we will check each side once.
+            if nbSideIdx >= 0:
+                continue
 
             # Calculate the radius of the convex hull
             targetPoints = mesh.points[targetSide.corners]
