@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import heapq
 import itertools
 import sys
 import traceback
@@ -617,6 +618,8 @@ def ConnectMesh() -> None:
 
             # Find nearby sides to consider as candidate mortar sides
             targetNeighbors = ctree.query_ball_point(targetCenter, targetRadius)
+            # Eliminate sides in the same element
+            targetNeighbors = [s for s in targetNeighbors if sides[s].elemID != targetSide.elemID]
 
             # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
             candidate_combinations = []
@@ -678,24 +681,42 @@ def ConnectMesh() -> None:
         hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
 
     # Set the global side ID
-    globalSideID = 0
+    globalSideID     = 0
+    usedSideIDs      = set()  # Set to track used side IDs
+    availableSideIDs = []     # Min-heap for gap
     for iSide, side in enumerate(sides):
         # Already counted the side
         if side.globalSideID is not None:
             continue
 
-        globalSideID += 1
+        # Get the smallest available globalSideID from the heap, if any
+        if availableSideIDs:
+            globalSideID = heapq.heappop(availableSideIDs)
+        else:
+            # If no gaps, simply use the next available ID
+            globalSideID += 1
+            # Ensure the globalSideID counter is ahead of all used IDs
+            while globalSideID in usedSideIDs:
+                globalSideID += 1
+
+        # Mark the side ID as used
+        usedSideIDs.add(globalSideID)
         side.update(globalSideID=globalSideID)
+
         if side.connection is None:         # BC side
             pass
         elif side.connection < 0:           # Big mortar side
             pass
         elif side.MS == 1:                  # Internal / periodic side (master side)
-            # Master side does not have a flip
-            # Set the positive globalSideID of the master side
-            # side.update({'GlobalSideID':  globalSideID })
-            # Set the negative globalSideID of the slave  side
+            # Get the connected slave side
             nbSideID = side.connection
+
+            # Free the gap in the side numbering
+            if sides[nbSideID].globalSideID is not None:
+                usedSideIDs.remove(sides[nbSideID].globalSideID)
+                heapq.heappush(availableSideIDs, sides[nbSideID].globalSideID)
+
+            # Set the negative globalSideID of the slave  side
             sides[nbSideID].update(globalSideID=-(globalSideID))
 
     # Count the sides

@@ -276,7 +276,7 @@ convergence:
           rm "$temp_file"
         done
         # Clean-up the log file
-        rm -f convergence.log
+        rm -f ../convergence.log
         # Call convergence script
         for N in {1..4}; do
           echo ""
