@@ -201,16 +201,13 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
-def face_to_nodes(face: str, elemType: int) -> np.ndarray:
+def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
     if isinstance(elemType, str):
         elemType = mesh_vars.ELEMTYPE.name[elemType]
 
-    order     = mesh_vars.nGeo
+    order     = nGeo
     faces_map = {  # Tetrahedron
                    # Pyramid
                    # Wedge / Prism
@@ -232,16 +229,13 @@ def face_to_nodes(face: str, elemType: int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
-def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray) -> np.ndarray:
+def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
     if isinstance(elemType, str):
         elemType = mesh_vars.ELEMTYPE.name[elemType]
 
-    order     = mesh_vars.nGeo
+    order     = nGeo
     faces_map = {  # Tetrahedron
                    # Pyramid
                    # Wedge / Prism

@@ -54,6 +54,7 @@ def GenerateSides() -> None:
     mesh_vars.sides = []
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+    nGeo    = mesh_vars.nGeo
 
     # Loop over all element types
     for elemType in mesh.cells_dict.keys():
@@ -85,7 +86,7 @@ def GenerateSides() -> None:
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
                 corners = [ioelems[iElem][s] for s in face_to_cgns( face, elemType)]
-                nodes   = [ioelems[iElem][s] for s in face_to_nodes(face, elemType)]
+                nodes   = [ioelems[iElem][s] for s in face_to_nodes(face, elemType, nGeo)]
                 sides[sCount].update(face    = face,                   # noqa: E251
                                      elemID  = iElem,                  # noqa: E251
                                      sideID  = sCount,                 # noqa: E251
