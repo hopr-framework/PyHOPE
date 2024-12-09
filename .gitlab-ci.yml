@@ -29,6 +29,8 @@ image: python:latest
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # Enable the faster OverlayFS driver
+  DOCKER_DRIVER: overlay2
 
 # https://pip.pypa.io/en/stable/topics/caching/
 cache:
