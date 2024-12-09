@@ -252,10 +252,14 @@ def find_closest_side(points: np.ndarray, stree: spatial._kdtree.cKDTree, tol: f
     return trSide[1]
 
 
-def find_mortar_match(targetPoints: np.ndarray, comboPoints: np.ndarray, tol: float) -> bool:
+def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.Mesh, tol: float) -> bool:
     """ Check if the combined points of candidate sides match the target side within tolerance.
     """
+    targetPoints = mesh.points[targetCorners]
     ttree = spatial.KDTree(targetPoints)
+
+    comboCorners = [s.corners for s in comboSides]
+    comboPoints  = np.concatenate([mesh.points[c] for c in comboCorners], axis=0)
     distances, indices = ttree.query(comboPoints)
 
     # At least one combo point must match each target point
@@ -269,6 +273,49 @@ def find_mortar_match(targetPoints: np.ndarray, comboPoints: np.ndarray, tol: fl
         if np.sum(distancesToPoints <= tol) != 1:
             return False
 
+    # Build the target edges
+    targetEdges = build_edges(targetCorners, mesh)
+
+    # Create edges for comboPoints using comboCorners
+    comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
+    comboEdges  = find_edge_combinations(comboEdges)
+
+    # Attempt to match the target edges with the candidate edges
+    matches     = []  # List to store matching edges
+
+    # Iterate over each target edge
+    for targetEdge in targetEdges:
+        targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+        targetDist = targetEdge[2]   # Distance between points
+
+        # Initialize a list to store the matching combo edges for the current target edge
+        matchEdges = []
+
+        # Iterate over comboEdges to find matching edges
+        for comboEdge in comboEdges:
+            comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+            comboDist = comboEdge[2]  # Distance between points
+
+            # Check if the points match and the distance is the same, taking into account the direction
+            if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
+                all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
+               np.isclose(targetDist, comboDist):
+                matchEdges.append(comboEdge)
+
+        # This should result in exactly 1 match
+        if len(matchEdges) > 1:
+            return False
+        elif len(matchEdges) == 1:
+            matches.append((targetEdge, matchEdges.pop()))
+
+    # We only allow 2-1 and 4-1 matches, so in the end we should have exactly 2 or 4 matches
+    match len(matches):
+        case 2 | 4:
+            pass
+        case _:
+            return False
+
+    # INFO: MORE SANITY CHECKS, might be unnecessary
     # Build the remaining points
     unmatchedPoints  = comboPoints[distances > tol]
 
@@ -289,6 +336,86 @@ def find_mortar_match(targetPoints: np.ndarray, comboPoints: np.ndarray, tol: fl
 
     # Found a valid match
     return True
+
+
+def build_edges(corners: np.ndarray, mesh: meshio.Mesh) -> list:
+    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
+    """
+    edges = [
+        (corners[0], corners[1], np.linalg.norm(mesh.points[corners[0]] - mesh.points[corners[1]])),  # Edge between points 0 and 1
+        (corners[1], corners[2], np.linalg.norm(mesh.points[corners[1]] - mesh.points[corners[2]])),  # Edge between points 1 and 2
+        (corners[2], corners[3], np.linalg.norm(mesh.points[corners[2]] - mesh.points[corners[3]])),  # Edge between points 2 and 3
+        (corners[3], corners[0], np.linalg.norm(mesh.points[corners[3]] - mesh.points[corners[0]])),  # Edge between points 3 and 0
+    ]
+    return edges
+
+
+def find_edge_combinations(comboEdges):
+    """Build combinations of edges that share exactly one point and form a line
+    """
+    # Local imports ----------------------------------------
+    from collections import defaultdict
+    from itertools import combinations
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+
+    # Create a dictionary to store edges by their shared points
+    pointToEdges = defaultdict(list)
+
+    # Fill the dictionary with edges indexed by their points
+    for i, j, dist in comboEdges:
+        pointToEdges[i].append((i, j, dist))
+        pointToEdges[j].append((i, j, dist))
+
+    # Initialize an empty list to store the valid combinations of edges
+    validCombo = []
+
+    # Iterate over all points and their associated edges
+    for _, edges in pointToEdges.items():
+        if len(edges) < 2:  # Skip points with less than 2 edges
+            continue
+
+        # Now, we generate all possible pairs of edges that share the point
+        for edge1, edge2 in combinations(edges, 2):
+            # Ensure the edges are distinct and share exactly one point
+            # Since both edges share 'point', they are valid combinations
+            # We store the combination as an np.array (i, j, dist)
+            i1, j1, _ = edge1
+            i2, j2, _ = edge2
+
+            # Use set operations to determine the unique start and end points
+            commonPoint = {i1, j1} & {i2, j2}
+            if len(commonPoint) == 1:  # Check that there's exactly one shared point
+                commonPoint = commonPoint.pop()
+
+                # Exclude the common point and get the unique start and end points
+                edgePoints = np.array([i1, j1, i2, j2])
+
+                # Find the index of the common point and delete it
+                commonIndex = np.where( edgePoints == commonPoint)[0]
+                edgePoints  = np.delete(edgePoints, commonIndex)
+
+                # The remaining points are the start and end points of the edge combination
+                point1, point2 = edgePoints
+
+                # Get the coordinates of the points
+                p1, p2 = mesh_vars.mesh.points[point1], mesh_vars.mesh.points[point2]
+                c1     = mesh_vars.mesh.points[commonPoint]
+
+                # Calculate the bounding box of the two edge points
+                bbox_min = np.minimum(p1, p2)
+                bbox_max = np.maximum(p1, p2)
+
+                # Check if the common point is within the bounding box of p1 and p2
+                if np.all(np.isclose(bbox_min, np.minimum(bbox_min, c1))) and \
+                   np.all(np.isclose(bbox_max, np.maximum(bbox_max, c1))):
+                    # Calculate the distance between the start and end points
+                    lineDist = np.linalg.norm(p1 - p2)
+
+                    # Append the indices and the line distance
+                    validCombo.append((point1, point2, lineDist))
+
+    return validCombo
 
 
 def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
@@ -619,7 +746,7 @@ def ConnectMesh() -> None:
             # Find nearby sides to consider as candidate mortar sides
             targetNeighbors = ctree.query_ball_point(targetCenter, targetRadius)
             # Eliminate sides in the same element
-            targetNeighbors = [s for s in targetNeighbors if sides[s].elemID != targetSide.elemID]
+            targetNeighbors = [s for s in targetNeighbors if nConnSide[s].elemID != targetSide.elemID]
 
             # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
             candidate_combinations = []
@@ -631,15 +758,12 @@ def ConnectMesh() -> None:
             # Attempt to match the target side with candidate combinations
             matchFound   = False
             comboSides   = []
-            comboCorners = []
             for comboIDs in candidate_combinations:
                 # Get the candidate sides
                 comboSides   = [nConnSide[iSide] for iSide in comboIDs]
-                comboCorners = [s.corners for s in comboSides]
-                comboPoints  = np.concatenate([mesh.points[c] for c in comboCorners], axis=0)
 
                 # Found a valid match
-                if find_mortar_match(targetPoints, comboPoints, tol):
+                if find_mortar_match(targetSide.corners, comboSides, mesh, tol):
                     matchFound = True
                     break
 
