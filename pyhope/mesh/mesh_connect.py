@@ -97,7 +97,7 @@ def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
     )
 
 
-def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
+def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: list) -> list:
     """ Connect the master (big mortar) and the slave (small mortar) sides
         > Create the virtual sides as needed
     """
@@ -181,19 +181,29 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
                 mortarCorners = [0, 1, 3, 2]  # Prepare for non-quad mortars
                 flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
-                flipID = (flipID - key + 1) % 4
+                mortarLength  = [0, 1, 3, 2]  # Prepare for non-quad mortars
+                # flipID = (flipID - key + 1) % 4
+                flipID = (flipID - mortarLength[key] + 4)
+                if flipID > 4:
+                    flipID = flipID % 4
             case 2:  # 2-1 mortar, split in eta
                 mortarCorners = [0, -1]  # Prepare for non-quad mortars
                 flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
                 mortarLength  = [0, 1]
-                flipID = (flipID - mortarLength[key] + 4) % 4
+                # flipID = (flipID - mortarLength[key] + 4) % 4
+                flipID = (flipID - mortarLength[key] + 4)
+                if flipID > 4:
+                    flipID = flipID % 4
             case 3:  # 2-1 mortar, split in xi
                 mortarCorners = [0, -2]  # Prepare for non-quad mortars
                 flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
                 # Correct for the corner offset
                 mortarLength  = [0, 2]
-                flipID = (flipID - mortarLength[key] + 4) % 4
+                # flipID = (flipID - mortarLength[key] + 4) % 4
+                flipID = (flipID - mortarLength[key] + 4)
+                if flipID > 4:
+                    flipID = flipID % 4
         val.update(flip=flipID)
 
         # Insert the virtual sides
@@ -219,6 +229,13 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list) -> None:
                    MS         = 0,                             # noqa: E251
                    flip       = flipID,                        # noqa: E251
                   )
+
+        for s in nConnSide:
+            if s.sideID == val.sideID:
+                nConnSide.remove(s)
+                break            # Update the connections
+
+    return nConnSide
 
 
 def find_bc_index(bcs: list, key: str) -> Union[int, None]:
@@ -269,86 +286,133 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
     # Check if exactly one combo point matches each target point
     for point in targetPoints:
+        # TODO: IS CLOSE
         distancesToPoints = np.linalg.norm(comboPoints - point, axis=1)
         if np.sum(distancesToPoints <= tol) != 1:
             return False
 
     # Build the target edges
     targetEdges = build_edges(targetCorners, mesh)
+    matches     = []
 
-    # Create edges for comboPoints using comboCorners
-    comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
-    comboEdges  = find_edge_combinations(comboEdges)
+    # First, check for 2-1 matches
+    if len(comboSides) == 2:
+        sideEdges = [build_edges(side.corners, mesh) for side in comboSides]
 
-    # Append the original targetEdges
-    comboEdges.extend(targetEdges)
+        # Look for 2-1 matches, we need exactly one common edge
+        for edge in sideEdges[0]:
+            targetP    = edge[:2]  # Start and end points (iX, jX)
+            targetDist = edge[2]   # Distance between points
 
-    # Eliminate duplicates based on proximity
-    uniqueEdges = []
-    for edge in comboEdges:
-        p1, p2, _ = edge
-        coord1, coord2 = mesh.points[p1], mesh.points[p2]
+            # Initialize a list to store the matching combo edges for the current target edge
+            matchEdges = []
 
-        if not any((np.all(np.isclose(coord1, mesh.points[u_p1])) and np.all(np.isclose(coord2, mesh.points[u_p2]))) or
-                   (np.all(np.isclose(coord1, mesh.points[u_p2])) and np.all(np.isclose(coord2, mesh.points[u_p1])))
-                   for u_p1, u_p2, _ in uniqueEdges):
-            uniqueEdges.append(edge)
+            for comboEdge in sideEdges[1]:
+                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                comboDist = comboEdge[2]  # Distance between points
 
-    comboEdges = uniqueEdges
+                # Check if the points match and the distance is the same, taking into account the direction
+                if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
+                    all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
+                    np.isclose(targetDist, comboDist):
+                    matchEdges.append(comboEdge)
 
-    # Attempt to match the target edges with the candidate edges
-    matches     = []  # List to store matching edges
+            # This should result in exactly 1 match
+            if len(matchEdges) == 1:
+                matches.append((edge, matchEdges.pop()))
 
-    # Iterate over each target edge
-    for targetEdge in targetEdges:
-        targetP    = targetEdge[:2]  # Start and end points (iX, jX)
-        targetDist = targetEdge[2]   # Distance between points
-
-        # Initialize a list to store the matching combo edges for the current target edge
-        matchEdges = []
-
-        # Iterate over comboEdges to find matching edges
-        for comboEdge in comboEdges:
-            comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-            comboDist = comboEdge[2]  # Distance between points
-
-            # Check if the points match and the distance is the same, taking into account the direction
-            if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
-                all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
-               np.isclose(targetDist, comboDist):
-                matchEdges.append(comboEdge)
-
-        # This should result in exactly 1 match
-        if len(matchEdges) > 1:
-            return False
-        elif len(matchEdges) == 1:
-            matches.append((targetEdge, matchEdges.pop()))
-
-    # We only allow 2-1 and 4-1 matches, so in the end we should have exactly 2 or 4 matches
-    match len(matches):
-        case 4:
-            pass
-        case _:
+        # We only allow 2-1 matches, so in the end we should have exactly 1 match
+        if len(matches) != 1:
             return False
 
-    # INFO: MORE SANITY CHECKS, might be unnecessary
-    # Build the remaining points
-    unmatchedPoints  = comboPoints[distances > tol]
+        # Here, we only allow 2-1 matches
+        comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
+        comboEdges  = find_edge_combinations(comboEdges)
 
-    # Check if there are at no single combo points, i.e., the small sides are connected
-    if len(np.unique(unmatchedPoints, axis=0)) < 2:
-        return False
+        # Attempt to match the target edges with the candidate edges
+        matches     = []  # List to store matching edges
 
-    # For each remaining comboPoint, ensure it matches at least one other remaining comboPoint
-    for i, point in enumerate(unmatchedPoints):
-        otherPoints       = np.delete(unmatchedPoints, i, axis=0)
-        distancesToPoints = np.linalg.norm(otherPoints - point, axis=1)
-        # We allow only 2-1 and 4-1 matches, so either 1 or 3 points must match
-        match np.sum(distancesToPoints < tol):
-            case 1 | 3:
-                pass
-            case _:
+        # Iterate over each target edge
+        for targetEdge in targetEdges:
+            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+            targetDist = targetEdge[2]   # Distance between points
+
+            # Initialize a list to store the matching combo edges for the current target edge
+            matchEdges = []
+
+            # Iterate over comboEdges to find matching edges
+            for comboEdge in comboEdges:
+                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                comboDist = comboEdge[2]  # Distance between points
+
+                # Check if the points match and the distance is the same, taking into account the direction
+                if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
+                    all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
+                   np.isclose(targetDist, comboDist):
+                    matchEdges.append(comboEdge)
+
+            # This should result in exactly 1 match
+            if len(matchEdges) > 1:
                 return False
+            elif len(matchEdges) == 1:
+                matches.append((targetEdge, matchEdges.pop()))
+
+        if len(matches) != 2:
+            return False
+
+    # Next, check for 4-1 matches
+    if len(comboSides) == 4:
+        # Check if there is exactly one point that all 4 sides have in common.
+        common_points = set(comboSides[0].corners)
+        matchFound = False
+        for p in common_points:
+            # Check if all 4 sides have the point
+            matchedPoints = 0
+            for side in comboSides[1:]:
+                for p1 in side.corners:
+                    if (all(np.isclose(tp, cp) for tp, cp in zip(mesh.points[p], mesh.points[p1]))):
+                        matchedPoints += 1
+
+            if matchedPoints == 3:
+                matchFound = True
+                break
+
+        if not matchFound:
+            return False
+
+        comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
+        comboEdges  = find_edge_combinations(comboEdges)
+
+        # Attempt to match the target edges with the candidate edges
+        matches     = []  # List to store matching edges
+
+        # Iterate over each target edge
+        for targetEdge in targetEdges:
+            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+            targetDist = targetEdge[2]   # Distance between points
+
+            # Initialize a list to store the matching combo edges for the current target edge
+            matchEdges = []
+
+            # Iterate over comboEdges to find matching edges
+            for comboEdge in comboEdges:
+                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                comboDist = comboEdge[2]  # Distance between points
+
+                # Check if the points match and the distance is the same, taking into account the direction
+                if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
+                    all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
+                   np.isclose(targetDist, comboDist):
+                    matchEdges.append(comboEdge)
+
+            # This should result in exactly 1 match
+            if len(matchEdges) > 1:
+                return False
+            elif len(matchEdges) == 1:
+                matches.append((targetEdge, matchEdges.pop()))
+
+        if len(matches) != 4:
+            return False
 
     # Found a valid match
     return True
@@ -757,9 +821,8 @@ def ConnectMesh() -> None:
         iter    = 0
         maxIter = copy.copy(nInterZoneConnect)
         tol     = mesh_vars.tolInternal
-        # While maxIter should be enough, this results in non-connected mortar sides. We can append a maximum of 4 virtual sides,
-        # so let's set the maxIter to 5 just to be safe.
-        while len(nConnSide) > 1 and iter <= 5*maxIter:
+
+        while len(nConnSide) > 1 and iter <= maxIter:
             # Ensure the loop exits after checking every side
             iter += 1
 
@@ -828,11 +891,9 @@ def ConnectMesh() -> None:
                 # Build the connection, including flip
                 sideIDs   = [sideID, nbSideID]
 
-                # Connect the sides
-                connect_mortar_sides(sideIDs, elems, sides)
-
-                # Update the list
-                nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+                # Connect mortar sides and update the list
+                nConnSide   = connect_mortar_sides(sideIDs, elems, sides, nConnSide)
+                nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
 
             # No connection, attach the side at the end
             else:

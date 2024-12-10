@@ -270,7 +270,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
             if side.sideType < 0:  # Small mortar side
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 1
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = side.flip
             elif side.flip == 0:     # Master side
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
             else:
