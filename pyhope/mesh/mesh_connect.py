@@ -280,6 +280,22 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
     comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
     comboEdges  = find_edge_combinations(comboEdges)
 
+    # Append the original targetEdges
+    comboEdges.extend(targetEdges)
+
+    # Eliminate duplicates based on proximity
+    uniqueEdges = []
+    for edge in comboEdges:
+        p1, p2, _ = edge
+        coord1, coord2 = mesh.points[p1], mesh.points[p2]
+
+        if not any((np.all(np.isclose(coord1, mesh.points[u_p1])) and np.all(np.isclose(coord2, mesh.points[u_p2]))) or
+                   (np.all(np.isclose(coord1, mesh.points[u_p2])) and np.all(np.isclose(coord2, mesh.points[u_p1])))
+                   for u_p1, u_p2, _ in uniqueEdges):
+            uniqueEdges.append(edge)
+
+    comboEdges = uniqueEdges
+
     # Attempt to match the target edges with the candidate edges
     matches     = []  # List to store matching edges
 
@@ -310,7 +326,7 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
     # We only allow 2-1 and 4-1 matches, so in the end we should have exactly 2 or 4 matches
     match len(matches):
-        case 2 | 4:
+        case 4:
             pass
         case _:
             return False
