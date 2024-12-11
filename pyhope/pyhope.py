@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-# import os
+import multiprocessing
 import subprocess
 import sys
 import time
@@ -58,6 +58,9 @@ def main() -> None:
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
     # ------------------------------------------------------
+
+    # Always spawn with "fork" method to inherit the address space of the parent process
+    multiprocessing.set_start_method('fork')
 
     tStart  = time.time()
     process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,

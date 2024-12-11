@@ -286,66 +286,66 @@ convergence:
         # Analyze convergence behavior using a simple python script
         cd ..
         python3 << EOF # Collapsed multi-line command
-        import sys
+      import sys
 
-        # Input file
-        convfile = "convergence.log"
+      # Input file
+      convfile = "convergence.log"
 
-        # Set tolerance bounds: (N+1)+-0.35
-        def compute_expected_range(N):
-            return N + 0.65, N + 1.35
+      # Set tolerance bounds: (N+1)+-0.35
+      def compute_expected_range(N):
+          return N + 0.65, N + 1.35
 
-        # Process the results
-        def process_results(degree, data):
-            min_eoc, max_eoc = compute_expected_range(degree)
-            print(f"Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}])")
-            results = []
-            for idx, (grid, eoc) in enumerate(data[1:]):
-                passed = min_eoc <= eoc <= max_eoc
-                results.append((grid, min_eoc, max_eoc, eoc, "PASS" if passed else ("(PASS)" if idx < len(data) - 2 else "FAIL")))
-            draw_table(results)
-            return all(r[4] == "PASS" for r in results[-1:])
+      # Process the results
+      def process_results(degree, data):
+          min_eoc, max_eoc = compute_expected_range(degree)
+          print(f"Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}])")
+          results = []
+          for idx, (grid, eoc) in enumerate(data[1:]):
+              passed = min_eoc <= eoc <= max_eoc
+              results.append((grid, min_eoc, max_eoc, eoc, "PASS" if passed else ("(PASS)" if idx < len(data) - 2 else "FAIL")))
+          draw_table(results)
+          return all(r[4] == "PASS" for r in results[-1:])
 
-        # Draw the results as a table
-        def draw_table(results):
-            print("\n┌───────┬─────────┬─────────┬─────────┬────────┐")
-            print("│ Mesh  │   min   │   max   │  result │ Passed │")
-            print("├───────┼─────────┼─────────┼─────────┼────────┤")
-            for grid, min_eoc, max_eoc, result, passed in results:
-                pass_col = ( "\033[92m PASS \033[0m" if passed == "PASS" else ("\033[93m(PASS)\033[0m" if passed == "(PASS)" else "\033[91m FAIL \033[0m"))
-                print(f"│ {grid:^5} │ {min_eoc:^7.2f} │ {max_eoc:^7.2f} │ {result:^7.2f} │ {pass_col:^6} │")
-            print("└───────┴─────────┴─────────┴─────────┴────────┘\n")
+      # Draw the results as a table
+      def draw_table(results):
+          print("\n┌───────┬─────────┬─────────┬─────────┬────────┐")
+          print("│ Mesh  │   min   │   max   │  result │ Passed │")
+          print("├───────┼─────────┼─────────┼─────────┼────────┤")
+          for grid, min_eoc, max_eoc, result, passed in results:
+              pass_col = ( "\033[92m PASS \033[0m" if passed == "PASS" else ("\033[93m(PASS)\033[0m" if passed == "(PASS)" else "\033[91m FAIL \033[0m"))
+              print(f"│ {grid:^5} │ {min_eoc:^7.2f} │ {max_eoc:^7.2f} │ {result:^7.2f} │ {pass_col:^6} │")
+          print("└───────┴─────────┴─────────┴─────────┴────────┘\n")
 
-        # Parse the log file
-        try:
-            with open(convfile, "r") as f:
-                lines = f.readlines()
-        except FileNotFoundError:
-            sys.exit(f"Error: File '{convfile}' not found.")
+      # Parse the log file
+      try:
+          with open(convfile, "r") as f:
+              lines = f.readlines()
+      except FileNotFoundError:
+          sys.exit(f"Error: File '{convfile}' not found.")
 
-        # Process the file
-        success, current_degree, current_data = True, None, []
+      # Process the file
+      success, current_degree, current_data = True, None, []
 
-        for line in lines:
-            line = line.strip()
-            # Match polynomial degree header
-            if line.startswith("=== Running Convergence Test") and "N=" in line:
-                if current_degree is not None:
-                    success &= process_results(current_degree, current_data)
-                try:
-                    current_degree = int(line.split("N=")[1].split()[0])
-                except ValueError:
-                    current_degree = None
-                current_data = []
-            # Match grid data rows
-            elif current_degree is not None and "║" in line:
-                try:
-                    grid, eoc = int(line.split("║")[0].strip()), float(line.split("║")[2].strip())
-                    current_data.append((grid, eoc))
-                except ValueError:
-                    pass
+      for line in lines:
+          line = line.strip()
+          # Match polynomial degree header
+          if line.startswith("=== Running Convergence Test") and "N=" in line:
+              if current_degree is not None:
+                  success &= process_results(current_degree, current_data)
+              try:
+                  current_degree = int(line.split("N=")[1].split()[0])
+              except ValueError:
+                  current_degree = None
+              current_data = []
+          # Match grid data rows
+          elif current_degree is not None and "║" in line:
+              try:
+                  grid, eoc = int(line.split("║")[0].strip()), float(line.split("║")[2].strip())
+                  current_data.append((grid, eoc))
+              except ValueError:
+                  pass
 
-        # Final status
-        sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
-        EOF
-        done
+      # Final status
+      sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
+      EOF
+      done

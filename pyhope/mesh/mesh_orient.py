@@ -37,19 +37,21 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.mesh.mesh_common import LINMAP
 # ==================================================================================================================================
 
 
 def check_orientation(ionodes : np.ndarray,
-                      elemType: Union[str, int],
-                      mapLin  : np.ndarray,
-                      iopoints: np.ndarray,
-                      nGeo    : int) -> tuple[bool, Union[None, str]]:
+                      elemType: int,
+                      ) -> tuple[bool, Union[None, str]]:
     # Local imports ----------------------------------------
     from pyhope.mesh.mesh_common import dir_to_nodes, faces
     # ------------------------------------------------------
-    nodes  = ionodes[mapLin]
-    points = iopoints[ionodes[mapLin]]
+    mapLin   = LINMAP(elemType, order=mesh_vars.nGeo)
+    nodes    = ionodes[mapLin]
+    iopoints = mesh_vars.mesh.points
+    points   = iopoints[ionodes[mapLin]]
 
     # Center of element
     cElem = np.mean(points, axis=(0, 1, 2))
@@ -58,7 +60,7 @@ def check_orientation(ionodes : np.ndarray,
     sface   = None
     for face in faces(elemType):
         # Center of face
-        fnodes  = dir_to_nodes(face, elemType, nodes, nGeo)
+        fnodes  = dir_to_nodes(face, elemType, nodes, mesh_vars.nGeo)
         fpoints = iopoints[fnodes]
         # cFace  = fpoints.mean(axis=tuple(range(fpoints.ndim - 1)))
         cFace  = np.mean(fpoints, axis=(0, 1))
@@ -83,11 +85,10 @@ def check_orientation(ionodes : np.ndarray,
 
 
 def process_chunk(chunk) -> np.ndarray:
-    """Process a chunk of elements by checking surface normal orientation."""
-
-    chunk_results    = np.empty(len(chunk), dtype=object)
-    chunk_results[:] = [(check_orientation(ionodes, elemType, mapLin, iopoints, nGeo), iElem)
-                        for iElem, ionodes, elemType, mapLin, iopoints, nGeo in chunk]
+    """Process a chunk of elements by checking surface normal orientation
+    """
+    chunk_results = np.array([(check_orientation(ionodes, elemType), iElem)
+                               for iElem, ionodes, elemType in chunk], dtype=object)
     return chunk_results
 
 
@@ -95,7 +96,6 @@ def OrientMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import LINMAP
     from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
     from pyhope.readintools.readintools import GetLogical
@@ -123,18 +123,16 @@ def OrientMesh() -> None:
 
         if isinstance(elemType, str):
             elemType = mesh_vars.ELEMTYPE.name[elemType]
-        mapLin = LINMAP(elemType, order=mesh_vars.nGeo)
 
         # Prepare elements for parallel processing
         if np_mtp > 0:
-            tasks = [(iElem, ioelems[iElem - nElems], elemType, mapLin, mesh_vars.mesh.points, mesh_vars.nGeo)
+            tasks = [(iElem, ioelems[iElem - nElems], elemType)
                      for iElem in range(nElems, nElems + nIOElems)]
             # Run in parallel with a chunk size
             res   = run_in_parallel(process_chunk, tasks, chunk_size=10)
         else:
-            res   = np.empty(nIOElems, dtype=object)
-            res[:] = [(check_orientation(ioelems[iElem - nElems], elemType, mapLin, mesh_vars.mesh.points, mesh_vars.nGeo), iElem)
-                      for iElem in range(nElems, nElems + nIOElems)]
+            res   = np.array([(check_orientation(ioelems[iElem - nElems], elemType), iElem)
+                              for iElem in range(nElems, nElems + nIOElems)], dtype=object)
 
         if not np.all([success for (success, _), _ in res]):
             failed_elems = [(iElem + 1, face) for (success, face), iElem in res if not success]

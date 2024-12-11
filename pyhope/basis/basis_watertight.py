@@ -34,6 +34,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
 # ==================================================================================================================================
 
 
@@ -68,15 +69,17 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, wGP: np.ndarr
 
 
 def check_sides(elem,
-                points   : np.ndarray,
+                # points   : np.ndarray,
                 VdmEqToGP: np.ndarray,
                 DGP      : np.ndarray,
                 wGP      : np.ndarray,
-                sides    : list,
-                tolerance: float) -> list:
+                # sides    : list
+                ) -> list:
     # Local imports ----------------------------------------
     # ------------------------------------------------------
     results = []
+    points  = mesh_vars.mesh.points
+    sides   = mesh_vars.sides
 
     for SideID in elem.sides:
         # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
@@ -105,7 +108,7 @@ def check_sides(elem,
             mortarType = abs(side.connection)
             nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
             nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
-            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * tolerance
+            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
             # checked[SideID] = True
 
             # Mortar sides are the following virtual sides
@@ -130,7 +133,7 @@ def check_sides(elem,
 
             nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
             nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
-            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * tolerance
+            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
             # checked[SideID] = True
 
             # Connected side
@@ -151,7 +154,7 @@ def process_chunk(chunk) -> np.ndarray:
     """Process a chunk of elements by checking surface normal orientation
     """
     chunk_results    = np.empty(len(chunk), dtype=object)
-    # elem, points, VdmEqToGP, DGP, wGP, sides, tolExternal = elem_data
+    # elem, VdmEqToGP, DGP, wGP = elem_data
     chunk_results[:] = [check_sides(*elem_data) for elem_data in chunk]
     return chunk_results
 
@@ -193,18 +196,17 @@ def CheckWatertight() -> None:
     elems     = mesh_vars.elems
     sides     = mesh_vars.sides
     points    = mesh_vars.mesh.points
-    tolerance = mesh_vars.tolExternal
     # checked = np.zeros((len(sides)), dtype=bool)
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks = [(elem, points, VdmEqToGP, DGP, wGP, sides, tolerance)
-                 for elem in elems]
+        tasks  = [(elem, VdmEqToGP, DGP, wGP)
+                  for elem in elems]
         # Run in parallel with a chunk size
-        res   = run_in_parallel(process_chunk, tasks, chunk_size=10)
+        res    = run_in_parallel(process_chunk, tasks, chunk_size=10)
     else:
-        res   = np.empty(len(elems), dtype=object)
-        res[:] = [check_sides(elem, points, VdmEqToGP, DGP, wGP, sides, tolerance) for elem in elems]
+        res    = np.empty(len(elems), dtype=object)
+        res[:] = [check_sides(elem, VdmEqToGP, DGP, wGP) for elem in elems]
 
     for r in res:
         for result in r:
