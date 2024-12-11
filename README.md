@@ -68,21 +68,38 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │                       doSortIJK │ False                           │ DEFAULT │
 ├────
 ├── Sorting elements along space-filling curve
+├────
+├── Eliminating duplicate points
+├────
+├── Checking if surface normal vectors point outwards
+├────
+│             CheckSurfaceNormals │ True                            │ DEFAULT │
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s) 
 ├─────────────────────────────────────────────
 │ CONNECT MESH...
+├────
+│               doPeriodicCorrect │ True                            │ DEFAULT │
+│                       doMortars │ True                            │ DEFAULT │
 ├─────────────────────────────────────────────
 ├────
-│  Number of sides          :         3072
-│  Number of inner sides    :         2688
-│  Number of boundary sides :          384
-│  Number of periodic sides :            0
+│  Number of sides                :         3072
+│  Number of inner sides          :         2688
+│  Number of mortar sides (big)   :            0
+│  Number of mortar sides (small) :            0
+│  Number of boundary sides       :          384
+│  Number of periodic sides       :            0
 ├────
 │ CONNECT MESH DONE!
+├─────────────────────────────────────────────
+│ CHECK WATERTIGHTNESS...
+├────
+│             CheckWatertightness │ True                            │ DEFAULT │
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s) 
 ├─────────────────────────────────────────────
 │ CHECK JACOBIANS...
 ├────
 │              CheckElemJacobians │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (30004.72/s)
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s) 
 ├────
 │ Scaled Jacobians
 ├─────────────────
@@ -107,6 +124,6 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├────
 │ OUTPUT MESH DONE!
 ┢━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┃ PyHOPE completed in [0.18 sec]
+┃ PyHOPE completed in [0.25 sec]
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
