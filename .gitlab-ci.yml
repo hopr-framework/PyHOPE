@@ -251,100 +251,101 @@ convergence:
     - FLEXIDIR=$(pwd)
     - cd ..
   script:
-    # Generate Meshes
-    - rm -rf convergence_test
-    - mkdir convergence_test
-    - cd convergence_test
-    - cp ../tutorials/5-02-convtest_flipped/parameter_FLIPPED_template_pyhope.ini .
-    - cp ../tutorials/5-02-convtest_flipped/parameter_flexi.ini .
-    # Generate Meshes
-    - meshres=("001" "002" "004" "008")
-    - template_file="parameter_FLIPPED_template_pyhope.ini"
+    - directories=("5-02-convtest_flipped" "5-03-convtest_mortar") # List of directories to process
     - | # Literal YAML multiline block scalar indicator
-      for res in "${meshres[@]}"; do
-        # Calculate nElem2 as half the integer res of nElem
-        nElem2=$((10#$res / 2)) # Use 10#$res to interpret value as a base-10 integer
-        # Create a temporary parameter file
-        temp_file=$(mktemp)
-        # Replace placeholders in the template and save to the temporary file
-        sed -e "s/<nElem>/$res/g" -e "s/<nElem2>/$nElem2/g" "$template_file" > "$temp_file"
-        # Build the mesh
-        pyhope "$temp_file"
-        # Clean up the temporary file
-        rm "$temp_file"
-      done
-    # Call convergence script
-    - echo "=== Running Convergence Test  N=1 ===" | tee ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 1 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    - echo "=== Running Convergence Test  N=2 ===" | tee -a ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 2 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    - echo "=== Running Convergence Test  N=3 ===" | tee -a ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 3 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    - echo "=== Running Convergence Test  N=4 ===" | tee -a ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 4 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    # Analyze convergence behavior using a simple python script
-    - cd ..
-    - |
-      python3 << 'EOF' # collapsed multi-line command
-      import sys
+      for dir in "${directories[@]}"; do
+        echo "=== Processing directory: $dir ==="
+        rm -rf convergence_test || true
+        mkdir convergence_test
+        cd convergence_test
+        cp "../tutorials/$dir/parameter_template_pyhope.ini" .
+        cp "../tutorials/$dir/parameter_flexi.ini" .
+        # Generate Meshes
+        meshres=("001" "002" "004" "008")
+        template_file="parameter_template_pyhope.ini"
+        for res in "${meshres[@]}"; do
+          # Calculate nElem2 as half the integer res of nElem
+          nElem2=$((10#$res / 2)) # Interpret value as a base-10 integer
+          # Create a temporary parameter file
+          temp_file=$(mktemp)
+          # Replace placeholders in the template and save to the temporary file
+          sed -e "s/<nElem>/$res/g" -e "s/<nElem2>/$nElem2/g" "$template_file" > "$temp_file"
+          # Build the mesh
+          pyhope "$temp_file"
+          # Clean up the temporary file
+          rm "$temp_file"
+        done
+        # Clean-up the log file
+        rm -f convergence.log
+        # Call convergence script
+        for N in {1..4}; do
+          echo ""
+          echo "=== Running Convergence Test  N=$N ===" | tee -a ../convergence.log
+          python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+        done
+        # Analyze convergence behavior using a simple python script
+        cd ..
+        python3 << EOF # Collapsed multi-line command
+        import sys
 
-      # Input file
-      convfile = "convergence.log"
+        # Input file
+        convfile = "convergence.log"
 
-      # Set tolerance bounds: (N+1)+-0.35
-      def compute_expected_range(N):
-          return N + 0.65, N + 1.35
+        # Set tolerance bounds: (N+1)+-0.35
+        def compute_expected_range(N):
+            return N + 0.65, N + 1.35
 
-      # Process the results
-      def process_results(degree, data):
-          min_eoc, max_eoc = compute_expected_range(degree)
-          print(f"Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}])")
-          results = []
-          for idx, (grid, eoc) in enumerate(data[1:]):
-              passed = min_eoc <= eoc <= max_eoc
-              results.append((grid, min_eoc, max_eoc, eoc, "PASS" if passed else ("(PASS)" if idx < len(data) - 2 else "FAIL")))
-          draw_table(results)
-          return all(r[4] == "PASS" for r in results[-1:])
+        # Process the results
+        def process_results(degree, data):
+            min_eoc, max_eoc = compute_expected_range(degree)
+            print(f"Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}])")
+            results = []
+            for idx, (grid, eoc) in enumerate(data[1:]):
+                passed = min_eoc <= eoc <= max_eoc
+                results.append((grid, min_eoc, max_eoc, eoc, "PASS" if passed else ("(PASS)" if idx < len(data) - 2 else "FAIL")))
+            draw_table(results)
+            return all(r[4] == "PASS" for r in results[-1:])
 
-      # Draw the results as a table
-      def draw_table(results):
-          print("\n┌───────┬─────────┬─────────┬─────────┬────────┐")
-          print("│ Mesh  │   min   │   max   │  result │ Passed │")
-          print("├───────┼─────────┼─────────┼─────────┼────────┤")
-          for grid, min_eoc, max_eoc, result, passed in results:
-              pass_col = ( "\033[92m PASS \033[0m" if passed == "PASS" else ("\033[93m(PASS)\033[0m" if passed == "(PASS)" else "\033[91m FAIL \033[0m"))
-              print(f"│ {grid:^5} │ {min_eoc:^7.2f} │ {max_eoc:^7.2f} │ {result:^7.2f} │ {pass_col:^6} │")
-          print("└───────┴─────────┴─────────┴─────────┴────────┘\n")
+        # Draw the results as a table
+        def draw_table(results):
+            print("\n┌───────┬─────────┬─────────┬─────────┬────────┐")
+            print("│ Mesh  │   min   │   max   │  result │ Passed │")
+            print("├───────┼─────────┼─────────┼─────────┼────────┤")
+            for grid, min_eoc, max_eoc, result, passed in results:
+                pass_col = ( "\033[92m PASS \033[0m" if passed == "PASS" else ("\033[93m(PASS)\033[0m" if passed == "(PASS)" else "\033[91m FAIL \033[0m"))
+                print(f"│ {grid:^5} │ {min_eoc:^7.2f} │ {max_eoc:^7.2f} │ {result:^7.2f} │ {pass_col:^6} │")
+            print("└───────┴─────────┴─────────┴─────────┴────────┘\n")
 
-      # Parse the log file
-      try:
-          with open(convfile, "r") as f:
-              lines = f.readlines()
-      except FileNotFoundError:
-          sys.exit(f"Error: File '{convfile}' not found.")
+        # Parse the log file
+        try:
+            with open(convfile, "r") as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            sys.exit(f"Error: File '{convfile}' not found.")
 
-      # Process the file
-      success, current_degree, current_data = True, None, []
+        # Process the file
+        success, current_degree, current_data = True, None, []
 
-      for line in lines:
-          line = line.strip()
-          # Match polynomial degree header
-          if line.startswith("=== Running Convergence Test") and "N=" in line:
-              if current_degree is not None:
-                  success &= process_results(current_degree, current_data)
-              try:
-                  current_degree = int(line.split("N=")[1].split()[0])
-              except ValueError:
-                  current_degree = None
-              current_data = []
-          # Match grid data rows
-          elif current_degree is not None and "║" in line:
-              try:
-                  grid, eoc = int(line.split("║")[0].strip()), float(line.split("║")[2].strip())
-                  current_data.append((grid, eoc))
-              except ValueError:
-                  pass
+        for line in lines:
+            line = line.strip()
+            # Match polynomial degree header
+            if line.startswith("=== Running Convergence Test") and "N=" in line:
+                if current_degree is not None:
+                    success &= process_results(current_degree, current_data)
+                try:
+                    current_degree = int(line.split("N=")[1].split()[0])
+                except ValueError:
+                    current_degree = None
+                current_data = []
+            # Match grid data rows
+            elif current_degree is not None and "║" in line:
+                try:
+                    grid, eoc = int(line.split("║")[0].strip()), float(line.split("║")[2].strip())
+                    current_data.append((grid, eoc))
+                except ValueError:
+                    pass
 
-      # Final status
-      sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
-      EOF
+        # Final status
+        sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
+        EOF
+        done

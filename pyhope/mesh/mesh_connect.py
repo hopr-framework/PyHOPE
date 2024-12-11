@@ -553,7 +553,7 @@ def ConnectMesh() -> None:
     # Loop over all sides and try to connect
     iter    = 0
     maxIter = copy.copy(len(nConnSide))
-    while len(nConnSide) > 1 and iter <= maxIter:
+    while len(nConnSide) > 1 and iter <= 2*maxIter:
         # Ensure the loop exits after checking every side
         iter += 1
 
