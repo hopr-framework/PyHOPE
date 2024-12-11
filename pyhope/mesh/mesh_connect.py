@@ -104,6 +104,7 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_vars import SIDE
+    from pyhope.mesh.mesh_common import type_to_mortar_flip
     # ------------------------------------------------------
 
     # Get the master and slave sides
@@ -171,39 +172,24 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
             if sides[val].connection is not None and sides[val].connection > masterSide.sideID:
                 sides[val].connection += nMortars
 
+    flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
+
+    match mortarType:
+        case 1:  # 4-1 mortar
+            mortarCorners = [0, 1, 3, 2]  # Prepare for non-quad mortars
+        case 2:  # 2-1 mortar, split in eta
+            mortarCorners = [0, 3]  # Prepare for non-quad mortars
+        case 3:  # 2-1 mortar, split in xi
+            mortarCorners = [0, 2]  # Prepare for non-quad mortars
+
     # Insert the virtual sides
     for key, val in enumerate(slaveSides):
         tol        = mesh_vars.tolInternal
         points     = mesh_vars.mesh.points[masterSide.corners]
         nbcorners  = mesh_vars.mesh.points[val.corners]
-        match mortarType:
-            case 1:  # 4-1 mortar
-                mortarCorners = [0, 1, 3, 2]  # Prepare for non-quad mortars
-                flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
-                # Correct for the corner offset
-                mortarLength  = [0, 1, 3, 2]  # Prepare for non-quad mortars
-                # flipID = (flipID - key + 1) % 4
-                flipID = (flipID - mortarLength[key] + 4)
-                if flipID > 4:
-                    flipID = flipID % 4
-            case 2:  # 2-1 mortar, split in eta
-                mortarCorners = [0, -1]  # Prepare for non-quad mortars
-                flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
-                # Correct for the corner offset
-                mortarLength  = [0, 1]
-                # flipID = (flipID - mortarLength[key] + 4) % 4
-                flipID = (flipID - mortarLength[key] + 4)
-                if flipID > 4:
-                    flipID = flipID % 4
-            case 3:  # 2-1 mortar, split in xi
-                mortarCorners = [0, -2]  # Prepare for non-quad mortars
-                flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
-                # Correct for the corner offset
-                mortarLength  = [0, 2]
-                # flipID = (flipID - mortarLength[key] + 4) % 4
-                flipID = (flipID - mortarLength[key] + 4)
-                if flipID > 4:
-                    flipID = flipID % 4
+
+        flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
+        flipID = flipMap.get(mortarCorners[key], {}).get(flipID, flipID)
         val.update(flip=flipID)
 
         # Insert the virtual sides
@@ -233,7 +219,7 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
         for s in nConnSide:
             if s.sideID == val.sideID:
                 nConnSide.remove(s)
-                break            # Update the connections
+                break
 
     return nConnSide
 
@@ -309,7 +295,7 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
             for comboEdge in sideEdges[1]:
                 comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboDist = comboEdge[2]  # Distance between points
+                comboDist = comboEdge[2]   # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
                 if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
@@ -343,7 +329,7 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
             # Iterate over comboEdges to find matching edges
             for comboEdge in comboEdges:
                 comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboDist = comboEdge[2]  # Distance between points
+                comboDist = comboEdge[2]   # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
                 if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or

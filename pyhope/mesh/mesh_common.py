@@ -201,6 +201,32 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+def type_to_mortar_flip(elemType: Union[str, int]) -> dict:
+    """ Returns the flip map for a given element type
+    """
+
+    flipID_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: { 0: {1: 1, 2: 2, 3: 3, 4: 4},
+                        1: {1: 2, 4: 1, 3: 4, 2: 3},
+                        2: {3: 1, 4: 2, 1: 3, 2: 4},
+                        3: {2: 1, 3: 2, 4: 3, 1: 4}}
+                }
+
+    if isinstance(elemType, str):
+        elemType = mesh_vars.ELEMTYPE.name[elemType]
+
+    if elemType % 100 not in flipID_map:
+        raise ValueError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
+
+    try:
+        return flipID_map[elemType % 100]
+    except KeyError:
+        raise KeyError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
+
+
 def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
