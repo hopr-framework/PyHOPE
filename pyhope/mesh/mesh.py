@@ -55,6 +55,10 @@ def DefineMesh() -> None:
     CreateRealArray('Corner',         24,  multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
     CreateIntArray( 'nElems',          3,  multiple=True, help='Number of elements in each direction')
+    CreateRealArray('Factor',          3,  multiple=True, help='Stretching factor of zone for geometric stretching for '
+                                                                                     'each spatial direction.')  # noqa: E127
+    CreateRealArray('l0',              3,  multiple=True, help='Ratio between the smallest and largest element per spatial '
+                                                                                                   'direction')  # noqa: E127
     CreateIntFromString('ElemType'      ,  multiple=True, default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
         CreateIntOption('ElemType', number=val, name=key)
