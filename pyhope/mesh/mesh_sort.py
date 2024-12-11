@@ -45,7 +45,7 @@ def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.
     """ Compute the integer discretization in each direction
     """
     disc = np.round((coords - xmin) * spacing)
-    return disc
+    return np.asarray(disc)
 
 
 def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, np.ndarray]:
@@ -91,16 +91,16 @@ def SortMeshBySFC() -> None:
     # We only need the volume cells
     mesh   = mesh_vars.mesh
     nElems = count_elems(mesh)
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+    for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
-        for cell in ioelems:
-            for point in mesh_vars.mesh.points[cell]:
-                xmin = np.minimum(xmin, point)
-                xmax = np.maximum(xmax, point)
+        # Calculate the bounding box
+        selected_points = mesh_vars.mesh.points[ioelems].reshape(-1, mesh_vars.mesh.points.shape[-1])
+        xmin = np.min(selected_points, axis=0)
+        xmax = np.max(selected_points, axis=0)
 
     # Calculate the element bary centers
     elemBary = calc_elem_bary(mesh)
@@ -111,14 +111,14 @@ def SortMeshBySFC() -> None:
 
     # Discretize the element positions along according to the chosen resolution
     elemDisc = [np.ndarray(3)] * nElems
-    for iType, elemType in enumerate(mesh.cells_dict.keys()):
+    for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
 
-        for elemID, cell in enumerate(ioelems):
+        for elemID in range(len(ioelems)):
             elemDisc[elemID] = Coords2Int(elemBary[elemID], spacing, xmin)
 
     # Generate the space-filling curve and order elements along it
@@ -130,10 +130,11 @@ def SortMeshBySFC() -> None:
     cells    = mesh_vars.mesh.cells
     cellsets = mesh_vars.mesh.cell_sets
 
-    for iCell, cellType in enumerate(cells):
+    for cellType in cells:
         if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
-            cellType.data = np.asarray([x.tolist() for _, x in sorted(zip(distances, cellType.data))])
+            sorted_indices = np.argsort(np.asarray(distances))
+            cellType.data = cellType.data[sorted_indices]
 
     # Overwrite the old mesh
     mesh   = meshio.Mesh(points=points,
@@ -146,8 +147,8 @@ def SortMeshBySFC() -> None:
 def SortMeshByIJK():
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
     import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along I,J,K direction')
@@ -169,7 +170,6 @@ def SortMeshByIJK():
     intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(int)
 
     # Initialize lists
-    # IDList    = np.arange(nElems)
     nElemsIJK = np.zeros(3, dtype=int)
     structDir = np.zeros(3, dtype=bool)
 
@@ -181,7 +181,6 @@ def SortMeshByIJK():
         # Sort elements by coordinate directions
         intList = intCoords[:, dir]
         sortedIndices = np.argsort(intList)
-        # IDListSorted  = IDList[ sortedIndices]
         intListSorted = intList[sortedIndices]
 
         # Determine structured directions
@@ -233,16 +232,6 @@ def SortMeshByIJK():
     for iElem in range(nElems):
         intList[iElem] = (intCoords[iElem, 2] * 10000 + intCoords[iElem, 1]) * 10000 + intCoords[iElem, 0]
 
-    # sortedIndices = np.argsort(intList)
-    # IDListSorted = IDList[sortedIndices]
-    #
-    # # Set the ijk indices
-    # iElem = 0
-    # for kk in range(nElemsIJK[2]):
-    #     for jj in range(nElemsIJK[1]):
-    #         for ii in range(nElemsIJK[0]):
-    #             iElem += 1
-    #             elemIndices[IDListSorted[iElem - 1]] = [ii + 1, jj + 1, kk + 1]
     # Create a new mesh with only volume elements and sorted along SFC
     points   = mesh_vars.mesh.points
     cells    = mesh_vars.mesh.cells
