@@ -297,32 +297,24 @@ def count_elems(mesh: meshio.Mesh) -> int:
     return nElems
 
 
-def centeroidnp(coords: np.ndarray) -> np.ndarray:
-    """ Compute the centroid (barycenter) of a set of coordinates
-    """
-    length = coords.shape[0]
-    sum_x  = np.sum(coords[:, 0])
-    sum_y  = np.sum(coords[:, 1])
-    sum_z  = np.sum(coords[:, 2])
-    return np.array([sum_x/length, sum_y/length, sum_z/length])
-
-
 def calc_elem_bary(mesh: meshio.Mesh) -> list:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     nElems   = count_elems(mesh)
     elemBary = [np.ndarray(3)] * nElems
-    for elemType in mesh.cells_dict.keys():
-        # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
-            continue
 
-        ioelems = mesh.get_cells_type(elemType)
+    # Only consider three-dimensional types
+    elem_cells = []
+    for elemType in mesh.cells_dict:
+        if any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+            elem_cells.append(mesh.get_cells_type(elemType))
 
-        for elemID, cell in enumerate(ioelems):
-            elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
-    return elemBary
+    # Flatten the list of cells (concatenate all cells into one array)
+    all_cells = np.concatenate(elem_cells, axis=0)
+
+    # Calculate the centroid (mean of coordinates) for all cells at once
+    return np.mean(mesh_vars.mesh.points[all_cells], axis=1)
 
 
 def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
