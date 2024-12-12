@@ -514,17 +514,22 @@ def periodic_update(sideIDs: list[int], vv: dict) -> None:
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_common import face_to_nodes
     # ------------------------------------------------------
 
-    sides   = [mesh_vars.sides[s] for s in sideIDs]
-    # Build a k-dimensional tree of all points on the opposing side
-    Points   = mesh_vars.mesh.points[sides[0].nodes]
+    sides    = [mesh_vars.sides[s] for s in sideIDs]
+    elems    = [mesh_vars.elems[s.elemID] for s in sides]
+    nodes    = np.array([elems[0].nodes[s] for s in face_to_nodes(sides[0].face, elems[0].type, mesh_vars.nGeo)])
+    Points   = mesh_vars.mesh.points[nodes]
     PShape   = Points.shape
     Points   = np.reshape(Points  , (Points  .shape[0]*Points  .shape[1], Points  .shape[2]))
 
-    nbPoints = mesh_vars.mesh.points[sides[1].nodes]
+    nbNodes  = np.array([elems[1].nodes[s] for s in face_to_nodes(sides[1].face, elems[1].type, mesh_vars.nGeo)])
+    nbPoints = mesh_vars.mesh.points[nbNodes]
     nbPShape = nbPoints.shape
     nbPoints = np.reshape(nbPoints, (nbPoints.shape[0]*nbPoints.shape[1], nbPoints.shape[2]))
+
+    # Build a k-dimensional tree of all points on the opposing side
     stree    = spatial.KDTree(nbPoints)
 
     for iPoint, point in enumerate(Points):
@@ -535,12 +540,12 @@ def periodic_update(sideIDs: list[int], vv: dict) -> None:
 
         # Calculate the 2D array index
         PointAr   = np.array([np.floor(iPoint     /   PShape[0]),  iPoint    %   PShape[0]], dtype=int)
-        PointID   = sides[0].nodes[  PointAr[0],   PointAr[1]]
+        PointID   = nodes[    PointAr[0],   PointAr[1]]
         nbPointAr = np.array([np.floor(trPoint[1] / nbPShape[0]), trPoint[1] % nbPShape[0]], dtype=int)
-        nbPointID = sides[1].nodes[nbPointAr[0], nbPointAr[1]]
+        nbPointID = nbNodes[nbPointAr[0], nbPointAr[1]]
 
         # Center between both points
-        center = 0.5 * (point + mesh_vars.mesh.points[sides[1].nodes[nbPointAr[0], nbPointAr[1]]])
+        center = 0.5 * (point + mesh_vars.mesh.points[nbNodes[nbPointAr[0], nbPointAr[1]]])
 
         lowerP = copy.copy(center)
         upperP = copy.copy(center)

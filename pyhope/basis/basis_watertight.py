@@ -35,6 +35,7 @@ import numpy as np
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
 
 
@@ -79,7 +80,9 @@ def check_sides(elem,
     # ------------------------------------------------------
     results = []
     points  = mesh_vars.mesh.points
+    elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+    nGeo    = mesh_vars.nGeo
 
     for SideID in elem.sides:
         # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
@@ -106,8 +109,8 @@ def check_sides(elem,
         # Big mortar side
         elif side.connection < 0:
             mortarType = abs(side.connection)
-            nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
-            nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
+            nodes   = np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, nGeo)])
+            nSurf   = eval_nsurf(np.transpose(points[nodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
             tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
             # checked[SideID] = True
 
@@ -116,8 +119,9 @@ def check_sides(elem,
             nnbSurf = np.full((3,), 0., dtype=float)
             for mortarSide in range(nMortar):
                 # Get the matching side
-                nbside   = sides[SideID + mortarSide + 1].connection
-                nbnodes  = sides[nbside].nodes
+                nbside   = sides[sides[SideID + mortarSide + 1].connection]
+                nbelem   = elems[nbside.elemID]
+                nbnodes  = np.array([nbelem.nodes[s] for s in face_to_nodes(nbside.face, nbelem.type, nGeo)])
                 nnbSurf += eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
                 # checked[nbside] = True
 
@@ -131,15 +135,16 @@ def check_sides(elem,
             if side.locMortar is not None:
                 continue
 
-            nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
-            nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
+            nodes   = np.array([elem.nodes[s] for s in face_to_nodes(  side.face,   elem.type, nGeo)])
+            nSurf   = eval_nsurf(np.transpose(points[  nodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
             tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
             # checked[SideID] = True
 
             # Connected side
-            nbside  = side.connection
-            nbnodes = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
-            nnbSurf = eval_nsurf(nbnodes, VdmEqToGP, DGP, wGP)
+            nbside  = sides[side.connection]
+            nbelem  = elems[nbside.elemID]
+            nbnodes = np.array([nbelem.nodes[s] for s in face_to_nodes(nbside.face, nbelem.type, nGeo)])
+            nnbSurf = eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
             # checked[nbside] = True
 
             # Check if side normals are within tolerance
@@ -222,8 +227,11 @@ def CheckWatertight() -> None:
                 nSurfErr = result[4]
                 tol      = result[5]
 
-                nodes    = np.transpose(points[side.nodes]         , axes=(2, 0, 1))
-                nnbodes  = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
+                nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
+                nodes    = np.transpose(points[nodes]         , axes=(2, 0, 1))
+                nbelem   = elems[sides[nbside].elemID]
+                nbnodes  = np.transpose(np.array([nbelem.nodes[s] for s in face_to_nodes(side.face, nbelem.type, mesh_vars.nGeo)]))
+                nnbodes  = np.transpose(points[nbnodes], axes=(2, 0, 1))
 
                 strLen = max(len(str(side.sideID+1)), len(str(nbside)))
                 hopout.warning('Watertightness check failed!')

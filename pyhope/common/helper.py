@@ -38,6 +38,7 @@ import time
 import pyhope.output.output as hopout
 # ==================================================================================================================================
 
+
 def time_function(func, *args, **kwargs):
     """
     A helper function to measure the execution time of an arbitrary function.
@@ -55,6 +56,7 @@ def time_function(func, *args, **kwargs):
     end_time = time.time()
 
     elapsed_time = end_time - start_time
-    hopout.info(hopout.Colors.BANNERA + f"Function {func.__name__} required {elapsed_time:.6f} seconds to complete." + hopout.Colors.END)
+    hopout.info(hopout.Colors.BANNERA + f"Function {func.__name__} required {elapsed_time:.6f} seconds to complete."
+                + hopout.Colors.END)
 
     return result
