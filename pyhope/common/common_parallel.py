@@ -81,5 +81,3 @@ def run_in_parallel(process_chunk, elems, chunk_size=10):
     # Wait for the progress bar thread to finish
     progress_thread.join()
     return results
-
-

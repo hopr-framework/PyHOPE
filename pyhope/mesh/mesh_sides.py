@@ -44,7 +44,11 @@ def GenerateSides() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import faces, face_to_cgns, face_to_nodes
     from pyhope.mesh.mesh_vars import ELEM, SIDE
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
+
+    hopout.sep()
+    hopout.routine('Generating sides')
 
     mesh   = mesh_vars.mesh
     nElems = 0
