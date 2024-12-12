@@ -272,7 +272,8 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
     # Check if exactly one combo point matches each target point
     for point in targetPoints:
-        if np.any(np.isclose(comboPoints, point, atol=tol)):
+        # if not np.allclose(comboPoints, point, atol=tol, rtol=0):
+        if np.sum(np.linalg.norm(comboPoints - point, axis=1) <= tol) != 1:
             return False
 
     # Build the target edges
@@ -562,6 +563,7 @@ def ConnectMesh() -> None:
     from pyhope.common.common import find_index
     from pyhope.io.io_vars import MeshFormat
     from pyhope.readintools.readintools import GetLogical
+    from pyhope.mesh.mesh_common import face_to_nodes
     # ------------------------------------------------------
 
     match io_vars.outputformat:
@@ -895,7 +897,9 @@ def ConnectMesh() -> None:
 
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
-            nodes = np.transpose(mesh_vars.mesh.points[side.nodes]         , axes=(2, 0, 1))
+            elem     = elems[side.elemID]
+            nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
+            nodes    = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
