@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import textwrap
-from typing import Union, Optional
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ class Colors:
     END = '\033[0m'
 
 
-def header(program: str, version: str, commit: Optional[str], length: int = STD_LENGTH) -> None:
+def header(program: str, version: str, commit: Union[None, str], length: int = STD_LENGTH) -> None:
     """ Print big header with program name and logo to console.
 
         Args:

@@ -25,10 +25,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
+# import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
-import numpy as np
+# import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -85,173 +85,173 @@ def ElemTypes(num: int) -> dict[str, str]:
     return types[num]
 
 
-def spiral_matrix(n: int) -> np.ndarray:
-    """ Print a spiral matrix of order n
-        > https://rosettacode.org/wiki/Spiral_matrix#Simple_solution
-    """
-    m = [[0] * n for _ in range(n)]
-    dx, dy  = [0, 1, 0, -1], [1, 0, -1, 0]
-    x, y, c =  0, -1, 1
-    for i in range(n + n - 1):
-        for j in range((n + n - i) // 2):
-            x += dx[i % 4]
-            y += dy[i % 4]
-            m[x][y] = c
-            c += 1
-    return np.array(m)
-
-
-def edgePointCGNS(order: int, edge: int, node: int) -> np.ndarray:
-    match edge:
-        case 0:  # z- / base
-            return np.array([node      , 0         ], dtype=int)
-        case 1:  # y+ / base
-            return np.array([order     , node      ], dtype=int)
-        case 2:  # z+ / base
-            return np.array([order-node, order     ], dtype=int)
-        case 3:  # y- / base
-            return np.array([0         , order-node], dtype=int)
-        case _:
-            sys.exit(1)
-
-
-def genHEXMAPCGNS(order: int) -> None:
-    """ CGNS -> IJK ordering for high-order hexahedrons
-        > Losely based on [Gmsh] "generatePointsHexCGNS"
-    """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
-    map = np.zeros((order, order, order), dtype=int)
-
-    if order == 1:
-        map[0, 0, 0] = 0
-        mesh_vars.HEXMAP = map
-        return None
-
-    # Principal vertices
-    map[0      , 0      , 0      ] = 1
-    map[order-1, 0      , 0      ] = 2
-    map[order-1, order-1, 0      ] = 3
-    map[0      , order-1, 0      ] = 4
-    map[0      , 0      , order-1] = 5
-    map[order-1, 0      , order-1] = 6
-    map[order-1, order-1, order-1] = 7
-    map[0      , order-1, order-1] = 8
-
-    if order == 2:
-        # Python indexing, 1 -> 0
-        map -= 1
-        # Reshape into 1D array, tensor-product style
-        tensor = []
-        for k in range(order):
-            for j in range(order):
-                for i in range(order):
-                    tensor.append(int(map[i, j, k]))
-
-        mesh_vars.HEXMAP = tensor
-        return None
-
-    # Internal points of base quadrangle edges (x-)
-    count = 8
-    for iFace in range(4):
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple, base quadrangle -> z = 0
-            count += 1
-            edge  = edgePointCGNS(order-1, iFace, iNode)
-            index = (int(edge[0]), int(edge[1]), 0)
-            map[index] = count
-
-    # Internal points of mounting edges
-    for iFace in range(4):
-        edge  = edgePointCGNS(order-1, (iFace+3) % 4, order-1)
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple, mounting edges -> z ascending
-            count += 1
-            index = (int(edge[0]), int(edge[1]), iNode)
-            map[index] = count
-
-    # Internal points of top quadrangle edges
-    for iFace in range(4):
-        for iNode in range(1, order-1):
-            # Assemble mapping to tuple, top  quadrangle -> z = order
-            count += 1
-            edge  = edgePointCGNS(order-1, iFace, iNode)
-            index = (int(edge[0]), int(edge[1]), order-1)
-            map[index] = count
-
-    # Internal points of base quadrangle
-    k    = 0
-    # Fill in spirals
-    face = spiral_matrix(order-2)
-    # Fill the map
-    for j in range(order-2):
-        for i in range(order-2):
-            index = (i+1  , j+1  , k    )
-            map[index] = count + face[j, i]
-    count += (order-2)**2
-
-    # Internal points of upstanding faces
-    # > y- face
-    k    = 0
-    # Fill the map
-    for j in range(order-2):
-        for i in range(order-2):
-            index = (i+1  , k    , j+1  )
-            map[index] = count + face[j, i]
-    count += (order-2)**2
-
-    # > x+ face
-    k    = order-1
-    for j in range(order-2):
-        for i in range(order-2):
-            index = (k    , i+1  , j+1  )
-            map[index] = count + face[j, i]
-    count += (order-2)**2
-
-    # > y+ face
-    k      = order-1
-    face_r = np.rot90(face, k=2, axes=(1, 0))
-    for j in range(order-2):
-        for i in range(order-2):
-            index = (i+1  , k    , j+1  )
-            map[index] = count + face_r[order-3-j, i]
-    count += (order-2)**2
-
-    # > x- face
-    k      = 0
-    for j in range(order-2):
-        for i in range(order-2):
-            index = (k    , i+1  , j+1  )
-            map[index] = count + face_r[order-3-j, i]
-    count += (order-2)**2
-
-    # Internal points of top  quadrangle
-    k    = order-1
-    # Fill in spirals
-    face = spiral_matrix(order-2)
-    # Fill the map
-    for j in range(order-2):
-        for i in range(order-2):
-            index = (i+1  , j+1  , k    )
-            map[index] = count + face[j, i]
-    count += (order-2)**2
-
-    # Internal volume points as a succession of internal planes
-    for k in range(1, order-1):
-        for j in range(order-2):
-            for i in range(order-2):
-                index = (i+1  , j+1  , k    )
-                map[index] = count + face[j, i]
-        count += (order-2)**2
-
-    # Python indexing, 1 -> 0
-    map -= 1
-
-    # Reshape into 1D array, tensor-product style
-    tensor = []
-    for k in range(order):
-        for j in range(order):
-            for i in range(order):
-                tensor.append(int(map[i, j, k]))
-    mesh_vars.HEXMAP = tensor
+# def spiral_matrix(n: int) -> np.ndarray:
+#     """ Print a spiral matrix of order n
+#         > https://rosettacode.org/wiki/Spiral_matrix#Simple_solution
+#     """
+#     m = [[0] * n for _ in range(n)]
+#     dx, dy  = [0, 1, 0, -1], [1, 0, -1, 0]
+#     x, y, c =  0, -1, 1
+#     for i in range(n + n - 1):
+#         for j in range((n + n - i) // 2):
+#             x += dx[i % 4]
+#             y += dy[i % 4]
+#             m[x][y] = c
+#             c += 1
+#     return np.array(m)
+#
+#
+# def edgePointCGNS(order: int, edge: int, node: int) -> np.ndarray:
+#     match edge:
+#         case 0:  # z- / base
+#             return np.array([node      , 0         ], dtype=int)
+#         case 1:  # y+ / base
+#             return np.array([order     , node      ], dtype=int)
+#         case 2:  # z+ / base
+#             return np.array([order-node, order     ], dtype=int)
+#         case 3:  # y- / base
+#             return np.array([0         , order-node], dtype=int)
+#         case _:
+#             sys.exit(1)
+#
+#
+# def genHEXMAPCGNS(order: int) -> None:
+#     """ CGNS -> IJK ordering for high-order hexahedrons
+#         > Loosely based on [Gmsh] "generatePointsHexCGNS"
+#     """
+#     # Local imports ----------------------------------------
+#     import pyhope.mesh.mesh_vars as mesh_vars
+#     # ------------------------------------------------------
+#     map = np.zeros((order, order, order), dtype=int)
+#
+#     if order == 1:
+#         map[0, 0, 0] = 0
+#         mesh_vars.HEXTEN = map
+#         return None
+#
+#     # Principal vertices
+#     map[0      , 0      , 0      ] = 1
+#     map[order-1, 0      , 0      ] = 2
+#     map[order-1, order-1, 0      ] = 3
+#     map[0      , order-1, 0      ] = 4
+#     map[0      , 0      , order-1] = 5
+#     map[order-1, 0      , order-1] = 6
+#     map[order-1, order-1, order-1] = 7
+#     map[0      , order-1, order-1] = 8
+#
+#     if order == 2:
+#         # Python indexing, 1 -> 0
+#         map -= 1
+#         # Reshape into 1D array, tensor-product style
+#         tensor = []
+#         for k in range(order):
+#             for j in range(order):
+#                 for i in range(order):
+#                     tensor.append(int(map[i, j, k]))
+#
+#         mesh_vars.HEXTEN = tensor
+#         return None
+#
+#     # Internal points of base quadrangle edges (x-)
+#     count = 8
+#     for iFace in range(4):
+#         for iNode in range(1, order-1):
+#             # Assemble mapping to tuple, base quadrangle -> z = 0
+#             count += 1
+#             edge  = edgePointCGNS(order-1, iFace, iNode)
+#             index = (int(edge[0]), int(edge[1]), 0)
+#             map[index] = count
+#
+#     # Internal points of mounting edges
+#     for iFace in range(4):
+#         edge  = edgePointCGNS(order-1, (iFace+3) % 4, order-1)
+#         for iNode in range(1, order-1):
+#             # Assemble mapping to tuple, mounting edges -> z ascending
+#             count += 1
+#             index = (int(edge[0]), int(edge[1]), iNode)
+#             map[index] = count
+#
+#     # Internal points of top quadrangle edges
+#     for iFace in range(4):
+#         for iNode in range(1, order-1):
+#             # Assemble mapping to tuple, top  quadrangle -> z = order
+#             count += 1
+#             edge  = edgePointCGNS(order-1, iFace, iNode)
+#             index = (int(edge[0]), int(edge[1]), order-1)
+#             map[index] = count
+#
+#     # Internal points of base quadrangle
+#     k    = 0
+#     # Fill in spirals
+#     face = spiral_matrix(order-2)
+#     # Fill the map
+#     for j in range(order-2):
+#         for i in range(order-2):
+#             index = (i+1  , j+1  , k    )
+#             map[index] = count + face[j, i]
+#     count += (order-2)**2
+#
+#     # Internal points of upstanding faces
+#     # > y- face
+#     k    = 0
+#     # Fill the map
+#     for j in range(order-2):
+#         for i in range(order-2):
+#             index = (i+1  , k    , j+1  )
+#             map[index] = count + face[j, i]
+#     count += (order-2)**2
+#
+#     # > x+ face
+#     k    = order-1
+#     for j in range(order-2):
+#         for i in range(order-2):
+#             index = (k    , i+1  , j+1  )
+#             map[index] = count + face[j, i]
+#     count += (order-2)**2
+#
+#     # > y+ face
+#     k      = order-1
+#     face_r = np.rot90(face, k=2, axes=(1, 0))
+#     for j in range(order-2):
+#         for i in range(order-2):
+#             index = (i+1  , k    , j+1  )
+#             map[index] = count + face_r[order-3-j, i]
+#     count += (order-2)**2
+#
+#     # > x- face
+#     k      = 0
+#     for j in range(order-2):
+#         for i in range(order-2):
+#             index = (k    , i+1  , j+1  )
+#             map[index] = count + face_r[order-3-j, i]
+#     count += (order-2)**2
+#
+#     # Internal points of top  quadrangle
+#     k    = order-1
+#     # Fill in spirals
+#     face = spiral_matrix(order-2)
+#     # Fill the map
+#     for j in range(order-2):
+#         for i in range(order-2):
+#             index = (i+1  , j+1  , k    )
+#             map[index] = count + face[j, i]
+#     count += (order-2)**2
+#
+#     # Internal volume points as a succession of internal planes
+#     for k in range(1, order-1):
+#         for j in range(order-2):
+#             for i in range(order-2):
+#                 index = (i+1  , j+1  , k    )
+#                 map[index] = count + face[j, i]
+#         count += (order-2)**2
+#
+#     # Python indexing, 1 -> 0
+#     map -= 1
+#
+#     # Reshape into 1D array, tensor-product style
+#     tensor = []
+#     for k in range(order):
+#         for j in range(order):
+#             for i in range(order):
+#                 tensor.append(int(map[i, j, k]))
+#     mesh_vars.HEXTEN = tensor

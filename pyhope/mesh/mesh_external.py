@@ -51,7 +51,7 @@ from scipy import spatial
 # ==================================================================================================================================
 
 
-def MeshExternal() -> meshio._mesh.Mesh:
+def MeshExternal() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -68,6 +68,8 @@ def MeshExternal() -> meshio._mesh.Mesh:
     if not debugvisu:
         # Hide the GMSH debug output
         gmsh.option.setNumber('General.Terminal', 0)
+        gmsh.option.setNumber('Geometry.Tolerance'         , 1e-12)  # default: 1e-6
+        gmsh.option.setNumber('Geometry.MatchMeshTolerance', 1e-09)  # default: 1e-8
 
     # Set default value
     nBCs_CGNS = 0
@@ -105,7 +107,7 @@ def MeshExternal() -> meshio._mesh.Mesh:
     hopout.sep()
     fnames = CountOption('Filename')
     for iName in range(fnames):
-        fname = GetStr('Filename')
+        fname = GetStr('Filename', number=iName)
         fname = os.path.join(os.getcwd(), fname)
 
         # check if the file exists
@@ -136,6 +138,9 @@ def MeshExternal() -> meshio._mesh.Mesh:
 
         gmsh.merge(fname)
 
+        # Explicitly load the OpenCASCADE kernel
+        gmsh.model.occ.synchronize()
+
         entities  = gmsh.model.getEntities()
         nBCs_CGNS = len([s for s in entities if s[0] == 2])
 
@@ -154,12 +159,18 @@ def MeshExternal() -> meshio._mesh.Mesh:
             else:
                 mesh_vars.CGNS.regenerate_BCs = True
 
-        gmsh.model.geo.synchronize()
+        # gmsh.model.geo.synchronize()
+        gmsh.model.occ.synchronize()
+
+        # Optimize the high-order mesh
+        # gmsh.model.mesh.optimize(method='Relocate3D', force=True)
         # gmsh.model.occ.synchronize()
 
-    # PyGMSH returns a meshio.mesh datatype
-    mesh = pygmsh.geo.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
-    # mesh = pygmsh.occ.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
+    # Reclassify the nodes to ensure correct node ordering
+    gmsh.model.mesh.reclassifyNodes()
+    gmsh.model.occ.synchronize()
+
+    mesh = pygmsh.occ.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
 
     if debugvisu:
         gmsh.fltk.run()
@@ -171,16 +182,13 @@ def MeshExternal() -> meshio._mesh.Mesh:
     return mesh
 
 
-def BCCGNS() -> meshio._mesh.Mesh:
+def BCCGNS() -> meshio.Mesh:
     """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
         > Add them here manually to the meshIO object
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    # from pyhope.common.common import find_index
-    # from pyhope.common.common_vars import Common
-    # from pyhope.io.io_cgns import ElemTypes
     from pyhope.readintools.readintools import CountOption, GetStr
     # ------------------------------------------------------
 
@@ -265,7 +273,7 @@ def BCCGNS() -> meshio._mesh.Mesh:
                 sys.exit(1)
             base = cast(h5py.Group, f[key[0]])
 
-            for baseNum, baseZone in enumerate(base.keys()):
+            for baseZone in base.keys():
                 # Ignore the base dataset
                 if baseZone.strip() == 'data':
                     continue
@@ -330,7 +338,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
     return cellsets
 
 
-def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
+def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
                       stree:    spatial._kdtree.cKDTree,
@@ -373,7 +381,7 @@ def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
             elemType = ElemTypes(cgnsBC[count])
 
             # Map the unique quad sides to our non-unique elem sides
-            corners  = cgnsBC[count+1:count+elemType['Nodes']+1]
+            corners  = cgnsBC[count+1:count+int(elemType['Nodes'])+1]
             # BCpoints = copy.copy(bpoints[corners])
             BCpoints = [bpoints[s-1] for s in corners]
             BCpoints = np.sort(BCpoints, axis=0)
@@ -391,7 +399,7 @@ def BCCGNS_Uncurved(  mesh:     meshio._mesh.Mesh,
         mesh_vars.mesh = mesh
 
 
-def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
+def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
                       stree:    spatial._kdtree.cKDTree,
@@ -477,7 +485,7 @@ def BCCGNS_Structured(mesh:     meshio._mesh.Mesh,
 
         # Loop over all elements
         cellsets = mesh.cell_sets
-        for idx, quad in enumerate(quads):
+        for quad in quads:
             # elemType = ElemTypes(cgnsBC[count])
 
             # Map the unique quad sides to our non-unique elem sides

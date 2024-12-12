@@ -42,10 +42,13 @@ import numpy as np
 def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import face_to_cgns, faces
+    from pyhope.mesh.mesh_common import faces, face_to_cgns, face_to_nodes
     from pyhope.mesh.mesh_vars import ELEM, SIDE
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
+
+    hopout.sep()
+    hopout.routine('Generating sides')
 
     mesh   = mesh_vars.mesh
     nElems = 0
@@ -55,19 +58,7 @@ def GenerateSides() -> None:
     mesh_vars.sides = []
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
-
-    hopout.sep()
-    hopout.routine('Eliminating duplicate points')
-
-    # Eliminate duplicate points
-    mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)
-
-    # Update the mesh
-    for cell in mesh_vars.mesh.cells:
-        # Map the old indices to the new ones
-        # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
-        # Efficiently map all indices in one operation
-        cell.data = inverseIndices[cell.data]
+    nGeo    = mesh_vars.nGeo
 
     # Loop over all element types
     for elemType in mesh.cells_dict.keys():
@@ -96,14 +87,16 @@ def GenerateSides() -> None:
             for iSide in range(nSides, nSides+nIOSides):
                 sides[iSide].update(sideType=4)
 
-            # Assign nodes to sides, CGNS format
+            # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in face_to_cgns(face, elemType)]
+                corners = [ioelems[iElem][s] for s in face_to_cgns( face, elemType)]
+                nodes   = [ioelems[iElem][s] for s in face_to_nodes(face, elemType, nGeo)]
                 sides[sCount].update(face    = face,                   # noqa: E251
                                      elemID  = iElem,                  # noqa: E251
                                      sideID  = sCount,                 # noqa: E251
                                      locSide = index+1,                # noqa: E251
-                                     corners = np.array(corners))      # noqa: E251
+                                     corners = np.array(corners),      # noqa: E251
+                                     nodes   = np.array(nodes))        # noqa: E251
                 sCount += 1
 
             # Add to nSides

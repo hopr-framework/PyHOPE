@@ -31,6 +31,7 @@ from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,7 +40,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 mode   : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
-mesh   : meshio._mesh.Mesh                        # MeshIO object holding the mesh
+mesh   : meshio.Mesh                              # MeshIO object holding the mesh
 nGeo   : int                                      # Order of spline-reconstruction for curved surfaces
 sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
 
@@ -49,8 +50,17 @@ vvs    : list                                     # [list of dict] - Periodic ve
 elems  : list                                     # [list of list] - Element nodes
 sides  : list                                     # [list of list] - Side    nodes
 
-HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons
+HEXTEN : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (3D mapping)
 already_curved: bool                              # Flag if mesh is already curved
+
+doMortars: bool                                   # Flag if mortars are enabled
+doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
+
+# Internal variables
+tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
+tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)
+tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
 class CGNS:
@@ -64,6 +74,7 @@ class SIDE:
                  locSide     : Optional[int] = None,
                  face        : Optional[str] = None,
                  corners     : Optional[np.ndarray] = None,
+                 nodes       : Optional[np.ndarray] = None,
                  sideType    : Optional[int] = None,
                  # Sorting
                  globalSideID: Optional[int] = None,
@@ -74,12 +85,15 @@ class SIDE:
                  nbLocSide   : Optional[int] = None,
                  # Boundary Conditions
                  bcid        : Optional[int] = None,
+                 # Mortar
+                 locMortar   : Optional[int] = None,
                 ):
         self.elemID      : Optional[int] = elemID
         self.sideID      : Optional[int] = sideID
         self.locSide     : Optional[int] = locSide
         self.face        : Optional[str] = face
         self.corners     : Optional[np.ndarray] = corners
+        self.nodes       : Optional[np.ndarray] = nodes
         self.sideType    : Optional[int] = sideType
         # Sorting
         self.globalSideID: Optional[int] = globalSideID
@@ -90,6 +104,8 @@ class SIDE:
         self.nbLocSide   : Optional[int] = nbLocSide
         # Boundary Conditions
         self.bcid        : Optional[int] = bcid
+        # Mortar
+        self.locMortar   : Optional[int] = locMortar
 
     def update(self, **kwargs):
         for key, value in kwargs.items():

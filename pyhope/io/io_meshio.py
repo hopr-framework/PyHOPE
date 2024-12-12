@@ -181,11 +181,22 @@ def genHEXMAPMESHIO(order: int) -> None:
     if order == 1:
         map[0, 0, 0] = 0
         mesh_vars.HEXMAP = map
+        mesh_vars.HEXTEN = map
         return None
 
     if order == 2:
         # Python indexing, 1 -> 0
+        map[0 , 0 , 0 ] = 1
+        map[1 , 0 , 0 ] = 2
+        map[1 , 1 , 0 ] = 3
+        map[0 , 1 , 0 ] = 4
+        map[0 , 0 , 1 ] = 5
+        map[1 , 0 , 1 ] = 6
+        map[1 , 1 , 1 ] = 7
+        map[0 , 1 , 1 ] = 8
         map -= 1
+        mesh_vars.HEXMAP = map
+
         # Reshape into 1D array, tensor-product style
         tensor = []
         for k in range(order):
@@ -193,7 +204,7 @@ def genHEXMAPMESHIO(order: int) -> None:
                 for i in range(order):
                     tensor.append(int(map[i, j, k]))
 
-        mesh_vars.HEXMAP = tensor
+        mesh_vars.HEXTEN = tensor
         return None
 
     count = 0
@@ -236,6 +247,7 @@ def genHEXMAPMESHIO(order: int) -> None:
 
     # Python indexing, 1 -> 0
     map -= 1
+    mesh_vars.HEXMAP = map
 
     # Reshape into 1D array, tensor-product style
     tensor = []
@@ -244,4 +256,4 @@ def genHEXMAPMESHIO(order: int) -> None:
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
 
-    mesh_vars.HEXMAP = tensor
+    mesh_vars.HEXTEN = tensor

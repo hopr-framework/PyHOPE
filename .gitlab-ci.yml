@@ -129,7 +129,7 @@ coverage:
     - declare -a results
 
     # Store all directories with "parameter.ini" files in an array (bash-only)
-    - mapfile -d '' paramfiles < <(find tutorials -type f -name "parameter.ini" -print0)
+    - mapfile -d '' paramfiles < <(find tutorials -type f -name "parameter.ini" -print0 | sort -z)
     - echo "Found "${#paramfiles[@]}" parameter.ini files..."
 
     # Calculate max width
@@ -251,41 +251,41 @@ convergence:
     - FLEXIDIR=$(pwd)
     - cd ..
   script:
-    # Generate Meshes
-    - rm -rf convergence_test
-    - mkdir convergence_test
-    - cd convergence_test
-    - cp ../tutorials/5-02-convtest_flipped/parameter_FLIPPED_template_pyhope.ini .
-    - cp ../tutorials/5-02-convtest_flipped/parameter_flexi.ini .
-    # Generate Meshes
-    - meshres=("001" "002" "004" "008")
-    - template_file="parameter_FLIPPED_template_pyhope.ini"
+    - directories=("5-02-convtest_flipped" "5-03-convtest_mortar") # List of directories to process
     - | # Literal YAML multiline block scalar indicator
-      for res in "${meshres[@]}"; do
-        # Calculate nElem2 as half the integer res of nElem
-        nElem2=$((10#$res / 2)) # Use 10#$res to interpret value as a base-10 integer
-        # Create a temporary parameter file
-        temp_file=$(mktemp)
-        # Replace placeholders in the template and save to the temporary file
-        sed -e "s/<nElem>/$res/g" -e "s/<nElem2>/$nElem2/g" "$template_file" > "$temp_file"
-        # Build the mesh
-        pyhope "$temp_file"
-        # Clean up the temporary file
-        rm "$temp_file"
-      done
-    # Call convergence script
-    - echo "=== Running Convergence Test  N=1 ===" | tee ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 1 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    - echo "=== Running Convergence Test  N=2 ===" | tee -a ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 2 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    - echo "=== Running Convergence Test  N=3 ===" | tee -a ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 3 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    - echo "=== Running Convergence Test  N=4 ===" | tee -a ../convergence.log
-    - python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N 4 --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
-    # Analyze convergence behavior using a simple python script
-    - cd ..
-    - |
-      python3 << 'EOF' # collapsed multi-line command
+      for dir in "${directories[@]}"; do
+        echo "=== Processing directory: $dir ==="
+        rm -rf convergence_test || true
+        mkdir convergence_test
+        cd convergence_test
+        cp "../tutorials/$dir/parameter_template_pyhope.ini" .
+        cp "../tutorials/$dir/parameter_flexi.ini" .
+        # Generate Meshes
+        meshres=("001" "002" "004" "008")
+        template_file="parameter_template_pyhope.ini"
+        for res in "${meshres[@]}"; do
+          # Calculate nElem2 as half the integer res of nElem
+          nElem2=$((10#$res / 2)) # Interpret value as a base-10 integer
+          # Create a temporary parameter file
+          temp_file=$(mktemp)
+          # Replace placeholders in the template and save to the temporary file
+          sed -e "s/<nElem>/$res/g" -e "s/<nElem2>/$nElem2/g" "$template_file" > "$temp_file"
+          # Build the mesh
+          pyhope "$temp_file"
+          # Clean up the temporary file
+          rm "$temp_file"
+        done
+        # Clean-up the log file
+        rm -f ../convergence.log
+        # Call convergence script
+        for N in {1..4}; do
+          echo ""
+          echo "=== Running Convergence Test  N=$N ===" | tee -a ../convergence.log
+          python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+        done
+        # Analyze convergence behavior using a simple python script
+        cd ..
+        python3 << EOF # Collapsed multi-line command
       import sys
 
       # Input file
@@ -348,3 +348,4 @@ convergence:
       # Final status
       sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
       EOF
+      done

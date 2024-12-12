@@ -62,52 +62,6 @@ class SIDE:
     BCID      = 4
 
 
-def LINMAP(elemType: int, order: int = 1) -> np.ndarray:
-    """ CGNS -> IJK ordering for element corner nodes
-    """
-    # Local imports ----------------------------------------
-    # from pyhope.io.io_cgns import genHEXMAPCGNS
-    # from pyhope.io.io_vtk import genHEXMAPVTK
-    from pyhope.io.io_meshio import genHEXMAPMESHIO
-    # ------------------------------------------------------
-    match elemType:
-        # Straight-sided elements, hard-coded
-        case 104:  # Tetraeder
-            return np.array([0, 1, 2, 3])
-        case 105:  # Pyramid
-            return np.array([0, 1, 3, 2, 4])
-        case 106:  # Prism
-            return np.array([0, 1, 2, 3, 4, 5])
-        case 108:  # Hexaeder
-            return np.array([0, 1, 3, 2, 4, 5, 7, 6])
-        # Curved elements, use mapping
-        case 208:  # Hexaeder
-            # # CGNS
-            # try:
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-            # except ImportError:
-            #     genHEXMAP(order+1)
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-
-            # # VTK
-            # try:
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-            # except ImportError:
-            #     genHEXMAPVTK(order+1)
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-
-            # MESHIO
-            try:
-                from pyhope.mesh.mesh_vars import HEXMAP
-            except ImportError:
-                genHEXMAPMESHIO(order+1)
-                from pyhope.mesh.mesh_vars import HEXMAP
-            return HEXMAP
-        case _:  # Default
-            print('Error in LINMAP, unknown elemType')
-            sys.exit(1)
-
-
 def ELEMTYPE(elemType: int) -> str:
     """ Name of a given element type
     """
@@ -257,6 +211,7 @@ def IO() -> None:
 def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_common import LINTEN
     # ------------------------------------------------------
 
     mesh  = mesh_vars.mesh
@@ -270,7 +225,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     # Create the ElemCounter
     elemCounter = dict()
-    for iType, elemType in enumerate(ELEM.TYPES):
+    for elemType in ELEM.TYPES:
         elemCounter[elemType] = 0
 
     # Fill the ElemInfo
@@ -299,11 +254,24 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
         sideInfo[iSide, SIDE.TYPE     ] = side.sideType
         sideInfo[iSide, SIDE.ID       ] = side.globalSideID
         # Connected sides
-        if side.connection is not None:
+        if side.connection is None:                                # BC side
+            sideInfo[iSide, SIDE.NBELEMID      ] = 0
+            sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
+            sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
+        elif side.locMortar is not None:                           # Small mortar side
             nbSideID = side.connection
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            if side.flip == 0:  # Master side
+        elif side.connection is not None and side.connection < 0:  # Big mortar side
+            # WARNING: This is not a sideID, but the mortar type
+            sideInfo[iSide, SIDE.NBELEMID      ] = side.connection
+        else:                                                      # Internal side
+            nbSideID = side.connection
+            nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
+            sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
+            if side.sideType < 0:  # Small mortar side
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = side.flip
+            elif side.flip == 0:     # Master side
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
             else:
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10 + side.flip
@@ -313,10 +281,6 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
                 sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
             else:
                 sideInfo[iSide, SIDE.BCID      ] = 0
-        else:
-            sideInfo[iSide, SIDE.NBELEMID      ] = 0
-            sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
-            sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
 
     # Fill the NodeInfo
     nodeInfo = np.zeros((ELEM.INFOSIZE, nNodes), dtype=np.int32)
@@ -327,7 +291,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        linMap    = LINMAP(elem.type, order=mesh_vars.nGeo)
+        linMap    = LINTEN(elem.type, order=mesh_vars.nGeo)
         # meshio accesses them in their own ordering
         # > need to reverse the mapping
         mapLin    = {k: v for v, k in enumerate(linMap)}

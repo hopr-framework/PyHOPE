@@ -55,7 +55,7 @@ def edgePointVTK(order: int, edge: int, node: int) -> np.ndarray:
 
 def genHEXMAPVTK(order: int) -> None:
     """ VTK -> IJK ordering for high-order hexahedrons
-        > Losely based on [Gmsh] "generatePointsHexCGNS"
+        > Loosely based on [Gmsh] "generatePointsHexCGNS"
         > [Jens Ulrich Kreber] "paraview-scripts/node_ordering.py"
     """
     # Local imports ----------------------------------------
@@ -65,7 +65,7 @@ def genHEXMAPVTK(order: int) -> None:
 
     if order == 1:
         map[0, 0, 0] = 0
-        mesh_vars.HEXMAP = map
+        mesh_vars.HEXTEN = map
         return None
 
     # Principal vertices
@@ -88,7 +88,7 @@ def genHEXMAPVTK(order: int) -> None:
                 for i in range(order):
                     tensor.append(int(map[i, j, k]))
 
-        mesh_vars.HEXMAP = tensor
+        mesh_vars.HEXTEN = tensor
         return None
 
     # Internal points of base quadrangle edges (x-)
@@ -263,4 +263,4 @@ def genHEXMAPVTK(order: int) -> None:
         for j in range(order):
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
-    mesh_vars.HEXMAP = tensor
+    mesh_vars.HEXTEN = tensor

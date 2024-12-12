@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-# import os
+import multiprocessing
 import subprocess
 import sys
 import time
@@ -47,14 +47,20 @@ def main() -> None:
     from pyhope.common.common import DefineCommon, InitCommon
     from pyhope.common.common_vars import Common
     from pyhope.basis.basis_jacobian import CheckJacobians
+    from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.io.io import IO, DefineIO, InitIO
     from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
     from pyhope.mesh.mesh_connect import ConnectMesh
+    from pyhope.mesh.mesh_duplicates import EliminateDuplicates
+    from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
     # ------------------------------------------------------
+
+    # Always spawn with "fork" method to inherit the address space of the parent process
+    multiprocessing.set_start_method('fork')
 
     tStart  = time.time()
     process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
@@ -103,11 +109,16 @@ def main() -> None:
     # Generate the actual mesh
     GenerateMesh()
     SortMesh()
+    EliminateDuplicates()
+    OrientMesh()
+
+    # Build our data structures
     GenerateSides()
     RegenerateMesh()
     ConnectMesh()
 
-    # Check the mapping
+    # Perform the mesh checks
+    CheckWatertight()
     CheckJacobians()
 
     # Output the mesh
