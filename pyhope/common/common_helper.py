@@ -39,9 +39,8 @@ import pyhope.output.output as hopout
 # ==================================================================================================================================
 
 
-def time_function(func, *args, **kwargs):
-    """
-    A helper function to measure the execution time of an arbitrary function.
+def time_function(func, *args, **kwargs) -> float:
+    """ A helper function to measure the execution time of an arbitrary function.
 
     Parameters:
     func (callable): The function to be timed.
@@ -51,12 +50,11 @@ def time_function(func, *args, **kwargs):
     Returns:
     The return value of the function being timed.
     """
-    start_time = time.time()
+    tStart = time.time()
     result = func(*args, **kwargs)
-    end_time = time.time()
-
-    elapsed_time = end_time - start_time
-    hopout.info(hopout.Colors.BANNERA + f"Function {func.__name__} required {elapsed_time:.6f} seconds to complete."
+    tEnd   = time.time()
+    tFunc  = tEnd - tStart
+    hopout.info(  hopout.Colors.BANNERA + f'Function {func.__name__} required {tFunc:.6f} seconds to complete.'
                 + hopout.Colors.END)
 
     return result

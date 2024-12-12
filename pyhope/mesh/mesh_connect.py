@@ -272,9 +272,7 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
     # Check if exactly one combo point matches each target point
     for point in targetPoints:
-        # TODO: IS CLOSE
-        distancesToPoints = np.linalg.norm(comboPoints - point, axis=1)
-        if np.sum(distancesToPoints <= tol) != 1:
+        if np.any(np.isclose(comboPoints, point, atol=tol)):
             return False
 
     # Build the target edges

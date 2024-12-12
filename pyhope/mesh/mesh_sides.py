@@ -67,9 +67,8 @@ def GenerateSides() -> None:
 
         # Get the elements
         ioelems  = mesh.get_cells_type(elemType)
-        baseElem = elemType.rstrip(string.digits)
         nIOElems = ioelems.shape[0]
-        nIOSides   = mesh_vars.ELEMTYPE.type[baseElem]
+        nIOSides = mesh_vars.ELEMTYPE.type[elemType.rstrip(string.digits)]
 
         # Create non-unique sides
         mesh_vars.elems.extend([ELEM() for _ in range(nIOElems         )])
