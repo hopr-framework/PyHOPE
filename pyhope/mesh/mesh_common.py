@@ -297,13 +297,10 @@ def count_elems(mesh: meshio.Mesh) -> int:
     return nElems
 
 
-def calc_elem_bary(mesh: meshio.Mesh) -> list:
+def calc_elem_bary(mesh: meshio.Mesh) -> np.ndarray:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
-    nElems   = count_elems(mesh)
-    elemBary = [np.ndarray(3)] * nElems
-
     # Only consider three-dimensional types
     elem_cells = []
     for elemType in mesh.cells_dict:

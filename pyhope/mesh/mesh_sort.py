@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
 from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -78,7 +77,7 @@ def SortMeshBySFC() -> None:
     # Local imports ----------------------------------------
     from hilbertcurve.hilbertcurve import HilbertCurve
     from pyhope.common.common_vars import np_mtp
-    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    from pyhope.mesh.mesh_common import calc_elem_bary
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     # ------------------------------------------------------
@@ -104,7 +103,7 @@ def SortMeshBySFC() -> None:
 
     # Generate the space-filling curve and order elements along it
     hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
-    distances = hc.distances_from_points(elemDisc) # bottleneck
+    distances = np.array(hc.distances_from_points(elemDisc))  # bottleneck
 
     # Sort mesh cells along the SFC
     sorted_indices = np.argsort(distances)
@@ -117,7 +116,6 @@ def SortMeshBySFC() -> None:
     mesh_vars.mesh = meshio.Mesh(points=points,
                                  cells=mesh.cells,
                                  cell_sets=mesh.cell_sets)
-
 
 
 def SortMeshByIJK():
