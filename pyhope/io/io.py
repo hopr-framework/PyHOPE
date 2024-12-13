@@ -153,8 +153,7 @@ def IO() -> None:
             pname = io_vars.projectname
             fname = '{}_mesh.h5'.format(pname)
 
-            # elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter = getMeshInfo()
-            elemInfo, sideInfo, _, nodeCoords, elemCounter = getMeshInfo()
+            elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter = getMeshInfo()
 
             # Print the final output
             hopout.sep()
@@ -177,10 +176,10 @@ def IO() -> None:
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
 
-                f.create_dataset('ElemInfo'  , data=elemInfo)
-                f.create_dataset('SideInfo'  , data=sideInfo)
-                # f.create_dataset('NodeInfo'  , data=nodeInfo)
-                f.create_dataset('NodeCoords', data=nodeCoords)
+                f.create_dataset('ElemInfo'     , data=elemInfo)
+                f.create_dataset('SideInfo'     , data=sideInfo)
+                f.create_dataset('GlobalNodeIDs', data=nodeInfo)
+                f.create_dataset('NodeCoords'   , data=nodeCoords)
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
@@ -214,10 +213,10 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
     from pyhope.mesh.mesh_common import LINTEN
     # ------------------------------------------------------
 
-    mesh  = mesh_vars.mesh
-    elems = mesh_vars.elems
-    sides = mesh_vars.sides
-    nodes = mesh.points
+    mesh   = mesh_vars.mesh
+    elems  = mesh_vars.elems
+    sides  = mesh_vars.sides
+    points = mesh.points
 
     nElems = len(elems)
     nSides = len(sides)
@@ -283,7 +282,7 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
                 sideInfo[iSide, SIDE.BCID      ] = 0
 
     # Fill the NodeInfo
-    nodeInfo = np.zeros((ELEM.INFOSIZE, nNodes), dtype=np.int32)
+    nodeInfo   = np.zeros((nNodes)   , dtype=np.int32)
 
     # Fill the NodeCoords
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
@@ -299,7 +298,8 @@ def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]
 
         # Access the actual nodeCoords and reorder them
         for iNode, nodeID in enumerate(elemNodes):
-            nodeCoords[nodeCount + mapLin[iNode], :] = nodes[nodeID]
+            nodeInfo[  nodeCount + mapLin[iNode]   ] = nodeID + 1
+            nodeCoords[nodeCount + mapLin[iNode], :] = points[nodeID]
 
         nodeCount += len(elemNodes)
 
