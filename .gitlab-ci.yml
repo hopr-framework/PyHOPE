@@ -24,7 +24,7 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
-image: python:latest
+image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python_3.13.1-bookworm-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
@@ -64,18 +64,18 @@ cache:
   - module list || true
   - python3 --version
   # Setup required packages
-  - | # Literal YAML multiline block scalar indicator
-    if command -v apt-get >/dev/null 2>&1; then
-      apt-get update
-      apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1
-    fi
-  - | # Literal YAML multiline block scalar indicator
-    if command -v dnf >/dev/null 2>&1; then
-      dnf makecache
-      dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama
-    fi
+  # - | # Literal YAML multiline block scalar indicator
+  #   if command -v apt-get >/dev/null 2>&1; then
+  #     apt-get update
+  #     apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1
+  #   fi
+  # - | # Literal YAML multiline block scalar indicator
+  #   if command -v dnf >/dev/null 2>&1; then
+  #     dnf makecache
+  #     dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama
+  #   fi
   # Setup Python pip
-  - python3 -m pip install --upgrade pip --root-user-action=ignore || true
+  - python3 -m pip install --upgrade pip --root-user-action=ignore
   - python3 -m pip --version
   # Setup Python virtual environment
   - rm -rf venv
@@ -92,7 +92,6 @@ cache:
   - pip install --no-cache-dir coverage --root-user-action=ignore
 
 before_script: *global-before-script
-
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Stages
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -221,37 +220,10 @@ coverage:
 convergence:
   extends: .defaults
   stage: convergence
-  image: fedora:latest
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora_41-x86_64
   artifacts:
     paths:
       - convergence.log
-  before_script:
-    # Install FLEXI dependencies
-    - | # Literal YAML multiline block scalar indicator
-      if command -v dnf >/dev/null 2>&1; then
-        dnf makecache
-        dnf install -y  git cmake gcc-c++ gcc-gfortran mpich-devel zlib-ng-devel openblas-devel hdf5-mpich-devel
-        source /etc/profile
-        module load mpi
-        dnf install -y python3 python3-pip python3-virtualenv
-      fi
-    - | # Literal YAML multiline block scalar indicator
-      if command -v apt-get >/dev/null 2>&1; then
-        apt-get update
-        apt-get install -y git cmake-extras g++ gfortran mpi-default-dev zlib1g-dev libopenblas-dev libhdf5-mpi-dev
-        apt-get install -y python3 python3-pip python3-venv
-        apt-get install -y libxft2 libxext6
-      fi
-    # Reuse global before_script to avoid duplicate code for python
-    - *global-before-script
-    # Install FLEXI
-    - rm -rf flexi
-    - git clone --branch master --single-branch --depth 1 https://github.com/flexi-framework/flexi.git
-    - cd flexi
-    - cmake -B build
-    - cmake --build build
-    - FLEXIDIR=$(pwd)
-    - cd ..
   script:
     - directories=("5-02-convtest_flipped" "5-03-convtest_mortar") # List of directories to process
     - | # Literal YAML multiline block scalar indicator
@@ -283,7 +255,7 @@ convergence:
         for N in {1..4}; do
           echo ""
           echo "=== Running Convergence Test  N=$N ===" | tee -a ../convergence.log
-          python3 $FLEXIDIR/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 $FLEXIDIR/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
         done
         # Analyze convergence behavior using a simple python script
         cd ..

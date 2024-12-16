@@ -6,8 +6,9 @@ LABEL maintainer="numerics@iag.uni-stuttgart.de"
 
 # Setup required packages
 RUN dnf makecache && \
-    dnf update -y &&\
-    dnf install -y  git cmake gcc-c++ gcc-gfortran mpich-devel zlib-ng-devel openblas-devel hdf5-mpich-devel && \
+    dnf update -y && \
+    dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama && \
+    dnf install -y git cmake gcc-c++ gcc-gfortran mpich-devel zlib-ng-devel openblas-devel hdf5-mpich-devel && \
     dnf install -y python3 python3-pip python3-virtualenv && \
     dnf clean all
 
@@ -35,8 +36,8 @@ ENV MANPATH="/usr/share/man/mpich-${ARCH}:$MANPATH"
 ENV PKG_CONFIG_PATH="/usr/lib64/mpich/lib/pkgconfig:PKG_CONFIG_PATH"
 
 # Setup FLEXI
-ADD --keep-git-dir=true https://github.com/flexi-framework/flexi.git /flexi
+# ADD --keep-git-dir=true "https://github.com/flexi-framework/flexi.git" /flexi
+RUN git clone --branch master --single-branch --depth 1 https://github.com/flexi-framework/flexi.git /flexi
 WORKDIR /flexi
-RUN cmake -B build -DFLEXI_PERFORMANCE=ON -DFLEXI_PERFORMANCE_OPTLIFT=ON && \
+RUN cmake -B build -DFLEXI_PERFORMANCE=ON -DFLEXI_PERFORMANCE_OPTLIFT=ON -DFLEXI_INSTRUCTION='-march=x86-64 -mtune=generic' && \
     cmake --build build
-ENV FLEXIDIR=/flexi

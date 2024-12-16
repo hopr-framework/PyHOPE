@@ -1,0 +1,13 @@
+# Load the base image
+FROM python:3.13.1-bookworm
+
+# Numerics research group
+LABEL maintainer="numerics@iag.uni-stuttgart.de"
+
+# Setup required packages
+RUN apt-get update && \
+    apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1 && \
+    apt-get clean
+
+# Set architecture argument
+ARG ARCH
