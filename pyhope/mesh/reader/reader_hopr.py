@@ -25,12 +25,23 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+# import copy
 import os
+# import subprocess
 import sys
+# import tempfile
+# import time
+# import traceback
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+# import gmsh
+import h5py
 import meshio
+import numpy as np
+# import pygmsh
+# from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,70 +51,69 @@ import meshio
 # ==================================================================================================================================
 
 
-def MeshExternal() -> meshio.Mesh:
+def ReadHOPR(fnames: list) -> meshio.Mesh:
     # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_vars import BC
-    from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH
-    from pyhope.mesh.reader.reader_hopr import ReadHOPR
-    from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
+    import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_common import LINTEN
+    from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
-    hopout.separator()
-    hopout.info('LOADING EXTERNAL MESH')
-
     hopout.sep()
-    hopout.routine('Setting boundary conditions')
-    hopout.sep()
-    nBCs = CountOption('BoundaryName')
-    mesh_vars.bcs = [BC() for _ in range(nBCs)]
-    bcs = mesh_vars.bcs
 
-    for iBC, bc in enumerate(bcs):
-        # bc.update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
-        #           bcid = iBC + 1,                                  # noqa: E251
-        #           type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
-        bc.name = GetStr(     'BoundaryName', number=iBC)  # noqa: E251
-        bc.bcid = iBC + 1                                  # noqa: E251
-        bc.type = GetIntArray('BoundaryType', number=iBC)  # noqa: E251
+    # Create an empty meshio object
+    points = np.zeros((0, 3), dtype=np.float64)
+    cells  = dict()
 
-    nVVs = CountOption('vv')
-    mesh_vars.vvs = [dict() for _ in range(nVVs)]
-    vvs = mesh_vars.vvs
-    if len(vvs) > 0:
-        hopout.sep()
-    for iVV, _ in enumerate(vvs):
-        vvs[iVV] = dict()
-        vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
+    offsetnNodes = 0
 
-    fnames = [GetStr('Filename', number=i) for i in range(CountOption('Filename'))]
     for fname in fnames:
-        fname = os.path.join(os.getcwd(), fname)
-
-        # check if the file exists
-        if not os.path.isfile(os.path.join(os.getcwd(), fname)):
-            hopout.warning('File [󰇘]/{} does not exist'.format(os.path.basename(fname)))
+        # Check if the file is using HDF5 format internally
+        if not h5py.is_hdf5(fname):
+            hopout.warning('File [󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
             sys.exit(1)
 
-    if not all(compatibleGMSH(fname) for fname in fnames):
-        if any(compatibleGMSH(fname) for fname in fnames):
-            hopout.warning('Mixed file formats detected, this is untested and may not work')
-            # sys.exit(1)
+        with h5py.File(fname, mode='r') as f:
+            # Check if file contains the Hopr version
+            if 'HoprVersion' not in f.attrs:
+                hopout.warning('File [󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
+                sys.exit(1)
 
-    fgmsh = [s for s in fnames if compatibleGMSH(s)]
-    if len(fgmsh) > 0:
-        mesh = ReadGMSH(fgmsh)
-    fnames = list(filter(lambda x: not compatibleGMSH(x), fnames))
-    fhopr  = [s for s in fnames if s.endswith('.h5')]
-    if len(fhopr) > 0:
-        mesh = ReadHOPR(fhopr)
-    fnames = list(filter(lambda x: x not in fhopr, fnames))
-    if len(fnames) > 0:
-        hopout.warning('Unknown file format {}, exiting...'.format(fnames))
-        sys.exit(1)
+            # Read the nodeCoords
+            nodeCoords = np.array(f['NodeCoords'])
+            points     = np.append(points, nodeCoords, axis=0)
+            offsetnNodes += nodeCoords.shape[0]
 
-    hopout.info('LOADING EXTERNAL MESH DONE!')
-    hopout.separator()
+            # Read nGeo
+            nGeo       = cast(int, f.attrs['Ngeo'])
+            if nGeo != mesh_vars.nGeo:
+                # TODO: FIX THIS WITH A CHANGEBASIS
+                filename = os.path.basename(fname)
+                hopout.warning('File [󰇘]/{} has different polynomial order than the current mesh, exiting...'.format(filename))
+                sys.exit(1)
+
+            # Read the elemInfo
+            elemInfo   = np.array(f['ElemInfo'])
+            for elem in elemInfo:
+                # Obtain the element type
+                elemType = ELEMTYPE.inam[elem[0]]
+                if len(elemType) > 1:
+                    elemType = elemType[nGeo-2]
+                else:
+                    elemType = elemType[0]
+
+                linMap    = LINTEN(elem[0], order=nGeo)
+                # mapLin    = np.array(list({k: v for v, k in enumerate(linMap)}))
+                elemNodes = np.arange(elem[4], elem[5])
+                elemNodes = np.expand_dims(elemNodes[linMap], axis=0)
+
+                if elemType in cells:
+                    cells[elemType] = np.append(cells[elemType], elemNodes, axis=1)
+                else:
+                    cells[elemType] = elemNodes
+
+    print(cells)
+    # sys.exit()
+    mesh = meshio.Mesh(points, cells)
 
     return mesh
