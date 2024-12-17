@@ -66,18 +66,18 @@ def EliminateDuplicates() -> None:
     clusters = tree.query_ball_point(points, r=mesh_vars.tolExternal)
 
     # Map each point to its cluster representative (first point in the cluster)
-    representative_indices = {}
+    indices = {}
     for i, cluster in enumerate(clusters):
         # Choose the minimum index as the representative for consistency
         representative = min(cluster)
-        representative_indices[i] = representative
+        indices[i] = representative
 
     # Create a mapping from old indices to new indices
-    unique_indices = np.array([representative_indices[i] for i in range(len(points))])
+    indices = np.array([indices[i] for i in range(len(points))])
 
     # Eliminate duplicates
-    _, inverseIndices = np.unique(unique_indices, return_inverse=True)
-    mesh_vars.mesh.points = points[np.unique(unique_indices)]
+    _, inverseIndices = np.unique(indices, return_inverse=True)
+    mesh_vars.mesh.points = points[np.unique(indices)]
 
     # Update the mesh cells
     for cell in mesh_vars.mesh.cells:

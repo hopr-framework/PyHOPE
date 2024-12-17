@@ -56,16 +56,20 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import LINTEN
+    from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
     hopout.sep()
 
     # Create an empty meshio object
-    points = np.zeros((0, 3), dtype=np.float64)
-    cells  = dict()
+    points   = np.zeros((0, 3), dtype=np.float64)
+    cells    = dict()
+    cellsets = dict()
 
     offsetnNodes = 0
+    # offsetnSides = 0
+    nSides       = 0
 
     for fname in fnames:
         # Check if the file is using HDF5 format internally
@@ -79,8 +83,14 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
                 hopout.warning('File [󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
                 sys.exit(1)
 
+            # Read the globalNodeIDs
+            nodeInfo   = np.array(f['GlobalNodeIDs'])
+
             # Read the nodeCoords
             nodeCoords = np.array(f['NodeCoords'])
+            indices    = np.unique(nodeInfo, return_index=True)[1]
+            nodeCoords = nodeCoords[indices]
+
             points     = np.append(points, nodeCoords, axis=0)
             offsetnNodes += nodeCoords.shape[0]
 
@@ -92,8 +102,12 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
                 hopout.warning('File [󰇘]/{} has different polynomial order than the current mesh, exiting...'.format(filename))
                 sys.exit(1)
 
-            # Read the elemInfo
+            # Read the elemInfo and sideInfo
             elemInfo   = np.array(f['ElemInfo'])
+            sideInfo   = np.array(f['SideInfo'])
+            BCNames    = [s.strip().decode('utf-8') for s in cast(h5py.Dataset, f['BCNames'])]
+
+            # Construct the elements, meshio format
             for elem in elemInfo:
                 # Obtain the element type
                 elemType = ELEMTYPE.inam[elem[0]]
@@ -103,17 +117,56 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
                     elemType = elemType[0]
 
                 linMap    = LINTEN(elem[0], order=nGeo)
-                # mapLin    = np.array(list({k: v for v, k in enumerate(linMap)}))
                 elemNodes = np.arange(elem[4], elem[5])
-                elemNodes = np.expand_dims(elemNodes[linMap], axis=0)
+                elemNodes = np.expand_dims(nodeInfo[elemNodes[linMap]]-1, axis=0)
 
-                if elemType in cells:
-                    cells[elemType] = np.append(cells[elemType], elemNodes, axis=1)
-                else:
+                try:
+                    cells[elemType] = np.append(cells[elemType], elemNodes, axis=0)
+                except KeyError:
                     cells[elemType] = elemNodes
 
-    print(cells)
-    # sys.exit()
-    mesh = meshio.Mesh(points, cells)
+                # Attach the boundary sides
+                # for index, face in enumerate(faces(elemType)):
+                sCounter = 0
+                for index in range(elem[2], elem[3]):
+                    # Account for mortar sides
+                    # if
+
+                    # Obtain the side type
+                    sideType  = sideInfo[index, 0]
+                    sideBC    = sideInfo[index, 4]
+
+                    BCName    = BCNames[sideBC-1]
+                    face      = faces(elemType)[sCounter]
+                    corners   = [elemNodes[0][s] for s in face_to_cgns(face, elemType)]
+
+                    # Get the number of corners
+                    nCorners  = abs(sideType % 10)
+                    sideName  = 'quad' if nCorners == 4 else 'tri'
+
+                    sideNodes = np.expand_dims(corners, axis=0)
+
+                    try:
+                        cells[sideName] = np.append(cells[sideName], sideNodes, axis=0)
+                    except KeyError:
+                        cells[sideName] = sideNodes
+
+                    # Increment the side counter
+                    sCounter += 1
+                    nSides   += 1
+
+                    if sideBC == 0:
+                        continue
+
+                    # Add the side to the cellset
+                    # > We did not create any 0D/1D objects, so we do not need to consider any offset
+                    try:
+                        cellsets[BCName][1] = np.append(cellsets[BCName][1], np.array([nSides-1], dtype=np.uint64))
+                    except KeyError:
+                        cellsets[BCName]    = [None, np.array([nSides-1], dtype=np.uint64)]
+
+    mesh   = meshio.Mesh(points    = points,    # noqa: E251
+                         cells     = cells,     # noqa: E251
+                         cell_sets = cellsets)  # noqa: E251
 
     return mesh

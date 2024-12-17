@@ -229,6 +229,11 @@ class ELEMTYPE:
         inam[value].append(key)
 
 
+# class SIDETYPE:
+#     type = {'tri'      : 3,
+#             'quad'     : 4}
+
+
 def ELEMMAP(meshioType: str) -> int:
     elemMap = {  # Linear or curved tetrahedron
                  'tetra'     : (104, 204),

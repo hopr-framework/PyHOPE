@@ -31,6 +31,7 @@ import sys
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
+import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,6 +57,8 @@ def MeshExternal() -> meshio.Mesh:
     hopout.sep()
     hopout.routine('Setting boundary conditions')
     hopout.sep()
+
+    # Load the boundary conditions
     nBCs = CountOption('BoundaryName')
     mesh_vars.bcs = [BC() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
@@ -77,6 +80,8 @@ def MeshExternal() -> meshio.Mesh:
         vvs[iVV] = dict()
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
+    # Load the mesh(es)
+    mesh   = meshio.Mesh(np.array([]), dict())
     fnames = [GetStr('Filename', number=i) for i in range(CountOption('Filename'))]
     for fname in fnames:
         fname = os.path.join(os.getcwd(), fname)

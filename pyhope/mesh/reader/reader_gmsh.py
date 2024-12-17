@@ -301,7 +301,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------
-    # Query the try for the opposing side
+    # Query the tree for the opposing side
     trSide = copy.copy(stree.query(BCpoints))
 
     # trSide contains the Euclidean distance and the index of the
