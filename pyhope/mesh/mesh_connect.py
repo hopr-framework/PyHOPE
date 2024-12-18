@@ -569,7 +569,7 @@ def ConnectMesh() -> None:
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import find_index
-    from pyhope.common.common_parallel import ProgressBar
+    from pyhope.common.common_progress import ProgressBar, barElems
     from pyhope.io.io_vars import MeshFormat
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.mesh_common import face_to_nodes
@@ -594,8 +594,9 @@ def ConnectMesh() -> None:
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
 
-    hopout.sep()
     bar = ProgressBar(value=len(sides), title='│                Processing Sides')
+    if len(sides) > barElems:
+        hopout.sep()
 
     # cell_sets contain the face IDs [dim=2]
     # > Offset is calculated with entities from [dim=0, dim=1]

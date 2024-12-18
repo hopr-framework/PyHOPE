@@ -43,14 +43,13 @@ def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.common.common_parallel import ProgressBar
+    from pyhope.common.common_progress import ProgressBar, barElems
     from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEM, SIDE
     # ------------------------------------------------------
 
     hopout.sep()
     hopout.routine('Generating sides')
-    hopout.sep()
 
     mesh   = mesh_vars.mesh
     nElems = 0
@@ -70,6 +69,8 @@ def GenerateSides() -> None:
         totalElems += mesh.get_cells_type(elemType).shape[0]
 
     bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33)
+    if totalElems > barElems:
+        hopout.sep()
 
     # Loop over all element types
     for elemType in mesh.cells_dict.keys():

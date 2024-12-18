@@ -25,8 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import threading
-from multiprocessing import Pool, Queue
+from typing import Optional, Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -37,47 +36,24 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-def distribute_work(elems, chunk_size: int) -> list:
-    """Distribute elements into chunks of a given size
-    """
-    return [elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size)]
+# Number of elements to display in the progress bar
+barElems: Final[int] = int(1.E5)
 
 
-def update_progress(progress_queue, total_elements) -> None:
-    """ Function to update the progress bar from the queue
-    """
-    with alive_bar(total_elements, title='│             Processing Elements', length=33) as bar:
-        for _ in range(total_elements):
-            # Block until we receive a progress update from the queue
-            progress_queue.get()
-            bar()
+class ProgressBar:
+    def __init__(self, title: Optional[str], value: int, length: int = 33):
+        self.cm = alive_bar(title=title, total=value, length=length)
+        if value > barElems:
+            self.bar = self.cm.__enter__()
+        else:
+            self.bar = None
+
+    def step(self):
+        if self.bar is not None:
+            self.bar()
+
+    def close(self):
+        if self.bar is not None:
+            self.cm.__exit__(None, None, None)
 
 
-def run_in_parallel(process_chunk, elems, chunk_size=10):
-    """Run the element processing in parallel using a specified number of processes
-    """
-    # Local imports ----------------------------------------
-    from pyhope.common.common_vars import np_mtp
-    # ------------------------------------------------------
-
-    chunks = distribute_work(elems, chunk_size)
-    total_elements = len(elems)
-    progress_queue = Queue()
-
-    # Use a separate thread for the progress bar
-    progress_thread = threading.Thread(target=update_progress, args=(progress_queue, total_elements))
-    progress_thread.start()
-
-    # Use multiprocessing Pool for parallel processing
-    with Pool(processes=np_mtp) as pool:
-        # Map work across processes in chunks
-        results = []
-        for chunk_result in pool.imap_unordered(process_chunk, chunks):
-            results.extend(chunk_result)
-            # Update progress for each processed element in the chunk
-            for _ in chunk_result:
-                progress_queue.put(1)
-
-    # Wait for the progress bar thread to finish
-    progress_thread.join()
-    return results
