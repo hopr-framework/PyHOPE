@@ -201,6 +201,30 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+def flip_s2m(N: int, flip: int) -> np.ndarray:
+    # Create grid index arrays for the rows and columns
+    p = np.arange(N)
+    q = np.arange(N)
+
+    # Create a meshgrid of row (p) and column (q) indices
+    p_grid, q_grid = np.meshgrid(p, q)
+
+    # Map row and column indices based on flip logic
+    # WARNING: FOR SOME REASON, ONLY FLIP 1,3,4 IS USED WITH FACE_TO_NODES
+    if flip == 0:
+        return np.stack((q_grid        , p_grid        ), axis=-1)
+    elif flip == 1:
+        return np.stack((p_grid        , q_grid        ), axis=-1)
+    elif flip == 2:
+        return np.stack((N - p_grid - 1, q_grid        ), axis=-1)
+    elif flip == 3:
+        return np.stack((N - p_grid - 1, N - q_grid - 1), axis=-1)
+    elif flip == 4:
+        return np.stack((N - q_grid - 1, p_grid), axis=-1)
+    else:
+        raise ValueError('Flip must be an integer between 0 and 4')
+
+
 def type_to_mortar_flip(elemType: Union[str, int]) -> dict:
     """ Returns the flip map for a given element type
     """

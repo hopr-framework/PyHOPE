@@ -514,46 +514,54 @@ def periodic_update(sideIDs: list[int], vv: dict) -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import face_to_nodes
+    from pyhope.mesh.mesh_common import flip_s2m
     # ------------------------------------------------------
 
     sides    = [mesh_vars.sides[s] for s in sideIDs]
     elems    = [mesh_vars.elems[s.elemID] for s in sides]
     nodes    = np.array([elems[0].nodes[s] for s in face_to_nodes(sides[0].face, elems[0].type, mesh_vars.nGeo)])
-    Points   = mesh_vars.mesh.points[nodes]
-    PShape   = Points.shape
-    Points   = np.reshape(Points  , (Points  .shape[0]*Points  .shape[1], Points  .shape[2]))
-
     nbNodes  = np.array([elems[1].nodes[s] for s in face_to_nodes(sides[1].face, elems[1].type, mesh_vars.nGeo)])
-    nbPoints = mesh_vars.mesh.points[nbNodes]
-    nbPShape = nbPoints.shape
-    nbPoints = np.reshape(nbPoints, (nbPoints.shape[0]*nbPoints.shape[1], nbPoints.shape[2]))
 
-    # Build a k-dimensional tree of all points on the opposing side
-    stree    = spatial.KDTree(nbPoints)
+    # Get the flip map
+    indices = flip_s2m(mesh_vars.nGeo+1, 1 if sides[0].flip <= 2 else sides[0].flip)
 
-    for iPoint, point in enumerate(Points):
-        p = copy.copy(point)
-        for key, val in enumerate(vv['Dir']):
-            p[key] += val
-        trPoint = stree.query(p)
+    # for iy, ix in np.ndindex(nodes.shape[:2]):
+    #     node   = nodes[ix, iy]
+    #     nbNode = nbNodes[indices[ix, iy, 0], indices[ix, iy, 1]]
+    #
+    #     # Sanity check if the periodic vector matches
+    #     if not np.allclose(vv['Dir'], mesh_vars.mesh.points[nbNode] - mesh_vars.mesh.points[node],
+    #                        rtol=mesh_vars.tolPeriodic, atol=mesh_vars.tolPeriodic):
+    #         hopout.warning('Error in periodic update, periodic vector does not match!')
+    #         sys.exit(1)
+    #
+    #     # Center between both points
+    #     center = 0.5 * (mesh_vars.mesh.points[node] + mesh_vars.mesh.points[nbNode])
+    #
+    #     lowerP = copy.copy(center)
+    #     upperP = copy.copy(center)
+    #     for key, val in enumerate(vv['Dir']):
+    #         lowerP[key] -= 0.5 * val
+    #         upperP[key] += 0.5 * val
+    #
+    #     mesh_vars.mesh.points[  node] = lowerP
+    #     mesh_vars.mesh.points[nbNode] = upperP
 
-        # Calculate the 2D array index
-        PointAr   = np.array([np.floor(iPoint     /   PShape[0]),  iPoint    %   PShape[0]], dtype=int)
-        PointID   = nodes[    PointAr[0],   PointAr[1]]
-        nbPointAr = np.array([np.floor(trPoint[1] / nbPShape[0]), trPoint[1] % nbPShape[0]], dtype=int)
-        nbPointID = nbNodes[nbPointAr[0], nbPointAr[1]]
+    # Extract relevant indices from the mesh
+    nbNodes = nbNodes[indices[:, :, 0], indices[:, :, 1]]
 
-        # Center between both points
-        center = 0.5 * (point + mesh_vars.mesh.points[nbNodes[nbPointAr[0], nbPointAr[1]]])
+    # Check if periodic vector matches using vectorized np.allclose
+    if not np.allclose(mesh_vars.mesh.points[nodes] + vv['Dir'], mesh_vars.mesh.points[nbNodes],
+                       rtol=mesh_vars.tolPeriodic, atol=mesh_vars.tolPeriodic):
+        hopout.warning('Error in periodic update, periodic vector does not match!')
+        sys.exit(1)
 
-        lowerP = copy.copy(center)
-        upperP = copy.copy(center)
-        for key, val in enumerate(vv['Dir']):
-            lowerP[key] -= 0.5 * val
-            upperP[key] += 0.5 * val
+    # Calculate the center for both points
+    centers = 0.5 * (mesh_vars.mesh.points[nodes] + mesh_vars.mesh.points[nbNodes])
 
-        mesh_vars.mesh.points[  PointID] = lowerP
-        mesh_vars.mesh.points[nbPointID] = upperP
+    # Update the mesh points for both node and nbNode
+    mesh_vars.mesh.points[nodes]   = centers - 0.5*vv['Dir']
+    mesh_vars.mesh.points[nbNodes] = centers + 0.5*vv['Dir']
 
 
 def ConnectMesh() -> None:
