@@ -220,7 +220,7 @@ def flip_s2m(N: int, flip: int) -> np.ndarray:
     elif flip == 3:
         return np.stack((N - p_grid - 1, N - q_grid - 1), axis=-1)
     elif flip == 4:
-        return np.stack((N - q_grid - 1, p_grid), axis=-1)
+        return np.stack((N - q_grid - 1, p_grid        ), axis=-1)
     else:
         raise ValueError('Flip must be an integer between 0 and 4')
 

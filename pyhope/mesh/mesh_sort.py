@@ -70,7 +70,10 @@ class tBox:
         blen = maxi - mini
         nbits = (np.iinfo(np.int64).bits - 1) // 3
         self.intfact = 2 ** nbits - 1
-        self.spacing = self.intfact / blen
+        if np.all(blen > 0):
+            self.spacing = self.intfact / blen
+        else:
+            self.spacing = self.intfact
 
 
 def SortMeshBySFC() -> None:

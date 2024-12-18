@@ -42,13 +42,15 @@ import numpy as np
 def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.common.common_parallel import ProgressBar
     from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEM, SIDE
-    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     hopout.sep()
     hopout.routine('Generating sides')
+    hopout.sep()
 
     mesh   = mesh_vars.mesh
     nElems = 0
@@ -59,6 +61,16 @@ def GenerateSides() -> None:
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
 
+    totalElems = 0
+    for elemType in mesh.cells_dict.keys():
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+            continue
+
+        totalElems += mesh.get_cells_type(elemType).shape[0]
+
+    bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33)
+
     # Loop over all element types
     for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
@@ -67,6 +79,7 @@ def GenerateSides() -> None:
 
         # Get the elements
         ioelems  = mesh.get_cells_type(elemType)
+        elemMap  = mesh_vars.ELEMMAP(elemType)
         nIOElems = ioelems.shape[0]
         nIOSides = mesh_vars.ELEMTYPE.type[elemType.rstrip(string.digits)]
 
@@ -74,9 +87,12 @@ def GenerateSides() -> None:
         mesh_vars.elems.extend([ELEM() for _ in range(nIOElems         )])
         mesh_vars.sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
 
+        # Create the corner faces
+        corner_faces = [face_to_cgns(s, elemType) for s in faces(elemType)]
+
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
-            elems[iElem].update(type   = mesh_vars.ELEMMAP(elemType),  # noqa: E251
+            elems[iElem].update(type   = elemMap,                      # noqa: E251
                                 elemID = iElem,                        # noqa: E251
                                 sides  = [],                           # noqa: E251
                                 nodes  = ioelems[iElem])               # noqa: E251
@@ -87,7 +103,7 @@ def GenerateSides() -> None:
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in face_to_cgns( face, elemType)]
+                corners = [ioelems[iElem][s] for s in corner_faces[index]]
                 sides[sCount].update(face    = face,                   # noqa: E251
                                      elemID  = iElem,                  # noqa: E251
                                      sideID  = sCount,                 # noqa: E251
@@ -97,6 +113,9 @@ def GenerateSides() -> None:
 
             # Add to nSides
             nSides += nIOSides
+
+            # Update progress bar
+            bar.step()
 
         # Add to nElems
         nElems += nIOElems

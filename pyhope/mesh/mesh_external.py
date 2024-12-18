@@ -177,8 +177,7 @@ def MeshExternal() -> meshio.Mesh:
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
-    hopout.info('LOADING EXTERNAL MESH DONE!')
-    hopout.separator()
+
     return mesh
 
 

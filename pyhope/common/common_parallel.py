@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import threading
 from multiprocessing import Pool, Queue
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -35,6 +36,18 @@ from alive_progress import alive_bar
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+class ProgressBar:
+    def __init__(self, title: Optional[str], value: Optional[int], length: int = 33):
+        self.cm = alive_bar(title=title, total=value, length=length)
+        self.bar = self.cm.__enter__()
+
+    def step(self):
+        self.bar()
+
+    def close(self):
+        self.cm.__exit__(None, None, None)
 
 
 def distribute_work(elems, chunk_size: int) -> list:

@@ -569,6 +569,7 @@ def ConnectMesh() -> None:
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import find_index
+    from pyhope.common.common_parallel import ProgressBar
     from pyhope.io.io_vars import MeshFormat
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.mesh_common import face_to_nodes
@@ -592,6 +593,9 @@ def ConnectMesh() -> None:
     mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+
+    hopout.sep()
+    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
 
     # cell_sets contain the face IDs [dim=2]
     # > Offset is calculated with entities from [dim=0, dim=1]
@@ -633,6 +637,9 @@ def ConnectMesh() -> None:
                 # Connect the sides
                 connect_sides(sideIDs, sides, flipID)
                 ninner += 1
+
+                # Update the progress bar
+                [bar.step() for _ in range(2)]
             case _:  # Zero or more than 2 sides
                 hopout.warning('Found internal side with more than two adjacent elements, exiting...')
                 traceback.print_stack(file=sys.stdout)
@@ -668,6 +675,9 @@ def ConnectMesh() -> None:
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
                 sides[sideID].update(bcid=bcID)
+
+                if bcs[bcID].type[0] != 1:
+                    bar.step()
 
     # Try to connect the periodic sides
     for key, cset in mesh.cell_sets.items():
@@ -749,11 +759,12 @@ def ConnectMesh() -> None:
             if doPeriodicCorrect:
                 periodic_update(sideIDs, vvs[iVV])
 
+                # Update the progress bar
+                [bar.step() for _ in range(2)]
+
     # Non-connected sides without BCID are possible inner sides
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     nInterZoneConnect      = len(nConnSide)
-
-    hopout.separator()
 
     # Loop over all sides and try to connect
     iter    = 0
@@ -806,6 +817,9 @@ def ConnectMesh() -> None:
 
             # Update the list
             nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+
+            # Update the progress bar
+            [bar.step() for _ in range(2)]
 
             if not doMortars:
                 hopout.warning(f'Could not find internal side within tolerance {tol}, exiting...')
@@ -894,6 +908,9 @@ def ConnectMesh() -> None:
                 nConnSide   = connect_mortar_sides(sideIDs, elems, sides, nConnSide)
                 nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
 
+                # Update the progress bar
+                [bar.step() for _ in range(len(nbSideID) + 1)]
+
             # No connection, attach the side at the end
             else:
                 nConnSide  .append(targetSide)
@@ -915,14 +932,20 @@ def ConnectMesh() -> None:
             print()
         sys.exit(1)
 
+    # Close the progress bar
+    bar.close()
+
+    hopout.separator()
     if nInterZoneConnect > 0:
         hopout.sep()
         hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
 
     # Set the global side ID
     globalSideID     = 0
+    highestSideID    = 0
     usedSideIDs      = set()  # Set to track used side IDs
     availableSideIDs = []     # Min-heap for gap
+
     for iSide, side in enumerate(sides):
         # Already counted the side
         if side.globalSideID is not None:
@@ -932,13 +955,11 @@ def ConnectMesh() -> None:
         if availableSideIDs:
             globalSideID = heapq.heappop(availableSideIDs)
         else:
-            # If no gaps, simply use the next available ID
-            globalSideID += 1
-            # Ensure the globalSideID counter is ahead of all used IDs
-            while globalSideID in usedSideIDs:
-                globalSideID += 1
+            # Use the current maximum ID and increment
+            globalSideID = highestSideID + 1
 
         # Mark the side ID as used
+        highestSideID = max(globalSideID, highestSideID)
         usedSideIDs.add(globalSideID)
         side.update(globalSideID=globalSideID)
 
@@ -950,10 +971,11 @@ def ConnectMesh() -> None:
             # Get the connected slave side
             nbSideID = side.connection
 
-            # Free the gap in the side numbering
+            # Reclaim the ID of the slave side if already assigned
             if sides[nbSideID].globalSideID is not None:
-                usedSideIDs.remove(sides[nbSideID].globalSideID)
-                heapq.heappush(availableSideIDs, sides[nbSideID].globalSideID)
+                reclaimedID = sides[nbSideID].globalSideID
+                usedSideIDs.remove(reclaimedID)
+                heapq.heappush(availableSideIDs, reclaimedID)
 
             # Set the negative globalSideID of the slave  side
             sides[nbSideID].update(globalSideID=-(globalSideID))
