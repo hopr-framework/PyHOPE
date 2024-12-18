@@ -60,7 +60,12 @@ def main() -> None:
     # ------------------------------------------------------
 
     # Always spawn with "fork" method to inherit the address space of the parent process
-    multiprocessing.set_start_method('fork')
+    try:
+        multiprocessing.set_start_method('fork')
+    # Safely set the multiprocessing start method
+    except RuntimeError as e:
+        if 'context has already been set' not in str(e):
+            raise
 
     tStart  = time.time()
     process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
