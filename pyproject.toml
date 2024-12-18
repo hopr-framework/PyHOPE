@@ -40,7 +40,7 @@ homepage = "https://numericsresearchgroup.org"
 repository = "https://gitlab.iag.uni-stuttgart.de/flexi/codes/pyhope"
 
 [project.scripts]
-pyhope = "pyhope.pyhope:main"
+pyhope = "pyhope.script.pyhope_cli:main"
 
 [tool.setuptools]
 packages = ["pyhope"]
