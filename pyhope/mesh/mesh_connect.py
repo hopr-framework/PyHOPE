@@ -82,19 +82,27 @@ def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: s
 def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
     """ Connect the master and slave sides
     """
-    sides[sideIDs[0]].update(
-        # Master side contains positive global side ID
-        MS         = 1,                         # noqa: E251
-        connection = sideIDs[1],                # noqa: E251
-        flip       = flipID,                    # noqa: E251
-        nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
-    )
-    sides[sideIDs[1]].update(
-        MS         = 0,                         # noqa: E251
-        connection = sideIDs[0],                # noqa: E251
-        flip       = flipID,                    # noqa: E251
-        nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
-    )
+    # sides[sideIDs[0]].update(
+    #     # Master side contains positive global side ID
+    #     MS         = 1,                         # noqa: E251
+    #     connection = sideIDs[1],                # noqa: E251
+    #     flip       = flipID,                    # noqa: E251
+    #     nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    # )
+    # sides[sideIDs[1]].update(
+    #     MS         = 0,                         # noqa: E251
+    #     connection = sideIDs[0],                # noqa: E251
+    #     flip       = flipID,                    # noqa: E251
+    #     nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
+    # )
+    sides[sideIDs[0]].MS         = 1                          # noqa: E251
+    sides[sideIDs[0]].connection = sideIDs[1]                 # noqa: E251
+    sides[sideIDs[0]].flip       = flipID                     # noqa: E251
+    sides[sideIDs[0]].nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    sides[sideIDs[1]].MS         = 0                          # noqa: E251
+    sides[sideIDs[1]].connection = sideIDs[0]                 # noqa: E251
+    sides[sideIDs[1]].flip       = flipID                     # noqa: E251
+    sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
 
 
 def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: list) -> list:
@@ -153,13 +161,17 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
             sys.exit(1)
 
     # Update the master side
-    sides[sideIDs[0]].update(
-        # Master side contains positive global side ID
-        MS          = 1,            # noqa: E251
-        connection  = -mortarType,  # noqa: E251
-        flip        = 0,            # noqa: E251
-        nbLocSide   = 0,            # noqa: E251
-    )
+    # sides[sideIDs[0]].update(
+    #     # Master side contains positive global side ID
+    #     MS          = 1,            # noqa: E251
+    #     connection  = -mortarType,  # noqa: E251
+    #     flip        = 0,            # noqa: E251
+    #     nbLocSide   = 0,            # noqa: E251
+    # )
+    sides[sideIDs[0]].MS          = 1            # noqa: E251
+    sides[sideIDs[0]].connection  = -mortarType  # noqa: E251
+    sides[sideIDs[0]].flip        = 0            # noqa: E251
+    sides[sideIDs[0]].nbLocSide   = 0            # noqa: E251
 
     # Update the elems
     for elem in elems:
@@ -190,7 +202,8 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
 
         flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
         flipID = flipMap.get(mortarCorners[key], {}).get(flipID, flipID)
-        val.update(flip=flipID)
+        # val.update(flip=flipID)
+        val.flip = flipID
 
         # Insert the virtual sides
         side = SIDE(sideType   = 104,                          # noqa: E251
@@ -209,12 +222,16 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
         elems[masterElem.elemID].sides.insert(masterSide.locSide + key, side.sideID)
 
         # Connect the small (slave) sides to the master side
-        val.update(connection = masterSide.sideID,             # noqa: E251
-                   # Small sides are always slave sides
-                   sideType   = -104,                          # noqa: E251
-                   MS         = 0,                             # noqa: E251
-                   flip       = flipID,                        # noqa: E251
-                  )
+        # val.update(connection = masterSide.sideID,             # noqa: E251
+        #            # Small sides are always slave sides
+        #            sideType   = -104,                          # noqa: E251
+        #            MS         = 0,                             # noqa: E251
+        #            flip       = flipID,                        # noqa: E251
+        #           )
+        val.connection = masterSide.sideID             # noqa: E251
+        val.sideType   = -104                          # noqa: E251
+        val.MS         = 0                             # noqa: E251
+        val.flip       = flipID                        # noqa: E251
 
         for s in nConnSide:
             if s.sideID == val.sideID:
@@ -569,7 +586,7 @@ def ConnectMesh() -> None:
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import find_index
-    from pyhope.common.common_progress import ProgressBar, barElems
+    from pyhope.common.common_progress import ProgressBar
     from pyhope.io.io_vars import MeshFormat
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.mesh_common import face_to_nodes
@@ -593,10 +610,6 @@ def ConnectMesh() -> None:
     mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
-
-    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
-    if len(sides) > barElems:
-        hopout.sep()
 
     # cell_sets contain the face IDs [dim=2]
     # > Offset is calculated with entities from [dim=0, dim=1]
@@ -623,6 +636,8 @@ def ConnectMesh() -> None:
             corner_side[val] = [key]
         else:
             corner_side[val].append(key)
+
+    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
 
     # Try to connect the inner sides
     ninner = 0
@@ -675,7 +690,8 @@ def ConnectMesh() -> None:
                 # Boundary faces are unique
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
-                sides[sideID].update(bcid=bcID)
+                # sides[sideID].update(bcid=bcID)
+                sides[sideID].bcid = bcID
 
                 if bcs[bcID].type[0] != 1:
                     bar.step()
@@ -962,7 +978,8 @@ def ConnectMesh() -> None:
         # Mark the side ID as used
         highestSideID = max(globalSideID, highestSideID)
         usedSideIDs.add(globalSideID)
-        side.update(globalSideID=globalSideID)
+        # side.update(globalSideID=globalSideID)
+        side.globalSideID = globalSideID
 
         if side.connection is None:         # BC side
             pass
@@ -979,7 +996,8 @@ def ConnectMesh() -> None:
                 heapq.heappush(availableSideIDs, reclaimedID)
 
             # Set the negative globalSideID of the slave  side
-            sides[nbSideID].update(globalSideID=-(globalSideID))
+            # sides[nbSideID].update(globalSideID=-(globalSideID))
+            sides[nbSideID].globalSideID = -(globalSideID)
 
     # Count the sides
     nsides             = len(sides)
