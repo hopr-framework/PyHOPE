@@ -96,14 +96,19 @@ def MeshExternal() -> meshio.Mesh:
             hopout.warning('Mixed file formats detected, this is untested and may not work')
             # sys.exit(1)
 
+    # Gmsh has to come first as we cannot extend the mesh
     fgmsh = [s for s in fnames if compatibleGMSH(s)]
     if len(fgmsh) > 0:
         mesh = ReadGMSH(fgmsh)
     fnames = list(filter(lambda x: not compatibleGMSH(x), fnames))
+
+    # HOPR meshes can extend the Gmsh mesh
     fhopr  = [s for s in fnames if s.endswith('.h5')]
     if len(fhopr) > 0:
-        mesh = ReadHOPR(fhopr)
+        mesh = ReadHOPR(fhopr, mesh)
     fnames = list(filter(lambda x: x not in fhopr, fnames))
+
+    # If there are still files left, we have an unknown format
     if len(fnames) > 0:
         hopout.warning('Unknown file format {}, exiting...'.format(fnames))
         sys.exit(1)

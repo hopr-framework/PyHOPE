@@ -51,7 +51,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def ReadHOPR(fnames: list) -> meshio.Mesh:
+def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -63,10 +63,11 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
     hopout.sep()
 
     # Create an empty meshio object
-    points   = np.zeros((0, 3), dtype=np.float64)
-    cells    = dict()
-    cellsets = dict()
+    points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
+    cells    = mesh.cells_dict
+    cellsets = mesh.cell_sets
 
+    nodeCoords   = mesh.points
     offsetnNodes = 0
     # offsetnSides = 0
     nSides       = 0
@@ -92,7 +93,6 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
             nodeCoords = nodeCoords[indices]
 
             points     = np.append(points, nodeCoords, axis=0)
-            offsetnNodes += nodeCoords.shape[0]
 
             # Read nGeo
             nGeo       = cast(int, f.attrs['Ngeo'])
@@ -118,7 +118,7 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
 
                 linMap    = LINTEN(elem[0], order=nGeo)
                 elemNodes = np.arange(elem[4], elem[5])
-                elemNodes = np.expand_dims(nodeInfo[elemNodes[linMap]]-1, axis=0)
+                elemNodes = np.expand_dims(nodeInfo[elemNodes[linMap]]-1+offsetnNodes, axis=0)
 
                 try:
                     cells[elemType] = np.append(cells[elemType], elemNodes, axis=0)
@@ -130,7 +130,7 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
                 sCounter = 0
                 for index in range(elem[2], elem[3]):
                     # Account for mortar sides
-                    # if
+                    # TODO: Add mortar sides
 
                     # Obtain the side type
                     sideType  = sideInfo[index, 0]
@@ -163,7 +163,11 @@ def ReadHOPR(fnames: list) -> meshio.Mesh:
                     try:
                         cellsets[BCName][1] = np.append(cellsets[BCName][1], np.array([nSides-1], dtype=np.uint64))
                     except KeyError:
-                        cellsets[BCName]    = [None, np.array([nSides-1], dtype=np.uint64)]
+                        # Pyright does not understand that Meshio expects a list with one None entry
+                        cellsets[BCName]    = [None, np.array([nSides-1], dtype=np.uint64)]  # type: ignore
+
+            # Update the offset for the next file
+            offsetnNodes += nodeCoords.shape[0]
 
     mesh   = meshio.Mesh(points    = points,    # noqa: E251
                          cells     = cells,     # noqa: E251
