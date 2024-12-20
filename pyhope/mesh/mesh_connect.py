@@ -673,18 +673,19 @@ def ConnectMesh() -> None:
             sys.exit(1)
 
         # Find the mapping to the (N-1)-dim elements
-        csetMap = [s for s in range(len(cset)) if cset[s] is not None]
+        csetMap = [s for s in range(len(cset)) if cset[s] is not None and np.size(cset[s]) > 0]
 
         # Get the list of sides
         for iMap in csetMap:
             iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
             mapFaces = mesh.cells[iMap].data
+            # Support for hybrid meshes
+            nCorners = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
 
             # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
-                # Get the quad corner nodes
-                # FIXME: HARDCODED FIRST 4 NODES WHICH ARE THE OUTER CORNER NODES FOR QUADS!
-                corners = np.sort(np.array(mapFaces[iSide][0:4]))
+                # Get the corner nodes
+                corners = np.sort(np.array(mapFaces[iSide][0:nCorners]))
                 corners = hash(corners.tobytes())
 
                 # Boundary faces are unique

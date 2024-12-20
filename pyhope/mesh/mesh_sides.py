@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import string
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -83,7 +82,7 @@ def GenerateSides() -> None:
         ioelems  = mesh.get_cells_type(elemType)
         elemMap  = mesh_vars.ELEMMAP(elemType)
         nIOElems = ioelems.shape[0]
-        nIOSides = mesh_vars.ELEMTYPE.type[elemType.rstrip(string.digits)]
+        nIOSides = len(faces(elemType))
 
         # Create non-unique sides
         # mesh_vars.elems += tuple(ELEM() for _ in range(nIOElems         ))
@@ -108,10 +107,9 @@ def GenerateSides() -> None:
             elems[iElem].nodes  = ioelems[iElem]                # noqa: E251
 
             # Create the sides
-            for iSide in range(nSides, nSides+nIOSides):
+            for key, val in enumerate(corner_faces):
                 # sides[iSide].update(sideType=4)
-                sides[iSide].sideType=4
-                # TODO: Account for prims, pyrams here
+                sides[nSides + key].sideType = len(val)
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):

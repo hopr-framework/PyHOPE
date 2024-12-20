@@ -113,7 +113,15 @@ def CheckJacobians() -> None:
     if not checkElemJacobians:
         return None
 
-    nGeo = mesh_vars.nGeo + 1
+    # Map all points to tensor product
+    nGeo  = mesh_vars.nGeo + 1
+    elems = mesh_vars.elems
+    nodes = mesh_vars.mesh.points
+
+    # Only consider hexahedrons
+    if any(e.type % 100 != 8 for e in elems):
+        print(hopout.warn(f'Passing element type: {mesh_vars.ELEMTYPE.inam[[e for e in elems if e.type % 100 != 8][0].type]}'))
+        return
 
     # Compute the equidistant point set used by meshIO
     xEq = np.zeros(nGeo)
@@ -136,10 +144,6 @@ def CheckJacobians() -> None:
     VdmGLtoAP = calc_vandermonde(nGeo, nGeoRef, wbaryGL, xGL, xAP)
     # INFO: ALTERNATIVE VERSION, CACHING VDM, D
     # evaluate_jacobian = JacobianEvaluator(VdmGLtoAP, D_EqToGL).evaluate_jacobian
-
-    # Map all points to tensor product
-    elems = mesh_vars.elems
-    nodes = mesh_vars.mesh.points
 
     # Prepare elements for parallel processing
     tasks = []

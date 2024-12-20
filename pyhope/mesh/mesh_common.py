@@ -52,6 +52,7 @@ def faces(elemType: Union[int, str]) -> list[str]:
     faces_map = {  # Tetrahedron
                    4: ['z-', 'y-', 'x+', 'x-'            ],
                    # Pyramid
+                   5: ['z-', 'y-', 'x+', 'y+', 'x-'      ],
                    # Wedge / Prism
                    # Hexahedron
                    8: ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
@@ -193,6 +194,11 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                        'x+': np.array([  1,  2,  3    ], dtype=dtype),
                        'x-': np.array([  2,  0,  3    ], dtype=dtype)},
                    # Pyramid
+                   5: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),
+                       'y-': np.array([  0,  1,  4    ], dtype=dtype),
+                       'x+': np.array([  1,  2,  4    ], dtype=dtype),
+                       'y+': np.array([  2,  3,  4    ], dtype=dtype),
+                       'x-': np.array([  3,  0,  4    ], dtype=dtype)},
                    # Wedge / Prism
                    # Hexahedron
                    8: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),

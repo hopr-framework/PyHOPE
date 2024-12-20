@@ -83,7 +83,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     nodeCoords   = mesh.points
     offsetnNodes = nodeCoords.shape[0]
-    nSides       = 0
+    nSides       = np.zeros(2, dtype=int)
 
     # Vandermonde for changeBasis
     VdmEqHdf5ToEqMesh = np.array([])
@@ -216,7 +216,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Increment the side counter
                     sCounter += 1
-                    nSides   += 1
+                    sideType  = 0 if nCorners == 4 else 1
+                    nSides[sideType] += 1
 
                     if sideBC == 0:
                         continue
@@ -224,10 +225,10 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     # Add the side to the cellset
                     # > We did not create any 0D/1D objects, so we do not need to consider any offset
                     try:
-                        cellsets[BCName][1] = np.append(cellsets[BCName][1], np.array([nSides-1], dtype=np.uint64))
+                        cellsets[BCName][1] = np.append(cellsets[BCName][1], np.array([nSides[sideType]-1], dtype=np.uint64))
                     except KeyError:
                         # Pyright does not understand that Meshio expects a list with one None entry
-                        cellsets[BCName]    = [None, np.array([nSides-1], dtype=np.uint64)]  # type: ignore
+                        cellsets[BCName]    = [None, np.array([nSides[sideType]-1], dtype=np.uint64)]  # type: ignore
 
             # Update the offset for the next file
             offsetnNodes = points.shape[0]
