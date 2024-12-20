@@ -201,6 +201,30 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+def flip_s2m(N: int, flip: int) -> np.ndarray:
+    # Create grid index arrays for the rows and columns
+    p = np.arange(N)
+    q = np.arange(N)
+
+    # Create a meshgrid of row (p) and column (q) indices
+    p_grid, q_grid = np.meshgrid(p, q)
+
+    # Map row and column indices based on flip logic
+    # WARNING: FOR SOME REASON, ONLY FLIP 1,3,4 IS USED WITH FACE_TO_NODES
+    if flip == 0:
+        return np.stack((q_grid        , p_grid        ), axis=-1)
+    elif flip == 1:
+        return np.stack((p_grid        , q_grid        ), axis=-1)
+    elif flip == 2:
+        return np.stack((N - p_grid - 1, q_grid        ), axis=-1)
+    elif flip == 3:
+        return np.stack((N - p_grid - 1, N - q_grid - 1), axis=-1)
+    elif flip == 4:
+        return np.stack((N - q_grid - 1, p_grid        ), axis=-1)
+    else:
+        raise ValueError('Flip must be an integer between 0 and 4')
+
+
 def type_to_mortar_flip(elemType: Union[str, int]) -> dict:
     """ Returns the flip map for a given element type
     """
@@ -297,32 +321,21 @@ def count_elems(mesh: meshio.Mesh) -> int:
     return nElems
 
 
-def centeroidnp(coords: np.ndarray) -> np.ndarray:
-    """ Compute the centroid (barycenter) of a set of coordinates
-    """
-    length = coords.shape[0]
-    sum_x  = np.sum(coords[:, 0])
-    sum_y  = np.sum(coords[:, 1])
-    sum_z  = np.sum(coords[:, 2])
-    return np.array([sum_x/length, sum_y/length, sum_z/length])
-
-
-def calc_elem_bary(mesh: meshio.Mesh) -> list:
+def calc_elem_bary(mesh: meshio.Mesh) -> np.ndarray:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
-    nElems   = count_elems(mesh)
-    elemBary = [np.ndarray(3)] * nElems
-    for elemType in mesh.cells_dict.keys():
-        # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
-            continue
+    # Only consider three-dimensional types
+    elem_cells = []
+    for elemType in mesh.cells_dict:
+        if any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+            elem_cells.append(mesh.get_cells_type(elemType))
 
-        ioelems = mesh.get_cells_type(elemType)
+    # Flatten the list of cells (concatenate all cells into one array)
+    all_cells = np.concatenate(elem_cells, axis=0)
 
-        for elemID, cell in enumerate(ioelems):
-            elemBary[elemID] = centeroidnp(mesh_vars.mesh.points[cell])
-    return elemBary
+    # Calculate the centroid (mean of coordinates) for all cells at once
+    return np.mean(mesh_vars.mesh.points[all_cells], axis=1)
 
 
 def LINTEN(elemType: int, order: int = 1) -> np.ndarray:

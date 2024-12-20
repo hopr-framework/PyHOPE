@@ -139,6 +139,15 @@ def GenerateMesh() -> None:
 
     mesh_vars.mesh = mesh
 
+    # Final count
+    nElems = 0
+    for cellType in mesh.cells:
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
+            nElems += mesh.get_cells_type(cellType.type).shape[0]
+    hopout.sep()
+    hopout.routine('Generated mesh with {} cells'.format(nElems))
+    hopout.sep()
+
     hopout.info('GENERATE MESH DONE!')
 
 

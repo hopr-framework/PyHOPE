@@ -35,23 +35,20 @@ import numpy as np
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.basis.basis_basis import change_basis_2D
+from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
 
 
 def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, wGP: np.ndarray) -> np.ndarray:
     """ Evaluate the surface integral for normals over a side of an element
     """
-    # Local imports ----------------------------------------
-    from pyhope.basis.basis_basis import change_basis_2D
-    # ------------------------------------------------------
     # Change basis to Gauss points
     xGP      = change_basis_2D(Vdm, XGeo)
 
     # Compute derivatives at all Gauss points
-    dXdxiGP  = np.tensordot(DGP, xGP, axes=(1, 1))  # Shape: (3, N_GP+1, N_GP+1)
-    dXdetaGP = np.tensordot(DGP, xGP, axes=(1, 2))  # Shape: (3, N_GP+1, N_GP+1)
-    dXdxiGP  = np.moveaxis(dXdxiGP , 1, 0)
-    dXdetaGP = np.moveaxis(dXdetaGP, 1, 0)
+    dXdxiGP  = np.tensordot(DGP, xGP, axes=(1, 1)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
+    dXdetaGP = np.tensordot(DGP, xGP, axes=(1, 2)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
 
     # Compute the cross product at each Gauss point
     dXdxiGP  = dXdxiGP .reshape(3, -1)              # Flatten for cross computation
@@ -79,7 +76,11 @@ def check_sides(elem,
     # ------------------------------------------------------
     results = []
     points  = mesh_vars.mesh.points
+    elems   = mesh_vars.elems
     sides   = mesh_vars.sides
+    nGeo    = mesh_vars.nGeo
+
+    elemType   = elem.type
 
     for SideID in elem.sides:
         # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
@@ -87,37 +88,33 @@ def check_sides(elem,
         #     continue
 
         side   = sides[SideID]
-        nbside = 0
-        # Only connected sides
-        if side.connection is None:
+
+        # Only connected sides and not small mortar sides
+        # > Small mortar sides connect to big mortar side, so we will never match
+        if side.connection is None or side.sideType < 0:
             continue
-
-        nSurf    = np.full((3,), sys.float_info.max, dtype=float)
-        nnbSurf  = np.full((3,), sys.float_info.max, dtype=float)
-        tol      = 0.
-        success  = True
-        nSurfErr = 0.
-
-        # Small mortar side
-        if side.sideType < 0:
-            # Small mortar sides connect to big mortar side, so we will never match
-            nSurfErr = 0.
 
         # Big mortar side
         elif side.connection < 0:
             mortarType = abs(side.connection)
-            nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
-            nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
-            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
+            nodes   = np.array([elem.nodes[s] for s in face_to_nodes(side.face, elemType, nGeo)])
+            # INFO: This should be faster but I could not confirm the speedup in practice
+            # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, wGP)
+            # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+            nSurf   = eval_nsurf(np.transpose(points[  nodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
             # checked[SideID] = True
 
             # Mortar sides are the following virtual sides
             nMortar = 4 if mortarType == 1 else 2
-            nnbSurf = np.full((3,), 0., dtype=float)
+            nnbSurf = np.zeros((3,), dtype=float)
             for mortarSide in range(nMortar):
                 # Get the matching side
-                nbside   = sides[SideID + mortarSide + 1].connection
-                nbnodes  = sides[nbside].nodes
+                nbside   = sides[sides[SideID + mortarSide + 1].connection]
+                nbelem   = elems[nbside.elemID]
+                nbnodes  = np.array([nbelem.nodes[s] for s in face_to_nodes(nbside.face, nbelem.type, nGeo)])
+                # INFO: This should be faster but I could not confirm the speedup in practice
+                # nnbSurf += eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, wGP)
                 nnbSurf += eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
                 # checked[nbside] = True
 
@@ -126,25 +123,33 @@ def check_sides(elem,
             success  = nSurfErr < tol
 
         # Internal side
-        elif side.connection > 0:
+        elif side.connection >= 0:
             # Ignore the virtual mortar sides
             if side.locMortar is not None:
                 continue
 
-            nodes   = np.transpose(points[side.nodes], axes=(2, 0, 1))
-            nSurf   = eval_nsurf(nodes, VdmEqToGP, DGP, wGP)
-            tol     = np.linalg.norm(nSurf, ord=2).astype(float) * mesh_vars.tolExternal
+            nodes   = np.array([elem.nodes[s] for s in face_to_nodes(  side.face,   elemType, nGeo)])
+            # INFO: This should be faster but I could not confirm the speedup in practice
+            # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, wGP)
+            nSurf   = eval_nsurf(np.transpose(points[  nodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
             # checked[SideID] = True
 
             # Connected side
-            nbside  = side.connection
-            nbnodes = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
-            nnbSurf = eval_nsurf(nbnodes, VdmEqToGP, DGP, wGP)
+            nbside  = sides[side.connection]
+            nbelem  = elems[nbside.elemID]
+            nbnodes = np.array([nbelem.nodes[s] for s in face_to_nodes(nbside.face, nbelem.type, nGeo)])
+            # INFO: This should be faster but I could not confirm the speedup in practice
+            # nnbSurf = eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, wGP)
+            nnbSurf = eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
             # checked[nbside] = True
 
             # Check if side normals are within tolerance
             nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
             success  = nSurfErr < tol
+
+        else:
+            continue
 
         results.append((success, SideID, nSurf, nnbSurf, nSurfErr, tol))
     return results
@@ -203,7 +208,8 @@ def CheckWatertight() -> None:
         tasks  = [(elem, VdmEqToGP, DGP, wGP)
                   for elem in elems]
         # Run in parallel with a chunk size
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=10)
+        # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
+        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
     else:
         res    = np.empty(len(elems), dtype=object)
         res[:] = [check_sides(elem, VdmEqToGP, DGP, wGP) for elem in elems]
@@ -222,8 +228,11 @@ def CheckWatertight() -> None:
                 nSurfErr = result[4]
                 tol      = result[5]
 
-                nodes    = np.transpose(points[side.nodes]         , axes=(2, 0, 1))
-                nnbodes  = np.transpose(points[sides[nbside].nodes], axes=(2, 0, 1))
+                nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
+                nodes    = np.transpose(points[nodes]         , axes=(2, 0, 1))
+                nbelem   = elems[sides[nbside].elemID]
+                nbnodes  = np.transpose(np.array([nbelem.nodes[s] for s in face_to_nodes(side.face, nbelem.type, mesh_vars.nGeo)]))
+                nnbodes  = np.transpose(points[nbnodes], axes=(2, 0, 1))
 
                 strLen = max(len(str(side.sideID+1)), len(str(nbside)))
                 hopout.warning('Watertightness check failed!')

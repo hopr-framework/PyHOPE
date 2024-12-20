@@ -166,7 +166,8 @@ def CheckJacobians() -> None:
 
     if np_mtp > 0:
         # Run in parallel with a chunk size
-        jacs = run_in_parallel(process_chunk, tasks, chunk_size=10)
+        # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
+        jacs = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
     else:
         jacs = np.array(tasks)
 

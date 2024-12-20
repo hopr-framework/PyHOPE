@@ -82,19 +82,27 @@ def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: s
 def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
     """ Connect the master and slave sides
     """
-    sides[sideIDs[0]].update(
-        # Master side contains positive global side ID
-        MS         = 1,                         # noqa: E251
-        connection = sideIDs[1],                # noqa: E251
-        flip       = flipID,                    # noqa: E251
-        nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
-    )
-    sides[sideIDs[1]].update(
-        MS         = 0,                         # noqa: E251
-        connection = sideIDs[0],                # noqa: E251
-        flip       = flipID,                    # noqa: E251
-        nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
-    )
+    # sides[sideIDs[0]].update(
+    #     # Master side contains positive global side ID
+    #     MS         = 1,                         # noqa: E251
+    #     connection = sideIDs[1],                # noqa: E251
+    #     flip       = flipID,                    # noqa: E251
+    #     nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    # )
+    # sides[sideIDs[1]].update(
+    #     MS         = 0,                         # noqa: E251
+    #     connection = sideIDs[0],                # noqa: E251
+    #     flip       = flipID,                    # noqa: E251
+    #     nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
+    # )
+    sides[sideIDs[0]].MS         = 1                          # noqa: E251
+    sides[sideIDs[0]].connection = sideIDs[1]                 # noqa: E251
+    sides[sideIDs[0]].flip       = flipID                     # noqa: E251
+    sides[sideIDs[0]].nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    sides[sideIDs[1]].MS         = 0                          # noqa: E251
+    sides[sideIDs[1]].connection = sideIDs[0]                 # noqa: E251
+    sides[sideIDs[1]].flip       = flipID                     # noqa: E251
+    sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
 
 
 def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: list) -> list:
@@ -153,13 +161,17 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
             sys.exit(1)
 
     # Update the master side
-    sides[sideIDs[0]].update(
-        # Master side contains positive global side ID
-        MS          = 1,            # noqa: E251
-        connection  = -mortarType,  # noqa: E251
-        flip        = 0,            # noqa: E251
-        nbLocSide   = 0,            # noqa: E251
-    )
+    # sides[sideIDs[0]].update(
+    #     # Master side contains positive global side ID
+    #     MS          = 1,            # noqa: E251
+    #     connection  = -mortarType,  # noqa: E251
+    #     flip        = 0,            # noqa: E251
+    #     nbLocSide   = 0,            # noqa: E251
+    # )
+    sides[sideIDs[0]].MS          = 1            # noqa: E251
+    sides[sideIDs[0]].connection  = -mortarType  # noqa: E251
+    sides[sideIDs[0]].flip        = 0            # noqa: E251
+    sides[sideIDs[0]].nbLocSide   = 0            # noqa: E251
 
     # Update the elems
     for elem in elems:
@@ -190,7 +202,8 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
 
         flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
         flipID = flipMap.get(mortarCorners[key], {}).get(flipID, flipID)
-        val.update(flip=flipID)
+        # val.update(flip=flipID)
+        val.flip = flipID
 
         # Insert the virtual sides
         side = SIDE(sideType   = 104,                          # noqa: E251
@@ -209,12 +222,16 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
         elems[masterElem.elemID].sides.insert(masterSide.locSide + key, side.sideID)
 
         # Connect the small (slave) sides to the master side
-        val.update(connection = masterSide.sideID,             # noqa: E251
-                   # Small sides are always slave sides
-                   sideType   = -104,                          # noqa: E251
-                   MS         = 0,                             # noqa: E251
-                   flip       = flipID,                        # noqa: E251
-                  )
+        # val.update(connection = masterSide.sideID,             # noqa: E251
+        #            # Small sides are always slave sides
+        #            sideType   = -104,                          # noqa: E251
+        #            MS         = 0,                             # noqa: E251
+        #            flip       = flipID,                        # noqa: E251
+        #           )
+        val.connection = masterSide.sideID             # noqa: E251
+        val.sideType   = -104                          # noqa: E251
+        val.MS         = 0                             # noqa: E251
+        val.flip       = flipID                        # noqa: E251
 
         for s in nConnSide:
             if s.sideID == val.sideID:
@@ -272,9 +289,8 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
     # Check if exactly one combo point matches each target point
     for point in targetPoints:
-        # TODO: IS CLOSE
-        distancesToPoints = np.linalg.norm(comboPoints - point, axis=1)
-        if np.sum(distancesToPoints <= tol) != 1:
+        # if not np.allclose(comboPoints, point, atol=tol, rtol=0):
+        if np.sum(np.linalg.norm(comboPoints - point, axis=1) <= tol) != 1:
             return False
 
     # Build the target edges
@@ -514,42 +530,55 @@ def periodic_update(sideIDs: list[int], vv: dict) -> None:
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_common import face_to_nodes
+    from pyhope.mesh.mesh_common import flip_s2m
     # ------------------------------------------------------
 
-    sides   = [mesh_vars.sides[s] for s in sideIDs]
-    # Build a k-dimensional tree of all points on the opposing side
-    Points   = mesh_vars.mesh.points[sides[0].nodes]
-    PShape   = Points.shape
-    Points   = np.reshape(Points  , (Points  .shape[0]*Points  .shape[1], Points  .shape[2]))
+    sides    = [mesh_vars.sides[s] for s in sideIDs]
+    elems    = [mesh_vars.elems[s.elemID] for s in sides]
+    nodes    = np.array([elems[0].nodes[s] for s in face_to_nodes(sides[0].face, elems[0].type, mesh_vars.nGeo)])
+    nbNodes  = np.array([elems[1].nodes[s] for s in face_to_nodes(sides[1].face, elems[1].type, mesh_vars.nGeo)])
 
-    nbPoints = mesh_vars.mesh.points[sides[1].nodes]
-    nbPShape = nbPoints.shape
-    nbPoints = np.reshape(nbPoints, (nbPoints.shape[0]*nbPoints.shape[1], nbPoints.shape[2]))
-    stree    = spatial.KDTree(nbPoints)
+    # Get the flip map
+    indices = flip_s2m(mesh_vars.nGeo+1, 1 if sides[0].flip <= 2 else sides[0].flip)
 
-    for iPoint, point in enumerate(Points):
-        p = copy.copy(point)
-        for key, val in enumerate(vv['Dir']):
-            p[key] += val
-        trPoint = stree.query(p)
+    # for iy, ix in np.ndindex(nodes.shape[:2]):
+    #     node   = nodes[ix, iy]
+    #     nbNode = nbNodes[indices[ix, iy, 0], indices[ix, iy, 1]]
+    #
+    #     # Sanity check if the periodic vector matches
+    #     if not np.allclose(vv['Dir'], mesh_vars.mesh.points[nbNode] - mesh_vars.mesh.points[node],
+    #                        rtol=mesh_vars.tolPeriodic, atol=mesh_vars.tolPeriodic):
+    #         hopout.warning('Error in periodic update, periodic vector does not match!')
+    #         sys.exit(1)
+    #
+    #     # Center between both points
+    #     center = 0.5 * (mesh_vars.mesh.points[node] + mesh_vars.mesh.points[nbNode])
+    #
+    #     lowerP = copy.copy(center)
+    #     upperP = copy.copy(center)
+    #     for key, val in enumerate(vv['Dir']):
+    #         lowerP[key] -= 0.5 * val
+    #         upperP[key] += 0.5 * val
+    #
+    #     mesh_vars.mesh.points[  node] = lowerP
+    #     mesh_vars.mesh.points[nbNode] = upperP
 
-        # Calculate the 2D array index
-        PointAr   = np.array([np.floor(iPoint     /   PShape[0]),  iPoint    %   PShape[0]], dtype=int)
-        PointID   = sides[0].nodes[  PointAr[0],   PointAr[1]]
-        nbPointAr = np.array([np.floor(trPoint[1] / nbPShape[0]), trPoint[1] % nbPShape[0]], dtype=int)
-        nbPointID = sides[1].nodes[nbPointAr[0], nbPointAr[1]]
+    # Extract relevant indices from the mesh
+    nbNodes = nbNodes[indices[:, :, 0], indices[:, :, 1]]
 
-        # Center between both points
-        center = 0.5 * (point + mesh_vars.mesh.points[sides[1].nodes[nbPointAr[0], nbPointAr[1]]])
+    # Check if periodic vector matches using vectorized np.allclose
+    if not np.allclose(mesh_vars.mesh.points[nodes] + vv['Dir'], mesh_vars.mesh.points[nbNodes],
+                       rtol=mesh_vars.tolPeriodic, atol=mesh_vars.tolPeriodic):
+        hopout.warning('Error in periodic update, periodic vector does not match!')
+        sys.exit(1)
 
-        lowerP = copy.copy(center)
-        upperP = copy.copy(center)
-        for key, val in enumerate(vv['Dir']):
-            lowerP[key] -= 0.5 * val
-            upperP[key] += 0.5 * val
+    # Calculate the center for both points
+    centers = 0.5 * (mesh_vars.mesh.points[nodes] + mesh_vars.mesh.points[nbNodes])
 
-        mesh_vars.mesh.points[  PointID] = lowerP
-        mesh_vars.mesh.points[nbPointID] = upperP
+    # Update the mesh points for both node and nbNode
+    mesh_vars.mesh.points[nodes]   = centers - 0.5*vv['Dir']
+    mesh_vars.mesh.points[nbNodes] = centers + 0.5*vv['Dir']
 
 
 def ConnectMesh() -> None:
@@ -557,8 +586,10 @@ def ConnectMesh() -> None:
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import find_index
+    from pyhope.common.common_progress import ProgressBar
     from pyhope.io.io_vars import MeshFormat
     from pyhope.readintools.readintools import GetLogical
+    from pyhope.mesh.mesh_common import face_to_nodes
     # ------------------------------------------------------
 
     match io_vars.outputformat:
@@ -606,6 +637,8 @@ def ConnectMesh() -> None:
         else:
             corner_side[val].append(key)
 
+    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
+
     # Try to connect the inner sides
     ninner = 0
     for (key, val) in corner_side.items():
@@ -620,6 +653,9 @@ def ConnectMesh() -> None:
                 # Connect the sides
                 connect_sides(sideIDs, sides, flipID)
                 ninner += 1
+
+                # Update the progress bar
+                [bar.step() for _ in range(2)]
             case _:  # Zero or more than 2 sides
                 hopout.warning('Found internal side with more than two adjacent elements, exiting...')
                 traceback.print_stack(file=sys.stdout)
@@ -654,7 +690,11 @@ def ConnectMesh() -> None:
                 # Boundary faces are unique
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
-                sides[sideID].update(bcid=bcID)
+                # sides[sideID].update(bcid=bcID)
+                sides[sideID].bcid = bcID
+
+                if bcs[bcID].type[0] != 1:
+                    bar.step()
 
     # Try to connect the periodic sides
     for key, cset in mesh.cell_sets.items():
@@ -736,11 +776,12 @@ def ConnectMesh() -> None:
             if doPeriodicCorrect:
                 periodic_update(sideIDs, vvs[iVV])
 
+                # Update the progress bar
+                [bar.step() for _ in range(2)]
+
     # Non-connected sides without BCID are possible inner sides
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     nInterZoneConnect      = len(nConnSide)
-
-    hopout.separator()
 
     # Loop over all sides and try to connect
     iter    = 0
@@ -793,6 +834,9 @@ def ConnectMesh() -> None:
 
             # Update the list
             nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+
+            # Update the progress bar
+            [bar.step() for _ in range(2)]
 
             if not doMortars:
                 hopout.warning(f'Could not find internal side within tolerance {tol}, exiting...')
@@ -881,6 +925,9 @@ def ConnectMesh() -> None:
                 nConnSide   = connect_mortar_sides(sideIDs, elems, sides, nConnSide)
                 nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
 
+                # Update the progress bar
+                [bar.step() for _ in range(len(nbSideID) + 1)]
+
             # No connection, attach the side at the end
             else:
                 nConnSide  .append(targetSide)
@@ -892,7 +939,9 @@ def ConnectMesh() -> None:
 
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
-            nodes = np.transpose(mesh_vars.mesh.points[side.nodes]         , axes=(2, 0, 1))
+            elem     = elems[side.elemID]
+            nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
+            nodes    = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
@@ -900,14 +949,20 @@ def ConnectMesh() -> None:
             print()
         sys.exit(1)
 
+    # Close the progress bar
+    bar.close()
+
+    hopout.separator()
     if nInterZoneConnect > 0:
         hopout.sep()
         hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
 
     # Set the global side ID
     globalSideID     = 0
+    highestSideID    = 0
     usedSideIDs      = set()  # Set to track used side IDs
     availableSideIDs = []     # Min-heap for gap
+
     for iSide, side in enumerate(sides):
         # Already counted the side
         if side.globalSideID is not None:
@@ -917,15 +972,14 @@ def ConnectMesh() -> None:
         if availableSideIDs:
             globalSideID = heapq.heappop(availableSideIDs)
         else:
-            # If no gaps, simply use the next available ID
-            globalSideID += 1
-            # Ensure the globalSideID counter is ahead of all used IDs
-            while globalSideID in usedSideIDs:
-                globalSideID += 1
+            # Use the current maximum ID and increment
+            globalSideID = highestSideID + 1
 
         # Mark the side ID as used
+        highestSideID = max(globalSideID, highestSideID)
         usedSideIDs.add(globalSideID)
-        side.update(globalSideID=globalSideID)
+        # side.update(globalSideID=globalSideID)
+        side.globalSideID = globalSideID
 
         if side.connection is None:         # BC side
             pass
@@ -935,13 +989,15 @@ def ConnectMesh() -> None:
             # Get the connected slave side
             nbSideID = side.connection
 
-            # Free the gap in the side numbering
+            # Reclaim the ID of the slave side if already assigned
             if sides[nbSideID].globalSideID is not None:
-                usedSideIDs.remove(sides[nbSideID].globalSideID)
-                heapq.heappush(availableSideIDs, sides[nbSideID].globalSideID)
+                reclaimedID = sides[nbSideID].globalSideID
+                usedSideIDs.remove(reclaimedID)
+                heapq.heappush(availableSideIDs, reclaimedID)
 
             # Set the negative globalSideID of the slave  side
-            sides[nbSideID].update(globalSideID=-(globalSideID))
+            # sides[nbSideID].update(globalSideID=-(globalSideID))
+            sides[nbSideID].globalSideID = -(globalSideID)
 
     # Count the sides
     nsides             = len(sides)

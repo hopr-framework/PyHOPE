@@ -42,9 +42,10 @@ import numpy as np
 def GenerateSides() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.mesh.mesh_common import faces, face_to_cgns, face_to_nodes
-    from pyhope.mesh.mesh_vars import ELEM, SIDE
     import pyhope.output.output as hopout
+    from pyhope.common.common_progress import ProgressBar
+    from pyhope.mesh.mesh_common import faces, face_to_cgns
+    from pyhope.mesh.mesh_vars import ELEM, SIDE
     # ------------------------------------------------------
 
     hopout.sep()
@@ -54,11 +55,23 @@ def GenerateSides() -> None:
     nElems = 0
     nSides = 0
     sCount = 0
+    # INFO: Tuples should be faster than lists but cumbersome to add elements
+    # mesh_vars.elems = ()
+    # mesh_vars.sides = ()
     mesh_vars.elems = []
     mesh_vars.sides = []
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
-    nGeo    = mesh_vars.nGeo
+
+    totalElems = 0
+    for elemType in mesh.cells_dict.keys():
+        # Only consider three-dimensional types
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+            continue
+
+        totalElems += mesh.get_cells_type(elemType).shape[0]
+
+    bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33)
 
     # Loop over all element types
     for elemType in mesh.cells_dict.keys():
@@ -68,39 +81,57 @@ def GenerateSides() -> None:
 
         # Get the elements
         ioelems  = mesh.get_cells_type(elemType)
-        baseElem = elemType.rstrip(string.digits)
+        elemMap  = mesh_vars.ELEMMAP(elemType)
         nIOElems = ioelems.shape[0]
-        nIOSides   = mesh_vars.ELEMTYPE.type[baseElem]
+        nIOSides = mesh_vars.ELEMTYPE.type[elemType.rstrip(string.digits)]
 
         # Create non-unique sides
+        # mesh_vars.elems += tuple(ELEM() for _ in range(nIOElems         ))
+        # mesh_vars.sides += tuple(SIDE() for _ in range(nIOElems*nIOSides))
+        # elems = mesh_vars.elems
+        # sides = mesh_vars.sides
         mesh_vars.elems.extend([ELEM() for _ in range(nIOElems         )])
         mesh_vars.sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
 
+        # Create the corner faces
+        corner_faces = [face_to_cgns(s, elemType) for s in faces(elemType)]
+
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
-            elems[iElem].update(type   = mesh_vars.ELEMMAP(elemType),  # noqa: E251
-                                elemID = iElem,                        # noqa: E251
-                                sides  = [],                           # noqa: E251
-                                nodes  = ioelems[iElem])               # noqa: E251
+            # elems[iElem].update(type   = elemMap,                      # noqa: E251
+            #                     elemID = iElem,                        # noqa: E251
+            #                     sides  = [],                           # noqa: E251
+            #                     nodes  = ioelems[iElem])               # noqa: E251
+            elems[iElem].type   = elemMap                       # noqa: E251
+            elems[iElem].elemID = iElem                         # noqa: E251
+            elems[iElem].sides  = []                            # noqa: E251
+            elems[iElem].nodes  = ioelems[iElem]                # noqa: E251
 
             # Create the sides
             for iSide in range(nSides, nSides+nIOSides):
-                sides[iSide].update(sideType=4)
+                # sides[iSide].update(sideType=4)
+                sides[iSide].sideType=4
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in face_to_cgns( face, elemType)]
-                nodes   = [ioelems[iElem][s] for s in face_to_nodes(face, elemType, nGeo)]
-                sides[sCount].update(face    = face,                   # noqa: E251
-                                     elemID  = iElem,                  # noqa: E251
-                                     sideID  = sCount,                 # noqa: E251
-                                     locSide = index+1,                # noqa: E251
-                                     corners = np.array(corners),      # noqa: E251
-                                     nodes   = np.array(nodes))        # noqa: E251
+                corners = [ioelems[iElem][s] for s in corner_faces[index]]
+                # sides[sCount].update(face    = face,                   # noqa: E251
+                #                      elemID  = iElem,                  # noqa: E251
+                #                      sideID  = sCount,                 # noqa: E251
+                #                      locSide = index+1,                # noqa: E251
+                #                      corners = np.array(corners))      # noqa: E251
+                sides[sCount].face    = face                    # noqa: E251
+                sides[sCount].elemID  = iElem                   # noqa: E251
+                sides[sCount].sideID  = sCount                  # noqa: E251
+                sides[sCount].locSide = index+1                 # noqa: E251
+                sides[sCount].corners = np.array(corners)      # noqa: E251
                 sCount += 1
 
             # Add to nSides
             nSides += nIOSides
+
+            # Update progress bar
+            bar.step()
 
         # Add to nElems
         nElems += nIOElems

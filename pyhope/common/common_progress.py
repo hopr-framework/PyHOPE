@@ -25,36 +25,39 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import time
+from typing import Optional, Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from alive_progress import alive_bar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------------------------------------------------
-# Local definitions
-# ----------------------------------------------------------------------------------------------------------------------------------
-import pyhope.output.output as hopout
 # ==================================================================================================================================
 
-def time_function(func, *args, **kwargs):
+
+# Number of elements to display in the progress bar
+barElems: Final[int] = int(1.E5)
+
+
+class ProgressBar:
+    """ Provide a progress bar outside of the context manager
     """
-    A helper function to measure the execution time of an arbitrary function.
+    def __init__(self, title: Optional[str], value: int, length: int = 33):
+        # Local imports ----------------------------------------
+        import pyhope.output.output as hopout
+        # ------------------------------------------------------
+        self.cm = alive_bar(title=title, total=value, length=length)
+        if value > barElems:
+            hopout.sep()
+            self.bar = self.cm.__enter__()
+        else:
+            self.bar = None
 
-    Parameters:
-    func (callable): The function to be timed.
-    *args: Positional arguments to pass to the function.
-    **kwargs: Keyword arguments to pass to the function.
+    def step(self):
+        if self.bar is not None:
+            self.bar()
 
-    Returns:
-    The return value of the function being timed.
-    """
-    start_time = time.time()
-    result = func(*args, **kwargs)
-    end_time = time.time()
-
-    elapsed_time = end_time - start_time
-    hopout.info(hopout.Colors.BANNERA + f"Function {func.__name__} required {elapsed_time:.6f} seconds to complete." + hopout.Colors.END)
-
-    return result
+    def close(self):
+        if self.bar is not None:
+            self.cm.__exit__(None, None, None)

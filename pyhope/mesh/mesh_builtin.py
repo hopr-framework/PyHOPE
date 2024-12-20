@@ -29,11 +29,13 @@ import copy
 import math
 import sys
 import traceback
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gmsh
 import meshio
+import numpy as np
 import pygmsh
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -135,7 +137,7 @@ def MeshCartesian() -> meshio.Mesh:
         offsets += len(faces(elemType))
 
         # Read the BCs for the zone
-        # > Need to wait with defining phyiscal boundaries until all zones are created
+        # > Need to wait with defining physical boundaries until all zones are created
         bcZones[zone] = [int(s) for s in GetIntArray('BCIndex')]
 
     # At this point, we can create a "Physical Group" corresponding
@@ -150,9 +152,12 @@ def MeshCartesian() -> meshio.Mesh:
     bcs = mesh_vars.bcs
 
     for iBC, bc in enumerate(bcs):
-        bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
-                        bcid = iBC + 1,                                  # noqa: E251
-                        type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
+        # bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
+        #                 bcid = iBC + 1,                                  # noqa: E251
+        #                 type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
+        bcs[iBC].name = GetStr(     'BoundaryName', number=iBC)  # noqa: E251
+        bcs[iBC].bcid = iBC + 1                                  # noqa: E251
+        bcs[iBC].type = GetIntArray('BoundaryType', number=iBC)  # noqa: E251
 
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
@@ -176,28 +181,29 @@ def MeshCartesian() -> meshio.Mesh:
         # Format [dim of group, list, name)
         # > Here, we return ALL surfaces on the BC, irrespective of the zone
         surfID  = [s+1 for s in find_indices(bcIndex, iBC+1)]
-        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=bcs[iBC].name)
+        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=cast(str, bcs[iBC].name))
 
         # For periodic sides, we need to impose the periodicity constraint
-        if bcs[iBC].type[0] == 1:
+        if cast(np.ndarray, bcs[iBC].type)[0] == 1:
             # > Periodicity transform is provided as a 4x4 affine transformation matrix, given by row
             # > Rotation matrix [columns 0-2], translation vector [column 3], bottom row [0, 0, 0, 1]
 
             # Only define the positive translation
-            if bcs[iBC].type[3] > 0:
+            if cast(np.ndarray, bcs[iBC].type)[3] > 0:
                 pass
-            elif bcs[iBC].type[3] == 0:
+            elif cast(np.ndarray, bcs[iBC].type)[3] == 0:
                 hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
                 traceback.print_stack(file=sys.stdout)
                 sys.exit(1)
             else:
                 continue
 
-            hopout.routine('Generated periodicity constraint with vector {}'.format(vvs[int(bcs[iBC].type[3])-1]['Dir']))
+            hopout.routine('Generated periodicity constraint with vector {}'.format(
+                vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
 
-            translation = [1., 0., 0., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][0]),
-                           0., 1., 0., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][1]),
-                           0., 0., 1., float(vvs[int(bcs[iBC].type[3])-1]['Dir'][2]),
+            translation = [1., 0., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][0]),
+                           0., 1., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][1]),
+                           0., 0., 1., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][2]),
                            0., 0., 0., 1.]
 
             # Find the opposing side(s)
@@ -233,14 +239,5 @@ def MeshCartesian() -> meshio.Mesh:
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
-
-    # Final count
-    nElems = 0
-    for iType, cellType in enumerate(mesh.cells):
-        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
-            nElems += mesh.get_cells_type(cellType.type).shape[0]
-    hopout.sep()
-    hopout.routine('Generated mesh with {} cells'.format(nElems))
-    hopout.sep()
 
     return mesh

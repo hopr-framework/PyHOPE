@@ -52,8 +52,17 @@ def DefineCommon() -> None:
     # Local imports ----------------------------------------
     from pyhope.readintools.readintools import CreateInt, CreateSection
     # ------------------------------------------------------
+
+    # Check the number of available threads
+    try:
+        np_aff = len(os.sched_getaffinity(0))
+    except AttributeError:
+        np_aff = os.cpu_count() or 1
+    # Reserve two threads for the operating system and the main thread
+    np_aff -= 2
+
     CreateSection('Common')
-    CreateInt(      'nThreads',        default=4,     help='Number of threads for multiprocessing')
+    CreateInt(      'nThreads',        default=np_aff,     help='Number of threads for multiprocessing')
 
 
 def InitCommon() -> None:
@@ -69,7 +78,6 @@ def InitCommon() -> None:
     hopout.info('INIT PROGRAM...')
 
     # Check the number of available threads
-    np_mtp = 4
     np_req = GetInt('nThreads')
     match np_req:
         case -1 | 0:  # All available cores / no multiprocessing

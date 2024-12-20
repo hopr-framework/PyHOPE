@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from dataclasses import dataclass
 from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -67,107 +68,144 @@ class CGNS:
     regenerate_BCs: bool                          # Flag if CGNS needs BC regeneration
 
 
+@dataclass
 class SIDE:
-    def __init__(self,
-                 elemID      : Optional[int] = None,
-                 sideID      : Optional[int] = None,
-                 locSide     : Optional[int] = None,
-                 face        : Optional[str] = None,
-                 corners     : Optional[np.ndarray] = None,
-                 nodes       : Optional[np.ndarray] = None,
-                 sideType    : Optional[int] = None,
-                 # Sorting
-                 globalSideID: Optional[int] = None,
-                 # Connection
-                 MS          : Optional[int] = None,
-                 connection  : Optional[int] = None,
-                 flip        : Optional[int] = None,
-                 nbLocSide   : Optional[int] = None,
-                 # Boundary Conditions
-                 bcid        : Optional[int] = None,
-                 # Mortar
-                 locMortar   : Optional[int] = None,
-                ):
-        self.elemID      : Optional[int] = elemID
-        self.sideID      : Optional[int] = sideID
-        self.locSide     : Optional[int] = locSide
-        self.face        : Optional[str] = face
-        self.corners     : Optional[np.ndarray] = corners
-        self.nodes       : Optional[np.ndarray] = nodes
-        self.sideType    : Optional[int] = sideType
-        # Sorting
-        self.globalSideID: Optional[int] = globalSideID
-        # Connection
-        self.MS          : Optional[int] = MS
-        self.connection  : Optional[int] = connection
-        self.flip        : Optional[int] = flip
-        self.nbLocSide   : Optional[int] = nbLocSide
-        # Boundary Conditions
-        self.bcid        : Optional[int] = bcid
-        # Mortar
-        self.locMortar   : Optional[int] = locMortar
+    # Explicitly declare data members
+    # __slots__ = ('elemID', 'sideID', 'locSide', 'face', 'corners', 'sideType',
+    #              # Sorting
+    #              'globalSideID',
+    #              # Connection
+    #              'MS', 'connection', 'flip', 'nbLocSide',
+    #              # Boundary Conditions
+    #              'bcid',
+    #              # Mortar
+    #              'locMortar')
 
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-            else:
-                raise AttributeError(f'"SIDE" object has no attribute "{key}"')
+    # def __init__(self,
+    #              elemID      : Optional[int] = None,
+    #              sideID      : Optional[int] = None,
+    #              locSide     : Optional[int] = None,
+    #              face        : Optional[str] = None,
+    #              corners     : Optional[np.ndarray] = None,
+    #              sideType    : Optional[int] = None,
+    #              # Sorting
+    #              globalSideID: Optional[int] = None,
+    #              # Connection
+    #              MS          : Optional[int] = None,
+    #              connection  : Optional[int] = None,
+    #              flip        : Optional[int] = None,
+    #              nbLocSide   : Optional[int] = None,
+    #              # Boundary Conditions
+    #              bcid        : Optional[int] = None,
+    #              # Mortar
+    #              locMortar   : Optional[int] = None,
+    #             ):
+    #     self.elemID      : Optional[int] = elemID
+    #     self.sideID      : Optional[int] = sideID
+    #     self.locSide     : Optional[int] = locSide
+    #     self.face        : Optional[str] = face
+    #     self.corners     : Optional[np.ndarray] = corners
+    #     self.sideType    : Optional[int] = sideType
+    #     # Sorting
+    #     self.globalSideID: Optional[int] = globalSideID
+    #     # Connection
+    #     self.MS          : Optional[int] = MS
+    #     self.connection  : Optional[int] = connection
+    #     self.flip        : Optional[int] = flip
+    #     self.nbLocSide   : Optional[int] = nbLocSide
+    #     # Boundary Conditions
+    #     self.bcid        : Optional[int] = bcid
+    #     # Mortar
+    #     self.locMortar   : Optional[int] = locMortar
+    elemID      : Optional[int] = None
+    sideID      : Optional[int] = None
+    locSide     : Optional[int] = None
+    face        : Optional[str] = None
+    corners     : Optional[np.ndarray] = None
+    sideType    : Optional[int] = None
+    # Sorting
+    globalSideID: Optional[int] = None
+    # Connection
+    MS          : Optional[int] = None
+    connection  : Optional[int] = None
+    flip        : Optional[int] = None
+    nbLocSide   : Optional[int] = None
+    # Boundary Conditions
+    bcid        : Optional[int] = None
+    # Mortar
+    locMortar   : Optional[int] = None
 
-    def dict(self):
-        """Return a dictionary of the SIDE object
-        """
-        return {key: value for key, value in self.__dict__.items() if value is not None}
+    # def update(self, **kwargs):
+    #     for key, value in kwargs.items():
+    #         setattr(self, key, value)
+    #
+    # def dict(self):
+    #     """Return a dictionary of the SIDE object
+    #     """
+    #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
+@dataclass
 class ELEM:
-    def __init__(self,
-                 type        : Optional[int]  = None,
-                 elemID      : Optional[int]  = None,
-                 sides       : Optional[list] = None,
-                 nodes       : Optional[list] = None,
-                ):
-        self.type        : Optional[int]  = type
-        self.elemID      : Optional[int]  = elemID
-        self.sides       : Optional[list] = sides
-        self.nodes       : Optional[list] = nodes
+    # Explicitly declare data members
+    # __slots__ = ('type', 'elemID', 'sides', 'nodes')
 
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-            else:
-                raise AttributeError(f'"ELEM" object has no attribute "{key}"')
+    # def __init__(self,
+    #              type        : Optional[int]  = None,
+    #              elemID      : Optional[int]  = None,
+    #              sides       : Optional[list] = None,
+    #              nodes       : Optional[list] = None,
+    #             ):
+    #     self.type        : Optional[int]  = type
+    #     self.elemID      : Optional[int]  = elemID
+    #     self.sides       : Optional[list] = sides
+    #     self.nodes       : Optional[list] = nodes
+    type        : Optional[int]  = None
+    elemID      : Optional[int]  = None
+    sides       : Optional[list] = None
+    nodes       : Optional[list] = None
 
-    def dict(self):
-        """Return a dictionary of the ELEM object
-        """
-        return {key: value for key, value in self.__dict__.items() if value is not None}
+    # def update(self, **kwargs):
+    #     for key, value in kwargs.items():
+    #         setattr(self, key, value)
+    #
+    # def dict(self):
+    #     """Return a dictionary of the ELEM object
+    #     """
+    #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
+@dataclass
 class BC:
-    def __init__(self,
-                 name        : Optional[str]  = None,
-                 bcid        : Optional[int]  = None,
-                 type        : Optional[list] = None,
-                 dir         : Optional[list] = None,
-                 ):
-        self.name        : Optional[str]  = name
-        self.bcid        : Optional[int]  = bcid
-        self.type        : Optional[list] = type
-        self.dir         : Optional[list] = dir
+    # Explicitly declare data members
+    # __slots__ = ('name', 'bcid', 'type', 'dir')
 
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-            else:
-                raise AttributeError(f'"BC" object has no attribute "{key}"')
+    # def __init__(self,
+    #              name        : Optional[str]  = None,
+    #              bcid        : Optional[int]  = None,
+    #              type        : Optional[list] = None,
+    #              dir         : Optional[list] = None,
+    #              ):
+    #     self.name        : Optional[str]  = name
+    #     self.bcid        : Optional[int]  = bcid
+    #     self.type        : Optional[list] = type
+    #     self.dir         : Optional[list] = dir
+    name        : Optional[str]        = None
+    bcid        : Optional[int]        = None
+    type        : Optional[np.ndarray] = None
+    dir         : Optional[list]       = None
 
-    def dict(self):
-        """Return a dictionary of the BC object
-        """
-        return {key: value for key, value in self.__dict__.items() if value is not None}
+    # def update(self, **kwargs):
+    #     for key, value in kwargs.items():
+    #         if hasattr(self, key):
+    #             setattr(self, key, value)
+    #         else:
+    #             raise AttributeError(f'"BC" object has no attribute "{key}"')
+    #
+    # def dict(self):
+    #     """Return a dictionary of the BC object
+    #     """
+    #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
 class ELEMTYPE:
@@ -188,33 +226,16 @@ class ELEMTYPE:
 
 
 def ELEMMAP(meshioType: str) -> int:
-    # Local imports ----------------------------------------
-    import sys
-    # ------------------------------------------------------
-    # Linear or curved tetrahedron
-    if 'tetra' in meshioType:
-        if 'tetra' == meshioType:
-            return 104
-        else:
-            return 204
-    # Linear or curved pyramid
-    elif 'pyramid' in meshioType:
-        if 'pyramid' == meshioType:
-            return 105
-        else:
-            return 205
-    # Linear or curved wedge / prism
-    elif 'wedge' in meshioType:
-        if 'wedge' == meshioType:
-            return 106
-        else:
-            return 206
-    # Linear or curved hexahedron
-    elif 'hexahedron' in meshioType:
-        if 'hexahedron' == meshioType:
-            return 108
-        else:
-            return 208
-    else:
-        print('Unknown element type {}'.format(meshioType))
-        sys.exit(1)
+    elemMap = {  # Linear or curved tetrahedron
+                 'tetra'     : (104, 204),
+                 # Linear or curved pyramid
+                 'pyramid'   : (105, 205),
+                 # Linear or curved wedge / prism
+                 'wedge'     : (106, 206),
+                 # Linear or curved hexahedron
+                 'hexahedron': (108, 208)}
+
+    for key, (linear, curved) in elemMap.items():
+        if key in meshioType:
+            return linear if meshioType == key else curved
+    raise ValueError(f'Unknown element type {meshioType}')
