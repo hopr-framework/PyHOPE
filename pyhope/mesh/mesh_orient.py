@@ -101,8 +101,7 @@ def OrientMesh() -> None:
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
-    hopout.sep()
-    hopout.routine('Checking if surface normal vectors point outwards')
+    hopout.routine('Ensuring normals point outward')
     hopout.sep()
 
     checkSurfaceNormals = GetLogical('CheckSurfaceNormals')

@@ -92,7 +92,7 @@ def InitCommon() -> None:
 
     # If running under debugger, multiprocessing is not available
     if DebugEnabled():
-        hopout.info('Debugger detected, disabling multiprocessing!')
+        print('│ '  + hopout.warn('Debugger detected, disabling multiprocessing!'))
         np_mtp = 0
 
     # Actually overwrite the global value

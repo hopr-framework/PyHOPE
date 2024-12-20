@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -65,7 +66,7 @@ tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (
 
 
 class CGNS:
-    regenerate_BCs: bool                          # Flag if CGNS needs BC regeneration
+    regenerate_BCs: bool = False                  # Flag if CGNS needs BC regeneration
 
 
 @dataclass
@@ -223,6 +224,14 @@ class ELEMTYPE:
             'hexahedron': 108, 'hexahedron20' : 208, 'hexahedron24'  : 208, 'hexahedron27'  : 208, 'hexahedron64'  : 208,
                                'hexahedron125': 208, 'hexahedron216' : 208, 'hexahedron343' : 208, 'hexahedron512' : 208,
                                'hexahedron729': 208, 'hexahedron1000': 208, 'hexahedron1331': 208}
+    inam = defaultdict(list)
+    for key, value in name.items():
+        inam[value].append(key)
+
+
+# class SIDETYPE:
+#     type = {'tri'      : 3,
+#             'quad'     : 4}
 
 
 def ELEMMAP(meshioType: str) -> int:

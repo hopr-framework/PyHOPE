@@ -155,9 +155,9 @@ def RegenerateMesh() -> None:
     """ Finish missing mesh information such as BCs
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.mesh_external import BCCGNS
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.mesh.reader.reader_gmsh import BCCGNS
     # ------------------------------------------------------
 
     match mesh_vars.mode:
