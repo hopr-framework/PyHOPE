@@ -50,6 +50,7 @@ def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of a hexahedron
     """
     faces_map = {  # Tetrahedron
+                   4: ['z-', 'y-', 'x+', 'x-'            ],
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
@@ -187,6 +188,10 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
+                   4: {'z-': np.array([  0,  2,  1    ], dtype=dtype),
+                       'y-': np.array([  0,  1,  3    ], dtype=dtype),
+                       'x+': np.array([  1,  2,  3    ], dtype=dtype),
+                       'x-': np.array([  2,  0,  3    ], dtype=dtype)},
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron

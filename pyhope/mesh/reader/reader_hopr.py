@@ -204,7 +204,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Get the number of corners
                     nCorners  = abs(sideType % 10)
-                    sideName  = 'quad' if nCorners == 4 else 'tri'
+                    sideName  = 'quad' if nCorners == 4 else 'triangle'
                     if mesh_vars.nGeo > 1:
                         sideName += str(NDOFperElemType(sideName, mesh_vars.nGeo))
                     sideNodes = np.expand_dims(corners, axis=0)

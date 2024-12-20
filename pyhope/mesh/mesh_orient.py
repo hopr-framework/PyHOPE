@@ -116,6 +116,11 @@ def OrientMesh() -> None:
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
             continue
 
+        # Only consider hexahedrons
+        if 'hexahedron' not in elemType:
+            print(hopout.warn(f'Passing element type: {[elemType]}'))
+            continue
+
         # Get the elements
         ioelems  = mesh.get_cells_type(elemType)
         nIOElems = ioelems.shape[0]

@@ -200,7 +200,9 @@ def IO() -> None:
             pname = io_vars.projectname
             fname = '{}_mesh.vtk'.format(pname)
 
+            hopout.sep()
             hopout.routine('Writing VTK mesh to "{}"'.format(fname))
+            hopout.sep()
 
             mesh.write(fname, file_format='vtk42')
 

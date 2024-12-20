@@ -202,6 +202,11 @@ def CheckWatertight() -> None:
     points    = mesh_vars.mesh.points
     # checked = np.zeros((len(sides)), dtype=bool)
 
+    # Only consider hexahedrons
+    if any(e.type % 100 != 8 for e in elems):
+        print(hopout.warn(f'Passing element type: {mesh_vars.ELEMTYPE.inam[[e for e in elems if e.type % 100 != 8][0].type]}'))
+        return
+
     # Prepare elements for parallel processing
     if np_mtp > 0:
         tasks  = [(elem, VdmEqToGP, DGP, wGP)

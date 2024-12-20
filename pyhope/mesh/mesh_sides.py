@@ -111,6 +111,7 @@ def GenerateSides() -> None:
             for iSide in range(nSides, nSides+nIOSides):
                 # sides[iSide].update(sideType=4)
                 sides[iSide].sideType=4
+                # TODO: Account for prims, pyrams here
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
