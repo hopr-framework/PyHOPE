@@ -44,8 +44,7 @@ def EliminateDuplicates() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     # ------------------------------------------------------
-    hopout.sep()
-    hopout.routine('Eliminating duplicate points')
+    hopout.routine('Removing duplicate points')
 
     # Eliminate duplicate points
     mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)

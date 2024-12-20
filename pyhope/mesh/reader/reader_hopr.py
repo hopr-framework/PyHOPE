@@ -90,7 +90,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     cellsets = mesh.cell_sets
 
     nodeCoords   = mesh.points
-    offsetnNodes = 0
+    offsetnNodes = nodeCoords.shape[0]
     nSides       = 0
 
     # Vandermonde for changeBasis
@@ -99,13 +99,13 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     for fname in fnames:
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
-            hopout.warning('File [󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
+            hopout.warning('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
             sys.exit(1)
 
         with h5py.File(fname, mode='r') as f:
             # Check if file contains the Hopr version
             if 'HoprVersion' not in f.attrs:
-                hopout.warning('File [󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
+                hopout.warning('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
                 sys.exit(1)
 
             # Read the globalNodeIDs
@@ -126,7 +126,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # ChangeBasis on the non-unique nodes
                 # > Currently only supported for hexahedrons
                 filename = os.path.basename(fname)
-                print(hopout.warn(f'File [󰇘]/{filename} has different polynomial order than the current mesh, converting...',
+                print(hopout.warn(f'[󰇘]/{filename} has different polynomial order than the current mesh, converting...',
                       length=999))
                 print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo}') + '\n')
 
