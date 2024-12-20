@@ -160,7 +160,7 @@ def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
 
     # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
     x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
-    x3D_Out  = np.moveaxis(x3D_Out , 0, 1)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
+    x3D_Out  = np.moveaxis(x3D_Out , 0, 3)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
 
     return x3D_Out
 
