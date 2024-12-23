@@ -1,0 +1,4 @@
+# Local .gitignore file
+
+# Python stubs
+*.pyi

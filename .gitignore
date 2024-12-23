@@ -3,6 +3,9 @@
 # Python files
 __pycache__
 
+# Python stubs
+*.pyi
+
 # Code coverage
 .coverage
 coverage*

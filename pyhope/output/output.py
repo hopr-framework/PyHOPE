@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import textwrap
-from typing import Union
+from typing import Final, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,10 +46,10 @@ class Colors:
     # Attributes:
     #     WARN    (str): Defines color for warnings.
     #     END     (str): Defines end of color in string.
-    BANNERA = '\033[93m'
-    BANNERB = '\033[94m'
-    WARN = '\033[91m'
-    END = '\033[0m'
+    BANNERA: Final[str] = '\033[93m'
+    BANNERB: Final[str] = '\033[94m'
+    WARN:    Final[str] = '\033[91m'
+    END:     Final[str] = '\033[0m'
 
 
 def header(program: str, version: str, commit: Union[None, str], length: int = STD_LENGTH) -> None:
