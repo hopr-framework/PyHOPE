@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import gc
 import os
 import sys
 from string import digits
@@ -264,5 +265,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = cells,      # noqa: E251
                          cell_sets = cell_sets)  # noqa: E251
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh

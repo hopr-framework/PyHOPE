@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import gc
 import os
 import subprocess
 import sys
@@ -165,6 +166,9 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Finally done with GMSH, finalize
     gmsh.finalize()
 
+    # Run garbage collector to release memory
+    gc.collect()
+
     return mesh
 
 
@@ -286,6 +290,9 @@ def BCCGNS() -> meshio.Mesh:
         # Cleanup temporary file
         if tfile is not None:
             os.unlink(tfile.name)
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh
 
