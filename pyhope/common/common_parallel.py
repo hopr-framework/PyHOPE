@@ -37,7 +37,7 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-def distribute_work(elems, chunk_size: int) -> list:
+def distribute_work(elems, chunk_size: int) -> list[object]:
     """Distribute elements into chunks of a given size
     """
     return [elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size)]

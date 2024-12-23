@@ -30,7 +30,7 @@ import heapq
 import itertools
 import sys
 import traceback
-from typing import Union, Tuple, cast
+from typing import Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ import pyhope.output.output as hopout
 # ==================================================================================================================================
 
 
-def flip_analytic(side: list, nbside: list) -> int:
+def flip_analytic(side: list[int], nbside: list[int]) -> int:
     """ Determines the flip of the side-to-side connection based on the analytic side ID
         flip = 1 : 1st node of neighbor side = 1st node of side
         flip = 2 : 2nd node of neighbor side = 1st node of side
@@ -75,11 +75,11 @@ def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: s
         traceback.print_stack(file=sys.stdout)
         sys.exit(1)
 
-    flipID    = trCorn[1] + 1
+    flipID = cast(int, trCorn[1]) + 1
     return flipID
 
 
-def connect_sides(sideIDs: list, sides: list, flipID: int) -> None:
+def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
     """ Connect the master and slave sides
     """
     # sides[sideIDs[0]].update(
@@ -241,7 +241,7 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
     return nConnSide
 
 
-def find_bc_index(bcs: list, key: str) -> Union[int, None]:
+def find_bc_index(bcs: list, key: str) -> Optional[int]:
     """ Find the index of a BC from its name in the list of BCs
     """
     for iBC, bc in enumerate(bcs):
@@ -253,7 +253,7 @@ def find_bc_index(bcs: list, key: str) -> Union[int, None]:
     return None
 
 
-def find_closest_side(points: np.ndarray, stree: spatial._kdtree.cKDTree, tol: float, msg: str, doMortars: bool = False) -> int:
+def find_closest_side(points: np.ndarray, stree: spatial.KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
     """ Query the tree for the closest side
     """
     trSide = stree.query(points)
@@ -269,7 +269,7 @@ def find_closest_side(points: np.ndarray, stree: spatial._kdtree.cKDTree, tol: f
         hopout.warning(f'Could not find {msg} side within tolerance {tol}, exiting...')
         traceback.print_stack(file=sys.stdout)
         sys.exit(1)
-    return trSide[1]
+    return cast(int, trSide[1])
 
 
 def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.Mesh, tol: float) -> bool:
@@ -420,7 +420,7 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
     return True
 
 
-def build_edges(corners: np.ndarray, mesh: meshio.Mesh) -> list:
+def build_edges(corners: np.ndarray, mesh: meshio.Mesh) -> list[tuple]:
     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
     """
     edges = [
@@ -508,7 +508,7 @@ def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
     return side_dict[corners_hash][0]
 
 
-def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> Tuple[list, list]:
+def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:
     """ Get a list of internal sides that are not connected to any
         other side together with a list of their centers
     """
@@ -752,7 +752,7 @@ def ConnectMesh() -> None:
 
             # Query the try for the opposing side
             tol       = np.linalg.norm(vvs[iVV]['Dir'], ord=2).astype(float) * mesh_vars.tolPeriodic
-            nbSideIdx = find_closest_side(points, stree, tol, 'periodic')
+            nbSideIdx = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'periodic')
             nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
 
             # Get our and neighbor corner quad nodes
@@ -812,7 +812,7 @@ def ConnectMesh() -> None:
         points     = np.sort(mesh.points[corners], axis=0).flatten()
 
         # Query the tree for the opposing side
-        nbSideIdx  = find_closest_side(points, stree, tol, 'internal', doMortars)
+        nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars)
 
         # Regular internal side
         if nbSideIdx >= 0:
@@ -875,7 +875,7 @@ def ConnectMesh() -> None:
             points     = np.sort(mesh.points[corners], axis=0).flatten()
 
             # Query the tree for the opposing side
-            nbSideIdx  = find_closest_side(points, stree, tol, 'internal', doMortars)
+            nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars)
 
             # Mortar side
             # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which

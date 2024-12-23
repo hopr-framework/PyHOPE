@@ -33,7 +33,7 @@ import sys
 from collections import deque
 from shutil import which
 from time import time
-from typing import Final, Union
+from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ def parse_dependencies(toml_file):
     return dependencies
 
 
-def fetch_import_name(package: str) -> Union[str, None]:
+def fetch_import_name(package: str) -> Optional[str]:
     """ Attempt to fetch the import name of a package
     """
     try:

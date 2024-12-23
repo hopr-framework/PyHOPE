@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import Optional, Final
+from typing import Optional, Final, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,6 +40,7 @@ from alive_progress import alive_bar
 barElems: Final[int] = int(1.E5)
 
 
+@final
 class ProgressBar:
     """ Provide a progress bar outside of the context manager
     """
@@ -47,7 +48,7 @@ class ProgressBar:
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
-        self.cm = alive_bar(title=title, total=value, length=length)
+        self.cm: Final = alive_bar(title=title, total=value, length=length)
         if value > barElems:
             hopout.sep()
             self.bar = self.cm.__enter__()
@@ -60,4 +61,4 @@ class ProgressBar:
 
     def close(self):
         if self.bar is not None:
-            self.cm.__exit__(None, None, None)
+            _ = self.cm.__exit__(None, None, None)

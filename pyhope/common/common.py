@@ -32,7 +32,7 @@ import sys
 from importlib import metadata
 from io import TextIOWrapper
 from packaging.version import Version
-from typing import Union, cast
+from typing import Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def IsInteractive():
     return cast(TextIOWrapper, sys.__stdin__).isatty()
 
 
-def PkgsMetaData(pkgs, classifier) -> Union[bool, None]:
+def PkgsMetaData(pkgs, classifier) -> Optional[bool]:
     """ Check if the package contains a given classifier
     """
     try:
@@ -139,7 +139,7 @@ def PkgsMetaData(pkgs, classifier) -> Union[bool, None]:
         return None
 
 
-def PkgsMetaVersion(pkgs) -> Union[str, None]:
+def PkgsMetaVersion(pkgs) -> Optional[str]:
     """ Check the package version
     """
     try:
@@ -168,13 +168,14 @@ def PkgsCheckGmsh() -> None:
                 warning = 'Gmsh is not installed. For compatibility, the NRG Gmsh version will be installed. Continue? (Y/n):'
                 response = input('\n' + hopout.warn(warning) + '\n')
                 if response.lower() in ['yes', 'y', '']:
-                    PkgsInstallGmsh(system,arch,version='nrg')
+                    PkgsInstallGmsh(system, arch, version='nrg')
                     return None
             else:
-                warning = 'Gmsh is not installed. As NRG does not provide a compatible Gmsh version, the PyPI Gmsh version will be installed. Continue? (Y/n):'
+                warning = 'Gmsh is not installed. As NRG does not provide a compatible Gmsh version,' + \
+                          'the PyPI Gmsh version will be installed. Continue? (Y/n):'
                 response = input('\n' + hopout.warn(warning) + '\n')
                 if response.lower() in ['yes', 'y', '']:
-                    PkgsInstallGmsh(system,arch,version='pypi')
+                    PkgsInstallGmsh(system, arch, version='pypi')
                     return None
         else:
             hopout.warning('Gmsh is not installed, exiting...')
@@ -198,12 +199,12 @@ def PkgsCheckGmsh() -> None:
 
     if not PkgsMetaData('gmsh', 'Intended Audience :: NRG'):
         if IsInteractive():
-            warning  = 'Detected Gmsh package uses an outdated CGNS (v3.4). For compatibility, ' \
-                       'the package will be uninstalled and replaced with the updated NRG GMSH ' \
+            warning  = 'Detected Gmsh package uses an outdated CGNS (v3.4). For compatibility, ' + \
+                       'the package will be uninstalled and replaced with the updated NRG GMSH ' + \
                        'version. Continue? (Y/n):'
             response = input('\n' + hopout.warn(warning) + '\n')
             if response.lower() in ['yes', 'y', '']:
-                PkgsInstallGmsh(system,arch,version='nrg')
+                PkgsInstallGmsh(system, arch, version='nrg')
                 return None
         else:
             warning = hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). Functionality may be limited.')
@@ -222,20 +223,20 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
     if version == 'nrg':
         # Gitlab "python-gmsh" access
         lfs = 'yes'
-        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION,system,arch)
+        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION, system, arch)
 
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as path:
             # On macOS add major version string to filename an rename darwin to macosx in whl filename
             if system == 'darwin':
                 mac_ver = platform.mac_ver()[0].split('.')[0]
-                lib  = lib.replace('darwin','macosx')
-                pkgs = os.path.join(path, lib.replace('macosx_',f'macosx_{mac_ver}_0_'))
+                lib  = lib.replace('darwin', 'macosx')
+                pkgs = os.path.join(path, lib.replace('macosx_', f'macosx_{mac_ver}_0_'))
             else:
                 pkgs = os.path.join(path, lib)
 
             curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
-            subprocess.run(curl, check=True, shell=True)
+            _ = subprocess.run(curl, check=True, shell=True)
 
             # Compare the hash
             # > Initialize a new sha256 hash
@@ -255,16 +256,16 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
             try:
                 meta = metadata.metadata('gmsh')
                 if meta is not None:
-                    subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'gmsh'], check=True)
+                    _ = subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'gmsh'], check=True)
 
             except metadata.PackageNotFoundError:
                 pass
 
             # Install the package in the current environment
-            subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
+            _ = subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
     else:
         # Install the package in the current environment
-        subprocess.run([sys.executable, '-m', 'pip', 'install', 'gmsh'], check=True)
+        _ = subprocess.run([sys.executable, '-m', 'pip', 'install', 'gmsh'], check=True)
 
 
 # > https://stackoverflow.com/a/5419576/23851165
@@ -274,7 +275,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
 #     return methods
 
 
-def find_key(dict: dict, item) -> int | None:
+def find_key(dict: dict[int, str], item) -> int | None:
     """ Find the first occurrence of a key in dictionary
     """
     if type(item) is np.ndarray:
@@ -288,7 +289,7 @@ def find_key(dict: dict, item) -> int | None:
     return None
 
 
-def find_keys(dict: dict, item) -> list | None:
+def find_keys(dict: dict[int, str], item) -> list[int] | None:
     """ Find all occurrence of a key in dictionary
     """
     if type(item) is np.ndarray:
@@ -325,7 +326,7 @@ def find_index(seq, item) -> int:
     return -1
 
 
-def find_indices(seq, item) -> list:
+def find_indices(seq, item) -> list[int]:
     """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:

@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import numpy as np
@@ -40,7 +39,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def facePointMatrixFill(matrix: np.ndarray, start: int, end: int, count: int, orient: bool) -> Tuple[np.ndarray, int]:
+def facePointMatrixFill(matrix: np.ndarray, start: int, end: int, count: int, orient: bool) -> tuple[np.ndarray, int]:
     """ Fill the 2D matrix representing the inner points of each faces
     """
     if end <= start:

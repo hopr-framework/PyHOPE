@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -36,7 +35,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def legendre_gauss_lobatto_nodes(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def legendre_gauss_lobatto_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
     """ Return Legendre-Gauss-Lobatto nodes and weights for a given order in 1D
     """
     order -= 1
@@ -70,7 +69,7 @@ def legendre_gauss_lobatto_nodes(order: int) -> Tuple[np.ndarray, np.ndarray]:
     return nodes, weights
 
 
-def legendre_gauss_nodes(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def legendre_gauss_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
     """ Return Legendre-Gauss nodes and weights for a given order in 1D
     """
     nodes, weights = np.polynomial.legendre.leggauss(order)
@@ -117,20 +116,20 @@ def lagrange_interpolation_polys(x: float, order: int, xGP: np.ndarray, wBary: n
         > Algorithm 34, Kopriva
     """
     # Equal points need special treatment
-    L   = np.zeros(order)
+    lagrange = np.zeros(order)
     for iGP in range(order):
         if abs(x - xGP[iGP]) < 1.E-14:
-            L[iGP] = 1
-            return L
+            lagrange[iGP] = 1
+            return lagrange
 
     tmp = 0.
     for iGP in range(order):
-        L[iGP] = wBary[iGP] / (x-xGP[iGP])
-        tmp   += L[iGP]
+        lagrange[iGP] = wBary[iGP] / (x-xGP[iGP])
+        tmp   += lagrange[iGP]
 
     # Normalize
-    L = L/tmp
-    return L
+    lagrange = lagrange/tmp
+    return lagrange
 
 
 def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:

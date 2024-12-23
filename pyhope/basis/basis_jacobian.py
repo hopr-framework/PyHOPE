@@ -73,7 +73,7 @@ def plot_histogram(data: np.ndarray) -> None:
     hopout.separator(18)
 
 
-def process_chunk(chunk) -> list:
+def process_chunk(chunk) -> list[np.ndarray]:
     """Process a chunk of elements by evaluating the Jacobian for each
     """
     # Local imports ----------------------------------------
