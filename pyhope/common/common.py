@@ -219,6 +219,27 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Gitlab
     # ------------------------------------------------------
+    # Get our package manager
+    # > Check if 'uv' is available
+    command = None
+    try:
+        subprocess.run(['uv', '--version'], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        command = ['uv', 'pip']
+    except subprocess.CalledProcessError:
+        pass
+
+    # > Check if 'python -m pip' is available
+    try:
+        subprocess.run([sys.executable, '-m', 'pip', '--version'], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        command = [sys.executable, '-m', 'pip']
+    except subprocess.CalledProcessError:
+        pass
+
+    if command is None:
+        hopout.warning('No package manager found, you are on your own...')
+        return None
 
     if version == 'nrg':
         # Gitlab "python-gmsh" access
@@ -256,16 +277,16 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
             try:
                 meta = metadata.metadata('gmsh')
                 if meta is not None:
-                    _ = subprocess.run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'gmsh'], check=True)
+                    _ = subprocess.run(command + ['uninstall'] + (['-y'] if sys.executable in command else []) + ['gmsh'], check=True)  # noqa: E501
 
             except metadata.PackageNotFoundError:
                 pass
 
             # Install the package in the current environment
-            _ = subprocess.run([sys.executable, '-m', 'pip', 'install', pkgs], check=True)
+            _ = subprocess.run(command + ['install'] + (['-y'] if sys.executable in command else []) + [pkgs], check=True)
     else:
         # Install the package in the current environment
-        _ = subprocess.run([sys.executable, '-m', 'pip', 'install', 'gmsh'], check=True)
+        _ = subprocess.run(command + ['install'] + (['-y'] if sys.executable in command else []) + ['gmsh'], check=True)
 
 
 # > https://stackoverflow.com/a/5419576/23851165
