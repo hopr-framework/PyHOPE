@@ -9,11 +9,14 @@ RUN dnf makecache && \
     dnf update -y && \
     dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama && \
     dnf install -y git cmake gcc-c++ gcc-gfortran mpich-devel zlib-ng-devel openblas-devel hdf5-mpich-devel && \
-    dnf install -y python3 python3-pip python3-virtualenv && \
+    dnf install -y python3 uv && \
     dnf clean all
 
 # Set architecture argument
 ARG ARCH
+
+# Setup uv
+ENV UV_LINK_MODE=copy
 
 # Setup MPI
 # RUN source /etc/profile && module load mpi
