@@ -27,8 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from functools import cache
-from typing import Union
-from typing import Tuple
+from typing import Union, Tuple, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -353,21 +352,37 @@ def count_elems(mesh: meshio.Mesh) -> int:
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
-def calc_elem_bary(mesh: meshio.Mesh) -> np.ndarray:
+def calc_elem_bary(mesh: meshio.Mesh) -> tuple[np.ndarray, list[Optional[int]]]:
+    """
+    Compute barycenters of all three-dimensional elements in the mesh.
+
+    Returns:
+        elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
+        type_offsets (list[Optional[int]]): Starting offsets for each element type (None for non-3D types).
+    """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
-    # Only consider three-dimensional types
-    elem_cells = []
-    for elemType in mesh.cells_dict:
-        if any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
-            elem_cells.append(mesh.get_cells_type(elemType))
+    import numpy as np
 
-    # Flatten the list of cells (concatenate all cells into one array)
-    all_cells = np.concatenate(elem_cells, axis=0)
+    elem_bary = []
+    type_offsets = []
+    current_offset = 0
 
-    # Calculate the centroid (mean of coordinates) for all cells at once
-    return np.mean(mesh_vars.mesh.points[all_cells], axis=1)
+    for cellType in mesh.cells:
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
+            # Calculate barycenters for 3D element type
+            bary = np.mean(mesh.points[cellType.data], axis=1)
+            elem_bary.append(bary)
+
+            # Track the starting offset for this element type
+            type_offsets.append(current_offset)
+            current_offset += cellType.data.shape[0]
+        else:
+            # Non-3D element types do not have an offset
+            type_offsets.append(None)
+
+    # Concatenate barycenters for all 3D elements
+    return np.concatenate(elem_bary, axis=0), type_offsets
 
 
 @cache

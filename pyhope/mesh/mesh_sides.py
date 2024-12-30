@@ -97,6 +97,7 @@ def GenerateSides() -> None:
 
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
+            nodes = ioelems[iElem-nElems]
             # elems[iElem].update(type   = elemMap,                      # noqa: E251
             #                     elemID = iElem,                        # noqa: E251
             #                     sides  = [],                           # noqa: E251
@@ -104,7 +105,7 @@ def GenerateSides() -> None:
             elems[iElem].type   = elemMap                       # noqa: E251
             elems[iElem].elemID = iElem                         # noqa: E251
             elems[iElem].sides  = []                            # noqa: E251
-            elems[iElem].nodes  = ioelems[iElem]                # noqa: E251
+            elems[iElem].nodes  = nodes                         # noqa: E251
 
             # Create the sides
             for key, val in enumerate(corner_faces):
@@ -113,7 +114,7 @@ def GenerateSides() -> None:
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in corner_faces[index]]
+                corners = [nodes[s] for s in corner_faces[index]]
                 # sides[sCount].update(face    = face,                   # noqa: E251
                 #                      elemID  = iElem,                  # noqa: E251
                 #                      sideID  = sCount,                 # noqa: E251

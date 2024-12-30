@@ -110,6 +110,7 @@ def OrientMesh() -> None:
 
     mesh   = mesh_vars.mesh
     nElems = 0
+    passedTypes = []
 
     for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
@@ -118,7 +119,7 @@ def OrientMesh() -> None:
 
         # Only consider hexahedrons
         if 'hexahedron' not in elemType:
-            print(hopout.warn(f'Passing element type: {[elemType]}'))
+            passedTypes.append(elemType)
             continue
 
         # Get the elements
@@ -147,3 +148,7 @@ def OrientMesh() -> None:
 
         # Add to nElems
         nElems += nIOElems
+
+    # Warn if we passed any element types
+    if len(passedTypes) > 0:
+        print(hopout.warn(f'Ignored element type{'s' if len(passedTypes) > 1 else ""}: {[s for s in passedTypes]}'))

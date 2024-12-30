@@ -197,8 +197,6 @@ def BCCGNS() -> meshio.Mesh:
             offsetcs += value.shape[0]
         elif 'line' in key:
             offsetcs += value.shape[0]
-        # elif 'hexahedron' in key:  # FIXME: Support non-hexahedral meshes
-        #     offsetcs += value.shape[0]
 
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]

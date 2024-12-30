@@ -84,41 +84,58 @@ def SortMeshBySFC() -> None:
     from pyhope.mesh.mesh_common import calc_elem_bary
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    import meshio
+    import numpy as np
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along space-filling curve')
 
-    mesh   = mesh_vars.mesh
+    mesh = mesh_vars.mesh
 
     # Global bounding box
     points = mesh.points
-    xmin   = np.min(points, axis=0)
-    xmax   = np.max(points, axis=0)
+    xmin = np.min(points, axis=0)
+    xmax = np.max(points, axis=0)
 
-    # Calculate the element bary centers
-    elemBary = calc_elem_bary(mesh)
+    # Calculate the element barycenters and associated element offsets
+    elem_bary, type_offsets = calc_elem_bary(mesh)
 
     # Calculate the space-filling curve resolution for the given KIND
     kind = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
-    # Discretize the element positions along according to the chosen resolution
-    elemDisc = Coords2Int(elemBary, spacing, xmin)
+    # Discretize the element positions according to the chosen resolution
+    elem_disc = Coords2Int(elem_bary, spacing, xmin)
 
     # Generate the space-filling curve and order elements along it
-    hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
-    distances = np.array(hc.distances_from_points(elemDisc))  # bottleneck
-
-    # Sort mesh cells along the SFC
+    hc             = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
+    distances      = np.array(hc.distances_from_points(elem_disc))  # bottleneck
     sorted_indices = np.argsort(distances)
-    for cellType in mesh.cells:
-        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
-            # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
-            cellType.data = cellType.data[sorted_indices]
+
+    # Initialize sorted cells for each type
+    sorted_cells = []
+
+    for cellType, offset in zip(mesh.cells, type_offsets):
+        if offset is not None:  # 3D element type
+            # Get the number of elements for this type
+            count = cellType.data.shape[0]
+
+            # Filter global indices belonging to this type
+            type_indices  = sorted_indices[(sorted_indices >= offset) & (sorted_indices < offset + count)]
+
+            # Map global indices to local indices for this type
+            local_indices = type_indices - offset
+
+            # Sort the data for this cell type
+            sorted_data = cellType.data[local_indices]
+            sorted_cells.append(meshio.CellBlock(cellType.type, sorted_data))
+        else:
+            # Non-3D elements remain unsorted
+            sorted_cells.append(cellType)
 
     # Overwrite the old mesh
     mesh_vars.mesh = meshio.Mesh(points=points,
-                                 cells=mesh.cells,
+                                 cells=sorted_cells,
                                  cell_sets=mesh.cell_sets)
 
 
@@ -132,10 +149,10 @@ def SortMeshByIJK():
     hopout.routine('Sorting elements along I,J,K direction')
 
     # We only need the volume cells
-    mesh     = mesh_vars.mesh
-    nElems   = count_elems(mesh)
-    # Calculate the element bary centers
-    elemBary = calc_elem_bary(mesh)
+    mesh        = mesh_vars.mesh
+    nElems      = count_elems(mesh)
+    # Calculate the element bary centers and type offsets
+    elemBary, type_offsets = calc_elem_bary(mesh)
 
     # Calculate bounding box and conversion factor
     ptp_elemBary = np.ptp(elemBary, axis=0)
@@ -149,11 +166,9 @@ def SortMeshByIJK():
     # Initialize lists
     nElemsIJK = np.zeros(3, dtype=int)
     structDir = np.zeros(3, dtype=bool)
+    tol       = 1
+    intList   = []
 
-    nStructDirs = 0
-    tol = 1
-
-    intList = []
     for dir in range(3):
         # Sort elements by coordinate directions
         intList = intCoords[:, dir]
@@ -173,7 +188,6 @@ def SortMeshByIJK():
             else:
                 counter += 1
 
-        # print(f'  dir,min,max: {dir + 1}, {nElems_min}, {nElems_max}')
         if nElems_max != nElems_min:
             nElemsIJK[dir] = 0  # Not structured
             structDir[dir] = False
@@ -206,28 +220,40 @@ def SortMeshByIJK():
     hopout.sep()
     hopout.info(' Number of structured dirs: {}'.format(nStructDirs))
     hopout.info(' Number of elems [I,J,K]  : {}'.format(nElemsIJK))
+    hopout.separator()
 
     # Now sort the elements based on z, y, then x coordinates
-    intList = (intCoords[:, 2] * 10000 + intCoords[:, 1]) * 10000 + intCoords[:, 0]
+    intList        = (intCoords[:, 2] * 10000 + intCoords[:, 1]) * 10000 + intCoords[:, 0]
+    sorted_indices = np.argsort(intList)
 
     # Create a new mesh with only volume elements and sorted along SFC
     points   = mesh_vars.mesh.points
     cells    = mesh_vars.mesh.cells
     cellsets = mesh_vars.mesh.cell_sets
 
-    valid_types = set(mesh_vars.ELEMTYPE.type.keys())
-    sorted_indices = np.argsort(intList)
-    for cellType in cells:
-        if any(s in cellType.type for s in valid_types):
-            # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
-            cellType.data = np.asarray(cellType.data)[sorted_indices]
+    sorted_cells = []
+    for cellType, offset in zip(mesh.cells, type_offsets):
+        if offset is not None:  # 3D element type
+            # Get the number of elements for this type
+            count = cellType.data.shape[0]
+
+            # Filter global indices belonging to this type
+            type_indices  = sorted_indices[(sorted_indices >= offset) & (sorted_indices < offset + count)]
+
+            # Map global indices to local indices for this type
+            local_indices = type_indices - offset
+
+            # Sort the data for this cell type
+            sorted_data = cellType.data[local_indices]
+            sorted_cells.append(meshio.CellBlock(cellType.type, sorted_data))
+        else:
+            # Non-3D elements remain unsorted
+            sorted_cells.append(cellType)
 
     # Overwrite the old mesh
-    mesh   = meshio.Mesh(points=points,
-                         cells=cells,
-                         cell_sets=cellsets)
-
-    mesh_vars.mesh = mesh
+    mesh_vars.mesh   = meshio.Mesh(points=points,
+                                   cells=cells,
+                                   cell_sets=cellsets)
 
 
 def SortMesh() -> None:
