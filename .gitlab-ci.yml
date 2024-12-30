@@ -60,8 +60,9 @@ cache:
 
 # Define a reusable global before_script with YAML anchors
 .global-before-script: &global-before-script
+  # Setup system
   - ulimit -s unlimited
-  - module list || true
+  # - module list || true
   - python3 --version
   # Setup required packages
   # - | # Literal YAML multiline block scalar indicator
@@ -74,22 +75,21 @@ cache:
   #     dnf makecache
   #     dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama
   #   fi
-  # Setup Python pip
-  - python3 -m pip install --upgrade pip --root-user-action=ignore
-  - python3 -m pip --version
+  # Setup uv
+  - uv --version
   # Setup Python virtual environment
   - rm -rf venv
-  - python3 -m venv venv
+  - uv venv venv
   - source venv/bin/activate
   # # Cleanup previous installs
   # - pip freeze | xargs pip uninstall -y --root-user-action=ignore
   # Install all pre-requisites
-  - pip install --no-cache-dir -e . --root-user-action=ignore
+  - uv pip install --no-cache-dir -e .
   # Regression checks needs NRG Gmsh
-  - pip uninstall -y gmsh --root-user-action=ignore
-  - pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1-py3-none-linux_x86_64.whl --root-user-action=ignore
+  - uv pip uninstall gmsh
+  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1-py3-none-linux_x86_64.whl
   # Install coverage
-  - pip install --no-cache-dir coverage --root-user-action=ignore
+  - uv pip install --no-cache-dir coverage
 
 before_script: *global-before-script
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ ruff:
   extends: .defaults
   stage: lint
   script:
-    - python3 -m pip install ruff
+    - uv pip install ruff
     - ruff --version
     - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope/
 
