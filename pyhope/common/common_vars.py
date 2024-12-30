@@ -28,7 +28,7 @@
 import importlib.metadata
 import pathlib
 import re
-from typing import Self
+from typing import Final, Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -57,8 +57,8 @@ def singleton(cls):
 @singleton
 class Common():
     def __init__(self: Self) -> None:
-        self._version = self.__version__
-        self._program = self.__program__
+        self._version: Final      = self.__version__
+        self._program: Final[str] = self.__program__
 
     @property
     def __version__(self):
@@ -99,7 +99,7 @@ class Gitlab():
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
     LIB_VERSION: str = '4.13.1'
-    LIB_SUPPORT         = {
+    LIB_SUPPORT: dict[str, dict[str, str]] = {
         "linux": {
             "x86_64" : "00a42b3b9c9ae51297052a9e9a16646d34743fa0b0742d1998df297c48a212ce",
             "aarch64": "c57abb56759cc476752c21b6b19127888bd3fed67c4a0dd38f6755603d8d6b74"

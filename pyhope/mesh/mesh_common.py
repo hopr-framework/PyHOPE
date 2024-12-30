@@ -43,7 +43,7 @@ import pyhope.mesh.mesh_vars as mesh_vars
 # ==================================================================================================================================
 
 
-def faces(elemType: Union[int, str]) -> list:
+def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of a hexahedron
     """
     faces_map = {  # Tetrahedron
@@ -225,7 +225,7 @@ def flip_s2m(N: int, flip: int) -> np.ndarray:
         raise ValueError('Flip must be an integer between 0 and 4')
 
 
-def type_to_mortar_flip(elemType: Union[str, int]) -> dict:
+def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
     """ Returns the flip map for a given element type
     """
 

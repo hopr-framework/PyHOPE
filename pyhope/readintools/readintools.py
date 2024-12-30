@@ -28,7 +28,7 @@ import os
 import subprocess
 import sys
 import traceback
-from typing import Union
+from typing import Optional, Union, final, override
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -48,6 +48,7 @@ class MultiOrderedDict(OrderedDict):
         Standard ConfigParser only supports one value per key,
         thus overload the ConfigParser with this new dict_type
     """
+    @override
     def __setitem__(self, key, value):
         if isinstance(value, list) and key in self:
             self[key].extend(value)
@@ -77,6 +78,7 @@ def strtobool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
 
 
 # ==================================================================================================================================
+@final
 class DefineConfig:
     """ Provide routines to define all HOPR parameters
     """
@@ -159,7 +161,7 @@ def CreateSection(string: str) -> None:
     config.prms[string] = dict(type='section', name=string)
 
 
-def CreateStr(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple: bool = False) -> None:
+def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -173,7 +175,7 @@ def CreateStr(string: str, help: Union[str, None] = None, default: Union[str, No
                                multiple=multiple)
 
 
-def CreateInt(string: str, help: Union[str, None] = None, default: Union[int, None] = None, multiple=False) -> None:
+def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -187,7 +189,7 @@ def CreateInt(string: str, help: Union[str, None] = None, default: Union[int, No
                                multiple=multiple)
 
 
-def CreateLogical(string: str, help: Union[str, None] = None, default: Union[bool, None] = None, multiple=False) -> None:
+def CreateLogical(string: str, help: Optional[str] = None, default: Optional[bool] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -201,7 +203,7 @@ def CreateLogical(string: str, help: Union[str, None] = None, default: Union[boo
                                multiple=multiple)
 
 
-def CreateIntFromString(string: str, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
+def CreateIntFromString(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -226,7 +228,7 @@ def CreateIntOption(string: str, name, number) -> None:
     config.prms[string]['mapping'].update({number: name})
 
 
-def CreateRealArray(string: str, nReals, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
+def CreateRealArray(string: str, nReals, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -241,7 +243,7 @@ def CreateRealArray(string: str, nReals, help: Union[str, None] = None, default:
                                multiple=multiple)
 
 
-def CreateIntArray(string: str, nInts, help: Union[str, None] = None, default: Union[str, None] = None, multiple=False) -> None:
+def CreateIntArray(string: str, nInts, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -272,7 +274,7 @@ def CountOption(string: str) -> int:
     return counter
 
 
-def GetParam(name: str, calltype: str, default: Union[str, None] = None, number: Union[int, None] = None):
+def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Optional[int] = None):
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout
@@ -320,22 +322,22 @@ def GetParam(name: str, calltype: str, default: Union[str, None] = None, number:
     return value
 
 
-def GetStr(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> str:
+def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> str:
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
 
 
-def GetInt(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> int:
+def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
     value = GetParam(name=name, default=default, number=number, calltype='int')
     return int(value)
 
 
-def GetLogical(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> bool:
+def GetLogical(name: str, default: Optional[str] = None, number: Optional[int] = None) -> bool:
     value = GetParam(name=name, default=default, number=number, calltype='bool')
     return strtobool(value)
 
 
-def GetIntFromStr(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> int:
+def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout
@@ -361,7 +363,7 @@ def GetIntFromStr(name: str, default: Union[str, None] = None, number: Union[int
     return int(value)
 
 
-def GetRealArray(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> np.ndarray:
+def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='realarray')
 
     # Split the array definitiosn
@@ -379,7 +381,7 @@ def GetRealArray(name: str, default: Union[str, None] = None, number: Union[int,
     return value
 
 
-def GetIntArray(name: str, default: Union[str, None] = None, number: Union[int, None] = None) -> np.ndarray:
+def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
     # Split the array definitiosn
@@ -396,6 +398,7 @@ def GetIntArray(name: str, default: Union[str, None] = None, number: Union[int, 
 
 
 # ==================================================================================================================================
+@final
 class ReadConfig():
     """ Read an HOPR parameter file
 

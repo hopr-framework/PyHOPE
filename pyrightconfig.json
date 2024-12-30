@@ -1,0 +1,17 @@
+{
+  "stubPath": "./.typings",
+
+  "reportUnknownArgumentType":  false,
+  "reportUnknownMemberType":    false,
+  "reportMissingParameterType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownVariableType":  false,
+
+  "reportMissingTypeStubs":     false,
+  "reportMissingTypeArgument":  false,
+  "reportOptionalMemberAccess": false,
+
+  "reportAny":                  false,
+
+  "deprecateTypingAliases":     false
+}

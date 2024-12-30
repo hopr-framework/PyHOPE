@@ -27,13 +27,12 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Final, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
-from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,11 +45,11 @@ mesh   : meshio.Mesh                              # MeshIO object holding the me
 nGeo   : int                                      # Order of spline-reconstruction for curved surfaces
 sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
 
-bcs    : list                                     # [list of dict] - Boundary conditions
-vvs    : list                                     # [list of dict] - Periodic vectors
+bcs    : list[type | None]                        # [list of dict] - Boundary conditions
+vvs    : list      | None                         # [list of dict] - Periodic vectors
 
-elems  : list                                     # [list of list] - Element nodes
-sides  : list                                     # [list of list] - Side    nodes
+elems  : list[type | None]                        # [list of list] - Element nodes
+sides  : list[type | None]                        # [list of list] - Side    nodes
 
 HEXTEN : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
 HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (3D mapping)
@@ -209,6 +208,7 @@ class BC:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
+@final
 class ELEMTYPE:
     type = {'tetra'     : 4,
             'pyramid'   : 5,

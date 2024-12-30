@@ -29,7 +29,7 @@
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from scipy.spatial import cKDTree
+from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ def EliminateDuplicates() -> None:
     # Also, remove near duplicate points
     # Create a KDTree for the mesh points
     points = mesh_vars.mesh.points
-    tree   = cKDTree(points)
+    tree   = spatial.KDTree(points)
 
     # Find all points within the tolerance
     clusters = tree.query_ball_point(points, r=mesh_vars.tolExternal)

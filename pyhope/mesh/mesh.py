@@ -52,7 +52,7 @@ def DefineMesh() -> None:
     CreateInt(      'Mode',                               help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
     # Internal mesh generator
     CreateInt(      'nZones',                             help='Number of mesh zones')
-    CreateRealArray('Corner',         24,  multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, '
+    CreateRealArray('Corner',         24,  multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
     CreateIntArray( 'nElems',          3,  multiple=True, help='Number of elements in each direction')
     CreateIntFromString('ElemType'      ,  multiple=True, default='hexahedron', help='Element type')
@@ -103,7 +103,10 @@ def InitMesh() -> None:
         hopout.warning('NGeo / BoundaryOrder must be equal to NGeo + 1!')
         sys.exit(1)
     else:
-        mesh_vars.nGeo = NGeo or (BCOrder - 1)
+        if NGeo is not None:
+            mesh_vars.nGeo = NGeo
+        elif BCOrder is not None:
+            mesh_vars.nGeo = BCOrder - 1
 
         if mesh_vars.nGeo < 1:
             hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')

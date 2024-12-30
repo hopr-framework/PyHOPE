@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-from typing import Optional
+from typing import Optional, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -54,6 +54,7 @@ def separator(length: int = STD_LENGTH) -> str:
     return '!' + '-'*(length-1)
 
 
+@final
 class CommandLine:
     """ Parse command line arguments, both explicit [*.ini] and flags [--]
     """
@@ -100,16 +101,16 @@ class CommandLine:
 
     def __enter__(self):
         # Setup an argument parser and add know arguments
-        parser = argparse.ArgumentParser(prog=self.name,
-                                         formatter_class=argparse.RawDescriptionHelpFormatter,
-                                         epilog=self.help)
-        parser.add_argument('-V', '--version',
-                            action='store_true',
-                            help='display the version number and exit')
-        parser.add_argument('parameter',
-                            nargs='?',
-                            metavar='<parameter.ini>',
-                            help='HOPR parameter file')
+        _ = parser = argparse.ArgumentParser(prog=self.name,
+                                             formatter_class=argparse.RawDescriptionHelpFormatter,
+                                             epilog=self.help)
+        _ = parser.add_argument('-V', '--version',
+                                action='store_true',
+                                help='display the version number and exit')
+        _ = parser.add_argument('parameter',
+                                nargs='?',
+                                metavar='<parameter.ini>',
+                                help='HOPR parameter file')
         # Parse known arguments and return other flags for further processing
         args, argv = parser.parse_known_args()
         return args, argv

@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-from typing import Union
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ from pyhope.mesh.mesh_common import LINMAP
 
 def check_orientation(ionodes : np.ndarray,
                       elemType: int,
-                      ) -> tuple[bool, Union[None, str]]:
+                      ) -> tuple[bool, Optional[str]]:
     # Local imports ----------------------------------------
     from pyhope.mesh.mesh_common import dir_to_nodes, faces
     # ------------------------------------------------------

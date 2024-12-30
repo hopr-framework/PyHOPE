@@ -199,7 +199,7 @@ def BCCGNS() -> meshio.Mesh:
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
     nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
-    nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # FIXME: Support mixed LO/HO meshes
+    nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
     nConnNum  = list(mesh.cells_dict).index(nConnType)
     nConnLen  = len(list(mesh.cells_dict))
 
@@ -233,7 +233,7 @@ def BCCGNS() -> meshio.Mesh:
             hopout.sep()
             hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
             tStart = time.time()
-            subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
+            _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
             tEnd   = time.time()
             hopout.info('File {} converted HDF5 CGNS format [{:.2f} sec]'.format(os.path.basename(fname), tEnd - tStart))
             hopout.sep()
@@ -274,10 +274,10 @@ def BCCGNS() -> meshio.Mesh:
                     case 1:  # Unstructured mesh, 1D arrays
                         if mesh_vars.nGeo > 1:
                             hopout.warning('Setting nGeo > 1 not supported for unstructured meshes')
-                        BCCGNS_Uncurved(  mesh, points, cells, stree, zone, tol, offsetcs, nConnNum, nConnLen)
+                        BCCGNS_Uncurved(  mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
                         # TODO: Implement this
-                        BCCGNS_Structured(mesh, points, cells, stree, zone, tol, offsetcs, nConnNum, nConnLen)
+                        BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
                         hopout.warning('Unsupported number of dimensions')
@@ -295,7 +295,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
                  nConnLen: int,
                  nConnNum: int,
                  offsetcs: int,
-                 stree:    spatial._kdtree.cKDTree,
+                 stree:    spatial.KDTree,
                  tol:      float,
                  BCName:   str) -> dict:
     # Local imports ----------------------------------------
@@ -327,7 +327,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
 def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
-                      stree:    spatial._kdtree.cKDTree,
+                      stree:    spatial.KDTree,
                       zone,     # CGNS zone
                       tol:      float,
                       offsetcs: int,
@@ -388,7 +388,7 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
 def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
-                      stree:    spatial._kdtree.cKDTree,
+                      stree:    spatial.KDTree,
                       zone,     # CGNS zone
                       tol:      float,
                       offsetcs: int,
@@ -407,7 +407,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     for zoneBC in zoneBCs:
         try:
             cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'][' data'])
-            cgnsName = cast(str, ''.join(map(chr, cgnsBC)))
+            cgnsName = ''.join(map(chr, cgnsBC))
         except KeyError:
             cgnsName = zoneBC.rpartition('_')[0]
 

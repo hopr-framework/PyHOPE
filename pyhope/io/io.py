@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-from typing import Tuple
+from typing import final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -41,25 +41,27 @@ import numpy as np
 # ==================================================================================================================================
 
 
+@final
 class ELEM:
-    INFOSIZE  = 6
-    TYPE      = 0
-    ZONE      = 1
-    FIRSTSIDE = 2
-    LASTSIDE  = 3
-    FIRSTNODE = 4
-    LASTNODE  = 5
+    INFOSIZE:  int = 6
+    TYPE:      int = 0
+    ZONE:      int = 1
+    FIRSTSIDE: int = 2
+    LASTSIDE:  int = 3
+    FIRSTNODE: int = 4
+    LASTNODE:  int = 5
 
-    TYPES     = [104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208]
+    TYPES: list[int] = [104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208]
 
 
+@final
 class SIDE:
-    INFOSIZE  = 5
-    TYPE      = 0
-    ID        = 1
-    NBELEMID  = 2
-    NBLOCSIDE_FLIP = 3
-    BCID      = 4
+    INFOSIZE: int = 5
+    TYPE:     int = 0
+    ID:       int = 1
+    NBELEMID: int = 2
+    NBLOCSIDE_FLIP: int = 3
+    BCID:     int = 4
 
 
 def ELEMTYPE(elemType: int) -> str:
@@ -176,10 +178,10 @@ def IO() -> None:
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
 
-                f.create_dataset('ElemInfo'     , data=elemInfo)
-                f.create_dataset('SideInfo'     , data=sideInfo)
-                f.create_dataset('GlobalNodeIDs', data=nodeInfo)
-                f.create_dataset('NodeCoords'   , data=nodeCoords)
+                _ = f.create_dataset('ElemInfo'     , data=elemInfo)
+                _ = f.create_dataset('SideInfo'     , data=sideInfo)
+                _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
+                _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
@@ -188,8 +190,8 @@ def IO() -> None:
                 for iBC, bc in enumerate(bcs):
                     bcTypes[iBC, :] = bc.type
 
-                f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
-                f.create_dataset('BCType'    , data=bcTypes)
+                _ = f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
+                _ = f.create_dataset('BCType'    , data=bcTypes)
 
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh
@@ -207,7 +209,7 @@ def IO() -> None:
     hopout.info('OUTPUT MESH DONE!')
 
 
-def getMeshInfo() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[int, int]]:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import LINTEN

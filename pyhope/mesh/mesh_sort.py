@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import Tuple
+from typing import cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -47,20 +47,21 @@ def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.
     return np.asarray(disc)
 
 
-def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> Tuple[int, np.ndarray]:
+def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, np.ndarray]:
     """ Compute the resolution of the SFC for the given bounding box
         and the given integer kind
     """
     blen    = xmax - xmin
     nbits   = (kind*8 - 1)  # / 3.
-    intfact = 2**nbits-1
+    intfact = cast(int, 2**nbits-1)
     spacing = np.ceil(intfact/blen)
 
     return np.ceil(nbits).astype(int), spacing
 
 
+@final
 class tBox:
-    def __init__(self, mini, maxi):
+    def __init__(self, mini: int, maxi: int):
         self.mini = mini
         self.intfact = 0
         self.spacing = np.zeros(3)
