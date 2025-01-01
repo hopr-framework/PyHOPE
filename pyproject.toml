@@ -44,3 +44,27 @@ pyhope = "pyhope.script.pyhope_cli:main"
 
 [tool.setuptools]
 packages = ["pyhope"]
+
+# Code linters
+[tool.pyright]
+stubPath                        = "./.typings"
+
+typeCheckingMode                = "standard"
+reportUnknownArgumentType       = false
+reportUnknownMemberType         = false
+reportMissingParameterType      = false
+reportUnknownParameterType      = false
+reportUnknownVariableType       = false
+
+reportMissingTypeStubs          = false
+reportMissingTypeArgument       = false
+reportOptionalMemberAccess      = false
+
+reportAny                       = false
+reportExplicitAny               = false
+
+deprecateTypingAliases          = false
+# Performance implications, > https://github.com/DetachHead/basedpyright/issues/461
+reportImportCycles              = false
+reportUnsafeMultipleInheritance = false
+enableExperimentalFeatures      = false
