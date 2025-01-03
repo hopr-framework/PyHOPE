@@ -28,6 +28,7 @@
 import copy
 import gc
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -136,16 +137,18 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
         # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
         if ext == '.cgns':
-            if nBCs_CGNS == len(mesh_vars.bcs):
-                for entDim, entTag in entities:
-                    # Surfaces are dim-1
-                    if entDim == 3:
-                        continue
-
-                    entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
-                    gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
-            else:
-                mesh_vars.CGNS.regenerate_BCs = True
+            # WARNING: THIS PROBABLY NEVER WORKS, SO JUST USE OUR OWN APPROACH
+            # if nBCs_CGNS == len(mesh_vars.bcs):
+            #     for entDim, entTag in entities:
+            #         # Surfaces are dim-1
+            #         if entDim == 3:
+            #             continue
+            #
+            #         entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
+            #         gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
+            # else:
+            #     mesh_vars.CGNS.regenerate_BCs = True
+            mesh_vars.CGNS.regenerate_BCs = True
 
         # gmsh.model.geo.synchronize()
         gmsh.model.occ.synchronize()
@@ -354,34 +357,100 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
         point[2] = float(zone['GridCoordinates']['CoordinateZ'][' data'][pointNum])
 
     # Loop over all BCs
-    zoneBCs = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    cellsets = mesh.cell_sets
+    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
 
     for zoneBC in zoneBCs:
         # bcName = zoneBC[3:]
         # bcID   = find_index([s['Name'] for s in bcs], bcName)
         zoneBC = cast(str, zoneBC)
-        cgnsBC = cast(h5py.Dataset, zone[zoneBC]['ElementConnectivity'][' data'])
 
-        # Read the surface elements, one at a time
-        count  = 0
+        # Data given with separate zoneBCs
+        if zoneBC in zone:
+            cgnsBC = cast(h5py.Dataset, zone[zoneBC]['ElementConnectivity'][' data'])
 
-        # Loop over all elements and get the type
-        cellsets = mesh.cell_sets
-        while count < cgnsBC.shape[0]:
+            # Read the surface elements, one at a time
+            count  = 0
 
-            elemType = ElemTypes(cgnsBC[count])
+            # Loop over all elements and get the type
+            while count < cgnsBC.shape[0]:
+                elemType = ElemTypes(cgnsBC[count])
 
-            # Map the unique quad sides to our non-unique elem sides
-            corners  = cgnsBC[count+1:count+int(elemType['Nodes'])+1]
-            # BCpoints = copy.copy(bpoints[corners])
-            BCpoints = [bpoints[s-1] for s in corners]
-            BCpoints = np.sort(BCpoints, axis=0)
-            BCpoints = BCpoints.flatten()
-            cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
-            del BCpoints
+                # Map the unique quad sides to our non-unique elem sides
+                corners  = cgnsBC[count+1:count+int(elemType['Nodes'])+1]
+                # BCpoints = copy.copy(bpoints[corners])
+                BCpoints = [bpoints[s-1] for s in corners]
+                BCpoints = np.sort(BCpoints, axis=0)
+                BCpoints = BCpoints.flatten()
+                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                del BCpoints
 
-            # Move to the next element
-            count += int(elemType['Nodes']) + 1
+                # Move to the next element
+                count += int(elemType['Nodes']) + 1
+
+        # Data attached to the zoneBC node
+        elif f'{zoneBC}/PointList' in zone['ZoneBC']:
+            cgnsBC = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['PointList'][' data'])
+            cgnsBC = sorted(int(s) for s in cgnsBC)
+
+            # Read the shell elements, one at a time
+            cgnsShells = cast(h5py.Dataset, zone['GridShells']['ElementConnectivity'][' data'])
+
+            count    = 0
+            cgnsSmax = 0
+            cgnsSmin = sys.maxsize
+
+            # Precompute the min and max values in cgnsBC for filtering
+            cgns_set = set(cgnsBC)
+
+            # Loop over all elements and get the type
+            while count < cgnsShells.shape[0]:
+                elemType = ElemTypes(cgnsShells[count])
+                nNodes   = int(elemType['Nodes'])
+
+                corners  = cgnsShells[count+1:count+nNodes+1]
+                # corners  = sorted(int(s) for s in corners)
+
+                cgnsSmax = max(np.max(corners), cgnsSmax)
+                cgnsSmin = min(np.min(corners), cgnsSmin)
+
+                count   += int(elemType['Nodes']) + 1
+
+            # Read the surface elements, one at a time
+            count   = 0
+
+            # Loop over all elements and get the type
+            while count < cgnsShells.shape[0]:
+                elemType = ElemTypes(cgnsShells[count])
+                nNodes   = int(elemType['Nodes'])
+
+                corners  = cgnsShells[count+1:count+nNodes+1]
+                corners  = sorted(int(s) for s in corners)
+
+                # Early rejection based on bounds
+                if max(corners) > cgnsSmax or min(corners) < cgnsSmin:
+                    count   += int(elemType['Nodes']) + 1
+                    continue
+
+                # Filter cgnsBC to narrow the search space
+                # filtered_cgnsBC = [x for x in cgnsBC if cgnsSmin <= x <= cgnsSmax]
+
+                # Check if corners can form a subset of cgnsBC
+                corners_set = set(corners)
+                if corners_set.issubset(cgns_set):
+                    BCpoints = [bpoints[s-1] for s in corners]
+                    BCpoints = np.sort(BCpoints, axis=0)
+                    BCpoints = BCpoints.flatten()
+
+                    # Use regex to check if the string ends with _<number> and split accordingly
+                    match = re.match(r"(.*)_\d+$", zoneBC)
+                    if match:
+                        zoneBC = match.group(1)
+
+                    cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                    del BCpoints
+
+                count   += int(elemType['Nodes']) + 1
 
         mesh   = meshio.Mesh(points    = points,    # noqa: E251
                              cells     = cells,     # noqa: E251
