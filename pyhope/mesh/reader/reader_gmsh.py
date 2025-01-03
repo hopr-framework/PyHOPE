@@ -130,8 +130,8 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         # Explicitly load the OpenCASCADE kernel
         gmsh.model.occ.synchronize()
 
-        entities  = gmsh.model.getEntities()
-        nBCs_CGNS = len([s for s in entities if s[0] == 2])
+        # entities  = gmsh.model.getEntities()
+        # nBCs_CGNS = len([s for s in entities if s[0] == 2])
 
         # Check if GMSH read all BCs
         # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
