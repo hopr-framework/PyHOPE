@@ -682,7 +682,7 @@ def ConnectMesh() -> None:
             # Support for hybrid meshes
             nCorners = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
 
-            # Map the unique quad sides to our non-unique elem sides
+            # Map the unique BC sides to our non-unique elem sides
             for iSide in iBCsides:
                 # Get the corner nodes
                 corners = np.sort(np.array(mapFaces[iSide][0:nCorners]))
@@ -804,7 +804,8 @@ def ConnectMesh() -> None:
 
         nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
         if nbPoints.shape[0] == 0:
-            hopout.warning('Could not find matching sides, exiting...')
+            hopout.warning(f'Could not find matching sides for {len(nConnSide)+1} sides, exiting...')
+            print(mesh.points[targetSide.corners])
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 

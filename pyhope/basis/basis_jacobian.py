@@ -120,7 +120,8 @@ def CheckJacobians() -> None:
 
     # Only consider hexahedrons
     if any(e.type % 100 != 8 for e in elems):
-        print(hopout.warn(f'Passing element type: {mesh_vars.ELEMTYPE.inam[[e for e in elems if e.type % 100 != 8][0].type]}'))
+        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
+        print(hopout.warn(f'Passing element type: {[mesh_vars.ELEMTYPE.inam[e][0] for e in elemTypes]}'))
         return
 
     # Compute the equidistant point set used by meshIO

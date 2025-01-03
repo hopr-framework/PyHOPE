@@ -210,13 +210,31 @@ def BCCGNS() -> meshio.Mesh:
 
     # Collapse all opposing corner nodes into an [:, 12] array
     # nbCorners  = [s['Corners'] for s in nConnSide]
-    nbCorners  = [s[0:4] for s in nConnSide]
-    nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
-    nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+    nbCorners = [s[0:4] for s in nConnSide]
+    nbPoints  = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+    nbPoints  = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
     del nbCorners
 
     # Build a k-dimensional tree of all points on the opposing side
     stree = spatial.KDTree(nbPoints)
+
+    # Now, the same thing for triangular elements
+    tConnLen = 0
+    tConnNum = 0
+    ttree    = spatial.KDTree([[0.0]])
+    if len([value for key, value in mesh.cells_dict.items() if 'triangle' in key]) > 0:
+        tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
+        tConnType = [key   for key, _     in mesh.cells_dict.items() if 'triangle' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
+        tConnNum  = list(mesh.cells_dict).index(tConnType)
+        tConnLen  = len(list(mesh.cells_dict))
+
+        # Collapse all opposing corner nodes into an [:, 9] array
+        tbCorners = [s[0:3] for s in tConnSide]
+        tbPoints  = copy.copy(np.sort(mesh.points[tbCorners], axis=1))
+        tbPoints  = tbPoints.reshape(tbPoints.shape[0], tbPoints.shape[1]*tbPoints.shape[2])
+        del tbCorners
+
+        ttree = spatial.KDTree(tbPoints)
 
     # TODO: SET ANOTHER TOLERANCE
     tol = 1.E-10
@@ -279,9 +297,11 @@ def BCCGNS() -> meshio.Mesh:
                     case 1:  # Unstructured mesh, 1D arrays
                         if mesh_vars.nGeo > 1:
                             hopout.warning('Setting nGeo > 1 not supported for unstructured meshes')
-                        BCCGNS_Uncurved(  mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen)
+                        BCCGNS_Uncurved(  mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen,
+                                          # Support for triangular elements
+                                          cast(spatial.KDTree, ttree), tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
-                        # TODO: Implement this
+                        # Structured grid can only contain tensor-product elements
                         BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
@@ -340,11 +360,16 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
                       tol:      float,
                       offsetcs: int,
                       nConnNum: int,
-                      nConnLen: int) -> None:
+                      nConnLen: int,
+                      # Triangular elements
+                      ttree:    spatial.KDTree,
+                      tConnNum: int,
+                      tConnLen: int) -> None:
     """ Set the CGNS boundary conditions for uncurved (unstructured) grids
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
     from pyhope.io.io_cgns import ElemTypes
     # ------------------------------------------------------
     # Load the CGNS points
@@ -393,64 +418,104 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
             cgnsBC = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['PointList'][' data'])
             cgnsBC = sorted(int(s) for s in cgnsBC)
 
-            # Read the shell elements, one at a time
-            cgnsShells = cast(h5py.Dataset, zone['GridShells']['ElementConnectivity'][' data'])
+            # Read the shell elements
+            cgnsShells  = cast(h5py.Dataset, zone['GridShells']['ElementConnectivity'][' data'])
 
-            count    = 0
-            cgnsSmax = 0
-            cgnsSmin = sys.maxsize
+            # Get the location of the BC faces
+            cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
 
-            # Precompute the min and max values in cgnsBC for filtering
-            cgns_set = set(cgnsBC)
+            if cgnsGridLoc == 'Vertex':
+                count    = 0
+                cgnsSmax = 0
+                cgnsSmin = sys.maxsize
 
-            # Loop over all elements and get the type
-            while count < cgnsShells.shape[0]:
-                elemType = ElemTypes(cgnsShells[count])
-                nNodes   = int(elemType['Nodes'])
+                # Precompute the min and max values in cgnsBC for filtering
+                cgns_set = set(cgnsBC)
 
-                corners  = cgnsShells[count+1:count+nNodes+1]
-                # corners  = sorted(int(s) for s in corners)
+                # Loop over all elements and get the type
+                while count < cgnsShells.shape[0]:
+                    elemType = ElemTypes(cgnsShells[count])
+                    nNodes   = int(elemType['Nodes'])
 
-                cgnsSmax = max(np.max(corners), cgnsSmax)
-                cgnsSmin = min(np.min(corners), cgnsSmin)
+                    corners  = cgnsShells[count+1:count+nNodes+1]
+                    # corners  = sorted(int(s) for s in corners)
 
-                count   += int(elemType['Nodes']) + 1
+                    cgnsSmax = max(np.max(corners), cgnsSmax)
+                    cgnsSmin = min(np.min(corners), cgnsSmin)
 
-            # Read the surface elements, one at a time
-            count   = 0
-
-            # Loop over all elements and get the type
-            while count < cgnsShells.shape[0]:
-                elemType = ElemTypes(cgnsShells[count])
-                nNodes   = int(elemType['Nodes'])
-
-                corners  = cgnsShells[count+1:count+nNodes+1]
-                corners  = sorted(int(s) for s in corners)
-
-                # Early rejection based on bounds
-                if max(corners) > cgnsSmax or min(corners) < cgnsSmin:
                     count   += int(elemType['Nodes']) + 1
-                    continue
 
-                # Filter cgnsBC to narrow the search space
-                # filtered_cgnsBC = [x for x in cgnsBC if cgnsSmin <= x <= cgnsSmax]
+                # Read the surface elements, one at a time
+                count   = 0
 
-                # Check if corners can form a subset of cgnsBC
-                corners_set = set(corners)
-                if corners_set.issubset(cgns_set):
-                    BCpoints = [bpoints[s-1] for s in corners]
-                    BCpoints = np.sort(BCpoints, axis=0)
-                    BCpoints = BCpoints.flatten()
+                # Loop over all elements and get the type
+                while count < cgnsShells.shape[0]:
+                    elemType = ElemTypes(cgnsShells[count])
+                    nNodes   = int(elemType['Nodes'])
 
-                    # Use regex to check if the string ends with _<number> and split accordingly
-                    match = re.match(r"(.*)_\d+$", zoneBC)
-                    if match:
-                        zoneBC = match.group(1)
+                    corners  = cgnsShells[count+1:count+nNodes+1]
+                    corners  = sorted(int(s) for s in corners)
 
-                    cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
-                    del BCpoints
+                    # Early rejection based on bounds
+                    # if max(corners) > cgnsSmax or min(corners) < cgnsSmin:
+                    #     count   += int(elemType['Nodes']) + 1
+                    #     continue
 
-                count   += int(elemType['Nodes']) + 1
+                    # Filter cgnsBC to narrow the search space
+                    # filtered_cgnsBC = [x for x in cgnsBC if cgnsSmin <= x <= cgnsSmax]
+
+                    # Check if corners can form a subset of cgnsBC
+                    corners_set = set(corners)
+                    if corners_set.issubset(cgns_set):
+                        BCpoints = [bpoints[s-1] for s in corners]
+                        BCpoints = np.sort(BCpoints, axis=0)
+                        BCpoints = BCpoints.flatten()
+
+                        # Use regex to check if the string ends with _<number> and split accordingly
+                        match = re.match(r"(.*)_\d+$", zoneBC)
+                        if match:
+                            zoneBC = match.group(1)
+
+                        cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                        del BCpoints
+
+                    count   += int(elemType['Nodes']) + 1
+
+            elif cgnsGridLoc == 'FaceCenter':
+                count    = 0
+                nShells  = cast(int, zone['GridShells']['ElementRange'][' data'][0])
+
+                # Loop over all elements and get the type
+                while count < cgnsShells.shape[0]:
+                    elemType = ElemTypes(cgnsShells[count])
+                    nNodes   = int(elemType['Nodes'])
+
+                    corners  = cgnsShells[count+1:count+nNodes+1]
+                    corners  = sorted(int(s) for s in corners)
+
+                    if nShells in cgnsBC:
+                        BCpoints = [bpoints[s-1] for s in corners]
+                        BCpoints = np.sort(BCpoints, axis=0)
+                        BCpoints = BCpoints.flatten()
+
+                        # Use regex to check if the string ends with _<number> and split accordingly
+                        match = re.match(r"(.*)_\d+$", zoneBC)
+                        if match:
+                            zoneBC = match.group(1)
+
+                        match len(BCpoints):
+                            case 9:   # Triangle
+                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, tConnLen, tConnNum, offsetcs, ttree, tol, zoneBC)
+                            case 12:  # Quad
+                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                            case _:
+                                hopout.warning('Unsupported number of corners for shell elements, exiting...')
+                                sys.exit(1)
+
+                        del BCpoints
+
+                    nShells += 1
+                    count   += int(elemType['Nodes']) + 1
 
         mesh   = meshio.Mesh(points    = points,    # noqa: E251
                              cells     = cells,     # noqa: E251
