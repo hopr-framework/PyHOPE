@@ -223,8 +223,12 @@ convergence:
   image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora_41-x86_64
   artifacts:
     paths:
-      - convergence.log
+      - convergence_artifacts.log
   script:
+    - | # Literal YAML multiline block scalar indicator
+      artifact_file="convergence_artifacts.log"
+      rm $artifact_file || true
+      touch $artifact_file
     - directories=("5-02-convtest_flipped" "5-03-convtest_mortar") # List of directories to process
     - | # Literal YAML multiline block scalar indicator
       for dir in "${directories[@]}"; do
@@ -249,16 +253,18 @@ convergence:
           # Clean up the temporary file
           rm "$temp_file"
         done
-        # Clean-up the log file
-        rm -f ../convergence.log
         # Call convergence script
         for N in {1..4}; do
           echo ""
-          echo "=== Running Convergence Test  N=$N ===" | tee -a ../convergence.log
+          echo "=== Running Convergence Test N=$N ===" | tee -a ../convergence.log
           python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
         done
-        # Analyze convergence behavior using a simple python script
         cd ..
+        # Merge convergence.log for artifacts
+        echo "===== Processing Folder: $dir =====" >> "$artifact_file"
+        cat "convergence.log" >> "$artifact_file"
+        echo "" >> "$artifact_file"
+        # Analyze convergence behavior using a simple python script
         python3 << EOF # Collapsed multi-line command
       import sys
 
@@ -272,7 +278,7 @@ convergence:
       # Process the results
       def process_results(degree, data):
           min_eoc, max_eoc = compute_expected_range(degree)
-          print(f"Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}])")
+          print(f"\n=== Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}]) ===")
           results = []
           for idx, (grid, eoc) in enumerate(data[1:]):
               passed = min_eoc <= eoc <= max_eoc
@@ -288,7 +294,7 @@ convergence:
           for grid, min_eoc, max_eoc, result, passed in results:
               pass_col = ( "\033[92m PASS \033[0m" if passed == "PASS" else ("\033[93m(PASS)\033[0m" if passed == "(PASS)" else "\033[91m FAIL \033[0m"))
               print(f"│ {grid:^5} │ {min_eoc:^7.2f} │ {max_eoc:^7.2f} │ {result:^7.2f} │ {pass_col:^6} │")
-          print("└───────┴─────────┴─────────┴─────────┴────────┘\n")
+          print("└───────┴─────────┴─────────┴─────────┴────────┘")
 
       # Parse the log file
       try:
@@ -304,6 +310,7 @@ convergence:
           line = line.strip()
           # Match polynomial degree header
           if line.startswith("=== Running Convergence Test") and "N=" in line:
+              # Process the previous degree upon encountering a new header
               if current_degree is not None:
                   success &= process_results(current_degree, current_data)
               try:
@@ -319,7 +326,14 @@ convergence:
               except ValueError:
                   pass
 
+      # Final processing for the last degree with no subsequent header
+      if current_degree is not None:
+          success &= process_results(current_degree, current_data)
+
       # Final status
       sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
       EOF
+
+        # Clean-up the log file
+        rm -f convergence.log
       done
