@@ -118,12 +118,6 @@ def CheckJacobians() -> None:
     elems = mesh_vars.elems
     nodes = mesh_vars.mesh.points
 
-    # Only consider hexahedrons
-    if any(e.type % 100 != 8 for e in elems):
-        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
-        print(hopout.warn(f'Passing element type: {[mesh_vars.ELEMTYPE.inam[e][0] for e in elemTypes]}'))
-        return
-
     # Compute the equidistant point set used by meshIO
     xEq = np.zeros(nGeo)
     for i in range(nGeo):
@@ -184,6 +178,12 @@ def CheckJacobians() -> None:
         jacs = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
     else:
         jacs = np.array(tasks)
+
+    # Only consider hexahedrons
+    if any(e.type % 100 != 8 for e in elems):
+        elemTypes   = list(set([e.type for e in elems if e.type % 100 != 8]))
+        passedTypes = [mesh_vars.ELEMTYPE.inam[e][0] for e in elemTypes]
+        print(hopout.warn(f'Ignored element type{'s' if len(passedTypes) > 1 else ""}: {[s for s in passedTypes]}'))
 
     # Plot the histogram of the Jacobians
     plot_histogram(np.array(jacs))

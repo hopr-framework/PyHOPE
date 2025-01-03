@@ -100,8 +100,8 @@ def warn(string: str, length: int = STD_LENGTH) -> str:
                 string (str): String to be printed in banner.
                 length (int): (Optional.) Number of characters in each line.
     """
-    prefix   = Colors.WARN + ' WARNING  ┃ '  + Colors.END
-    lprefix  = len(' WARNING  ┃ ')
+    prefix   = Colors.WARN + '│  WARNING  ┃ '  + Colors.END
+    lprefix  = len('│  WARNING  ┃ ')
     wrap_msg = textwrap.fill(string, width=length - lprefix)
 
     # Add prefix to each line
