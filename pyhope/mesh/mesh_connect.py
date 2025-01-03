@@ -800,7 +800,14 @@ def ConnectMesh() -> None:
 
         # Collapse all opposing corner nodes into an [:, 12] array
         nbCorners  = [s.corners for s in nConnSide]
+        nbCorners  = [s for s in nbCorners if len(s) == len(targetSide.corners)]
+
         nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+        if nbPoints.shape[0] == 0:
+            hopout.warning('Could not find matching sides, exiting...')
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
         nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
         del nbCorners
 
