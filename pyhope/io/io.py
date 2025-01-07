@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-from typing import final
+from dataclasses import dataclass
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -41,7 +41,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-@final
+@dataclass
 class ELEM:
     INFOSIZE:  int = 6
     TYPE:      int = 0
@@ -51,10 +51,10 @@ class ELEM:
     FIRSTNODE: int = 4
     LASTNODE:  int = 5
 
-    TYPES: list[int] = [104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208]
+    TYPES: tuple[int, ...] = (104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208)
 
 
-@final
+@dataclass
 class SIDE:
     INFOSIZE: int = 5
     TYPE:     int = 0

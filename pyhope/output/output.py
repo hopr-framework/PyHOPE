@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import textwrap
+from dataclasses import dataclass
 from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -40,6 +41,7 @@ STD_LENGTH = 79  # Standard length for output to console
 # ==================================================================================================================================
 
 
+@dataclass
 class Colors:
     # Define colors used throughout this framework
     #

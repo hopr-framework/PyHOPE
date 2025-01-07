@@ -42,6 +42,7 @@ from configparser import ConfigParser
 # ==================================================================================================================================
 
 
+@final
 class MultiOrderedDict(OrderedDict):
     """ Add option to repeat the same key multiple times
 

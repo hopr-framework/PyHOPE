@@ -206,3 +206,36 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     jacOut = np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
 
     return jacOut
+
+
+# INFO: ALTERNATIVE VERSION, CACHING VDM, D
+# class JacobianEvaluator:
+#     def __init__(self, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> None:
+#         self.VdmGLtoAP: Final[np.ndarray] = VdmGLtoAP
+#         self.D_EqToGL:  Final[np.ndarray] = D_EqToGL
+#
+#     def evaluate_jacobian(self, xGeo_In: np.ndarray) -> np.ndarray:
+#         # Perform tensor contraction for the first derivative (Xi direction)
+#         dXdXiGL   = np.tensordot(self.D_EqToGL, xGeo_In, axes=(1, 1))
+#         dXdXiGL   = np.moveaxis(dXdXiGL  , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+#
+#         # Perform tensor contraction for the second derivative (Eta direction)
+#         dXdEtaGL  = np.tensordot(self.D_EqToGL, xGeo_In, axes=(1, 2))
+#         dXdEtaGL  = np.moveaxis(dXdEtaGL , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+#
+#         # Perform tensor contraction for the third derivative (Zeta direction)
+#         dXdZetaGL = np.tensordot(self.D_EqToGL, xGeo_In, axes=(1, 3))
+#         dXdZetaGL = np.moveaxis(dXdZetaGL, 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+#
+#         # Change basis for each direction
+#         dXdXiAP   = change_basis_3D(self.VdmGLtoAP, dXdXiGL  )
+#         dXdEtaAP  = change_basis_3D(self.VdmGLtoAP, dXdEtaGL )
+#         dXdZetaAP = change_basis_3D(self.VdmGLtoAP, dXdZetaGL)
+#
+#         # Precompute cross products between dXdEtaAP and dXdZetaAP for all points
+#         cross_eta_zeta = np.cross(dXdEtaAP, dXdZetaAP, axis=0)  # Shape: (3, nGeoRef, nGeoRef, nGeoRef)
+#
+#         # Fill output Jacobian array
+#         jacOut = np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
+#
+#         return jacOut

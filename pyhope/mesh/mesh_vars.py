@@ -64,6 +64,7 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
+@dataclass
 class CGNS:
     regenerate_BCs: bool = False                  # Flag if CGNS needs BC regeneration
 
@@ -229,6 +230,7 @@ class ELEMTYPE:
         inam[value].append(key)
 
 
+# @final
 # class SIDETYPE:
 #     type = {'tri'      : 3,
 #             'quad'     : 4}

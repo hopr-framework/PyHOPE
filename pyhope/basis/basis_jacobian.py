@@ -33,6 +33,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.basis.basis_basis import evaluate_jacobian
 # ==================================================================================================================================
 
 
@@ -76,14 +77,14 @@ def plot_histogram(data: np.ndarray) -> None:
 def process_chunk(chunk) -> list[np.ndarray]:
     """Process a chunk of elements by evaluating the Jacobian for each
     """
-    # Local imports ----------------------------------------
-    from pyhope.basis.basis_basis import evaluate_jacobian
-    # ------------------------------------------------------
     chunk_results = []
     for elem in chunk:
         # nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL = elem
         nodeCoords, _, VdmGLtoAP, D_EqToGL = elem
         jac    = evaluate_jacobian(nodeCoords, VdmGLtoAP, D_EqToGL)
+        # INFO: ALTERNATIVE VERSION, CACHING VDM, D
+        # nodeCoords, evaluate_jacobian = elem
+        # jac    = evaluate_jacobian(nodeCoords)
         maxJac = np.max(np.abs(jac))
         minJac = np.min(jac)
         chunk_results.append(minJac / maxJac)
@@ -95,7 +96,9 @@ def CheckJacobians() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.basis.basis_basis import barycentric_weights, polynomial_derivative_matrix, calc_vandermonde
-    from pyhope.basis.basis_basis import legendre_gauss_lobatto_nodes, evaluate_jacobian
+    from pyhope.basis.basis_basis import legendre_gauss_lobatto_nodes
+    # INFO: ALTERNATIVE VERSION, CACHING VDM, D
+    # from pyhope.basis.basis_basis import JacobianEvaluator
     from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
     from pyhope.readintools.readintools import GetLogical
@@ -131,6 +134,8 @@ def CheckJacobians() -> None:
     for i in range(nGeoRef):
         xAP[i] = 2. * float(i)/float(nGeoRef-1) - 1.
     VdmGLtoAP = calc_vandermonde(nGeo, nGeoRef, wbaryGL, xGL, xAP)
+    # INFO: ALTERNATIVE VERSION, CACHING VDM, D
+    # evaluate_jacobian = JacobianEvaluator(VdmGLtoAP, D_EqToGL).evaluate_jacobian
 
     # Map all points to tensor product
     elems = mesh_vars.elems
@@ -158,8 +163,12 @@ def CheckJacobians() -> None:
         if np_mtp > 0:
             # Add tasks for parallel processing
             tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
+            # INFO: ALTERNATIVE VERSION, CACHING VDM, D
+            # tasks.append((xGeo, evaluate_jacobian))
         else:
             jac = evaluate_jacobian(xGeo, VdmGLtoAP, D_EqToGL)
+            # INFO: ALTERNATIVE VERSION, CACHING VDM, D
+            # jac = evaluate_jacobian(xGeo)
             maxJac =  np.max(np.abs(jac))
             minJac =  np.min(       jac)
             tasks.append(minJac / maxJac)
