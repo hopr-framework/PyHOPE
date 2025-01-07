@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from dataclasses import dataclass
+from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -64,6 +65,7 @@ class SIDE:
     BCID:     int = 4
 
 
+@cache
 def ELEMTYPE(elemType: int) -> str:
     """ Name of a given element type
     """

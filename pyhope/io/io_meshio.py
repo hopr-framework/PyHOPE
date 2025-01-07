@@ -25,6 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from functools import cache
+from typing import Tuple
 import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -169,19 +171,18 @@ def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
             sys.exit(1)
 
 
-def genHEXMAPMESHIO(order: int) -> None:
+@cache
+def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
     """ MESHIO -> IJK ordering for high-order hexahedrons
+        > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+        > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
     """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
     map = np.zeros((order, order, order), dtype=int)
 
     if order == 1:
         map[0, 0, 0] = 0
-        mesh_vars.HEXMAP = map
-        mesh_vars.HEXTEN = map
-        return None
+        tensor       = map
+        return map, tensor
 
     if order == 2:
         # Python indexing, 1 -> 0
@@ -194,7 +195,6 @@ def genHEXMAPMESHIO(order: int) -> None:
         map[1 , 1 , 1 ] = 7
         map[0 , 1 , 1 ] = 8
         map -= 1
-        mesh_vars.HEXMAP = map
 
         # Reshape into 1D array, tensor-product style
         tensor = []
@@ -203,8 +203,7 @@ def genHEXMAPMESHIO(order: int) -> None:
                 for i in range(order):
                     tensor.append(int(map[i, j, k]))
 
-        mesh_vars.HEXTEN = tensor
-        return None
+        return map, np.asarray(tensor)
 
     count = 0
 
@@ -246,7 +245,6 @@ def genHEXMAPMESHIO(order: int) -> None:
 
     # Python indexing, 1 -> 0
     map -= 1
-    mesh_vars.HEXMAP = map
 
     # Reshape into 1D array, tensor-product style
     tensor = []
@@ -255,4 +253,4 @@ def genHEXMAPMESHIO(order: int) -> None:
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
 
-    mesh_vars.HEXTEN = tensor
+    return map, np.asarray(tensor)

@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import cache
 from typing import Optional, Final, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -51,8 +52,6 @@ vvs    : list      | None                         # [list of dict] - Periodic ve
 elems  : list[type | None]                        # [list of list] - Element nodes
 sides  : list[type | None]                        # [list of list] - Side    nodes
 
-HEXTEN : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
-HEXMAP : np.ndarray                               # CGNS <-> IJK ordering for high-order hexahedrons (3D mapping)
 already_curved: bool                              # Flag if mesh is already curved
 
 doMortars: bool                                   # Flag if mortars are enabled
@@ -231,11 +230,13 @@ class ELEMTYPE:
 
 
 # @final
+# @cache
 # class SIDETYPE:
 #     type = {'tri'      : 3,
 #             'quad'     : 4}
 
 
+@cache
 def ELEMMAP(meshioType: str) -> int:
     elemMap = {  # Linear or curved tetrahedron
                  'tetra'     : (104, 204),

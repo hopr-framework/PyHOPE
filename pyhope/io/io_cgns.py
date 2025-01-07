@@ -25,6 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from functools import cache
+# from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -37,6 +39,7 @@
 # ==================================================================================================================================
 
 
+@cache
 def ElemTypes(num: int) -> dict[str, str | int]:
     types = [{ 'ElemTypeCGNS': 'ElementTypeNull', 'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 0
              { 'ElemTypeCGNS': 'ElementTypeUser', 'ElemTypeMeshIO': 'Null',         'Nodes': 0  },  # 1
@@ -113,19 +116,20 @@ def ElemTypes(num: int) -> dict[str, str | int]:
 #             sys.exit(1)
 #
 #
-# def genHEXMAPCGNS(order: int) -> None:
+# @cache
+# def HEXMAPCGNS(order: int) -> Tuple[np.ndarray, np.ndarray]:
 #     """ CGNS -> IJK ordering for high-order hexahedrons
 #         > Loosely based on [Gmsh] "generatePointsHexCGNS"
+#
+#         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+#         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
 #     """
-#     # Local imports ----------------------------------------
-#     import pyhope.mesh.mesh_vars as mesh_vars
-#     # ------------------------------------------------------
 #     map = np.zeros((order, order, order), dtype=int)
 #
 #     if order == 1:
 #         map[0, 0, 0] = 0
-#         mesh_vars.HEXTEN = map
-#         return None
+#         tensor       = map
+#         return map, tensor
 #
 #     # Principal vertices
 #     map[0      , 0      , 0      ] = 1
@@ -147,8 +151,7 @@ def ElemTypes(num: int) -> dict[str, str | int]:
 #                 for i in range(order):
 #                     tensor.append(int(map[i, j, k]))
 #
-#         mesh_vars.HEXTEN = tensor
-#         return None
+#         return map, np.asarray(tensor)
 #
 #     # Internal points of base quadrangle edges (x-)
 #     count = 8
@@ -252,4 +255,5 @@ def ElemTypes(num: int) -> dict[str, str | int]:
 #         for j in range(order):
 #             for i in range(order):
 #                 tensor.append(int(map[i, j, k]))
-#     mesh_vars.HEXTEN = tensor
+#
+#     return map, np.asarray(tensor)

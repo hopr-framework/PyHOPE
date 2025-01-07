@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+from functools import cache
 from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -43,6 +44,7 @@ import pyhope.mesh.mesh_vars as mesh_vars
 # ==================================================================================================================================
 
 
+@cache
 def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of a hexahedron
     """
@@ -62,6 +64,7 @@ def faces(elemType: Union[int, str]) -> list[str]:
     return faces_map[elemType % 100]
 
 
+@cache
 def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
     """ GMSH: Create edges from points in the given direction
     """
@@ -88,6 +91,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
         raise KeyError(f'Error in edge_to_dir: edge {edge} is not supported')
 
 
+@cache
 def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarray:
     """ GMSH: Get points on edges
     """
@@ -120,6 +124,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarra
         raise KeyError(f'Error in edge_to_corner: edge {edge} is not supported')
 
 
+@cache
 def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ GMSH: Create faces from edges in the given direction
     """
@@ -147,6 +152,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_edge: face {face} is not supported')
 
 
+@cache
 def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ GMSH: Get points on faces in the given direction
     """
@@ -174,6 +180,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_corner: face {face} is not supported')
 
 
+@cache
 def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ CGNS: Get points on faces in the given direction
     """
@@ -201,6 +208,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+@cache
 def flip_s2m(N: int, flip: int) -> np.ndarray:
     # Create grid index arrays for the rows and columns
     p = np.arange(N)
@@ -225,6 +233,7 @@ def flip_s2m(N: int, flip: int) -> np.ndarray:
         raise ValueError('Flip must be an integer between 0 and 4')
 
 
+@cache
 def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
     """ Returns the flip map for a given element type
     """
@@ -251,6 +260,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
         raise KeyError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
 
 
+@cache
 def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
@@ -279,6 +289,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+# > Not cacheable, we pass elemNode[np.ndarray]
 def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
@@ -306,6 +317,7 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
         raise KeyError(f'Error in face_to_cgns: face {dir} is not supported')
 
 
+# > Not cacheable, we pass mesh[meshio.Mesh]
 def count_elems(mesh: meshio.Mesh) -> int:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -321,6 +333,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
     return nElems
 
 
+# > Not cacheable, we pass mesh[meshio.Mesh]
 def calc_elem_bary(mesh: meshio.Mesh) -> np.ndarray:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -338,13 +351,14 @@ def calc_elem_bary(mesh: meshio.Mesh) -> np.ndarray:
     return np.mean(mesh_vars.mesh.points[all_cells], axis=1)
 
 
+@cache
 def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
     """ CGNS -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
     # from pyhope.io.io_cgns import genHEXMAPCGNS
     # from pyhope.io.io_vtk import genHEXMAPVTK
-    from pyhope.io.io_meshio import genHEXMAPMESHIO
+    from pyhope.io.io_meshio import HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
@@ -358,39 +372,31 @@ def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
             return np.array([0, 1, 3, 2, 4, 5, 7, 6])
         # Curved elements, use mapping
         case 208:  # Hexaeder
+            # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+            # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
+
             # # CGNS
-            # try:
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-            # except ImportError:
-            #     genHEXMAP(order+1)
-            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # _, HEXTEN = HEXMAPCGNS(order+1)
 
             # # VTK
-            # try:
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-            # except ImportError:
-            #     genHEXMAPVTK(order+1)
-            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # _, HEXTEN = HEXMAPVTK(order+1)
 
             # MESHIO
-            try:
-                from pyhope.mesh.mesh_vars import HEXTEN
-            except ImportError:
-                genHEXMAPMESHIO(order+1)
-                from pyhope.mesh.mesh_vars import HEXTEN
+            _, HEXTEN = HEXMAPMESHIO(order+1)
             return HEXTEN
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
             sys.exit(1)
 
 
+@cache
 def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
     """ CGNS -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
-    # from pyhope.io.io_cgns import genHEXMAPCGNS
-    # from pyhope.io.io_vtk import genHEXMAPVTK
-    from pyhope.io.io_meshio import genHEXMAPMESHIO
+    # from pyhope.io.io_cgns import HEXMAPCGNS
+    # from pyhope.io.io_vtk import HEXMAPVTK
+    from pyhope.io.io_meshio import HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
@@ -413,26 +419,17 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
 
         # Curved elements, use mapping
         case 208:  # Hexaeder
+            # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+            # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
+
             # # CGNS
-            # try:
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-            # except ImportError:
-            #     genHEXMAP(order+1)
-            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # HEXMAP, _ = HEXMAPCGNS(order+1)
 
             # # VTK
-            # try:
-            #     from pyhope.mesh.mesh_vars import HEXMAP
-            # except ImportError:
-            #     genHEXMAPVTK(order+1)
-            #     from pyhope.mesh.mesh_vars import HEXMAP
+            # HEXMAP, _ = HEXMAPVTK(order+1)
 
             # MESHIO
-            try:
-                from pyhope.mesh.mesh_vars import HEXMAP
-            except ImportError:
-                genHEXMAPMESHIO(order+1)
-                from pyhope.mesh.mesh_vars import HEXMAP
+            HEXMAP, _ = HEXMAPMESHIO(order+1)
             return HEXMAP
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
