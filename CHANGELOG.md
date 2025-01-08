@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2025-xx-xx
+
+### Added
+- Add mortar connections with hanging nodes [36da08f]
+- Add output of unique GlobalNodeIDs [206b172]
+- Add reader for HOPR HDF5 format [0b8acaf]
+- Add generator and stub directory for Pyright [2102804]
+- Add uv as package manager [ba9601a]
+
+### Changed
+- Improve performance of mesh generation [1404bd2]
+- Improve class decorators and result caching [917143e]
+- Refactor CI/CD and beautify the output [f2f1836]
+- Refactor CI/CD to use NRG docker containers [5f67862]
+- Refactor CI/CD to use uv as package manager [739a55c]
+
 ## [0.0.4] - 2024-12-04
 
 ### Added
