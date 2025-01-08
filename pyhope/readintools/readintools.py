@@ -176,7 +176,7 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
                                multiple=multiple)
 
 
-def CreateReal(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
+def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------

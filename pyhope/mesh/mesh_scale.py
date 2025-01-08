@@ -30,26 +30,56 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
+import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
-def ScaleMesh():
+def TransformMesh():
     # Local imports ----------------------------------------
-    from pyhope.readintools.readintools import GetReal
+    from pyhope.readintools.readintools import GetReal, GetRealArray, GetIntFromStr
     from pyhope.mesh.mesh_vars import mesh
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
+    hopout.separator()
+    hopout.info('TRANSFORM MESH...')
+    hopout.sep()
+
+    hopout.routine(' Performing basic transformations')
     # Get scaling factor for mesh
     meshScale = GetReal('meshScale')
 
-    # exit if scaling factor is 1.0
-    if meshScale == 1.0:
-        return
+    # Get translation vector for mesh
+    meshTrans = GetRealArray('meshTrans')
+
+    # Get rotation matrix for mesh
+    meshRot   = GetRealArray('meshRot')
+    meshRot   = np.array(meshRot).reshape(3, 3)
 
     # Scale mesh
-    mesh.points *= meshScale
+    if meshScale != 1.0:
+        mesh.points *= meshScale
+
+    # Translate mesh
+    if not np.array_equal(meshTrans,[0.0, 0.0, 0.0]):
+        mesh.points += meshTrans
+
+    # Rotate mesh
+    if not np.array_equal(meshRot,[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
+        mesh.points = mesh.points @ meshRot
+
+    hopout.routine(' Performing advanced transformations')
+    meshPostDeform = GetIntFromStr('MeshPostDeform')
+
+    if meshPostDeform != 0:
+        # perform actual post-deformation
+        hopout.warning('Post-deformation not implemented yet!')
+
+    hopout.sep()
+
+    hopout.info('TRANSFORM MESH DONE!')
 
     return
