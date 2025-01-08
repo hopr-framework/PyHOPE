@@ -43,7 +43,8 @@ def DefineMesh() -> None:
     """ Define general options for mesh generation / readin
     """
     # Local imports ----------------------------------------
-    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
+    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
+    from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
@@ -82,6 +83,8 @@ def DefineMesh() -> None:
     CreateLogical(  'CheckSurfaceNormals', default=True,  help='Check if the surface normals point outwards')
     # Mortars
     CreateLogical(  'doMortars',           default=True,  help='Enables mortars')
+    # Scale
+    CreateReal(     'meshScale',           default=1.0,   help='Scale the mesh')
 
 
 def InitMesh() -> None:

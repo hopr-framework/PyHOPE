@@ -33,7 +33,6 @@ from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import numpy as np
 import gmsh
 import meshio
 import numpy as np
@@ -55,7 +54,7 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
-    from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr, CheckDefined
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     def CalcStretching() -> np.ndarray:

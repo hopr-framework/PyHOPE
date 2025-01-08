@@ -55,6 +55,7 @@ def main() -> None:
     from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
+    from pyhope.mesh.mesh_scale import ScaleMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
     # ------------------------------------------------------
@@ -121,6 +122,7 @@ def main() -> None:
     GenerateSides()
     RegenerateMesh()
     ConnectMesh()
+    ScaleMesh()
 
     # Perform the mesh checks
     CheckWatertight()
