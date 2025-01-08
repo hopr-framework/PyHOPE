@@ -28,6 +28,7 @@
 import importlib.metadata
 import pathlib
 import re
+from functools import cache
 from typing import Final, Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -61,6 +62,7 @@ class Common():
         self._program: Final[str] = self.__program__
 
     @property
+    @cache
     def __version__(self):
         # Retrieve version from package metadata
         try:
@@ -93,6 +95,7 @@ class Common():
         return str(self._version)
 
 
+@singleton
 class Gitlab():
     # Gitlab "python-gmsh" access
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'

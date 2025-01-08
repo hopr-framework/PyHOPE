@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 from collections import deque
+from dataclasses import dataclass
 from shutil import which
 from time import time
 from typing import Final, Optional
@@ -46,6 +47,7 @@ from typing import Final, Optional
 # ==================================================================================================================================
 
 
+@dataclass
 class Colors:
     # Define colors used throughout this framework
     #

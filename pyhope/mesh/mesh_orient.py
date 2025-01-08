@@ -39,15 +39,15 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
 from pyhope.mesh.mesh_common import LINMAP
+from pyhope.mesh.mesh_common import dir_to_nodes, faces
 # ==================================================================================================================================
 
 
 def check_orientation(ionodes : np.ndarray,
                       elemType: int,
                       ) -> tuple[bool, Optional[str]]:
-    # Local imports ----------------------------------------
-    from pyhope.mesh.mesh_common import dir_to_nodes, faces
-    # ------------------------------------------------------
+    """ Check the orientation of the surface normals
+    """
     mapLin   = LINMAP(elemType, order=mesh_vars.nGeo)
     nodes    = ionodes[mapLin]
     iopoints = mesh_vars.mesh.points
