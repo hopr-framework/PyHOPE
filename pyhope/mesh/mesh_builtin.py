@@ -58,6 +58,73 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr, CheckDefined
     # ------------------------------------------------------
 
+    def CalcStretching() -> np.ndarray:
+        # Local imports ----------------------------------------
+        import pyhope.output.output as hopout
+        # ------------------------------------------------------
+
+        # Initialize arrays
+        progFac = np.zeros(3)
+        l0      = np.zeros(3)
+        dx      = np.zeros(3)
+
+        # Calculate the stretching parameter for meshing the current zone
+        if stretchingType == 'constant':
+            progFac = [1., 1., 1.]
+        elif stretchingType == 'factor':
+            progFac = GetRealArray('Factor', number = zone)
+        elif stretchingType == 'ratio':
+            l0 = GetRealArray('l0', number = zone)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                dx = lEdges/np.abs(l0) # l/l0
+            # dx = np.where(l0 > 1.E-12, lEdges / np.abs(l0), 0)
+            if np.any(dx < 1.-1.E-12):
+                hopout.warning('stretching error, length l0 longer than grid region, in direction.')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+        elif stretchingType == 'combination':
+            progFac = GetRealArray('Factor', number = zone)
+            l0      = GetRealArray('l0', number = zone)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                dx = lEdges/np.abs(l0) # l/l0
+            for iDim in range(3):
+                if not np.abs(progFac[iDim]) < 1.E-12: # fac=0 , (nElem,l0) given, fac calculated
+                    progFac[iDim]=(np.abs(progFac[iDim]))**(np.sign(progFac[iDim]*l0[iDim])) # sign for direction
+                    if progFac[iDim] != 1.:
+                        nElems[iDim]=np.rint(np.log(1.-dx[iDim]*(1.-progFac[iDim])) / np.log(progFac[iDim])) #nearest Integer
+                    if nElems[iDim] < 1:
+                        nElems[iDim] = 1
+            print(hopout.warn("nElems in zone {} have been updated to (/{}, {}, {}/).".format(zone,nElems[0],nElems[1],nElems[2])))
+
+        # Calculate the required factor from ratio or combination input
+        if stretchingType == 'ratio' or stretchingType == 'combination':
+            for iDim in range(3):
+                if nElems[iDim] == 1:
+                    progFac[iDim] = 1.0
+                elif nElems[iDim] == 2:
+                    progFac[iDim] = dx[iDim]-1.
+                else: #nElems > 2
+                    if np.isinf(dx[iDim]):
+                        progFac[iDim] = 1.
+                    else:
+                        progFac[iDim] = dx[iDim]/nElems[iDim]  #start value for Newton iteration
+                        if np.abs(progFac[iDim]-1.) > 1.E-12:  # NEWTON iteration, only if not equidistant case
+                            F    = 1.
+                            dF   = 1.
+                            iter = 0
+                            while (np.abs(F) > 1.E-12) and (np.abs(F/dF) > 1.E-12) and (iter < 1000):
+                                F  = progFac[iDim]**nElems[iDim] + dx[iDim]*(1.-progFac[iDim]) -1. # non-linear function
+                                dF = nElems[iDim]*progFac[iDim]**(nElems[iDim]-1) -dx[iDim]  #dF/dfac
+                                progFac[iDim] = progFac[iDim] - F/dF
+                                iter=iter+1
+                            if iter > 1000:
+                                break # 'Newton iteration for computing the stretching function has failed.'
+                            progFac[iDim] = progFac[iDim]**np.sign(l0[iDim]) # sign for direction
+                    print(f'   -stretching factor in dir {iDim} is now {progFac[iDim]}')
+
+        # Return stretching factor
+        return progFac
+
     gmsh.initialize()
     if not debugvisu:
         # Hide the GMSH debug output
@@ -130,58 +197,7 @@ def MeshCartesian() -> meshio.Mesh:
             lEdges[i] = np.abs(box[i+3]-box[i])
 
         # Calculate the stretching parameter for meshing the current zone
-        if stretchingType == 'constant':
-            progFac = [1., 1., 1.]
-        elif stretchingType == 'factor':
-            progFac = GetRealArray('Factor', number = zone)
-        elif stretchingType == 'ratio':
-            l0 = GetRealArray('l0', number = zone)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                dx = lEdges/np.abs(l0) # l/l0
-            # dx = np.where(l0 > 1.E-12, lEdges / np.abs(l0), 0)
-            if np.any(dx < 1.-1.E-12):
-                hopout.warning('stretching error, length l0 longer than grid region, in direction.')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
-            progFac = np.zeros(3)
-        elif stretchingType == 'combination':
-            progFac = GetRealArray('Factor', number = zone)
-            l0      = GetRealArray('l0', number = zone)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                dx = lEdges/np.abs(l0) # l/l0
-            for iDim in range(3):
-                if not np.abs(progFac[iDim]) < 1.E-12: # fac=0 , (nElem,l0) given, fac calculated
-                    progFac[iDim]=(np.abs(progFac[iDim]))**(np.sign(progFac[iDim]*l0[iDim])) # sign for direction
-                    if progFac[iDim] != 1.:
-                        nElems[iDim]=np.rint(np.log(1.-dx[iDim]*(1.-progFac[iDim])) / np.log(progFac[iDim])) #nearest Integer
-                    if nElems[iDim] < 1:
-                        nElems[iDim] = 1
-            print(hopout.warn("nElems in zone {} have been updated to (/{}, {}, {}/).".format(zone,nElems[0],nElems[1],nElems[2])))
-
-        if stretchingType == 'ratio' or stretchingType == 'combination':
-            for iDim in range(3):
-                if nElems[iDim] == 1:
-                    progFac[iDim] = 1.0
-                elif nElems[iDim] == 2:
-                    progFac[iDim] = dx[iDim]-1.
-                else: #nElems > 2
-                    if np.isinf(dx[iDim]):
-                        progFac[iDim] = 1.
-                    else:
-                        progFac[iDim] = dx[iDim]/nElems[iDim]  #start value for Newton iteration
-                        if np.abs(progFac[iDim]-1.) > 1.E-12:  # NEWTON iteration, only if not equidistant case
-                            F    = 1.
-                            dF   = 1.
-                            iter = 0
-                            while (np.abs(F) > 1.E-12) and (np.abs(F/dF) > 1.E-12) and (iter < 1000):
-                                F  = progFac[iDim]**nElems[iDim] + dx[iDim]*(1.-progFac[iDim]) -1. # non-linear function
-                                dF = nElems[iDim]*progFac[iDim]**(nElems[iDim]-1) -dx[iDim]  #dF/dfac
-                                progFac[iDim] = progFac[iDim] - F/dF
-                                iter=iter+1
-                            if iter > 1000:
-                                break # 'Newton iteration for computing the stretching function has failed.'
-                            progFac[iDim] = progFac[iDim]**np.sign(l0[iDim]) # sign for direction
-                    print(f'   -stretching factor in dir {iDim} is now {progFac[iDim]}')
+        progFac = CalcStretching()
 
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
