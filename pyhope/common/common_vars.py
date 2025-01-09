@@ -29,7 +29,7 @@ import importlib.metadata
 import pathlib
 import re
 from functools import cache
-from typing import Final, Self
+from typing import Final, Self, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -95,7 +95,7 @@ class Common():
         return str(self._version)
 
 
-@singleton
+@final
 class Gitlab():
     # Gitlab "python-gmsh" access
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
