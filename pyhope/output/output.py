@@ -41,7 +41,7 @@ STD_LENGTH = 79  # Standard length for output to console
 # ==================================================================================================================================
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Colors:
     # Define colors used throughout this framework
     #

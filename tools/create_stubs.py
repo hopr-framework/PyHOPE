@@ -47,7 +47,7 @@ from typing import Final, Optional
 # ==================================================================================================================================
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Colors:
     # Define colors used throughout this framework
     #

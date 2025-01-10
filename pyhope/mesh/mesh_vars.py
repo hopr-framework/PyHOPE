@@ -63,12 +63,12 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False)
 class CGNS:
     regenerate_BCs: bool = False                  # Flag if CGNS needs BC regeneration
 
 
-@dataclass
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class SIDE:
     # Explicitly declare data members
     # __slots__ = ('elemID', 'sideID', 'locSide', 'face', 'corners', 'sideType',
@@ -145,7 +145,7 @@ class SIDE:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
-@dataclass
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class ELEM:
     # Explicitly declare data members
     # __slots__ = ('type', 'elemID', 'sides', 'nodes')
@@ -175,7 +175,7 @@ class ELEM:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
-@dataclass
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class BC:
     # Explicitly declare data members
     # __slots__ = ('name', 'bcid', 'type', 'dir')

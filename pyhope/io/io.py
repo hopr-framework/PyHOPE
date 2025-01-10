@@ -42,7 +42,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class ELEM:
     INFOSIZE:  int = 6
     TYPE:      int = 0
@@ -55,7 +55,7 @@ class ELEM:
     TYPES: tuple[int, ...] = (104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208)
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class SIDE:
     INFOSIZE: int = 5
     TYPE:     int = 0

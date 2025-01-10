@@ -42,7 +42,7 @@ outputformat : int                               # Mesh output format
 debugvisu    : bool                              # Enable and show debug output / visualization
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class MeshFormat:
     FORMAT_HDF5: int = 0
     FORMAT_VTK:  int = 1
