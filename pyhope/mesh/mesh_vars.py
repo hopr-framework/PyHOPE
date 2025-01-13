@@ -47,7 +47,7 @@ nGeo   : int                                      # Order of spline-reconstructi
 sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
 
 bcs    : list[type | None]                        # [list of dict] - Boundary conditions
-vvs    : list      | None                         # [list of dict] - Periodic vectors
+vvs    : list                                     # [list of dict] - Periodic vectors
 
 elems  : list[type | None]                        # [list of list] - Element nodes
 sides  : list[type | None]                        # [list of list] - Side    nodes
