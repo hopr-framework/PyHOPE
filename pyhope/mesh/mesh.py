@@ -46,11 +46,13 @@ def DefineMesh() -> None:
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
-    from pyhope.mesh.mesh_vars import ELEMTYPE
+    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt(      'Mode',                                help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
+    CreateIntFromString('Mode',                            help='Mesh generation mode (1 - Internal, 3 - External [MeshIO])')
+    CreateIntOption(    'Mode', number=MeshMode.MODE_INT,  name='Internal')
+    CreateIntOption(    'Mode', number=MeshMode.MODE_EXT,  name='External')
     # Internal mesh generator
     CreateInt(      'nZones',                              help='Number of mesh zones')
     CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
@@ -98,13 +100,13 @@ def InitMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.readintools.readintools import GetInt, CountOption
+    from pyhope.readintools.readintools import GetInt, GetIntFromStr, CountOption
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('INIT MESH...')
 
-    mesh_vars.mode = GetInt('Mode')
+    mesh_vars.mode = GetIntFromStr('Mode')
 
     NGeo     = GetInt('NGeo')          if CountOption('NGeo')          else None  # noqa: E272
     BCOrder  = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None  # noqa: E272
@@ -137,15 +139,16 @@ def GenerateMesh() -> None:
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
+    from pyhope.mesh.mesh_vars import MeshMode
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('GENERATE MESH...')
 
     match mesh_vars.mode:
-        case 1:  # Internal Cartesian Mesh
+        case MeshMode.MODE_INT:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
-        case 3:  # External mesh
+        case MeshMode.MODE_EXT:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
             hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
@@ -164,6 +167,7 @@ def GenerateMesh() -> None:
     hopout.sep()
 
     hopout.info('GENERATE MESH DONE!')
+    hopout.separator()
 
 
 def RegenerateMesh() -> None:

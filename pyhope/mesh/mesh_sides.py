@@ -124,7 +124,7 @@ def GenerateSides() -> None:
                 sides[sCount].elemID  = iElem                   # noqa: E251
                 sides[sCount].sideID  = sCount                  # noqa: E251
                 sides[sCount].locSide = index+1                 # noqa: E251
-                sides[sCount].corners = np.array(corners)      # noqa: E251
+                sides[sCount].corners = np.array(corners)       # noqa: E251
                 sCount += 1
 
             # Add to nSides
@@ -137,7 +137,7 @@ def GenerateSides() -> None:
         nElems += nIOElems
 
     # Append sides to elem
-    for iSide, side in enumerate(sides):
+    for side in sides:
         elemID = side.elemID
         sideID = side.sideID
         elems[elemID].sides.append(sideID)

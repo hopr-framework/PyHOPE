@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from functools import cache
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -352,7 +352,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
-def calc_elem_bary(mesh: meshio.Mesh) -> tuple[np.ndarray, list[Optional[int]]]:
+def calc_elem_bary(elems: list) -> np.ndarray:
     """
     Compute barycenters of all three-dimensional elements in the mesh.
 
@@ -363,26 +363,15 @@ def calc_elem_bary(mesh: meshio.Mesh) -> tuple[np.ndarray, list[Optional[int]]]:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import numpy as np
+    # ------------------------------------------------------
 
     elem_bary = []
-    type_offsets = []
-    current_offset = 0
+    for elem in elems:
+        # Calculate barycenters
+        bary = np.mean(mesh_vars.mesh.points[elem.nodes], axis=0)
+        elem_bary.append(bary)
 
-    for cellType in mesh.cells:
-        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
-            # Calculate barycenters for 3D element type
-            bary = np.mean(mesh.points[cellType.data], axis=1)
-            elem_bary.append(bary)
-
-            # Track the starting offset for this element type
-            type_offsets.append(current_offset)
-            current_offset += cellType.data.shape[0]
-        else:
-            # Non-3D element types do not have an offset
-            type_offsets.append(None)
-
-    # Concatenate barycenters for all 3D elements
-    return np.concatenate(elem_bary, axis=0), type_offsets
+    return np.asarray(elem_bary)
 
 
 @cache

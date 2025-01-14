@@ -63,6 +63,12 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
+class MeshMode:
+    MODE_INT:    int = 1
+    MODE_EXT:    int = 3
+
+
 @dataclass(init=False, repr=False, eq=False, slots=False)
 class CGNS:
     regenerate_BCs: bool = False                  # Flag if CGNS needs BC regeneration

@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -63,6 +64,7 @@ def EliminateDuplicates() -> None:
 
     # Find all points within the tolerance
     clusters = tree.query_ball_point(points, r=mesh_vars.tolExternal)
+    del tree
 
     # Map each point to its cluster representative (first point in the cluster)
     indices = {}
@@ -77,7 +79,13 @@ def EliminateDuplicates() -> None:
     # Eliminate duplicates
     _, inverseIndices = np.unique(indices, return_inverse=True)
     mesh_vars.mesh.points = points[np.unique(indices)]
+    del indices
 
     # Update the mesh cells
     for cell in mesh_vars.mesh.cells:
         cell.data = inverseIndices[cell.data]
+
+    del inverseIndices
+
+    # Run garbage collector to release memory
+    gc.collect()

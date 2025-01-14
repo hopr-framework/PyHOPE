@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import gc
 import math
 import sys
 import traceback
@@ -251,5 +252,8 @@ def MeshCartesian() -> meshio.Mesh:
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh

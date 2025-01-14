@@ -114,12 +114,12 @@ def main() -> None:
 
     # Generate the actual mesh
     GenerateMesh()
-    SortMesh()
     EliminateDuplicates()
     OrientMesh()
 
     # Build our data structures
     GenerateSides()
+    SortMesh()
     RegenerateMesh()
     ConnectMesh()
     TransformMesh()

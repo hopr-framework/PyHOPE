@@ -51,8 +51,8 @@ def MeshExternal() -> meshio.Mesh:
     from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
-    hopout.separator()
-    hopout.info('LOADING EXTERNAL MESH')
+    hopout.sep()
+    hopout.info('LOADING EXTERNAL MESH...')
 
     hopout.sep()
     hopout.routine('Setting boundary conditions')
@@ -114,6 +114,5 @@ def MeshExternal() -> meshio.Mesh:
         sys.exit(1)
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
-    hopout.separator()
 
     return mesh
