@@ -143,16 +143,26 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
 
 def TransformMesh():
     # Local imports ----------------------------------------
+    from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetIntFromStr
     from pyhope.mesh.mesh_vars import mesh
     import pyhope.output.output as hopout
     # ------------------------------------------------------
+
+    nMeshScale = CountOption('meshScale')
+    nMeshTrans = CountOption('meshTrans')
+    nMeshRot   = CountOption('meshRot')
+
+    if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot]):
+        return
 
     hopout.separator()
     hopout.info('TRANSFORM MESH...')
     hopout.sep()
 
     hopout.routine('Performing basic transformations')
+    hopout.sep()
+
     # Get scaling factor for mesh
     meshScale = GetReal('meshScale')
 
@@ -162,6 +172,7 @@ def TransformMesh():
     # Get rotation matrix for mesh
     meshRot   = GetRealArray('meshRot')
     meshRot   = np.array(meshRot).reshape(3, 3)
+    meshRotC  = GetRealArray('meshRotCenter')
 
     # Scale mesh
     if meshScale != 1.0:
@@ -173,9 +184,11 @@ def TransformMesh():
 
     # Rotate mesh
     if not np.array_equal(meshRot, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
-        mesh.points = mesh.points @ meshRot
+        mesh.points = meshRotC + (mesh.points-meshRotC) @ meshRot
 
+    hopout.sep()
     hopout.routine('Performing advanced transformations')
+    hopout.sep()
     meshPostDeform = GetIntFromStr('MeshPostDeform')
 
     if meshPostDeform != 0:

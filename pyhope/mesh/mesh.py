@@ -85,8 +85,9 @@ def DefineMesh() -> None:
     CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
     # Scale
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
-    CreateRealArray( 'meshTrans', nReals=3, default="(/0.,0.,0./)",                   help='Translate the mesh')
-    CreateRealArray( 'meshRot',   nReals=9, default="(/1.,0.,0.,0.,1.,0.,0.,0.,1./)", help='Rotate the mesh around the origin')
+    CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
+    CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
+    CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
     CreateIntFromString('MeshPostDeform',   default='none',                           help='Mesh post-transformation template')
     CreateIntOption(    'MeshPostDeform', number=0, name='none')
 
