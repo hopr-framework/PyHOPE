@@ -54,75 +54,9 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
+    from pyhope.mesh.mesh_transform import CalcStretching
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
-
-    def CalcStretching() -> np.ndarray:
-        # Local imports ----------------------------------------
-        import pyhope.output.output as hopout
-        # ------------------------------------------------------
-
-        # Initialize arrays
-        progFac = np.zeros(3)
-        l0      = np.zeros(3)
-        dx      = np.zeros(3)
-
-        # Calculate the stretching parameter for meshing the current zone
-        if stretchingType == 'constant':
-            progFac = [1., 1., 1.]
-        elif stretchingType == 'factor':
-            progFac = GetRealArray('Factor', number = zone)
-        elif stretchingType == 'ratio':
-            l0 = GetRealArray('l0', number = zone)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                dx = lEdges/np.abs(l0) # l/l0
-            # dx = np.where(l0 > 1.E-12, lEdges / np.abs(l0), 0)
-            if np.any(dx < 1.-1.E-12):
-                hopout.warning('stretching error, length l0 longer than grid region, in direction.')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
-        elif stretchingType == 'combination':
-            progFac = GetRealArray('Factor', number = zone)
-            l0      = GetRealArray('l0', number = zone)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                dx = lEdges/np.abs(l0) # l/l0
-            for iDim in range(3):
-                if not np.abs(progFac[iDim]) < 1.E-12: # fac=0 , (nElem,l0) given, fac calculated
-                    progFac[iDim]=(np.abs(progFac[iDim]))**(np.sign(progFac[iDim]*l0[iDim])) # sign for direction
-                    if progFac[iDim] != 1.:
-                        nElems[iDim]=np.rint(np.log(1.-dx[iDim]*(1.-progFac[iDim])) / np.log(progFac[iDim])) #nearest Integer
-                    if nElems[iDim] < 1:
-                        nElems[iDim] = 1
-            print(hopout.warn("nElems in zone {} have been updated to (/{}, {}, {}/).".format(zone,nElems[0],nElems[1],nElems[2])))
-
-        # Calculate the required factor from ratio or combination input
-        if stretchingType == 'ratio' or stretchingType == 'combination':
-            for iDim in range(3):
-                if nElems[iDim] == 1:
-                    progFac[iDim] = 1.0
-                elif nElems[iDim] == 2:
-                    progFac[iDim] = dx[iDim]-1.
-                else: #nElems > 2
-                    if np.isinf(dx[iDim]):
-                        progFac[iDim] = 1.
-                    else:
-                        progFac[iDim] = dx[iDim]/nElems[iDim]  #start value for Newton iteration
-                        if np.abs(progFac[iDim]-1.) > 1.E-12:  # NEWTON iteration, only if not equidistant case
-                            F    = 1.
-                            dF   = 1.
-                            iter = 0
-                            while (np.abs(F) > 1.E-12) and (np.abs(F/dF) > 1.E-12) and (iter < 1000):
-                                F  = progFac[iDim]**nElems[iDim] + dx[iDim]*(1.-progFac[iDim]) -1. # non-linear function
-                                dF = nElems[iDim]*progFac[iDim]**(nElems[iDim]-1) -dx[iDim]  #dF/dfac
-                                progFac[iDim] = progFac[iDim] - F/dF
-                                iter=iter+1
-                            if iter > 1000:
-                                break # 'Newton iteration for computing the stretching function has failed.'
-                            progFac[iDim] = progFac[iDim]**np.sign(l0[iDim]) # sign for direction
-                    print(f'   -stretching factor in dir {iDim} is now {progFac[iDim]}')
-
-        # Return stretching factor
-        return progFac
 
     gmsh.initialize()
     if not debugvisu:
@@ -134,28 +68,6 @@ def MeshCartesian() -> meshio.Mesh:
     hopout.sep()
 
     nZones = GetInt('nZones')
-
-    # Check if mesh is scaled
-    nl0      = CountOption('l0')
-    nFactor = CountOption('Factor')
-
-    if nl0 == 0 and nFactor == 0:
-        # Non-stretched element arrangement
-        stretchingType = 'constant'
-    elif nl0 == 0 and nFactor == nZones:
-        # Stretched element arrangement based on factor
-        stretchingType = 'factor'
-    elif nl0 == nZones and nFactor == 0:
-        # Stretched element arrangement based on ratio
-        stretchingType = 'ratio'
-    elif nl0 == nZones and nFactor == nZones:
-        # Stretched element arrangement with a combination of l0 and factor
-        stretchingType = 'combination'
-        print(hopout.warn("Both l0 and a stretching factor are provided. The number of elements will be adapted to account for both parameters."))
-    else:
-        hopout.warning('Streching parameters not defined properly. Check whether l0 and/or Factor are defined nZone-times.')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
 
     offsetp  = 0
     offsets  = 0
@@ -190,13 +102,13 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Get dimensions of domain
         gmsh.model.geo.synchronize()
-        box    = gmsh.model.get_bounding_box(-1,-1)
+        box    = gmsh.model.get_bounding_box(-1, -1)
         lEdges = np.zeros([3])
         for i in range(3):
             lEdges[i] = np.abs(box[i+3]-box[i])
 
         # Calculate the stretching parameter for meshing the current zone
-        progFac = CalcStretching()
+        progFac = CalcStretching(nZones, zone, nElems, lEdges)
 
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
@@ -212,7 +124,7 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Create the surfaces
         s = [None for _ in range(len(faces(elemType)))]
-        for index, surface in enumerate(s):
+        for index, _ in enumerate(s):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=offsets+index+1)
 
         # We need to define the surfaces as transfinite surface
@@ -262,7 +174,7 @@ def MeshCartesian() -> meshio.Mesh:
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
     vvs = mesh_vars.vvs
-    for iVV, vv in enumerate(vvs):
+    for iVV, _ in enumerate(vvs):
         vvs[iVV] = dict()
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
     if len(vvs) > 0:
