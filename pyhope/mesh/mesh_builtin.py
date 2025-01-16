@@ -54,6 +54,7 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
+    from pyhope.mesh.mesh_transform import CalcStretching
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
@@ -99,11 +100,22 @@ def MeshCartesian() -> meshio.Mesh:
         for j in range(4):
             e[j+8] = gmsh.model.geo.addLine(p[j], p[j+4])
 
+        # Get dimensions of domain
+        gmsh.model.geo.synchronize()
+        box    = gmsh.model.get_bounding_box(-1, -1)
+        lEdges = np.zeros([3])
+        for i in range(3):
+            lEdges[i] = np.abs(box[i+3]-box[i])
+
+        # Calculate the stretching parameter for meshing the current zone
+        progFac = CalcStretching(nZones, zone, nElems, lEdges)
+
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
             # We set the number of nodes, so Elems+1
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[edge_to_dir(index, elemType)]+1)
+            currDir = edge_to_dir(index, elemType)
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, 'Progression', currDir[1]*progFac[currDir[0]])
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]
@@ -112,7 +124,7 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Create the surfaces
         s = [None for _ in range(len(faces(elemType)))]
-        for index, surface in enumerate(s):
+        for index, _ in enumerate(s):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=offsets+index+1)
 
         # We need to define the surfaces as transfinite surface
@@ -162,7 +174,7 @@ def MeshCartesian() -> meshio.Mesh:
     nVVs = CountOption('vv')
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
     vvs = mesh_vars.vvs
-    for iVV, vv in enumerate(vvs):
+    for iVV, _ in enumerate(vvs):
         vvs[iVV] = dict()
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
     if len(vvs) > 0:

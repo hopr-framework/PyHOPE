@@ -43,41 +43,53 @@ def DefineMesh() -> None:
     """ Define general options for mesh generation / readin
     """
     # Local imports ----------------------------------------
-    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr, CreateLogical
+    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
+    from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt(      'Mode',                               help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
+    CreateInt(      'Mode',                                help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
     # Internal mesh generator
-    CreateInt(      'nZones',                             help='Number of mesh zones')
-    CreateRealArray('Corner',         24,  multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
-                                                                                        '... ,, x_8,y_8,z_8/)')  # noqa: E127
-    CreateIntArray( 'nElems',          3,  multiple=True, help='Number of elements in each direction')
-    CreateIntFromString('ElemType'      ,  multiple=True, default='hexahedron', help='Element type')
+    CreateInt(      'nZones',                              help='Number of mesh zones')
+    CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
+                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
+    CreateIntArray( 'nElems',          3,   multiple=True, help='Number of elements in each direction')
+    CreateRealArray('Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
+                                                                                      'each spatial direction.')  # noqa: E127
+    CreateRealArray('l0',              3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
+                                                                                                    'direction')  # noqa: E127
+    CreateIntFromString('ElemType'      ,   multiple=True, default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
         CreateIntOption('ElemType', number=val, name=key)
-    CreateStr(      'BoundaryName',        multiple=True, help='Name of domain boundary')
-    CreateIntArray( 'BoundaryType',    4,  multiple=True, help='(/ Type, curveIndex, State, alpha /)')
-    CreateIntArray( 'BCIndex',         6,  multiple=True, help='Index of BC for each boundary face')
+    CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')
+    CreateIntArray( 'BoundaryType',    4,   multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray( 'BCIndex',         6,   multiple=True, help='Index of BC for each boundary face')
     # Gmsh
     CreateLogical(  'EliminateNearDuplicates', default=True, help='Enables elimination of near duplicate points')
     # Periodicity
-    CreateRealArray('vv',              3,  multiple=True, help='Vector for periodic BC')
-    CreateLogical(  'doPeriodicCorrect',   default=True,  help='Enables periodic correction')
+    CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
+    CreateLogical(  'doPeriodicCorrect',    default=True,  help='Enables periodic correction')
     # External mesh readin through GMSH
-    CreateStr(      'Filename',            multiple=True, help='Name of external mesh file')
-    CreateLogical(  'MeshIsAlreadyCurved', default=False, help='Enables mesh agglomeration')
+    CreateStr(      'Filename',             multiple=True, help='Name of external mesh file')
+    CreateLogical(  'MeshIsAlreadyCurved',  default=False, help='Enables mesh agglomeration')
     # Common settings
-    CreateInt(      'NGeo'         ,       default=1,     help='Order of spline-reconstruction for curved surfaces')
-    CreateInt(      'BoundaryOrder',       default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
-    CreateLogical(  'doSortIJK',           default=False, help='Sort the mesh elements along the I,J,K directions')
-    CreateLogical(  'CheckElemJacobians',  default=True,  help='Check the Jacobian and scaled Jacobian for each element')
-    CreateLogical(  'CheckWatertightness', default=True,  help='Check if the mesh is watertight')
-    CreateLogical(  'CheckSurfaceNormals', default=True,  help='Check if the surface normals point outwards')
+    CreateInt(      'NGeo'         ,        default=1,     help='Order of spline-reconstruction for curved surfaces')
+    CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
+    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
+    CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
     # Mortars
-    CreateLogical(  'doMortars',           default=True,  help='Enables mortars')
+    CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
+    # Scale
+    CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
+    CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
+    CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
+    CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
+    CreateIntFromString('MeshPostDeform',   default='none',                           help='Mesh post-transformation template')
+    CreateIntOption(    'MeshPostDeform', number=0, name='none')
 
 
 def InitMesh() -> None:

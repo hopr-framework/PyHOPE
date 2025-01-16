@@ -176,6 +176,19 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
                                multiple=multiple)
 
 
+def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple=False) -> None:
+    # Local imports ----------------------------------------
+    import pyhope.config.config as config
+    # ------------------------------------------------------
+
+    CheckDefined(string, multiple, init=True)
+    config.prms[string] = dict(type='real',
+                               name=string,
+                               help=help,
+                               default=default,
+                               counter=0,
+                               multiple=multiple)
+
 def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
@@ -327,6 +340,9 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
 
+def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
+    value = GetParam(name=name, default=default, number=number, calltype='real')
+    return float(value)
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
     value = GetParam(name=name, default=default, number=number, calltype='int')
