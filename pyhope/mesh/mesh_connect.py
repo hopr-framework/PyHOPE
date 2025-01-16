@@ -432,7 +432,7 @@ def build_edges(corners: np.ndarray, mesh: meshio.Mesh) -> list[tuple]:
     return edges
 
 
-def find_edge_combinations(comboEdges):
+def find_edge_combinations(comboEdges) -> list:
     """Build combinations of edges that share exactly one point and form a line
     """
     # Local imports ----------------------------------------

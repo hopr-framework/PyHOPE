@@ -137,7 +137,7 @@ def SortMeshBySFC() -> None:
     mesh_vars.sides = sorted_sides
 
 
-def SortMeshByIJK():
+def SortMeshByIJK() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout

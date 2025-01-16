@@ -62,7 +62,7 @@ def DefineMesh() -> None:
                                                                                       'each spatial direction.')  # noqa: E127
     CreateRealArray('l0',              3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
                                                                                                     'direction')  # noqa: E127
-    CreateIntFromString('ElemType'      ,   multiple=True, default='hexahedron', help='Element type')
+    CreateIntFromString('ElemType'      ,   default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
         CreateIntOption('ElemType', number=val, name=key)
     CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')

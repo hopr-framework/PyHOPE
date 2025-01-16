@@ -345,9 +345,8 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
         prevSides = cellsets[BCName]
         prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
     except KeyError:
-        # FIXME: WE ASSUME THERE IS ONLY ONE FACE TYPE
-        prevSides = [np.empty((0,), dtype=np.uint64) for _ in range(nConnLen)]
-        prevSides[nConnNum] = np.asarray([sideID]).astype(np.uint64)
+        prevSides = [np.empty((0,), dtype=int) for _ in range(nConnLen)]
+        prevSides[nConnNum] = np.asarray([sideID]).astype(int)
         cellsets.update({BCName: prevSides})
     return cellsets
 

@@ -84,7 +84,7 @@ def MeshCartesian() -> meshio.Mesh:
 
         corners  = GetRealArray( 'Corner'  , number=zone)
         nElems   = GetIntArray(  'nElems'  , number=zone)
-        elemType = GetIntFromStr('ElemType', number=zone)
+        elemType = 108  # GMSH always builds hexahedral elements
 
         # Create all the corner points
         p = [None for _ in range(len(corners))]
@@ -250,6 +250,16 @@ def MeshCartesian() -> meshio.Mesh:
     if debugvisu:
         gmsh.fltk.run()
 
+    # Split elements if simplex elements are requested
+    elemType = GetIntFromStr('ElemType')
+    if elemType % 100 != 8:
+        # FIXME: Currently not supported
+        if mesh_vars.nGeo > 1:
+            hopout.warning('Non-hexahedral elements are not supported for nGeo > 1, exiting...')
+            sys.exit(1)
+
+        mesh = MeshChangeElemType(mesh, elemType)
+
     # Finally done with GMSH, finalize
     gmsh.finalize()
 
@@ -257,3 +267,219 @@ def MeshCartesian() -> meshio.Mesh:
     gc.collect()
 
     return mesh
+
+
+def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_vars import ELEMTYPE
+    # ------------------------------------------------------
+    # Copy original points
+    points    = mesh.points.copy()
+    elems_old = mesh.cells.copy()
+    cell_sets = getattr(mesh, 'cell_sets', {})
+
+    # Prepare new cell blocks and new cell_sets
+    elems_new = {}
+    csets_new = {}
+    elemName  = ELEMTYPE.inam[elemType][0]
+
+    # Convert the (quad) boundary cell set into a dictionary
+    csets_old = {}
+
+    # Calculate the offset for the quad cells
+    offset    = 0
+    for elems in elems_old:
+        if elems.type in {'vertex', 'line'}:
+            offset += len(elems.data)
+
+    for cname, cblock in cell_sets.items():
+        # Each set_blocks is a list of arrays, one entry per cell block
+        for blockID, block in enumerate(cblock):
+            if elems_old[blockID].type != 'quad':
+                continue
+
+            # Sort them as a set for membership checks
+            for face in block:
+                nodes = mesh.cells_dict[elems_old[blockID].type][face - offset]
+                csets_old.setdefault(frozenset(nodes), []).append(cname)
+
+    # Set up the element splitting function
+    elemSplitter = { 104: (split_hex_to_tets , tetra_faces),
+                     105: (split_hex_to_pyram, pyram_faces),
+                     106: (split_hex_to_prism, prism_faces)
+                   }
+    split, faces = elemSplitter.get(elemType, (None, None))
+
+    if split is None or faces is None:
+        hopout.warning('Element type {} not supported for splitting'.format(elemType))
+        traceback.print_stack(file=sys.stdout)
+        sys.exit(1)
+
+    nPoints  = len(points)
+    nFaces   = np.zeros(2)
+    faceType = ['triangle', 'quad']
+
+    faceMaper = { 104: lambda x: 0,
+                  105: lambda x: 0 if x == 0 else 1,
+                  106: lambda x: 0 if x == 0 else 1}
+    faceMap   = faceMaper.get(elemType, None)
+
+    for cell in mesh.cells:
+        ctype, cdata = cell.type, cell.data
+
+        if ctype != 'hexahedron':
+            continue
+
+        # Hex block: Split each element
+        for elem in cdata:
+            # Pyramids need a center node
+            if elemType == 105:
+                center   = np.mean(points[elem], axis=0)
+                center   = np.expand_dims(center, axis=0)
+                points   = np.append(points, center, axis=0)
+                subElems = split(elem, nPoints)
+                nPoints += 1
+            else:
+                subElems = split(elem)
+
+            for subElem in subElems:
+                for subFace in faces(subElem):
+                    faceNum = faceMap(0) if len(subFace) == 3 else faceMap(1)
+                    faceSet = frozenset(subFace)
+
+                    for cnodes, cname in csets_old.items():
+                        # Face is not a subset of an existing boundary face
+                        if not faceSet.issubset(cnodes):
+                            continue
+
+                        # For the first side on the BC, the dict does not exist
+                        try:
+                            prevSides          = csets_new[cname[0]]
+                            prevSides[faceNum] = np.append(prevSides[faceNum], nFaces[faceNum])
+                        except KeyError:
+                            # We only create the 2D and 3D elements
+                            prevSides          = [np.empty((0,), dtype=int) for _ in range(2)]
+                            prevSides[faceNum] = np.asarray([nFaces[faceNum]]).astype(int)
+                            csets_new.update({cname[0]: prevSides})
+
+                    try:
+                        elems_new[faceType[faceNum]] = np.append(elems_new[faceType[faceNum]], np.array([subFace]).astype(int), axis=0)  # noqa: E501
+                    except KeyError:
+                        elems_new[faceType[faceNum]] = np.array([subFace]).astype(int)
+
+                    nFaces[faceNum] += 1
+
+            try:
+                elems_new[elemName] = np.append(elems_new[elemName], np.array(subElems).astype(int), axis=0)
+            except KeyError:
+                elems_new[elemName] = np.array(subElems).astype(int)
+
+    mesh   = meshio.Mesh(points    = points,     # noqa: E251
+                         cells     = elems_new,  # noqa: E251
+                         cell_sets = csets_new)  # noqa: E251
+
+    return mesh
+
+
+def split_hex_to_tets(nodes: list) -> list:
+    """
+    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
+    return a list of new tetra element connectivity lists.
+
+    The node numbering convention assumed here:
+      (c0, c1, c2, c3, c4, c5, c6, c7)
+    is the usual:
+          7-------6
+         /|      /|
+        4-------5 |
+        | 3-----|-2
+        |/      |/
+        0-------1
+
+    """
+    c0, c1, c2, c3, c4, c5, c6, c7 = nodes
+
+    # Perform the 6-tet split of the cube-like cell
+    # 1. strategy: 6 tets per box, all tets have same volume and angle, not periodic but isotropic
+    return [[c0, c2, c3, c4],
+            [c0, c1, c2, c4],
+            [c2, c4, c6, c7],
+            [c2, c4, c5, c6],
+            [c1, c2, c4, c5],
+            [c2, c3, c4, c7]]
+    # ! 2. strategy: 6 tets per box, split hex into two prisms and each prism into 3 tets, periodic but strongly anisotropic
+    # return [[c0, c1, c3, c4],
+    #         [c1, c4, c5, c7],
+    #         [c1, c3, c4, c7],
+    #         [c1, c2, c5, c7],
+    #         [c1, c2, c3, c7],
+    #         [c2, c5, c6, c7]]
+
+
+def tetra_faces(nodes: list) -> list:
+    """
+    Given 4 tet corner indices, return the 4 triangular faces as tuples.
+    Each face is a triple (n0, n1, n2)
+    """
+    t0, t1, t2, t3 = nodes
+    return [tuple((t0, t1, t2)),
+            tuple((t0, t1, t3)),
+            tuple((t0, t2, t3)),
+            tuple((t1, t2, t3))]
+
+
+def split_hex_to_pyram(nodes: list, center: int) -> list:
+    """
+    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
+    return a list of new pyramid element connectivity lists.
+    """
+    c0, c1, c2, c3, c4, c5, c6, c7 = nodes
+
+    # Perform the 6-pyramid split of the cube-like cell
+    return [tuple((c0, c1, c2, c3, center)),
+            tuple((c0, c4, c5, c1, center)),
+            tuple((c1, c5, c6, c2, center)),
+            tuple((c0, c3, c7, c4, center)),
+            tuple((c4, c7, c6, c5, center)),
+            tuple((c6, c7, c3, c2, center))]
+
+
+def pyram_faces(nodes: list) -> list:
+    """
+    Given the 5 pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples.
+    """
+    p0, p1, p2, p3, p4 = nodes
+    return [# Triangular faces  # noqa: E261
+            tuple((p0, p1, p4)),
+            tuple((p1, p2, p4)),
+            tuple((p2, p3, p4)),
+            tuple((p3, p0, p4)),
+            # Quadrilateral face
+            tuple((p0, p1, p2, p3))]
+
+
+def split_hex_to_prism(nodes: list) -> list:
+    """
+    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
+    return a list of new prism element connectivity lists.
+    """
+    c0, c1, c2, c3, c4, c5, c6, c7 = nodes
+
+    # Perform the 2-prism split of the cube-like cell
+    return [[c0, c3, c4, c1, c2, c5],
+            [c3, c7, c4, c2, c6, c5]]
+
+
+def prism_faces(nodes: list) -> list:
+    """
+    Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
+    """
+    t0, t1, t2, t3, t4, t5 = nodes
+    return [# Triangular faces  # noqa: E261
+            tuple(sorted((t0, t1, t2))),
+            tuple(sorted((t3, t4, t5))),
+            # Quadrilateral faces
+            tuple(sorted((t0, t1, t4, t3))),
+            tuple(sorted((t1, t2, t5, t4))),
+            tuple(sorted((t2, t0, t3, t5)))]

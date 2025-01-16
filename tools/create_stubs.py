@@ -60,7 +60,7 @@ class Colors:
     END:     Final[str] = '\033[0m'
 
 
-def find_executable():
+def find_executable() -> str:
     """ Attempt to find the stub generation executable
         > Primary location:   PATH
         > Secondary location: Mason
@@ -79,7 +79,7 @@ def find_executable():
     raise FileNotFoundError('Neither "pyright" nor "basedpyright" found in PATH or Mason directory.')
 
 
-def find_git_root():
+def find_git_root() -> str:
     """ Attempt to find the git root
     """
     try:
@@ -90,7 +90,7 @@ def find_git_root():
         raise FileNotFoundError('Not a Git repository or unable to determine Git root.')
 
 
-def parse_dependencies(toml_file):
+def parse_dependencies(toml_file: str) -> list:
     """ Parse the pyproject.toml file to obtain the dependencies
     """
     with open(toml_file, 'r') as f:
@@ -202,7 +202,7 @@ def run_pyright_on_dependencies(pyright_path, dependencies):
             print(f'Error while processing {dep} ({import_name}): {e}', file=sys.stderr)
 
 
-def main():
+def main() -> None:
     """ Main routine
     """
     print(Colors.BANNERA + '┏' + '━'*(79-1))
