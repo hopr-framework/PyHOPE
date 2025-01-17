@@ -250,6 +250,28 @@ def MeshCartesian() -> meshio.Mesh:
     if debugvisu:
         gmsh.fltk.run()
 
+    # # Calculate the offset for the quad cells
+    # offset    = 0
+    # for elems in mesh.cells:
+    #     if any(sub in elems.type for sub in {'vertex', 'line'}):
+    #         offset += len(elems.data)
+    #
+    # # Remove 0D/1D entities
+    # elems  = []
+    # csets  = {}
+    # for key, val in enumerate(mesh.cells):
+    #     if any(sub in val.type for sub in {'vertex', 'line'}):
+    #         for cset in mesh.cell_sets.items():
+    #             cset_new = [(cast(np.ndarray, s) - offset) if s is not None else None for s in cset[1][key+1:]]
+    #             csets.update({cset[0]: cset_new})
+    #     else:
+    #         elems.append(val)
+    #
+    # mesh = meshio.Mesh(points    = mesh.points,  # noqa: E251
+    #                    cells     = elems,        # noqa: E251
+    #                    cell_sets = csets)        # noqa: E251
+    # del elems, csets
+
     # Split elements if simplex elements are requested
     elemType = GetIntFromStr('ElemType')
     if elemType % 100 != 8:
@@ -290,7 +312,7 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     # Calculate the offset for the quad cells
     offset    = 0
     for elems in elems_old:
-        if elems.type in {'vertex', 'line'}:
+        if any(sub in elems.type for sub in {'vertex', 'line'}):
             offset += len(elems.data)
 
     for cname, cblock in cell_sets.items():

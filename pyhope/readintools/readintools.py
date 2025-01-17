@@ -309,6 +309,11 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
             value = [s for s in config.params.get('general', name).split('\n') if s != ''][num]
         else:
             value = config.params.get('general', name)
+            # Single values cannot contain spaces
+            if '\n' in value:
+                hopout.warning(f'Option "{name}" is already set, but is not a multiple option!')
+                # traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
 
         # int2str has custom output
         if calltype != 'int2str':
@@ -330,9 +335,8 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
                     else:
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
-                hopout.warning('Keyword "{}" not found in file and no default given, exiting...'
-                               .format(name))
-                traceback.print_stack(file=sys.stdout)
+                hopout.warning(f'Keyword "{name}" not found in file and no default given, exiting...')
+                # traceback.print_stack(file=sys.stdout)
                 sys.exit(1)
     return value
 
@@ -341,9 +345,11 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
 
+
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
     return float(value)
+
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
     value = GetParam(name=name, default=default, number=number, calltype='int')
@@ -361,8 +367,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     import pyhope.output.output as hopout
     # ------------------------------------------------------
     value = GetParam(name=name, default=default, number=number, calltype='int2str')
-    # Check if we already received the int. Otherwise, get the value from the
-    # mapping
+    # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']
     if type(value) is int:
         value = value

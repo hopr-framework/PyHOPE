@@ -358,7 +358,6 @@ def calc_elem_bary(elems: list) -> np.ndarray:
 
     Returns:
         elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
-        type_offsets (list[Optional[int]]): Starting offsets for each element type (None for non-3D types).
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars

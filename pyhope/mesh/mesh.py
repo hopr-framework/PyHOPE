@@ -64,7 +64,11 @@ def DefineMesh() -> None:
                                                                                                     'direction')  # noqa: E127
     CreateIntFromString('ElemType'      ,   default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
+        # Only consider uncurved element types
+        if val > 200:
+            continue
         CreateIntOption('ElemType', number=val, name=key)
+
     CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')
     CreateIntArray( 'BoundaryType',    4,   multiple=True, help='(/ Type, curveIndex, State, alpha /)')
     CreateIntArray( 'BCIndex',         6,   multiple=True, help='Index of BC for each boundary face')
