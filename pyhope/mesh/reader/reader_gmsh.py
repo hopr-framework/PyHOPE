@@ -50,6 +50,9 @@ from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Monkey-patching MeshIO
+meshio._mesh.topological_dimension['wedge15'] = 3
+
 # ==================================================================================================================================
 
 
@@ -108,6 +111,8 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         _, ext = os.path.splitext(fname)
 
         gmsh.option.setNumber('Mesh.RecombineAll', 1)
+        # gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 0)
+
         # if not GMSH format convert
         if ext == '.cgns':
             # Setup GMSH to import required data
@@ -161,16 +166,197 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     gmsh.model.mesh.reclassifyNodes()
     gmsh.model.occ.synchronize()
 
-    mesh = pygmsh.occ.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
-
     if debugvisu:
         gmsh.fltk.run()
+
+    mesh = pygmsh.occ.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
+
+    # If the mesh contains second-order incomplete elements, fix them
+    mesh = fixSecondOrderIncomplete(mesh)
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
 
     # Run garbage collector to release memory
     gc.collect()
+
+    return mesh
+
+
+def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
+    """ Some GMSH files contain second-order incomplete elements, fix them here
+    """
+    # Local imports ----------------------------------------
+    # import pyhope.output.output as hopout
+    # from pyhope.mesh.mesh_common import face_to_corner
+    # from pyhope.mesh.mesh_vars import ELEMTYPE
+    # ------------------------------------------------------
+
+    # Check the mesh contains second-order incomplete elements
+    secondOrderIncomplete = ['triangle6', 'quad8', 'tetra10', 'hexahedron20', 'wedge15', 'pyramid13']
+    if not any(s for s in mesh.cells_dict.keys() if s in secondOrderIncomplete):
+        return mesh
+
+    # Copy original points
+    points    = mesh.points.copy()
+    # elems_old = mesh.cells.copy()
+    # cell_sets = getattr(mesh, 'cell_sets', {})
+
+    # Prepare new cell blocks and new cell_sets
+    elems_new = {}
+    # csets_new = {}
+
+    # TODO: THIS CANNOT BE DONE HERE; WE DID NOT CREATE ANY BOUNDARY CELL SETS YET
+    # # Convert the boundary cell set into a dictionary
+    # csets_old = {}
+    #
+    # # Calculate the offset for the quad cells
+    # offset    = 0
+    # for elems in elems_old:
+    #     if any(sub in elems.type for sub in {'vertex', 'line'}):
+    #         offset += len(elems.data)
+    #
+    # for cname, cblock in cell_sets.items():
+    #     # Each set_blocks is a list of arrays, one entry per cell block
+    #     for blockID, block in enumerate(cblock):
+    #         # Sort them as a set for membership checks
+    #         for face in block:
+    #             nodes = mesh.cells_dict[elems_old[blockID].type][face - offset]
+    #             csets_old.setdefault(frozenset(nodes), []).append(cname)
+
+    hex27_faces = {'z-': [0 , 1 , 2 , 3 , 8  , 9  , 10 , 11 , 20]  ,
+                   'z+': [4 , 5 , 6 , 7 , 12 , 13 , 14 , 15 , 21]  ,
+                   'y-': [0 , 1 , 5 , 4 , 8  , 17 , 12 , 16 , 22]  ,
+                   'x+': [1 , 2 , 6 , 5 , 9  , 18 , 13 , 17 , 23]  ,
+                   'y+': [2 , 3 , 7 , 6 , 10 , 19 , 14 , 18 , 24]  ,
+                   'x-': [3 , 0 , 4 , 7 , 11 , 16 , 15 , 19 , 25]}
+
+    # Gmsh cells are mostly ordered like VTK, with a few exceptions:
+    # > https://github.com/nschloe/meshio/blob/b2ee99842e119901349fdeee06b5bf61e01f450a/src/meshio/gmsh/common.py#L164
+    meshio_ordering = { 'tetra10'     : [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
+                        'hexahedron20': [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15],
+                        'hexahedron27': [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, 22, 23, 21, 24, 20, 25, 26],  # noqa: E501
+                        'wedge15'     : [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
+                        'pyramid13'   : [0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12]}
+
+    def shape_function_20(xi, eta, zeta):
+        """Quadratic shape functions for a 20-node hexahedron element."""
+        N     = np.zeros(20)
+        N[0]  = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta) * (-xi - eta - zeta - 2)
+        N[1]  = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta) * ( xi - eta - zeta - 2)
+        N[2]  = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta) * ( xi + eta - zeta - 2)
+        N[3]  = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta) * (-xi + eta - zeta - 2)
+        N[4]  = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta) * (-xi - eta + zeta - 2)
+        N[5]  = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta) * ( xi - eta + zeta - 2)
+        N[6]  = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta) * ( xi + eta + zeta - 2)
+        N[7]  = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta) * (-xi + eta + zeta - 2)
+
+        # Edge nodes
+        N[8]  = 0.25 * (1 - xi**2) * (1 - eta) * (1 - zeta)
+        N[9]  = 0.25 * (1 + xi) * (1 - eta**2) * (1 - zeta)
+        N[10] = 0.25 * (1 - xi**2) * (1 + eta) * (1 - zeta)
+        N[11] = 0.25 * (1 - xi) * (1 - eta**2) * (1 - zeta)
+        N[12] = 0.25 * (1 - xi**2) * (1 - eta) * (1 + zeta)
+        N[13] = 0.25 * (1 + xi) * (1 - eta**2) * (1 + zeta)
+        N[14] = 0.25 * (1 - xi**2) * (1 + eta) * (1 + zeta)
+        N[15] = 0.25 * (1 - xi) * (1 - eta**2) * (1 + zeta)
+        N[16] = 0.25 * (1 - xi) * (1 - eta) * (1 - zeta**2)
+        N[17] = 0.25 * (1 + xi) * (1 - eta) * (1 - zeta**2)
+        N[18] = 0.25 * (1 + xi) * (1 + eta) * (1 - zeta**2)
+        N[19] = 0.25 * (1 - xi) * (1 + eta) * (1 - zeta**2)
+
+        return N
+
+    for cell in mesh.cells:
+        ctype, cdata = cell.type, cell.data
+
+        # Valid cell type
+        if ctype not in secondOrderIncomplete:
+            elems_new[ctype] = cdata
+            continue
+
+        match ctype:
+            # Remove surface elements
+            case 'triangle6' | 'quad8':
+                continue
+
+            case 'tetra10':
+                print('Tetra10 not supported yet')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+
+            case 'hexahedron20':
+                # Parametric coordinates for face centers and volume center
+                param_coords = {'x-': (-1,  0,  0),
+                                'x+': ( 1,  0,  0),
+                                'y-': ( 0, -1,  0),
+                                'y+': ( 0,  1,  0),
+                                'z-': ( 0,  0, -1),
+                                'z+': ( 0,  0,  1)}
+
+                # Loop over all hexahedrons
+                for elem in cdata:
+                    # Fix the meshio type
+                    meshio_elem = elem[meshio_ordering[ctype]]
+
+                    # Create the 6 face mid-points
+                    for face, (xi, eta, zeta) in param_coords.items():
+                        # Evaluate the quadratic shape function at the face center
+                        N      = shape_function_20(xi, eta, zeta)
+                        center = np.dot(N, mesh.points[meshio_elem])
+                        points = np.vstack((points, center))
+
+                        # Take the existing 8 face nodes and append the new center node
+                        subFace = meshio_elem[hex27_faces[face][:8]].tolist()
+                        subFace.append(len(points)-1)
+                        subFace = np.array(subFace)
+
+                        # Create the surface element
+                        # > For the first surface element, the key does not exist in the dict
+                        try:
+                            elems_new['quad9'] = np.append(elems_new['quad9'], np.array([subFace]).astype(int), axis=0)  # noqa: E501
+                        except KeyError:
+                            elems_new['quad9'] = np.array([subFace]).astype(int)
+
+                    # Evaluate the quadratic shape function at the volume center
+                    N      = shape_function_20(0, 0, 0)
+                    center = np.dot(N, mesh.points[meshio_elem])
+                    points = np.vstack((points, center))
+
+                    # Create the volume element
+                    subElem = meshio_elem.tolist()
+
+                    # Append the 6 face center and the volume center
+                    subElem.extend(i for i in range(len(points)-7, len(points)))
+                    subElem = np.array(subElem)
+
+                    # For the first volume element, the key does not exist in the dict
+                    try:
+                        elems_new['hexahedron27'] = np.append(elems_new['hexahedron27'], np.array([subElem]).astype(int), axis=0)  # noqa: E501
+                    except KeyError:
+                        elems_new['hexahedron27'] = np.array([subElem]).astype(int)
+
+            case 'hexahedron27':
+                # Loop over all hexahedrons
+                for elem in cdata:
+                    # Fix the meshio type
+                    meshio_elem = elem[meshio_ordering[ctype]]
+                    subElem     = meshio_elem
+
+                    # For the first volume element, the key does not exist in the dict
+                    try:
+                        elems_new['hexahedron27'] = np.append(elems_new['hexahedron27'], np.array([subElem]).astype(int), axis=0)  # noqa: E501
+                    except KeyError:
+                        elems_new['hexahedron27'] = np.array([subElem]).astype(int)
+
+            case 'wedge15':
+                print('Wedge15 not supported yet')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+
+    mesh   = meshio.Mesh(points    = points,     # noqa: E251
+                         cells     = elems_new)  # noqa: E251
+    #                      cell_sets = csets_new)  # noqa: E251
 
     return mesh
 

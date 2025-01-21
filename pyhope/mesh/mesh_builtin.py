@@ -244,11 +244,11 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.model.mesh.setOrder(mesh_vars.nGeo)
     gmsh.model.geo.synchronize()
 
-    # PyGMSH returns a meshio.mesh datatype
-    mesh = pygmsh.geo.Geometry().generate_mesh(order=mesh_vars.nGeo)
-
     if debugvisu:
         gmsh.fltk.run()
+
+    # PyGMSH returns a meshio.mesh datatype
+    mesh = pygmsh.geo.Geometry().generate_mesh(order=mesh_vars.nGeo)
 
     # # Calculate the offset for the quad cells
     # offset    = 0
