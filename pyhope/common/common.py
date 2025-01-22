@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+import shutil
 import platform
 import subprocess
 import sys
@@ -222,12 +223,8 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
     # Get our package manager
     # > Check if 'uv' is available
     command = None
-    try:
-        subprocess.run(['uv', '--version'], check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if shutil.which('uv') is not None:
         command = ['uv', 'pip']
-    except subprocess.CalledProcessError:
-        pass
 
     # > Check if 'python -m pip' is available
     try:
@@ -277,16 +274,16 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
             try:
                 meta = metadata.metadata('gmsh')
                 if meta is not None:
-                    _ = subprocess.run(command + ['uninstall'] + (['-y'] if sys.executable in command else []) + ['gmsh'], check=True)  # noqa: E501
+                    _ = subprocess.run(command + ['uninstall'] + ['gmsh'], check=True)  # noqa: E501
 
             except metadata.PackageNotFoundError:
                 pass
 
             # Install the package in the current environment
-            _ = subprocess.run(command + ['install'] + (['-y'] if sys.executable in command else []) + [pkgs], check=True)
+            _ = subprocess.run(command + ['install'] + [pkgs], check=True)
     else:
         # Install the package in the current environment
-        _ = subprocess.run(command + ['install'] + (['-y'] if sys.executable in command else []) + ['gmsh'], check=True)
+        _ = subprocess.run(command + ['install'] + ['gmsh'], check=True)
 
 
 # > https://stackoverflow.com/a/5419576/23851165
