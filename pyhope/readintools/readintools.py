@@ -28,7 +28,8 @@ import os
 import subprocess
 import sys
 import traceback
-from typing import Optional, Union, final, override
+from typing import Optional, Union, final
+from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries

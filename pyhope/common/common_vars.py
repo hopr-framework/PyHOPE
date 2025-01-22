@@ -29,7 +29,8 @@ import importlib.metadata
 import pathlib
 import re
 from functools import cache
-from typing import Final, Self, final
+from typing import Final, final
+from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------

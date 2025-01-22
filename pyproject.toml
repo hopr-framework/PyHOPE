@@ -4,7 +4,7 @@ name = "PyHOPE"
 version = "0.0.5"
 description = "Python High-Order Preprocessing Environment"
 license = {text = "GPL-3.0-only"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 readme = "README.md"
 authors = [
     {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},
@@ -20,6 +20,7 @@ dependencies = [
     'pygmsh',
     'scipy',
     'gmsh',
+    'typing-extensions'
 ]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [
@@ -27,8 +28,6 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
