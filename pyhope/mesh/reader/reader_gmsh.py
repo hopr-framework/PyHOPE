@@ -42,7 +42,6 @@ import gmsh
 import h5py
 import meshio
 import numpy as np
-import pygmsh
 from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -91,6 +90,7 @@ def compatibleGMSH(file: str) -> bool:
 def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.meshio.meshio_convert import gmsh_to_meshio
     import pyhope.output.output as hopout
     from pyhope.io.io_vars import debugvisu
     from pyhope.readintools.readintools import GetLogical
@@ -168,7 +168,8 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     if debugvisu:
         gmsh.fltk.run()
 
-    mesh = pygmsh.occ.Geometry().generate_mesh(dim=3, order=mesh_vars.nGeo)
+    # Convert Gmsh object to meshio object
+    mesh = gmsh_to_meshio(gmsh)
 
     # If the mesh contains second-order incomplete elements, fix them
     mesh = fixSecondOrderIncomplete(mesh)
@@ -223,7 +224,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                 sys.exit(1)
 
             case 'hexahedron20':
-                faces = ['z-', 'y-', 'x-', 'x+', 'y+', 'z+']
+                faces = ['x-', 'x+', 'y-', 'y+', 'z-', 'z+']
 
                 # Loop over all hexahedrons
                 for elem in cdata:

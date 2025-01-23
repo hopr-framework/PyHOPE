@@ -91,21 +91,3 @@ class ElementInfo:
             raise ValueError(f'No face parameters defined for element type "{elemType}".')
 
         return self._params_map[elemType]
-
-
-    # TODO: DELETE
-    # hex27_faces = {'z-': [0 , 1 , 2 , 3 , 8  , 9  , 10 , 11 , 20]  ,
-    #                'z+': [4 , 5 , 6 , 7 , 12 , 13 , 14 , 15 , 21]  ,
-    #                'y-': [0 , 1 , 5 , 4 , 8  , 17 , 12 , 16 , 22]  ,
-    #                'x+': [1 , 2 , 6 , 5 , 9  , 18 , 13 , 17 , 23]  ,
-    #                'y+': [2 , 3 , 7 , 6 , 10 , 19 , 14 , 18 , 24]  ,
-    #                'x-': [3 , 0 , 4 , 7 , 11 , 16 , 15 , 19 , 25]}
-    #
-    # Gmsh cells are mostly ordered like VTK, with a few exceptions:
-    # > https://github.com/nschloe/meshio/blob/b2ee99842e119901349fdeee06b5bf61e01f450a/src/meshio/gmsh/common.py#L164
-    # meshio_ordering = { 'tetra10'     : [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
-    #                     'hexahedron20': [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15],
-    #                     # 'hexahedron27': [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, 22, 23, 21, 24, 20, 25, 26],  # noqa: E501
-    #                     'wedge15'     : [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
-    #                     'pyramid13'   : [0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12]}
-

@@ -37,7 +37,6 @@ from typing import cast
 import gmsh
 import meshio
 import numpy as np
-import pygmsh
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,6 +55,7 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.mesh_transform import CalcStretching
+    from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
@@ -239,16 +239,19 @@ def MeshCartesian() -> meshio.Mesh:
     # Force Gmsh to output all mesh elements
     gmsh.option.setNumber('Mesh.SaveAll', 1)
 
+    gmsh.model.mesh.generate(3)
+
     # Set the element order
-    # > Technically, this is only required in generate_mesh but let's be precise here
+    # > This needs to be executed after generate_mesh, see
+    # > https://github.com/nschloe/pygmsh/issues/515#issuecomment-1020106499
     gmsh.model.mesh.setOrder(mesh_vars.nGeo)
     gmsh.model.geo.synchronize()
 
     if debugvisu:
         gmsh.fltk.run()
 
-    # PyGMSH returns a meshio.mesh datatype
-    mesh = pygmsh.geo.Geometry().generate_mesh(order=mesh_vars.nGeo)
+    # Convert Gmsh object to meshio object
+    mesh = gmsh_to_meshio(gmsh)
 
     # # Calculate the offset for the quad cells
     # offset    = 0

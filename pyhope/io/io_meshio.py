@@ -120,27 +120,27 @@ def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> np.ndarray:
         case 0:
             return np.array([node          , start , start  ], dtype=int)
         case 1:
-            return np.array([start         , node  , start  ], dtype=int)
-        case 2:
-            return np.array([start         , start , node   ], dtype=int)
-        case 3:
             return np.array([end           , node  , start  ], dtype=int)
-        case 4:
-            return np.array([end           , start , node   ], dtype=int)
-        case 5:
+        case 2:
             return np.array([end+start-node, end   , start  ], dtype=int)
-        case 6:
-            return np.array([end           , end   , node   ], dtype=int)
-        case 7:
-            return np.array([start         , end   , node   ], dtype=int)
-        case 8:
+        case 3:
+            return np.array([start         , node  , start  ], dtype=int)
+        case 4:
             return np.array([node          , start , end    ], dtype=int)
-        case 9:
-            return np.array([start         , node  , end    ], dtype=int)
-        case 10:
+        case 5:
             return np.array([end           , node  , end    ], dtype=int)
-        case 11:
+        case 6:
             return np.array([end+start-node, end   , end    ], dtype=int)
+        case 7:
+            return np.array([start         , node  , end    ], dtype=int)
+        case 8:
+            return np.array([start         , start , node   ], dtype=int)
+        case 9:
+            return np.array([end           , start , node   ], dtype=int)
+        case 10:
+            return np.array([end           , end   , node   ], dtype=int)
+        case 11:
+            return np.array([start         , end   , node   ], dtype=int)
         case _:
             sys.exit(1)
 
@@ -151,19 +151,19 @@ def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
     match face:
         case 0:
             index = facePointMatrix(end-start-1, pos, orient=True)
-            return np.array([start+index[0]+1 , start+index[1]+1 , start           ], dtype=int)
+            return np.array([start            , start+index[0]+1 , start+index[1]+1], dtype=int)
         case 1:
             index = facePointMatrix(end-start-1, pos, orient=False)
-            return np.array([start+index[0]+1 , start            , start+index[1]+1], dtype=int)
+            return np.array([end              , start+index[0]+1 , start+index[1]+1], dtype=int)
         case 2:
-            index = facePointMatrix(end-start-1, pos, orient=True)
-            return np.array([start            , start+index[0]+1 , start+index[1]+1], dtype=int)
+            index = facePointMatrix(end-start-1, pos, orient=False)
+            return np.array([start+index[0]+1 , start            , start+index[1]+1], dtype=int)
         case 3:
             index = facePointMatrix(end-start-1, pos, orient=False)
-            return np.array([end              , start+index[0]+1 , start+index[1]+1], dtype=int)
-        case 4:
-            index = facePointMatrix(end-start-1, pos, orient=False)
             return np.array([end  -index[0]-1 , end              , start+index[1]+1], dtype=int)
+        case 4:
+            index = facePointMatrix(end-start-1, pos, orient=True)
+            return np.array([start+index[0]+1 , start+index[1]+1 , start           ], dtype=int)
         case 5:
             index = facePointMatrix(end-start-1, pos, orient=False)
             return np.array([start+index[0]+1 , start+index[1]+1 , end             ], dtype=int)
