@@ -77,6 +77,63 @@ class NodeOrdering:
                                       'hexahedron20': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 ],
                                       'hexahedron27': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, 22,
                                                         23, 21, 24, 20, 25, 26 ],
+                                      'hexahedron64': [ 0, 1, 2, 3, 4, 5, 6, 7,  # Vertices
+
+                                                        # First set of edges, z- face
+                                                         8,  9,                  # Edge  1, x-, z- from (y-,y+)
+                                                        14, 15,                  # Edge  2, y+, z- from (x-,x+)
+                                                        18, 19,                  # Edge  3, x+, z+ from (y+,y-)
+                                                        10, 11,                  # Edge  4, y-, z+ from (x+,x-)
+
+                                                        24, 25,                  # Edge  5, x-, z+ from (y-,y+)
+                                                        28, 29,                  # Edge  6, y+, z+ from (x-,x+)
+                                                        30, 31,                  # Edge  7, x+, z- from (y+,y-)
+                                                        26, 27,                  # Edge  8, y-, z- from (x+,x-)
+
+                                                        12, 13,                  # Edge  9, x-, y- from (z-,z+)
+                                                        16, 17,                  # Edge 10, x+, y+ from (z-,z+)
+                                                        20, 21,                  # Edge 11, y-, z- from (x-,x+)
+                                                        22, 23,                  # Edge 12, y+, z+ from (x-,x+)
+
+                                                        40, 41, 42, 43,          # Face at x+
+                                                        44, 45, 46, 47,          # Face at y+
+                                                        36, 37, 38, 39,          # Face at y-
+                                                        48, 49, 50, 51,          # Face at x-
+                                                        32, 33, 34, 35,          # Face at z-
+                                                        52, 53, 54, 55,          # Face at z+
+
+                                                        # Interior nodes
+                                                        56, 57, 58, 59, 60, 61, 62, 63
+                                                    ],
+                                      'hexahedron125': [ 0, 1, 2, 3, 4, 5, 6, 7,  # Vertices
+
+                                                        # First set of edges, z- face
+                                                         8,  9, 10,              # Edge  1, x-, z- from (y-,y+)
+                                                        17, 18, 19,              # Edge  2, y+, z- from (x-,x+)
+                                                        23, 24, 25,              # Edge  3, x+, z+ from (y+,y-)
+                                                        11, 12, 13,              # Edge  4, y-, z+ from (x+,x-)
+
+                                                        32, 33, 34,              # Edge  5, x-, z+ from (y-,y+)
+                                                        38, 39, 40,              # Edge  6, y+, z+ from (x-,x+)
+                                                        41, 42, 43,              # Edge  7, x+, z- from (y+,y-)
+                                                        35, 36, 37,              # Edge  8, y-, z- from (x+,x-)
+
+                                                        14, 15, 16,              # Edge  9, x-, y- from (z-,z+)
+                                                        20, 21, 22,              # Edge 10, x+, y+ from (z-,z+)
+                                                        26, 27, 28,              # Edge 11, y-, z- from (x-,x+)
+                                                        29, 30, 31,              # Edge 12, y+, z+ from (x-,x+)
+
+                                                        62, 63, 64, 65, 66, 67, 68, 69, 70,
+                                                        71, 72, 73, 74, 75, 76, 77, 78, 79,
+                                                        53, 54, 55, 56, 57, 58, 59, 60, 61,
+                                                        80, 81, 82, 83, 84, 85, 86, 87, 88,
+                                                        44, 45, 46, 47, 48, 49, 50, 51, 52,
+                                                        89, 90, 91, 92, 93, 94, 95, 96, 97,
+
+                                                        # Interior nodes
+                                                        # 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124
+                                                        124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124, 124
+                                                    ],
                                       'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
                                       'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],
                                     }
@@ -101,7 +158,7 @@ class NodeOrdering:
         if isinstance(elemType, (int, np.integer)):
             elemType = self._gmsh_typing[int(elemType)]
 
-        if elemType not in self._gmsh_ordering:
+        if elemType not in self._meshio_ordering:
             return cast(np.ndarray, idx)
         return idx[:, self._meshio_ordering[elemType]]
 
