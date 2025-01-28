@@ -171,6 +171,13 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)
 
+    # Check whether the mesh contains high-order elements and nGeo is set to 1
+    if not mesh_vars.already_curved or mesh_vars.nGeo == 1:
+        for elemtype in mesh.cells_dict.keys():
+            if elemtype in mesh_vars.ELEMTYPE.name and mesh_vars.ELEMTYPE.name[elemtype] > 200:
+                hopout.warning('High-order elements detected in the mesh but MeshIsAlreadyCurved=F or nGeo is set to 1, exiting...')
+                sys.exit(1)
+
     # If the mesh contains second-order incomplete elements, fix them
     mesh = fixSecondOrderIncomplete(mesh)
 
@@ -415,9 +422,9 @@ def BCCGNS() -> meshio.Mesh:
                 zonedata = cast(h5py.Dataset, zone[' data'])
                 match len(zonedata[0]):
                     case 1:  # Unstructured mesh, 1D arrays
-                        BCCGNS_Uncurved(  mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen,
-                                          # Support for triangular elements
-                                          cast(spatial.KDTree, ttree), tConnNum, tConnLen)
+                        BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen,
+                                            # Support for triangular elements
+                                            cast(spatial.KDTree, ttree), tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
                         # Structured grid can only contain tensor-product elements
                         BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen)
@@ -469,19 +476,19 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
     return cellsets
 
 
-def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
-                      points:   np.ndarray,
-                      cells:    list,
-                      stree:    spatial.KDTree,
-                      zone,     # CGNS zone
-                      tol:      float,
-                      offsetcs: int,
-                      nConnNum: int,
-                      nConnLen: int,
-                      # Triangular elements
-                      ttree:    spatial.KDTree,
-                      tConnNum: int,
-                      tConnLen: int) -> None:
+def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
+                          points:   np.ndarray,
+                          cells:    list,
+                          stree:    spatial.KDTree,
+                          zone,     # CGNS zone
+                          tol:      float,
+                          offsetcs: int,
+                          nConnNum: int,
+                          nConnLen: int,
+                          # Triangular elements
+                          ttree:    spatial.KDTree,
+                          tConnNum: int,
+                          tConnLen: int) -> None:
     """ Set the CGNS boundary conditions for uncurved (unstructured) grids
     """
     # Local imports ----------------------------------------
@@ -535,8 +542,18 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
             cgnsBC = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['PointList'][' data'])
             cgnsBC = sorted(int(s) for s in cgnsBC)
 
-            # Read the shell elements
-            cgnsShells  = cast(h5py.Dataset, zone['GridShells']['ElementConnectivity'][' data'])
+            # Read the shell elements (either from GridShells or SurfaceElements)
+            # Check how Surface Elements are stored in the file. This destinguishes
+            # for example ANSA unstructured and structured CGNS output
+            if 'GridShells' in zone:
+                cgnsShells  = cast(h5py.Dataset, zone['GridShells']['ElementConnectivity'][' data'])
+                nShells     = cast(int, zone['GridShells']['ElementRange'][' data'][0])
+            elif 'SurfaceElements' in zone:
+                cgnsShells  = cast(h5py.Dataset, zone['SurfaceElements']['ElementConnectivity'][' data'])
+                nShells     = cast(int, zone['SurfaceElements']['ElementRange'][' data'][0])
+            else:
+                hopout.warning('Format of BC implementation for FaceCenters not recognized, exiting...')
+                sys.exit(1)
 
             # Get the location of the BC faces
             cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
@@ -600,7 +617,6 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
 
             elif cgnsGridLoc == 'FaceCenter':
                 count    = 0
-                nShells  = cast(int, zone['GridShells']['ElementRange'][' data'][0])
 
                 # Loop over all elements and get the type
                 while count < cgnsShells.shape[0]:
@@ -608,7 +624,7 @@ def BCCGNS_Uncurved(  mesh:     meshio.Mesh,
                     nNodes   = int(elemType['Nodes'])
 
                     corners  = cgnsShells[count+1:count+nNodes+1]
-                    corners  = sorted(int(s) for s in corners)
+                    # corners  = sorted(int(s) for s in corners)
 
                     if nShells in cgnsBC:
                         BCpoints = [bpoints[s-1] for s in corners]
