@@ -319,11 +319,21 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
     if isinstance(elemType, str):
         elemType = mesh_vars.ELEMTYPE.name[elemType]
 
+    # FIXME: check for non-hexahedral elements
     order     = nGeo
     faces_map = {  # Tetrahedron
+                   4: { 'z-':              elemNodes[:    , :    , 0    ],
+                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
+                        'x+': np.transpose(elemNodes[order, :    , :    ]),
+                        'x-':              elemNodes[0    , :    , :    ]},
                    # Pyramid
+                   5: { 'z-':              elemNodes[:    , :    , 0    ],
+                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
+                        'x+': np.transpose(elemNodes[order, :    , :    ]),
+                        'y+':              elemNodes[:    , order, :    ],
+                        'x-':              elemNodes[0    , :    , :    ]},
                    # Wedge / Prism
-                   8: { 'z-':              elemNodes[:    , :    , 0    ],
+                   6: { 'z-':              elemNodes[:    , :    , 0    ],
                         'y-': np.transpose(elemNodes[:    , 0    , :    ]),
                         'x+': np.transpose(elemNodes[order, :    , :    ]),
                         'x-':              elemNodes[0    , :    , :    ],

@@ -372,12 +372,12 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
                   minext   = np.min(points[elem], axis=0)
                   edges    = np.zeros((8,3))
                   signarr  = [-0.5,0.5]
-                  l = 0
+                  count = 0
                   for k in signarr:
                     for j in signarr:
                       for i in signarr:
-                        edges[l,:] = [center[0]+i*abs(center[0]-minext[0]),center[1]+j*abs(center[1]-minext[1]),center[2]+k*abs(center[2]-minext[2])]
-                        l+=1
+                        edges[count,:] = [center[0]+i*abs(center[0]-minext[0]),center[1]+j*abs(center[1]-minext[1]),center[2]+k*abs(center[2]-minext[2])]
+                        count+=1
                   points   = np.append(points, edges, axis=0)
                   subElems = split(elem, nPoints, np.arange(nPoints,nPoints+8), nGeo)
                   nPoints += 8
