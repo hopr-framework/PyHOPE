@@ -96,6 +96,7 @@ def DefineMesh() -> None:
     CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
     CreateIntFromString('MeshPostDeform',   default='none',                           help='Mesh post-transformation template')
     CreateIntOption(    'MeshPostDeform', number=0, name='none')
+    CreateIntOption(    'MeshPostDeform', number=1, name='convtest')
 
 
 def InitMesh() -> None:
