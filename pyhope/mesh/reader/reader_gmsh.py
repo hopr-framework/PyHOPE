@@ -231,23 +231,32 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                 sys.exit(1)
 
             case 'hexahedron20':
-                faces = ['x-', 'x+', 'y-', 'y+', 'z-', 'z+']
+                # from alive_progress import alive_bar
+                # with alive_bar(title='Title', total=len(cdata), length=33)as cm :
+
+                faces     = ['x-', 'x+', 'y-', 'y+', 'z-', 'z+']
+                N         = [np.array([]) for _ in range(len(faces)+1)]
+                faceNodes = [list()       for _ in faces]  # noqa: E272
+
+                for iFace, face in enumerate(faces):
+                    # Face parameters are the same as for the 27-node hexahedron
+                    xi, eta, zeta    = elementinfo.faces_to_params('hexahedron27')[face]
+                    faceNodes[iFace] = elementinfo.faces_to_nodes( 'hexahedron27')[face]
+
+                    # Evaluate the quadratic shape function at the face center
+                    N[iFace] = shapefunctions.evaluate(ctype, xi, eta, zeta)
+                # Append the center node
+                N[-1] = shapefunctions.evaluate(ctype, 0, 0, 0)
 
                 # Loop over all hexahedrons
                 for elem in cdata:
                     # Create the 6 face mid-points
-                    for face in faces:
-                        # Face parameters are the same as for the 27-node hexahedron
-                        xi, eta, zeta = elementinfo.faces_to_params('hexahedron27')[face]
-                        faceNodes     = elementinfo.faces_to_nodes( 'hexahedron27')[face]
-
-                        # Evaluate the quadratic shape function at the face center
-                        N      = shapefunctions.evaluate(ctype, xi, eta, zeta)
-                        center = np.dot(N, mesh.points[elem])
+                    for iFace, face in enumerate(faces):
+                        center = np.dot(N[iFace], mesh.points[elem])
                         points = np.vstack((points, center))
 
                         # Take the existing 8 face nodes and append the new center node
-                        subFace = elem[faceNodes[:8]].tolist()
+                        subFace = elem[faceNodes[iFace][:8]].tolist()
                         subFace.append(len(points) - 1)
                         subFace = np.array(subFace)
 
@@ -259,8 +268,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                             elems_new['quad9'] = np.array([subFace]).astype(np.uint)
 
                     # Evaluate the quadratic shape function at the volume center
-                    N      = shapefunctions.evaluate(ctype, 0, 0, 0)
-                    center = np.dot(N, mesh.points[elem])
+                    center = np.dot(N[-1], mesh.points[elem])
                     points = np.vstack((points, center))
 
                     # Create the volume element
@@ -275,6 +283,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                         elems_new['hexahedron27'] = np.append(elems_new['hexahedron27'], np.array([subElem]).astype(np.uint), axis=0)  # noqa: E501
                     except KeyError:
                         elems_new['hexahedron27'] = np.array([subElem]).astype(np.uint)
+                        # cm()
 
             # case 'hexahedron27':
             #     # Loop over all hexahedrons
