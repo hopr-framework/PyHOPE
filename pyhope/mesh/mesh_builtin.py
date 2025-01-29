@@ -278,9 +278,9 @@ def MeshCartesian() -> meshio.Mesh:
     # Split elements if simplex elements are requested
     elemType = GetIntFromStr('ElemType')
     if elemType % 100 != 8:
-        # FIXME: Currently not supported
-        if mesh_vars.nGeo > 1:
-            hopout.warning('Non-hexahedral elements are not supported for nGeo > 1, exiting...')
+        #  FIXME: Currently not supported
+        if mesh_vars.nGeo > 2:
+            hopout.warning('Non-hexahedral elements are not supported for nGeo > 2, exiting...')
             sys.exit(1)
 
         mesh = MeshChangeElemType(mesh, elemType)
@@ -297,7 +297,7 @@ def MeshCartesian() -> meshio.Mesh:
 def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_vars import ELEMTYPE
+    from pyhope.mesh.mesh_vars import ELEMTYPE,nGeo
     # ------------------------------------------------------
     # Copy original points
     points    = mesh.points.copy()
@@ -321,7 +321,7 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     for cname, cblock in cell_sets.items():
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
-            if elems_old[blockID].type != 'quad':
+            if elems_old[blockID].type[:4] != 'quad':
                 continue
 
             # Sort them as a set for membership checks
@@ -353,24 +353,40 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
 
-        if ctype != 'hexahedron':
+        if ctype[:10] != 'hexahedron':
             continue
 
         # Hex block: Split each element
         for elem in cdata:
             # Pyramids need a center node
             if elemType == 105:
-                center   = np.mean(points[elem], axis=0)
-                center   = np.expand_dims(center, axis=0)
-                points   = np.append(points, center, axis=0)
-                subElems = split(elem, nPoints)
-                nPoints += 1
+                if nGeo == 1:
+                  center   = np.mean(points[elem], axis=0)
+                  center   = np.expand_dims(center, axis=0)
+                  points   = np.append(points, center, axis=0)
+                  subElems = split(elem, nPoints, [], nGeo)
+                  nPoints += 1
+                elif nGeo == 2:
+                  edges = []
+                  center   = np.mean(points[elem], axis=0)
+                  minext   = np.min(points[elem], axis=0)
+                  edges    = np.zeros((8,3))
+                  signarr  = [-0.5,0.5]
+                  l = 0
+                  for k in signarr:
+                    for j in signarr:
+                      for i in signarr:
+                        edges[l,:] = [center[0]+i*abs(center[0]-minext[0]),center[1]+j*abs(center[1]-minext[1]),center[2]+k*abs(center[2]-minext[2])]
+                        l+=1
+                  points   = np.append(points, edges, axis=0)
+                  subElems = split(elem, nPoints, np.arange(nPoints,nPoints+8), nGeo)
+                  nPoints += 8
             else:
-                subElems = split(elem)
+                subElems = split(elem, nGeo)
 
             for subElem in subElems:
-                for subFace in faces(subElem):
-                    faceNum = faceMap(0) if len(subFace) == 3 else faceMap(1)
+                for subFace in faces(subElem, nGeo):
+                    faceNum = faceMap(0) if len(subFace) == 3*nGeo else faceMap(1)
                     faceSet = frozenset(subFace)
 
                     for cnodes, cname in csets_old.items():
@@ -407,7 +423,7 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     return mesh
 
 
-def split_hex_to_tets(nodes: list) -> list:
+def split_hex_to_tets(nodes: list, order: int) -> list:
     """
     Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
     return a list of new tetra element connectivity lists.
@@ -423,88 +439,144 @@ def split_hex_to_tets(nodes: list) -> list:
         0-------1
 
     """
-    c0, c1, c2, c3, c4, c5, c6, c7 = nodes
-
     # Perform the 6-tet split of the cube-like cell
-    # 1. strategy: 6 tets per box, all tets have same volume and angle, not periodic but isotropic
-    return [[c0, c2, c3, c4],
-            [c0, c1, c2, c4],
-            [c2, c4, c6, c7],
-            [c2, c4, c5, c6],
-            [c1, c2, c4, c5],
-            [c2, c3, c4, c7]]
-    # ! 2. strategy: 6 tets per box, split hex into two prisms and each prism into 3 tets, periodic but strongly anisotropic
-    # return [[c0, c1, c3, c4],
-    #         [c1, c4, c5, c7],
-    #         [c1, c3, c4, c7],
-    #         [c1, c2, c5, c7],
-    #         [c1, c2, c3, c7],
-    #         [c2, c5, c6, c7]]
+    if order == 1:
+        # 1. strategy: 6 tets per box, all tets have same volume and angle, not periodic but isotropic
+        return [[nodes[0], nodes[2], nodes[3], nodes[4]],
+                [nodes[0], nodes[1], nodes[2], nodes[4]],
+                [nodes[2], nodes[4], nodes[6], nodes[7]],
+                [nodes[2], nodes[4], nodes[5], nodes[6]],
+                [nodes[1], nodes[2], nodes[4], nodes[5]],
+                [nodes[2], nodes[3], nodes[4], nodes[7]]]
+        # ! 2. strategy: 6 tets per box, split hex into two prisms and each prism into 3 tets, periodic but strongly anisotropic
+        # c0, c1, c2, c3, c4, c5, c6, c7 = nodes
+        # return [[c0, c1, c3, c4],
+        #         [c1, c4, c5, c7],
+        #         [c1, c3, c4, c7],
+        #         [c1, c2, c5, c7],
+        #         [c1, c2, c3, c7],
+        #         [c2, c5, c6, c7]]
+    elif order == 2:
+        return [[nodes[0], nodes[2], nodes[3], nodes[4], nodes[24], nodes[10], nodes[11], nodes[16], nodes[26], nodes[20]],
+                [nodes[0], nodes[1], nodes[2], nodes[4], nodes[8] , nodes[9] , nodes[24], nodes[16], nodes[22], nodes[26]],
+                [nodes[2], nodes[4], nodes[6], nodes[7], nodes[26], nodes[25], nodes[18], nodes[23], nodes[15], nodes[14]],
+                [nodes[2], nodes[4], nodes[5], nodes[6], nodes[26], nodes[12], nodes[21], nodes[18], nodes[25], nodes[13]],
+                [nodes[1], nodes[2], nodes[4], nodes[5], nodes[9] , nodes[26], nodes[22], nodes[17], nodes[21], nodes[12]],
+                [nodes[2], nodes[3], nodes[4], nodes[7], nodes[10], nodes[20], nodes[26], nodes[23], nodes[19], nodes[15]]]
 
 
-def tetra_faces(nodes: list) -> list:
+def tetra_faces(nodes: list, order: int) -> list:
     """
     Given 4 tet corner indices, return the 4 triangular faces as tuples.
     Each face is a triple (n0, n1, n2)
     """
-    t0, t1, t2, t3 = nodes
-    return [tuple((t0, t1, t2)),
-            tuple((t0, t1, t3)),
-            tuple((t0, t2, t3)),
-            tuple((t1, t2, t3))]
+    if order == 1:
+        return [tuple((nodes[0], nodes[1], nodes[2])),
+                tuple((nodes[0], nodes[1], nodes[3])),
+                tuple((nodes[0], nodes[2], nodes[3])),
+                tuple((nodes[1], nodes[2], nodes[3]))]
+    elif order == 2:
+        return [tuple((nodes[0], nodes[1], nodes[2], nodes[4], nodes[5], nodes[6])),
+                tuple((nodes[0], nodes[1], nodes[3], nodes[4], nodes[8], nodes[7])),
+                tuple((nodes[0], nodes[2], nodes[3], nodes[6], nodes[9], nodes[7])),
+                tuple((nodes[1], nodes[2], nodes[3], nodes[5], nodes[9], nodes[8]))]
 
 
-def split_hex_to_pyram(nodes: list, center: int) -> list:
+def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> list:
     """
     Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
     return a list of new pyramid element connectivity lists.
     """
-    c0, c1, c2, c3, c4, c5, c6, c7 = nodes
+    if order == 1:
+        # Perform the 6-pyramid split of the cube-like cell
+        return [tuple((nodes[0], nodes[1], nodes[2], nodes[3], center)),
+                tuple((nodes[0], nodes[4], nodes[5], nodes[1], center)),
+                tuple((nodes[1], nodes[5], nodes[6], nodes[2], center)),
+                tuple((nodes[0], nodes[3], nodes[7], nodes[4], center)),
+                tuple((nodes[4], nodes[7], nodes[6], nodes[5], center)),
+                tuple((nodes[6], nodes[7], nodes[3], nodes[2], center))]
+        # 3-pyramid split
+        #  return [tuple((nodes[0], nodes[1], nodes[2], nodes[3], nodes[4])),
+        #          tuple((nodes[1], nodes[5], nodes[6], nodes[2], nodes[4])),
+        #          tuple((nodes[6], nodes[7], nodes[3], nodes[2], nodes[4]))]
+    elif order == 2:
+        # Perform the 6-pyramid split of the cube-like cell
+        return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[26], nodes[8] , nodes[9] , nodes[10], nodes[11],
+                       edges[0] , edges[1] , edges[3] , edges[2] , nodes[24])),
+                tuple((nodes[0] , nodes[4] , nodes[5] , nodes[1] , nodes[26], nodes[16], nodes[12], nodes[17], nodes[8] ,
+                       edges[0] , edges[4] , edges[5] , edges[1] , nodes[22])),
+                tuple((nodes[1] , nodes[5] , nodes[6] , nodes[2] , nodes[26], nodes[17], nodes[13], nodes[18], nodes[9] ,
+                       edges[1] , edges[5] , edges[7] , edges[3] , nodes[21])),
+                tuple((nodes[0] , nodes[3] , nodes[7] , nodes[4] , nodes[26], nodes[11], nodes[19], nodes[15], nodes[16],
+                       edges[0] , edges[2] , edges[6] , edges[4] , nodes[20])),
+                tuple((nodes[4] , nodes[7] , nodes[6] , nodes[5] , nodes[26], nodes[15], nodes[14], nodes[13], nodes[12],
+                       edges[4] , edges[6] , edges[7] , edges[5] , nodes[25])),
+                tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[26], nodes[14], nodes[19], nodes[10], nodes[18],
+                       edges[7] , edges[6] , edges[2] , edges[3] , nodes[23]))]
+        # 3-pyramid split
+        #  return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[4], nodes[8] , nodes[9] , nodes[10], nodes[11],
+        #                 nodes[16], nodes[22], nodes[26], nodes[20], nodes[24])),
+        #          tuple((nodes[1] , nodes[5] , nodes[6] , nodes[2] , nodes[4], nodes[17], nodes[13], nodes[18], nodes[9] ,
+        #                 nodes[22], nodes[12], nodes[25], nodes[26], nodes[21])),
+        #          tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[4], nodes[14], nodes[19], nodes[10], nodes[18],
+        #                 nodes[25], nodes[15], nodes[20], nodes[26], nodes[23]))]
 
-    # Perform the 6-pyramid split of the cube-like cell
-    return [tuple((c0, c1, c2, c3, center)),
-            tuple((c0, c4, c5, c1, center)),
-            tuple((c1, c5, c6, c2, center)),
-            tuple((c0, c3, c7, c4, center)),
-            tuple((c4, c7, c6, c5, center)),
-            tuple((c6, c7, c3, c2, center))]
 
-
-def pyram_faces(nodes: list) -> list:
+def pyram_faces(nodes: list, order: int) -> list:
     """
     Given the 5 pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples.
     """
-    p0, p1, p2, p3, p4 = nodes
-    return [# Triangular faces  # noqa: E261
-            tuple((p0, p1, p4)),
-            tuple((p1, p2, p4)),
-            tuple((p2, p3, p4)),
-            tuple((p3, p0, p4)),
-            # Quadrilateral face
-            tuple((p0, p1, p2, p3))]
+    if order == 1:
+        return [# Triangular faces  # noqa: E261
+                tuple((nodes[0], nodes[1], nodes[4])),
+                tuple((nodes[1], nodes[2], nodes[4])),
+                tuple((nodes[2], nodes[3], nodes[4])),
+                tuple((nodes[3], nodes[0], nodes[4])),
+                # Quadrilateral face
+                tuple((nodes[0], nodes[1], nodes[2], nodes[3]))]
+    elif order == 2:
+        return [# Triangular faces  # noqa: E261
+                tuple((nodes[0], nodes[1], nodes[4], nodes[5], nodes[10], nodes[9 ])), #8, 22,16
+                tuple((nodes[1], nodes[2], nodes[4], nodes[6], nodes[11], nodes[10])), #9, 26,22
+                tuple((nodes[2], nodes[3], nodes[4], nodes[7], nodes[12], nodes[11])), #10,20,26
+                tuple((nodes[3], nodes[0], nodes[4], nodes[8], nodes[9] , nodes[12])), #11,16,20
+                # Quadrilateral face
+                tuple((nodes[0], nodes[1], nodes[2], nodes[3], nodes[5], nodes[6], nodes[7], nodes[8], nodes[13]))]
 
 
-def split_hex_to_prism(nodes: list) -> list:
+def split_hex_to_prism(nodes: list, order: int) -> list:
     """
     Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
     return a list of new prism element connectivity lists.
     """
-    c0, c1, c2, c3, c4, c5, c6, c7 = nodes
+    if order == 1:
+        return [[nodes[0], nodes[1], nodes[3], nodes[4], nodes[5], nodes[7]],
+                [nodes[1], nodes[2], nodes[3], nodes[5], nodes[6], nodes[7]]]
+    elif order == 2:
+        #  HEXA: [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 24 22 21 23 20 25 26]
+        return [[nodes[0], nodes[1], nodes[3], nodes[4], nodes[5], nodes[7], nodes[8], nodes[24], nodes[11], nodes[12],
+                 nodes[25], nodes[15], nodes[16], nodes[17], nodes[19], nodes[22], nodes[26], nodes[20]],
+                [nodes[1], nodes[2], nodes[3], nodes[5], nodes[6], nodes[7], nodes[9], nodes[10], nodes[24],
+                 nodes[13], nodes[14], nodes[25], nodes[17], nodes[18], nodes[19], nodes[21], nodes[23], nodes[26]]]
 
-    # Perform the 2-prism split of the cube-like cell
-    return [[c0, c3, c4, c1, c2, c5],
-            [c3, c7, c4, c2, c6, c5]]
 
-
-def prism_faces(nodes: list) -> list:
+def prism_faces(nodes: list, order: int) -> list:
     """
     Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
     """
-    t0, t1, t2, t3, t4, t5 = nodes
-    return [# Triangular faces  # noqa: E261
-            tuple(sorted((t0, t1, t2))),
-            tuple(sorted((t3, t4, t5))),
-            # Quadrilateral faces
-            tuple(sorted((t0, t1, t4, t3))),
-            tuple(sorted((t1, t2, t5, t4))),
-            tuple(sorted((t2, t0, t3, t5)))]
+    if order == 1:
+        return [# Triangular faces  # noqa: E261
+                tuple((nodes[0], nodes[1], nodes[2])),
+                tuple((nodes[3], nodes[4], nodes[5])),
+                # Quadrilateral faces
+                tuple((nodes[0], nodes[1], nodes[4], nodes[3])),
+                tuple((nodes[1], nodes[2], nodes[5], nodes[4])),
+                tuple((nodes[2], nodes[0], nodes[3], nodes[5]))]
+    elif order == 2:
+        return [# Triangular faces  # noqa: E261
+                tuple((nodes[0], nodes[1], nodes[2], nodes[6], nodes[7] , nodes[8] )),
+                tuple((nodes[3], nodes[4], nodes[5], nodes[9], nodes[10], nodes[11])),
+                # Quadrilateral faces
+                tuple((nodes[0], nodes[1], nodes[4], nodes[3], nodes[6], nodes[13], nodes[9] , nodes[12], nodes[15])),
+                tuple((nodes[1], nodes[2], nodes[5], nodes[4], nodes[7], nodes[14], nodes[10], nodes[13], nodes[16])),
+                tuple((nodes[2], nodes[0], nodes[3], nodes[5], nodes[8], nodes[12], nodes[11], nodes[14], nodes[17]))]

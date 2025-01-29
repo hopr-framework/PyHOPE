@@ -754,8 +754,8 @@ def ConnectMesh() -> None:
                 nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
 
                 # Get our and neighbor corner quad nodes
-                sideID    = get_side_id(nbmapFaces[iSide  ][0:4], corner_side)
-                nbSideID  = get_side_id(nbmapFaces[nbiSide][0:4], corner_side)
+                sideID    = get_side_id(nbmapFaces[iSide  ][0:int(len(nbmapFaces[iSide])/mesh_vars.nGeo)], corner_side)
+                nbSideID  = get_side_id(nbmapFaces[nbiSide][0:int(len(nbmapFaces[iSide])/mesh_vars.nGeo)], corner_side)
 
                 # Build the connection, including flip
                 sideIDs   = [sideID, nbSideID]
@@ -977,6 +977,7 @@ def ConnectMesh() -> None:
             elem     = elems[side.elemID]
             nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
             nodes    = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
+            print(nodes)
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))

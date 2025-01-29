@@ -254,3 +254,160 @@ def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
                 tensor.append(int(map[i, j, k]))
 
     return map, np.asarray(tensor)
+
+
+@cache
+def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+    """ MESHIO -> IJK ordering for high-order prisms
+        > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
+        > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
+    """
+    map = np.zeros((order, order, order), dtype=int)
+
+    if order == 1:
+        map[0, 0, 0] = 0
+        tensor       = map
+        return map, tensor
+
+    count = 0
+    # Fill the prism recursively from the outside to the inside
+    for iOrder in range(np.floor(order/2).astype(int)):
+        # Principal vertices
+        map[iOrder         , iOrder         , iOrder        ] = count+1
+        map[order-iOrder-1 , iOrder         , iOrder        ] = count+2
+        map[iOrder         , order-iOrder-1 , iOrder        ] = count+3
+        map[iOrder         , iOrder         , order-iOrder-1] = count+4
+        map[order-iOrder-1 , iOrder         , order-iOrder-1] = count+5
+        map[iOrder         , order-iOrder-1 , order-iOrder-1] = count+6
+        count += 6
+
+    if order > 2:
+        # Loop over all edges
+        map[int(order/2),0           ,0           ] = count+1
+        map[int(order/2),int(order/2),0           ] = count+2
+        map[0           ,int(order/2),0           ] = count+3
+        map[int(order/2),0           ,order-1     ] = count+4
+        map[int(order/2),int(order/2),order-1     ] = count+5
+        map[0           ,int(order/2),order-1     ] = count+6
+        map[0           ,0           ,int(order/2)] = count+7
+        map[order-1     ,0           ,int(order/2)] = count+8
+        map[0           ,order-1     ,int(order/2)] = count+9
+        count += 9
+
+        # Internal points of upstanding faces
+        map[int(order/2),0           ,int(order/2)] = count+1
+        map[int(order/2),int(order/2),int(order/2)] = count+2
+        map[0           ,int(order/2),int(order/2)] = count+3
+
+    # Python indexing, 1 -> 0
+    map -= 1
+
+    # Reshape into 1D array, tensor-product style
+    tensor = []
+    for k in range(order):
+        for j in range(order):
+            for i in range(order-j):
+                tensor.append(int(map[i, j, k]))
+
+    return map, np.asarray(tensor)
+
+
+@cache
+def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+    """ MESHIO -> IJK ordering for high-order pyramids
+        > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (1D, tensor-product style)
+        > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (3D mapping)
+    """
+    map = np.zeros((order, order, order), dtype=int)
+
+    if order == 1:
+        map[0, 0, 0] = 0
+        tensor       = map
+        return map, tensor
+
+    # Fill the pyramid recursively from the outside to the inside
+    count = 0
+    for iOrder in range(np.floor(order/2).astype(int)):
+        # Principal vertices
+        map[iOrder         , iOrder         , iOrder        ] = count+1
+        map[order-iOrder-1 , iOrder         , iOrder        ] = count+2
+        map[order-iOrder-1 , order-iOrder-1 , iOrder        ] = count+3
+        map[iOrder         , order-iOrder-1 , iOrder        ] = count+4
+        map[iOrder         , iOrder         , order-iOrder-1] = count+5
+        count += 5
+
+    if order > 2:
+        # Loop over all edges
+        map[int(order/2),0           ,0           ] = count+1
+        map[order-1     ,int(order/2),0           ] = count+2
+        map[int(order/2),order-1     ,0           ] = count+3
+        map[0           ,int(order/2),0           ] = count+4
+        map[0           ,0           ,int(order/2)] = count+5
+        map[int(order/2),0           ,int(order/2)] = count+6
+        map[int(order/2),int(order/2),int(order/2)] = count+7
+        map[0           ,int(order/2),int(order/2)] = count+8
+        count += 8
+
+        # Loop over all faces
+        map[int(order/2),int(order/2),0           ] = count+1
+
+    # Python indexing, 1 -> 0
+    map -= 1
+
+    # Reshape into 1D array, tensor-product style
+    tensor = []
+    for k in range(order):
+        for j in range(order-k):
+            for i in range(order-k):
+                tensor.append(int(map[i, j, k]))
+
+    return map, np.asarray(tensor)
+
+
+@cache
+def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+    """ MESHIO -> IJK ordering for high-order tetrahedrons
+        > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
+        > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)
+    """
+    map = np.zeros((order, order, order), dtype=int)
+
+    if order == 1:
+        map[0, 0, 0] = 0
+        tensor       = map
+        return map, tensor
+
+    # Fill the tetrahedron recursively from the outside to the inside
+    count = 0
+    for iOrder in range(np.floor(order/2).astype(int)):
+        # Principal vertices
+        map[iOrder         , iOrder         , iOrder        ] = count+1
+        map[order-iOrder-1 , iOrder         , iOrder        ] = count+2
+        map[iOrder         , order-iOrder-1 , iOrder        ] = count+3
+        map[iOrder         , iOrder         , order-iOrder-1] = count+4
+        count += 4
+
+    if order > 2:
+        # Loop over all edges
+        map[int(order/2),0           ,0           ] = count+1
+        map[int(order/2),int(order/2),0           ] = count+2
+        map[0           ,int(order/2),0           ] = count+3
+        map[0           ,0           ,int(order/2)] = count+4
+        map[int(order/2),0           ,int(order/2)] = count+5
+        map[0           ,int(order/2),int(order/2)] = count+6
+        count += 6
+
+        # Loop over all faces for order > 3
+        #  map[int(order/2),int(order/2),0           ] = count+1
+
+    # Python indexing, 1 -> 0
+    map -= 1
+
+    # Reshape into 1D array, tensor-product style
+    tensor = []
+    for k in range(order):
+        for j in range(order-k):
+            for i in range(order-k-j):
+                tensor.append(int(map[i, j, k]))
+
+    return map, np.asarray(tensor)
