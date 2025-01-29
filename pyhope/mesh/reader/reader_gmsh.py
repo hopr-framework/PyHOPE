@@ -199,6 +199,9 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.mesh.elements.elements_ordering import ElementInfo
     # ------------------------------------------------------
 
+    hopout.sep()
+    hopout.info('CONVERT TO FULL 2ND ORDER MESH...')
+
     # Check the mesh contains second-order incomplete elements
     secondOrderIncomplete = ['triangle6', 'quad8', 'tetra10', 'hexahedron20', 'wedge15', 'pyramid13']
     if not any(s for s in mesh.cells_dict.keys() if s in secondOrderIncomplete):
@@ -231,12 +234,23 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                 sys.exit(1)
 
             case 'hexahedron20':
-                # from alive_progress import alive_bar
-                # with alive_bar(title='Title', total=len(cdata), length=33)as cm :
+
+                # Get number of hexahedrons which have to be converted
+                nHex20      = len(cdata)
 
                 faces     = ['x-', 'x+', 'y-', 'y+', 'z-', 'z+']
-                N         = [np.array([]) for _ in range(len(faces)+1)]
+                nFaces = len(faces)
+
+                N         = [np.array([]) for _ in range(nFaces + 1)]
                 faceNodes = [list()       for _ in faces]  # noqa: E272
+
+                # preallocate the arrays for the new points and elements
+                nPoints_old = len(points)
+                nNewPoints = (nFaces + 1) * nHex20
+                points = np.resize(points, (nPoints_old + nNewPoints, 3))
+
+                elems_new['hexahedron27'] = np.ndarray((nHex20,  27), dtype=np.uint)
+                elems_new['quad9']        = np.ndarray((nHex20*6, 9), dtype=np.uint)
 
                 for iFace, face in enumerate(faces):
                     # Face parameters are the same as for the 27-node hexahedron
@@ -249,41 +263,31 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                 N[-1] = shapefunctions.evaluate(ctype, 0, 0, 0)
 
                 # Loop over all hexahedrons
-                for elem in cdata:
+                for iElem, elem in enumerate(cdata):
                     # Create the 6 face mid-points
                     for iFace, face in enumerate(faces):
                         center = np.dot(N[iFace], mesh.points[elem])
-                        points = np.vstack((points, center))
+                        points[nPoints_old + iFace,:]  = center
 
                         # Take the existing 8 face nodes and append the new center node
                         subFace = elem[faceNodes[iFace][:8]].tolist()
-                        subFace.append(len(points) - 1)
-                        subFace = np.array(subFace)
-
-                        # Create the surface element
-                        # > For the first surface element, the key does not exist in the dict
-                        try:
-                            elems_new['quad9'] = np.append(elems_new['quad9'], np.array([subFace]).astype(np.uint), axis=0)  # noqa: E501
-                        except KeyError:
-                            elems_new['quad9'] = np.array([subFace]).astype(np.uint)
+                        subFace.append(nPoints_old + iFace)
+                        elems_new['quad9'][iElem * 6 + iFace] = np.array(subFace, dtype=np.uint)
 
                     # Evaluate the quadratic shape function at the volume center
                     center = np.dot(N[-1], mesh.points[elem])
-                    points = np.vstack((points, center))
+                    points[nPoints_old + 6,:] = center
 
                     # Create the volume element
                     subElem = elem.tolist()
 
                     # Append the 6 face center and the volume center
-                    subElem.extend(i for i in range(len(points)-7, len(points)))
-                    subElem = np.array(subElem)
+                    subElem = elem.tolist()
+                    subElem.extend(range(nPoints_old, nPoints_old + 7))
+                    elems_new['hexahedron27'][iElem] = np.array(subElem, dtype=np.uint)
 
-                    # For the first volume element, the key does not exist in the dict
-                    try:
-                        elems_new['hexahedron27'] = np.append(elems_new['hexahedron27'], np.array([subElem]).astype(np.uint), axis=0)  # noqa: E501
-                    except KeyError:
-                        elems_new['hexahedron27'] = np.array([subElem]).astype(np.uint)
-                        # cm()
+                    # Increment counter with number of added points
+                    nPoints_old += 7
 
             # case 'hexahedron27':
             #     # Loop over all hexahedrons
@@ -307,6 +311,9 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
     # > We add them in the BCCGNS function
     mesh   = meshio.Mesh(points = points,     # noqa: E251
                          cells  = elems_new)  # noqa: E251
+
+    hopout.info('CONVERT TO FULL 2ND ORDER MESH DONE!')
+    hopout.sep()
 
     return mesh
 
