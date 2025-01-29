@@ -199,11 +199,17 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.mesh.elements.elements_ordering import ElementInfo
     # ------------------------------------------------------
 
+    def allocate_or_resize(key, shape):
+        if key not in elems_new:
+            elems_new[key] = np.ndarray(shape, dtype=np.uint)
+        else:
+            elems_new[key] = np.resize(elems_new[key], (elems_new[key].shape[0] + shape[0], shape[1]))
+
     hopout.sep()
     hopout.info('CONVERT TO FULL 2ND ORDER MESH...')
 
     # Check the mesh contains second-order incomplete elements
-    secondOrderIncomplete = ['triangle6', 'quad8', 'tetra10', 'hexahedron20', 'wedge15', 'pyramid13']
+    secondOrderIncomplete = ['quad8', 'hexahedron20', 'wedge15']
     if not any(s for s in mesh.cells_dict.keys() if s in secondOrderIncomplete):
         return mesh
 
@@ -225,32 +231,28 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
 
         match ctype:
             # Remove surface elements
-            case 'triangle6' | 'quad8':
+            case 'quad8':
                 continue
-
-            case 'tetra10':
-                hopout.warning('Tetra10 not supported yet')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
 
             case 'hexahedron20':
 
                 # Get number of hexahedrons which have to be converted
-                nHex20      = len(cdata)
+                nHex20    = len(cdata)
 
                 faces     = ['x-', 'x+', 'y-', 'y+', 'z-', 'z+']
-                nFaces = len(faces)
+                nFaces    = len(faces)
 
                 N         = [np.array([]) for _ in range(nFaces + 1)]
                 faceNodes = [list()       for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements
                 nPoints_old = len(points)
-                nNewPoints = (nFaces + 1) * nHex20
-                points = np.resize(points, (nPoints_old + nNewPoints, 3))
+                nNewPoints  = (nFaces + 1) * nHex20
+                points      = np.resize(points, (nPoints_old + nNewPoints, 3))
 
-                elems_new['hexahedron27'] = np.ndarray((nHex20,  27), dtype=np.uint)
-                elems_new['quad9']        = np.ndarray((nHex20*6, 9), dtype=np.uint)
+                # Allocate arrays if they do not exist. Else, resize them
+                allocate_or_resize('hexahedron27', (nHex20,   27))
+                allocate_or_resize('quad9',        (nHex20*6, 9))
 
                 for iFace, face in enumerate(faces):
                     # Face parameters are the same as for the 27-node hexahedron
@@ -288,19 +290,6 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Increment counter with number of added points
                     nPoints_old += 7
-
-            # case 'hexahedron27':
-            #     # Loop over all hexahedrons
-            #     for elem in cdata:
-            #         # Fix the meshio type
-            #         meshio_elem = elem[meshio_ordering[ctype]]
-            #         subElem     = meshio_elem
-            #
-            #         # For the first volume element, the key does not exist in the dict
-            #         try:
-            #             elems_new['hexahedron27'] = np.append(elems_new['hexahedron27'], np.array([subElem]).astype(int), axis=0)  # noqa: E501
-            #         except KeyError:
-            #             elems_new['hexahedron27'] = np.array([subElem]).astype(int)
 
             case 'wedge15':
                 hopout.warning('Wedge15 not supported yet')
@@ -346,25 +335,33 @@ def BCCGNS() -> meshio.Mesh:
 
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
-    nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
-    nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
-    nConnNum  = list(mesh.cells_dict).index(nConnType)
-    nConnLen  = len(list(mesh.cells_dict))
 
-    # Collapse all opposing corner nodes into an [:, 12] array
-    # nbCorners  = [s['Corners'] for s in nConnSide]
-    nbCorners = [s[0:4] for s in nConnSide]
-    nbPoints  = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
-    nbPoints  = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
-    del nbCorners
+    # Now, for quadrilateral elements
+    nConnLen = 0
+    nConnNum = 0
+    stree    = spatial.KDTree([[0.0]])
 
-    # Build a k-dimensional tree of all points on the opposing side
-    stree = spatial.KDTree(nbPoints)
+    if len([value for key, value in mesh.cells_dict.items() if 'quad' in key]) > 0:
+        nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
+        nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0] # noqa: E272, E501
+        nConnNum  = list(mesh.cells_dict).index(nConnType)
+        nConnLen  = len(list(mesh.cells_dict))
+
+        # Collapse all opposing corner nodes into an [:, 12] array
+        # nbCorners  = [s['Corners'] for s in nConnSide]
+        nbCorners = [s[0:4] for s in nConnSide]
+        nbPoints  = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+        nbPoints  = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+        del nbCorners
+
+        # Build a k-dimensional tree of all points on the opposing side
+        stree = spatial.KDTree(nbPoints)
 
     # Now, the same thing for triangular elements
     tConnLen = 0
     tConnNum = 0
     ttree    = spatial.KDTree([[0.0]])
+
     if len([value for key, value in mesh.cells_dict.items() if 'triangle' in key]) > 0:
         tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
         tConnType = [key   for key, _     in mesh.cells_dict.items() if 'triangle' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
