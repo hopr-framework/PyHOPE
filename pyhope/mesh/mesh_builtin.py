@@ -304,10 +304,33 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     elems_old = mesh.cells.copy()
     cell_sets = getattr(mesh, 'cell_sets', {})
 
+    # Get base key to distinguish between linear and high-order elements
+    ho_key = 100 if nGeo == 1 else 200
+
     # Prepare new cell blocks and new cell_sets
     elems_new = {}
     csets_new = {}
-    elemName  = ELEMTYPE.inam[elemType][0]
+    if nGeo == 1:
+        elemName  = ELEMTYPE.inam[elemType][0]
+    else:
+        # check whether user entered correct high-order element type
+        if elemType < 200:
+            # Adapt to high-order element type
+            elemType += 100
+
+        # Get the element name and skip the entries for incomplete 2nd order elements
+        try:
+            if elemType % 100 == 5: # pyramids (skip 1)
+                elemName = ELEMTYPE.inam[elemType][nGeo-1]
+            elif elemType % 100 == 6: # prisms (skip 1)
+                elemName = ELEMTYPE.inam[elemType][nGeo-1]
+            elif elemType % 100 == 8: # hexahedra (skip 2)
+                elemName = ELEMTYPE.inam[elemType][nGeo]
+            else: # tetrahedra
+                elemName = ELEMTYPE.inam[elemType][nGeo-2]
+        except IndexError:
+            hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemType, nGeo))
+            sys.exit(1)
 
     # Convert the (quad) boundary cell set into a dictionary
     csets_old = {}
@@ -330,10 +353,9 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     # Set up the element splitting function
-    elemSplitter = { 104: (split_hex_to_tets , tetra_faces),
-                     105: (split_hex_to_pyram, pyram_faces),
-                     106: (split_hex_to_prism, prism_faces)
-                   }
+    elemSplitter = {ho_key + 4: (split_hex_to_tets, tetra_faces),
+                    ho_key + 5: (split_hex_to_pyram, pyram_faces),
+                    ho_key + 6: (split_hex_to_prism, prism_faces)}
     split, faces = elemSplitter.get(elemType, (None, None))
 
     if split is None or faces is None:
@@ -343,11 +365,17 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
 
     nPoints  = len(points)
     nFaces   = np.zeros(2)
-    faceType = ['triangle', 'quad']
+    if nGeo == 1:
+        faceType = ['triangle', 'quad']
+    elif nGeo == 2:
+        faceType = ['triangle6', 'quad9']
+    else:
+        hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
+        sys.exit(1)
 
-    faceMaper = { 104: lambda x: 0,
-                  105: lambda x: 0 if x == 0 else 1,
-                  106: lambda x: 0 if x == 0 else 1}
+    faceMaper = { ho_key + 4: lambda x: 0,
+                  ho_key + 5: lambda x: 0 if x == 0 else 1,
+                  ho_key + 6: lambda x: 0 if x == 0 else 1}
     faceMap   = faceMaper.get(elemType, None)
 
     for cell in mesh.cells:
@@ -359,7 +387,7 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
         # Hex block: Split each element
         for elem in cdata:
             # Pyramids need a center node
-            if elemType == 105:
+            if elemType % 100 == 5:
                 if nGeo == 1:
                   center   = np.mean(points[elem], axis=0)
                   center   = np.expand_dims(center, axis=0)

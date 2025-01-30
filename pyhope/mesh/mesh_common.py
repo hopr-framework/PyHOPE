@@ -405,20 +405,23 @@ def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            #  return np.array([0, 1, 2, 3])
-            _, TETRTEN = TETRMAPMESHIO(order+1)
-            return TETRTEN
+            return np.array([0, 1, 2, 3])
         case 105:  # Pyramid
-            #  return np.array([0, 1, 3, 2, 4])
-            _, PYRATEN = PYRAMAPMESHIO(order+1)
-            return PYRATEN
+             return np.array([0, 1, 3, 2, 4])
         case 106:  # Prism
-            # return np.array([0, 1, 2, 3, 4, 5])
-            _, PRISTEN = PRISMAPMESHIO(order+1)
-            return PRISTEN
+            return np.array([0, 1, 2, 3, 4, 5])
         case 108:  # Hexaeder
             return np.array([0, 1, 3, 2, 4, 5, 7, 6])
         # Curved elements, use mapping
+        case 204: # Tetraeder
+            _, TETRTEN = TETRMAPMESHIO(order+1)
+            return TETRTEN
+        case 205:  # Pyramid
+            _, PYRATEN = PYRAMAPMESHIO(order+1)
+            return PYRATEN
+        case 206: # Prism
+            _, PRISTEN = PRISMAPMESHIO(order+1)
+            return PRISTEN
         case 208:  # Hexaeder
             # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
             # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)

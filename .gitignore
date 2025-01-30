@@ -2,6 +2,7 @@
 
 # Python files
 __pycache__
+PKG-INFO
 
 # Python stubs
 *.pyi
@@ -33,8 +34,12 @@ core
 *.h5
 *.msh
 *.vtu
+*.vtk
 
 # Other output files
 *.old
 *.out
 *.txt
+
+# Other system specfic files
+.DS_Store
