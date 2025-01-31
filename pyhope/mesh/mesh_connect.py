@@ -584,8 +584,7 @@ def ConnectMesh() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import find_index
     from pyhope.common.common_progress import ProgressBar
-    from pyhope.io.io import ELEM, ELEMTYPE
-    from pyhope.io.io_vars import MeshFormat
+    from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.mesh_common import face_to_nodes
     # ------------------------------------------------------
@@ -717,13 +716,12 @@ def ConnectMesh() -> None:
         nbBCName   = bcs[nbBCID].name
 
         # Collapse all opposing corner nodes into an [:, 12] array
-        nbCellDict = mesh.cell_sets_dict[nbBCName]
         nbCellSet  = mesh.cell_sets[nbBCName]
         # Find the mapping to the (N-1)-dim elements
         nbcsetMap  = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None
                       and cast(np.ndarray, nbCellSet[s]).size > 0]
 
-        for iMap, (dict_key, _) in zip(nbcsetMap, nbCellDict.items()):
+        for iMap in nbcsetMap:
             # Get the list of sides
             nbFaceSet  =  np.array(nbCellSet[iMap]).astype(int)
             nbmapFaces = mesh.cells[iMap].data
@@ -753,9 +751,10 @@ def ConnectMesh() -> None:
                 nbSideIdx = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'periodic')
                 nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
 
-                # Get our and neighbor corner quad nodes
-                sideID    = get_side_id(nbmapFaces[iSide  ][0:int(len(nbmapFaces[iSide])/mesh_vars.nGeo)], corner_side)
-                nbSideID  = get_side_id(nbmapFaces[nbiSide][0:int(len(nbmapFaces[iSide])/mesh_vars.nGeo)], corner_side)
+                # Get our and neighbor corner nodes
+                nSideIdx  = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
+                sideID    = get_side_id(nbmapFaces[iSide  ][0:nSideIdx], corner_side)
+                nbSideID  = get_side_id(nbmapFaces[nbiSide][0:nSideIdx], corner_side)
 
                 # Build the connection, including flip
                 sideIDs   = [sideID, nbSideID]
