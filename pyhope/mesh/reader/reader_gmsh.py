@@ -179,7 +179,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
                 sys.exit(1)
 
     # If the mesh contains second-order incomplete elements, fix them
-    mesh = fixSecondOrderIncomplete(mesh)
+    mesh = convertSerendipityToFullLagrange(mesh)
 
     # Finally done with GMSH, finalize
     gmsh.finalize()
@@ -190,28 +190,23 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     return mesh
 
 
-def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
+def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
     """ Some GMSH files contain incomplete elements, fix them here
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
+    from pyhope.common.common_tools import allocate_or_resize
     from pyhope.mesh.elements.elements_shapefunctions import ShapeFunctions
     from pyhope.mesh.elements.elements_ordering import ElementInfo
     # ------------------------------------------------------
 
-    def allocate_or_resize(key, shape):
-        if key not in elems_new:
-            elems_new[key] = np.ndarray(shape, dtype=np.uint)
-        else:
-            elems_new[key] = np.resize(elems_new[key], (elems_new[key].shape[0] + shape[0], shape[1]))
-
-    hopout.sep()
-    hopout.info('CONVERT TO FULL 2ND ORDER MESH...')
-
     # Check the mesh contains second-order incomplete elements
-    secondOrderIncomplete = ['quad8', 'hexahedron20', 'wedge15']
-    if not any(s for s in mesh.cells_dict.keys() if s in secondOrderIncomplete):
+    serendipityElems = ['quad8', 'hexahedron20', 'wedge15']
+    if not any(s for s in mesh.cells_dict.keys() if s in serendipityElems):
         return mesh
+
+    hopout.info('CONVERTING SERENDIPITY TO FULL LANGRANGE MESH...')
+    hopout.sep()
 
     # Copy original points
     points    = mesh.points.copy()
@@ -225,7 +220,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
         ctype, cdata = cell.type, cell.data
 
         # Valid cell type
-        if ctype not in secondOrderIncomplete:
+        if ctype not in serendipityElems:
             elems_new[ctype] = cdata
             continue
 
@@ -235,6 +230,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                 continue
 
             case 'hexahedron20':
+                hopout.routine(f'Converting {ctype} to hexahedron27')
 
                 # Get number of hexahedrons which have to be converted
                 nHex20    = len(cdata)
@@ -251,8 +247,8 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                 points      = np.resize(points, (nPoints_old + nNewPoints, 3))
 
                 # Allocate arrays if they do not exist. Else, resize them
-                allocate_or_resize('hexahedron27', (nHex20,   27))
-                allocate_or_resize('quad9',        (nHex20*6, 9))
+                elems_new = allocate_or_resize(elems_new, 'hexahedron27', (nHex20,   27))
+                elems_new = allocate_or_resize(elems_new, 'quad9',        (nHex20*6,  9))
 
                 for iFace, face in enumerate(faces):
                     # Face parameters are the same as for the 27-node hexahedron
@@ -269,7 +265,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
                     # Create the 6 face mid-points
                     for iFace, face in enumerate(faces):
                         center = np.dot(N[iFace], mesh.points[elem])
-                        points[nPoints_old + iFace,:]  = center
+                        points[nPoints_old + iFace, :]  = center
 
                         # Take the existing 8 face nodes and append the new center node
                         subFace = elem[faceNodes[iFace][:8]].tolist()
@@ -278,7 +274,7 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Evaluate the quadratic shape function at the volume center
                     center = np.dot(N[-1], mesh.points[elem])
-                    points[nPoints_old + 6,:] = center
+                    points[nPoints_old + 6, :] = center
 
                     # Create the volume element
                     subElem = elem.tolist()
@@ -301,7 +297,8 @@ def fixSecondOrderIncomplete(mesh: meshio.Mesh) -> meshio.Mesh:
     mesh   = meshio.Mesh(points = points,     # noqa: E251
                          cells  = elems_new)  # noqa: E251
 
-    hopout.info('CONVERT TO FULL 2ND ORDER MESH DONE!')
+    # hopout.sep()
+    # hopout.info('CONVERTING SERENDIPITY TO FULL LANGRANGE MESH DONE!')
     hopout.sep()
 
     return mesh
@@ -343,7 +340,7 @@ def BCCGNS() -> meshio.Mesh:
 
     if len([value for key, value in mesh.cells_dict.items() if 'quad' in key]) > 0:
         nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
-        nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0] # noqa: E272, E501
+        nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # noqa: E272, E501
         nConnNum  = list(mesh.cells_dict).index(nConnType)
         nConnLen  = len(list(mesh.cells_dict))
 
@@ -435,7 +432,7 @@ def BCCGNS() -> meshio.Mesh:
                 zonedata = cast(h5py.Dataset, zone[' data'])
                 match len(zonedata[0]):
                     case 1:  # Unstructured mesh, 1D arrays
-                        BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen,
+                        BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen,  # noqa: E501
                                             # Support for triangular elements
                                             cast(spatial.KDTree, ttree), tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
@@ -479,13 +476,15 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
 
     sideID   = int(trSide[1]) + offsetcs
     # For the first side on the BC, the dict does not exist
-    try:
+    if BCName in cellsets:
         prevSides = cellsets[BCName]
         prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
-    except KeyError:
+    else:
         prevSides = [np.empty((0,), dtype=int) for _ in range(nConnLen)]
         prevSides[nConnNum] = np.asarray([sideID]).astype(int)
-        cellsets.update({BCName: prevSides})
+    # Update the cellsets
+    cellsets.update({BCName: prevSides})
+
     return cellsets
 
 
