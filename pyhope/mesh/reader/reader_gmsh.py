@@ -519,7 +519,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
     # Loop over all BCs
     cellsets = mesh.cell_sets
-    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    zoneBCs  = [s.lower() for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
 
     for zoneBC in zoneBCs:
         # bcName = zoneBC[3:]
@@ -701,9 +701,9 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     for zoneBC in zoneBCs:
         try:
             cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'][' data'])
-            cgnsName = ''.join(map(chr, cgnsBC))
+            cgnsName = ''.join(map(chr, cgnsBC)).lower()
         except KeyError:
-            cgnsName = zoneBC.rpartition('_')[0]
+            cgnsName = zoneBC.rpartition('_')[0].lower()
 
         # Ignore internal DEFAULT BCs
         if 'DEFAULT' in cgnsName:
