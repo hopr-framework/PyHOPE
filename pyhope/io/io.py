@@ -51,6 +51,7 @@ def DefineIO() -> None:
     CreateIntFromString('OutputFormat', default='HDF5', help='Mesh output format')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_HDF5, name='HDF5')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_VTK , name='VTK')
+    CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_GMSH, name='GMSH')
     CreateLogical(      'DebugVisu'   , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
 
@@ -135,7 +136,7 @@ def IO() -> None:
                 for iBC, bc in enumerate(bcs):
                     bcTypes[iBC, :] = bc.type
 
-                _ = f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
+                _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
                 _ = f.create_dataset('BCType'    , data=bcTypes)
 
         case MeshFormat.FORMAT_VTK:
@@ -148,6 +149,30 @@ def IO() -> None:
             hopout.sep()
 
             mesh.write(fname, file_format='vtk42')
+
+        case MeshFormat.FORMAT_GMSH:
+            mesh  = mesh_vars.mesh
+            pname = io_vars.projectname
+            fname = '{}_mesh.msh'.format(pname)
+
+            # Mixed elements required gmsh:dim_tags
+            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
+            mesh.point_data.update({'gmsh:dim_tags': np.array([[0, i] for i in range(len(mesh.points))])})
+
+            # Mixed elements require gmsh:physical and gmsh:geometrical
+            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
+            cell_types = mesh.cells_dict.keys()
+            cell_data  = [np.ravel(np.array([[1] for _ in range(mesh.cells_dict[cell_type].data.shape[1])])) for cell_type in cell_types]
+            mesh.cell_data.update({'gmsh:physical':    cell_data})
+            mesh.cell_data.update({'gmsh:geometrical': cell_data})
+
+            hopout.sep()
+            hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
+            hopout.sep()
+
+            hopout.warning('GMSH output is not yet fully supported, only a point mesh is generated!')
+
+            mesh.write(fname, file_format='gmsh')
 
         case _:  # Default
             hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))

@@ -48,6 +48,7 @@ debugvisu    : bool                              # Enable and show debug output 
 class MeshFormat:
     FORMAT_HDF5: int = 0
     FORMAT_VTK:  int = 1
+    FORMAT_GMSH: int = 2
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)

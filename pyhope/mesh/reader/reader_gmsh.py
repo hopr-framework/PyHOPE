@@ -481,7 +481,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
         prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
     else:
         prevSides = [np.empty((0,), dtype=int) for _ in range(nConnLen)]
-        prevSides[nConnNum] = np.asarray([sideID]).astype(int)
+        prevSides[nConnNum] = np.array([sideID], dtype=int)
     # Update the cellsets
     cellsets.update({BCName: prevSides})
 

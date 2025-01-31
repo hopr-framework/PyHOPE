@@ -280,7 +280,7 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
     comboCorners = [s.corners for s in comboSides]
     comboPoints  = np.concatenate([mesh.points[c] for c in comboCorners], axis=0)
-    distances, indices = ttree.query(comboPoints)
+    distances, indices = map(np.array, ttree.query(comboPoints))
 
     # At least one combo point must match each target point
     matchedIndices = np.unique(indices[distances <= tol])
