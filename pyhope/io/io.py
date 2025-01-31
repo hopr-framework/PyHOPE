@@ -26,8 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-from dataclasses import dataclass
-from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -40,61 +38,6 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-
-
-@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
-class ELEM:
-    INFOSIZE:  int = 6
-    TYPE:      int = 0
-    ZONE:      int = 1
-    FIRSTSIDE: int = 2
-    LASTSIDE:  int = 3
-    FIRSTNODE: int = 4
-    LASTNODE:  int = 5
-
-    TYPES: tuple[int, ...] = (104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208)
-
-
-@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
-class SIDE:
-    INFOSIZE: int = 5
-    TYPE:     int = 0
-    ID:       int = 1
-    NBELEMID: int = 2
-    NBLOCSIDE_FLIP: int = 3
-    BCID:     int = 4
-
-
-@cache
-def ELEMTYPE(elemType: int) -> str:
-    """ Name of a given element type
-    """
-    match elemType:
-        case 104:
-            return ' Straight-edge Tetrahedra '
-        case 204:
-            return '        Curved Tetrahedra '
-        case 105:
-            return '  Planar-faced Pyramids   '
-        case 115:
-            return ' Straight-edge Pyramids   '
-        case 205:
-            return '        Curved Pyramids   '
-        case 106:
-            return '  Planar-faced Prisms     '
-        case 116:
-            return ' Straight-edge Prisms     '
-        case 206:
-            return '        Curved Prisms     '
-        case 108:
-            return '  Planar-faced Hexahedra  '
-        case 118:
-            return ' Straight-edge Hexahedra  '
-        case 208:
-            return '        Curved Hexahedra  '
-        case _:  # Default
-            print('Error in ELEMTYPE, unknown elemType')
-            sys.exit(1)
 
 
 def DefineIO() -> None:
@@ -135,7 +78,7 @@ def IO() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
-    from pyhope.io.io_vars import MeshFormat
+    from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     # ------------------------------------------------------
 
     hopout.separator()
@@ -217,6 +160,7 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import LINTEN
+    from pyhope.io.io_vars import ELEM, SIDE
     # ------------------------------------------------------
 
     mesh   = mesh_vars.mesh
