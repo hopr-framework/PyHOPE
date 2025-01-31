@@ -134,21 +134,22 @@ class NodeOrdering:
                                                         120, 121, 119, 122, 118, 123, 124                            # 3rd,  6 face   nodes  # noqa: E501
                                                     ],
                                       'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
+                                      'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 16, 17 ],
                                       'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],
                                     }
     )
 
-    # Dictionary for conversion meshIO to Gmsh
-    # > TODO: IMPLEMENT RECURSIVE MAPPING USING IO_MESHIO/IO_GMSH
-    _gmsh_ordering: Dict[str, List[int]] = field(
-            default_factory=lambda: { 'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
-                                      'hexahedron20': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14 ],
-                                      'hexahedron27': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14, 24,
-                                                        22, 20, 21, 23, 25, 26 ],
-                                      'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 8, 12, 7, 13, 14, 9, 11, 10 ],
-                                      'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 9, 6, 10, 7, 11, 12 ],
-                                    }
-    )
+    # # Dictionary for conversion meshIO to Gmsh
+    # # > TODO: IMPLEMENT RECURSIVE MAPPING USING IO_MESHIO/IO_GMSH
+    # _gmsh_ordering: Dict[str, List[int]] = field(
+    #         default_factory=lambda: { 'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
+    #                                   'hexahedron20': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14 ],
+    #                                   'hexahedron27': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14, 24,
+    #                                                     22, 20, 21, 23, 25, 26 ],
+    #                                   'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 8, 12, 7, 13, 14, 9, 11, 10 ],
+    #                                   'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 9, 6, 10, 7, 11, 12 ],
+    #                                 }
+    # )
 
     def gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: ArrayLike) -> np.ndarray:
         """
@@ -160,4 +161,3 @@ class NodeOrdering:
         if elemType not in self._meshio_ordering:
             return cast(np.ndarray, idx)
         return idx[:, self._meshio_ordering[elemType]]
-

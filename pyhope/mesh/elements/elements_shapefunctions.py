@@ -78,23 +78,16 @@ class ShapeFunctions:
                 lambda xi, eta, zeta: 0.25  * (1 - xi)    * (1 + eta)    * (1 - zeta**2),
             ],
 
-            # 15-Node Wedge (Wedge15)
-            'wedge15': [
-                lambda xi, eta, zeta: 0.5 * ((1 - xi - eta) * (2. * (1 - xi - eta) - 1) * (1 - zeta) - (1 - xi - eta ) * (1 - zeta**2)),     # index 0
-                lambda xi, eta, zeta: 0.5 * (xi * (2.* xi - 1) * (1 - zeta) - xi * (1 - zeta**2)),                                           # index 1
-                lambda xi, eta, zeta: 0.5 * (eta * (2.* eta - 1) * (1 - zeta) - eta * (1 - zeta**2)),                                        # index 2
-                lambda xi, eta, zeta: 0.5 * ((1 - xi - eta) * (2. * (1 - xi - eta) - 1) * (1 + zeta) - (1 - xi -eta) * (1 - zeta**2)),       # index 3
-                lambda xi, eta, zeta: 0.5 * (xi * (2. * xi - 1) * (1 + zeta) - xi * (1 - zeta**2)),                                          # index 4
-                lambda xi, eta, zeta: 0.5 * (eta * (2. * eta - 1) * (1 + zeta) - eta * (1 - zeta**2)),                                       # index 5
-                lambda xi, eta, zeta: 2. * (1 - xi - eta) * xi * (1 - zeta),                                                                 # index 6
-                lambda xi, eta, zeta: 2. * xi * eta * (1 - zeta),                                                                            # index 7
-                lambda xi, eta, zeta: 2. * eta * (1 - xi - eta) * (1 - zeta),                                                                # index 8
-                lambda xi, eta, zeta: 2. * (1 - xi - eta) * xi * (1 + zeta),                                                                 # index 9
-                lambda xi, eta, zeta: 2. * xi * eta * (1 + zeta),                                                                            # index 10
-                lambda xi, eta, zeta: 2. * eta * (1 - xi - eta) * (1 + zeta),                                                                # index 11
-                lambda xi, eta, zeta: (1 - xi - eta) * (1 - zeta**2),                                                                        # index 12
-                lambda xi, eta, zeta: xi * (1 - zeta**2),                                                                                    # index 13
-                lambda xi, eta, zeta: eta * (1 - zeta**2),                                                                                   # index 14
+            # 8-Node Quadrilateral (Quad8)
+            'quad8': [
+                lambda xi, eta, _: -0.25 * (1 - xi) * (1 - eta) * (1 + xi + eta),  # Node 0
+                lambda xi, eta, _: -0.25 * (1 + xi) * (1 - eta) * (1 - xi + eta),  # Node 1
+                lambda xi, eta, _: -0.25 * (1 + xi) * (1 + eta) * (1 - xi - eta),  # Node 2
+                lambda xi, eta, _: -0.25 * (1 - xi) * (1 + eta) * (1 + xi - eta),  # Node 3
+                lambda xi, eta, _:  0.5  * (1 - xi) * (1 +  xi) * (1 - eta),       # Node 4 (mid-edge bottom)
+                lambda xi, eta, _:  0.5  * (1 + xi) * (1 - eta) * (1 + eta),       # Node 5 (mid-edge right)
+                lambda xi, eta, _:  0.5  * (1 - xi) * (1 + xi ) * (1 + eta),       # Node 6 (mid-edge top)
+                lambda xi, eta, _:  0.5  * (1 - xi) * (1 - eta) * (1 + eta),       # Node 7 (mid-edge left)
             ],
         }
     )

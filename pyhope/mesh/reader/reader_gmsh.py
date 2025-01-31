@@ -205,8 +205,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
     if not any(s for s in mesh.cells_dict.keys() if s in serendipityElems):
         return mesh
 
-    hopout.info('CONVERTING SERENDIPITY TO FULL LANGRANGE MESH...')
-    hopout.sep()
+    hopout.routine('Converting serendipity to full Lagrange mesh...')
 
     # Copy original points
     points    = mesh.points.copy()
@@ -247,13 +246,13 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 points      = np.resize(points, (nPoints_old + nNewPoints, 3))
 
                 # Allocate arrays if they do not exist. Else, resize them
-                elems_new = allocate_or_resize(elems_new, 'hexahedron27', (nHex20,   27))
-                elems_new = allocate_or_resize(elems_new, 'quad9',        (nHex20*6,  9))
+                (elems_new,hex27_start) = allocate_or_resize(elems_new, 'hexahedron27', (nHex20,   27))
+                (elems_new,quad9_start) = allocate_or_resize(elems_new, 'quad9',        (nHex20*6,  9))
 
                 for iFace, face in enumerate(faces):
                     # Face parameters are the same as for the 27-node hexahedron
-                    xi, eta, zeta    = elementinfo.faces_to_params('hexahedron27')[face]
-                    faceNodes[iFace] = elementinfo.faces_to_nodes( 'hexahedron27')[face]
+                    xi, eta, zeta    = elementinfo.faces_to_params('hexahedron20')[face]
+                    faceNodes[iFace] = elementinfo.faces_to_nodes( 'hexahedron20')[face]
 
                     # Evaluate the quadratic shape function at the face center
                     N[iFace] = shapefunctions.evaluate(ctype, xi, eta, zeta)
@@ -270,27 +269,85 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                         # Take the existing 8 face nodes and append the new center node
                         subFace = elem[faceNodes[iFace][:8]].tolist()
                         subFace.append(nPoints_old + iFace)
-                        elems_new['quad9'][iElem * 6 + iFace] = np.array(subFace, dtype=np.uint)
+                        elems_new['quad9'][quad9_start + iElem * nFaces + iFace] = np.array(subFace, dtype=np.uint)
 
                     # Evaluate the quadratic shape function at the volume center
                     center = np.dot(N[-1], mesh.points[elem])
-                    points[nPoints_old + 6, :] = center
+                    points[nPoints_old + nFaces, :] = center
 
                     # Create the volume element
                     subElem = elem.tolist()
 
                     # Append the 6 face center and the volume center
-                    subElem = elem.tolist()
-                    subElem.extend(range(nPoints_old, nPoints_old + 7))
-                    elems_new['hexahedron27'][iElem] = np.array(subElem, dtype=np.uint)
+                    subElem.extend(range(nPoints_old, nPoints_old + nFaces + 1))
+                    elems_new['hexahedron27'][hex27_start + iElem] = np.array(subElem, dtype=np.uint)
 
                     # Increment counter with number of added points
-                    nPoints_old += 7
+                    nPoints_old += nFaces + 1
 
             case 'wedge15':
-                hopout.warning('Wedge15 not supported yet')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+
+                # Get number of hexahedrons which have to be converted
+                nWed15    = len(cdata)
+
+                faces     = ['y-', 'x+', 'x-'] # square faces of element
+                # faces     = ['x+']
+                nFaces    = len(faces)
+
+                N         = [np.array([]) for _ in range(nFaces + 1)]
+                faceNodes = [list()       for _ in faces]  # noqa: E272
+
+                # preallocate the arrays for the new points and elements
+                nPoints_old = len(points)
+                nNewPoints  = nFaces * nWed15
+                points      = np.resize(points, (nPoints_old + nNewPoints, 3))
+
+                # Allocate arrays if they do not exist. Else, resize them
+                (elems_new, wed18_start) = allocate_or_resize(elems_new, 'wedge18',   (nWed15,   18))
+                (elems_new, quad9_start) = allocate_or_resize(elems_new, 'quad9',     (nWed15*3,  9))
+
+                for iFace, face in enumerate(faces):
+                    if 'z' in face:
+                        continue
+
+                    # Face parameters are the same as for the 27-node hexahedron
+                    xi, eta, zeta    = (0., 0., 0.)
+                    faceNodes[iFace] = elementinfo.faces_to_nodes('wedge15')[face]
+
+                    # Evaluate the quadratic shape function at the face center
+                    N[iFace] = shapefunctions.evaluate('quad8', xi, eta, zeta)
+
+                # Loop over all hexahedrons
+                for iElem, elem in enumerate(cdata):
+                    # Create the 3 face mid-points
+                    for iFace, face in enumerate(faces):
+                        # 2nd order triangular faces are already present in the mesh
+                        # Only for sanity as faces are already excluded from "faces" array
+                        if 'z' in face:
+                            continue
+                        # 2nd order quadrilaterial faces
+                        elif len(faceNodes[iFace]) == 8:
+                            # Here, we are on the quads and not the actual element
+                            center = np.dot(N[iFace], mesh.points[elem[faceNodes[iFace]]])
+                            points[nPoints_old + iFace,:]  = center
+
+                            # Take the existing 8 face nodes and append the new center node
+                            subFace = elem[faceNodes[iFace][:8]].tolist()
+                            subFace.append(nPoints_old + iFace)
+                            elems_new['quad9'][quad9_start + iElem * nFaces + iFace] = np.array(subFace, dtype=np.uint)
+
+                    # Create the volume element
+                    subElem = elem.tolist()
+
+                    # Append the 3 face center
+                    subElem.extend(range(nPoints_old, nPoints_old + nFaces))
+                    elems_new['wedge18'][wed18_start + iElem] = np.array(subElem, dtype=np.uint)
+
+                    # Increment counter with number of added points
+                    nPoints_old += nFaces
+
+            # case 'pyramid13':
+            #     # Not sure if this is ever needed. Check whether ANSA outputs these elements.
 
     # At this point, the mesh does not contain boundary conditions / cell sets
     # > We add them in the BCCGNS function

@@ -39,12 +39,15 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> dict:
+def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> Tuple[dict, int]:
     """ Allocate or resize a numpy array in a dictionary.
     """
+    offset = 0
     if key not in dict:
         dict[key] = np.ndarray(shape, dtype=np.uint)
     else:
-        dict[key] = np.resize(dict[key], (dict[key].shape[0] + shape[0], shape[1]))
+        offset = dict[key].shape[0]
+        new_len = offset + shape[0]
+        dict[key] = np.resize(dict[key],  (new_len, shape[1]))
 
-    return dict
+    return dict, offset
