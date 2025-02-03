@@ -32,7 +32,6 @@ from typing import Dict, List, Union, cast
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from numpy.typing import ArrayLike
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -151,7 +150,7 @@ class NodeOrdering:
     #                                 }
     # )
 
-    def gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: ArrayLike) -> np.ndarray:
+    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
         """
         Return the meshIO node ordering for a given element type.
         """

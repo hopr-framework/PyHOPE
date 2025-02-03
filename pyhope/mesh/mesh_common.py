@@ -279,7 +279,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
 
 
 @cache
-def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=int) -> np.ndarray:
+def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
@@ -289,11 +289,11 @@ def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=int) -> np.ndarray:
     faces_map = {  # Tetrahedron
                    # Pyramid
                    # Wedge / Prism
-                   6: {'y-': np.array([  0,  1,  4,  3, 6, 13,  9, 12, 15]),
-                       'x+': np.array([  1,  2,  5,  4, 7, 14, 10, 13, 16]),
-                       'x-': np.array([  2,  0,  3,  5, 8, 12, 11, 14, 17]),
-                       'z-': np.array([  0,  2,  1,  6, 7, 8             ]),
-                       'z+': np.array([  3,  4,  5,  9,10, 11            ])},
+                   6: {'y-': np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15]),
+                       'x+': np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16]),
+                       'x-': np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17]),
+                       'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
+                       'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
                    # Hexahedron
                    8: { 'z-':              LINMAP(elemType, order=order)[:    , :    , 0    ],
                         'y-': np.transpose(LINMAP(elemType, order=order)[:    , 0    , :    ]),
@@ -395,31 +395,31 @@ def calc_elem_bary(elems: list) -> np.ndarray:
 
 @cache
 def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
-    """ CGNS -> IJK ordering for element corner nodes
+    """ MESHIO -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
-    # from pyhope.io.io_cgns import genHEXMAPCGNS
-    # from pyhope.io.io_vtk import genHEXMAPVTK
-    from pyhope.io.io_meshio import HEXMAPMESHIO,PRISMAPMESHIO,PYRAMAPMESHIO,TETRMAPMESHIO
+    # from pyhope.io.formats.cgns import genHEXMAPCGNS
+    # from pyhope.io.formats.vtk import genHEXMAPVTK
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
             return np.array([0, 1, 2, 3])
         case 105:  # Pyramid
-             return np.array([0, 1, 3, 2, 4])
+            return np.array([0, 1, 3, 2, 4])
         case 106:  # Prism
             return np.array([0, 1, 2, 3, 4, 5])
         case 108:  # Hexaeder
             return np.array([0, 1, 3, 2, 4, 5, 7, 6])
         # Curved elements, use mapping
-        case 204: # Tetraeder
+        case 204:  # Tetraeder
             _, TETRTEN = TETRMAPMESHIO(order+1)
             return TETRTEN
         case 205:  # Pyramid
             _, PYRATEN = PYRAMAPMESHIO(order+1)
             return PYRATEN
-        case 206: # Prism
+        case 206:  # Prism
             _, PRISTEN = PRISMAPMESHIO(order+1)
             return PRISTEN
         case 208:  # Hexaeder
@@ -442,24 +442,21 @@ def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
 
 @cache
 def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
-    """ CGNS -> IJK ordering for element corner nodes
+    """ MESHIO -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
-    # from pyhope.io.io_cgns import HEXMAPCGNS
-    # from pyhope.io.io_vtk import HEXMAPVTK
-    from pyhope.io.io_meshio import HEXMAPMESHIO
+    # from pyhope.io.formats.cgns import HEXMAPCGNS
+    # from pyhope.io.formats.vtk import HEXMAPVTK
+    from pyhope.io.formats.meshio import HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
             sys.exit(1)
-            return np.array([0, 1, 2, 3])
         case 105:  # Pyramid
             sys.exit(1)
-            return np.array([0, 1, 3, 2, 4])
         case 106:  # Prism
             sys.exit(1)
-            return np.array([0, 1, 3, 2, 4, 5])
         case 108:  # Hexaeder
             linmap = np.zeros((2, 2, 2), dtype=int)
             indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),

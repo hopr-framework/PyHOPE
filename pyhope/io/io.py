@@ -162,9 +162,10 @@ def IO() -> None:
             # Mixed elements require gmsh:physical and gmsh:geometrical
             # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
             cell_types = mesh.cells_dict.keys()
-            cell_data  = [np.ravel(np.array([[1] for _ in range(mesh.cells_dict[cell_type].data.shape[1])])) for cell_type in cell_types]
-            mesh.cell_data.update({'gmsh:physical':    cell_data})
-            mesh.cell_data.update({'gmsh:geometrical': cell_data})
+            cell_data  = [np.ravel(np.array([[1] for _ in range(mesh.cells_dict[cell_type].data.shape[1])]))
+                                                 for cell_type in cell_types]
+            mesh.cell_data_dict.update({'gmsh:physical':    cell_data})
+            mesh.cell_data_dict.update({'gmsh:geometrical': cell_data})
 
             hopout.sep()
             hopout.routine('Writing GMSH mesh to "{}"'.format(fname))

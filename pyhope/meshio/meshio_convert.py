@@ -67,7 +67,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
         num_nodes_per_cell = gmsh.model.mesh.getElementProperties(elem_type)[3]
 
         node_tags_reshaped = np.asarray(node_tags).reshape(-1, num_nodes_per_cell) - 1
-        node_tags_reshaped = node_ordering.gmsh_to_meshio(elem_type, node_tags_reshaped)
+        node_tags_reshaped = node_ordering.ordering_gmsh_to_meshio(elem_type, node_tags_reshaped)
 
         # NRG: Fix the element ordering
         node_tags_sorted   = node_tags_reshaped[np.argsort(elem_tags)]

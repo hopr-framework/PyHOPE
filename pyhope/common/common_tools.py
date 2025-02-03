@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import time
 from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -37,6 +38,30 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+def time_function(func, *args, **kwargs) -> float:
+    """ A helper function to measure the execution time of an arbitrary function.
+
+    Parameters:
+    func (callable): The function to be timed.
+    *args: Positional arguments to pass to the function.
+    **kwargs: Keyword arguments to pass to the function.
+
+    Returns:
+    The return value of the function being timed.
+    """
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+    tStart = time.time()
+    result = func(*args, **kwargs)
+    tEnd   = time.time()
+    tFunc  = tEnd - tStart
+    hopout.info(  hopout.Colors.BANNERA + f'Function {func.__name__} required {tFunc:.6f} seconds to complete.'
+                + hopout.Colors.END)
+
+    return result
 
 
 def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> Tuple[dict, int]:

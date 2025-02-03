@@ -90,6 +90,10 @@ class CommandLine:
             else:
                 default = ''
 
+            # Convert booleans to strings
+            if isinstance(default, bool):
+                default = 'T' if default else 'F'
+
             if config.prms[key]['help']:
                 help    = config.prms[key]['help']
             else:

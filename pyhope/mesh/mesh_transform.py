@@ -143,16 +143,16 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
 
 def DistortMesh(points: np.ndarray) -> np.ndarray:
     eps = 1./16
-    for iPoint,xPoint in enumerate(points):
-        points[iPoint,0] = xPoint[0] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
-                                             np.sin(4*np.pi*(xPoint[1]-0.5))* \
-                                             np.cos(  np.pi*(xPoint[2]-0.5))
-        points[iPoint,1] = xPoint[1] + eps * np.cos(3*np.pi*(xPoint[0]-0.5))* \
-                                             np.cos(  np.pi*(xPoint[1]-0.5))* \
-                                             np.cos(  np.pi*(xPoint[2]-0.5))
-        points[iPoint,2] = xPoint[2] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
-                                             np.cos(2*np.pi*(xPoint[1]-0.5))* \
-                                             np.cos(  np.pi*(xPoint[2]-0.5))
+    for iPoint, xPoint in enumerate(points):
+        points[iPoint, 0] = xPoint[0] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
+                                              np.sin(4*np.pi*(xPoint[1]-0.5))* \
+                                              np.cos(  np.pi*(xPoint[2]-0.5))
+        points[iPoint, 1] = xPoint[1] + eps * np.cos(3*np.pi*(xPoint[0]-0.5))* \
+                                              np.cos(  np.pi*(xPoint[1]-0.5))* \
+                                              np.cos(  np.pi*(xPoint[2]-0.5))
+        points[iPoint, 2] = xPoint[2] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
+                                              np.cos(2*np.pi*(xPoint[1]-0.5))* \
+                                              np.cos(  np.pi*(xPoint[2]-0.5))
 
     return points
 
@@ -170,7 +170,7 @@ def TransformMesh():
     nMeshRot   = CountOption('meshRot')
     meshPostDeform = GetIntFromStr('MeshPostDeform')
 
-    if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot,meshPostDeform]):
+    if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot, meshPostDeform]):
         return
 
     hopout.separator()

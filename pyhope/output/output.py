@@ -116,7 +116,7 @@ def warning(string: str) -> None:
             string (str): String to be printed in banner.
             length (int): (Optional.) Number of characters in each line.
     """
-    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END)
+    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True)
 
 
 def sep(length: int = 5) -> None:
