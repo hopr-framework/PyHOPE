@@ -248,7 +248,8 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
         if key in bc.name:
             return iBC
         # Try again without the leading 'BC_'
-        if key[:3] == 'BC_' and key[3:] in bc.name:
+        if key[:3] == 'BC_' and key[3:] in bc.name or \
+           key[:3] == 'bc_' and key[3:] in bc.name:
             return iBC
     return None
 

@@ -200,7 +200,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     sideType  = sideInfo[index, 0]
                     sideBC    = sideInfo[index, 4]
 
-                    BCName    = BCNames[sideBC-1]
+                    BCName    = BCNames[sideBC-1].lower()
                     face      = faces(elemType)[sCounter]
                     corners   = [elemNodes[0][s] for s in face_to_cgns(face, elemType)]
 

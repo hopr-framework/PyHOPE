@@ -186,6 +186,9 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Finally done with GMSH, finalize
     gmsh.finalize()
 
+    # Convert BC names to lower case
+    mesh.cell_sets = {k.lower(): v for k, v in mesh.cell_sets.items()}
+
     # Run garbage collector to release memory
     gc.collect()
 
@@ -363,6 +366,9 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
         sys.exit(1)
 
     sideID   = int(trSide[1]) + offsetcs
+    # All BC are lower-case
+    BCName = BCName.lower()
+
     # For the first side on the BC, the dict does not exist
     if BCName in cellsets:
         prevSides = cellsets[BCName]
@@ -407,7 +413,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
     # Loop over all BCs
     cellsets = mesh.cell_sets
-    zoneBCs  = [s.lower() for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
 
     for zoneBC in zoneBCs:
         # bcName = zoneBC[3:]
