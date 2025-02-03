@@ -80,7 +80,6 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 continue
 
             case 'hexahedron20':
-                hopout.routine(f'Converting {ctype} to hexahedron27')
 
                 # Get number of hexahedrons which have to be converted
                 nHex20    = len(cdata)
@@ -198,23 +197,16 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                     nPoints_old += nFaces
 
             case 'pyramid13':
-                # TODO: this has to be validated as ANSAs output of pyramids is not yet working with gmsh
                 # Get number of hexahedrons which have to be converted
                 nPyra13   = len(cdata)
 
-                faces     = ['z-']  # square faces of element
-                face      = faces[0]
-                nFaces    = len(faces)
-
+                face      = 'z-' # square faces of element
                 faceNodes = elementinfo.faces_to_nodes('pyramid13')[face]
 
                 # Preallocate the arrays for the new points and elements
                 nPoints_old = len(points)
                 nNewPoints = nPyra13  # Since there's only one face per element
                 points = np.resize(points, (nPoints_old + nNewPoints, 3))
-
-                N         = [np.array([]) for _ in range(nFaces + 1)]
-                faceNodes = [list()       for _ in faces]  # noqa: E272
 
                 # Allocate arrays if they do not exist. Else, resize them
                 (elems_new, wed18_start) = allocate_or_resize(elems_new, 'pyramid14', (nPyra13, 14))
@@ -241,7 +233,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                     subElem = elem.tolist()
 
                     # Append the 3 face center
-                    subElem.extend(nPoints_old)
+                    subElem.append(nPoints_old)
                     elems_new['pyramid14'][wed18_start + iElem] = np.array(subElem, dtype=np.uint)
 
                     # Increment counter with number of added points

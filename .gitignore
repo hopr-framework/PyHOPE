@@ -43,3 +43,6 @@ core
 
 # Other system specfic files
 .DS_Store
+
+# Build artifacts
+.gmsh/build_*/*
