@@ -201,7 +201,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
     # ------------------------------------------------------
 
     # Check the mesh contains second-order incomplete elements
-    serendipityElems = ['quad8', 'hexahedron20', 'wedge15']
+    serendipityElems = ['quad8', 'hexahedron20', 'wedge15', 'pyramid13']
     if not any(s for s in mesh.cells_dict.keys() if s in serendipityElems):
         return mesh
 
@@ -291,7 +291,6 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 nWed15    = len(cdata)
 
                 faces     = ['y-', 'x+', 'x-'] # square faces of element
-                # faces     = ['x+']
                 nFaces    = len(faces)
 
                 N         = [np.array([]) for _ in range(nFaces + 1)]
@@ -310,7 +309,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                     if 'z' in face:
                         continue
 
-                    # Face parameters are the same as for the 27-node hexahedron
+                    # Face parameters are the same as for the 9-node quad
                     xi, eta, zeta    = (0., 0., 0.)
                     faceNodes[iFace] = elementinfo.faces_to_nodes('wedge15')[face]
 
@@ -346,8 +345,49 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                     # Increment counter with number of added points
                     nPoints_old += nFaces
 
-            # case 'pyramid13':
-            #     # Not sure if this is ever needed. Check whether ANSA outputs these elements.
+            case 'pyramid13':
+                #TODO: this has to be validated as ANSAs output of pyramids is not yet working with gmsh
+                # Get number of hexahedrons which have to be converted
+                nPyra13   = len(cdata)
+
+                face      = 'z-' # square faces of element
+                faceNodes = elementinfo.faces_to_nodes('pyramid13')[face]
+
+                # Preallocate the arrays for the new points and elements
+                nPoints_old = len(points)
+                nNewPoints = nPyra13  # Since there's only one face per element
+                points = np.resize(points, (nPoints_old + nNewPoints, 3))
+
+                # Allocate arrays if they do not exist. Else, resize them
+                (elems_new, wed18_start) = allocate_or_resize(elems_new, 'pyramid14', (nPyra13, 14))
+                (elems_new, quad9_start) = allocate_or_resize(elems_new, 'quad9',     (nPyra13,  9))
+
+                # Face parameters for the 9-node quad
+                xi, eta, zeta = (0., 0., 0.)
+                N = shapefunctions.evaluate('quad8', xi, eta, zeta)
+
+                # Loop over all hexahedrons
+                for iElem, elem in enumerate(cdata):
+                    # Create the face mid-point
+                    if len(faceNodes) == 8:
+                        # Here, we are on the quads and not the actual element
+                        center = np.dot(N, mesh.points[elem[faceNodes]])
+                        points[nPoints_old, :]  = center
+
+                        # Take the existing 8 face nodes and append the new center node
+                        subFace = elem[faceNodes[:8]].tolist()
+                        subFace.append(nPoints_old)
+                        elems_new['quad9'][quad9_start + iElem] = np.array(subFace, dtype=np.uint)
+
+                    # Create the volume element
+                    subElem = elem.tolist()
+
+                    # Append the 3 face center
+                    subElem.extend(nPoints_old)
+                    elems_new['pyramid14'][wed18_start + iElem] = np.array(subElem, dtype=np.uint)
+
+                    # Increment counter with number of added points
+                    nPoints_old += 1
 
     # At this point, the mesh does not contain boundary conditions / cell sets
     # > We add them in the BCCGNS function

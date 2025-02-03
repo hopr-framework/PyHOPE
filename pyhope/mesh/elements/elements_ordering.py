@@ -49,7 +49,13 @@ class ElementInfo:
     # Dictionary of dictionaries for face data, keyed by element type.
     # Each entry is a dictionary of face-name to node indices.
     _faces_map: Dict[str, Dict[str, List[int]]] = field(
-        default_factory=lambda: { 'wedge15':    { 'z-': [ 0, 1, 2, 6,  7,  8],
+        default_factory=lambda: { 'pyramid13':  { 'z-': [ 0, 1, 2, 3,  5,   6, 7, 8],
+                                                  'y-': [ 0, 1, 4, 5, 10,   9],
+                                                  'y+': [ 2, 3, 4, 7, 12,  11],
+                                                  'x+': [ 1, 2, 4, 6, 11,  10],
+                                                  'x-': [ 3, 0, 4, 8,  9,  12],
+                                                 },
+                                  'wedge15':    { 'z-': [ 0, 1, 2, 6,  7,  8],
                                                   'z+': [ 3, 4, 5, 9, 10, 11],
                                                   'y-': [ 0, 1, 4, 3,  6, 13,  9, 12],
                                                   'x+': [ 1, 2, 5, 4,  7, 14, 10, 13],
