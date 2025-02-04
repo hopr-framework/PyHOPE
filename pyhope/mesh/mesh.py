@@ -180,7 +180,6 @@ def GenerateMesh() -> None:
         if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
 
-    hopout.sep()
     hopout.routine('Generated mesh with {} cells'.format(nElems))
     hopout.sep()
 

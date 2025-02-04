@@ -55,6 +55,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # ------------------------------------------------------
 
     if CountOption('doSplitToHex') == 0:
+        hopout.sep()
         return mesh
 
     hopout.separator()
@@ -63,7 +64,6 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
     splitToHex = GetLogical('doSplitToHex')
     if not splitToHex:
-        hopout.info('SPLITTING ELEMENTS TO HEXAHEDRA DONE!')
         hopout.separator()
 
     # Sanity check
@@ -101,9 +101,15 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             offset += len(elems.data)
 
     for cname, cblock in cell_sets.items():
+        if cblock is None:
+            continue
+
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
             if elems_old[blockID].type[:4] != 'quad' and elems_old[blockID].type[:8] != 'triangle':
+                continue
+
+            if block is None:
                 continue
 
             # Sort them as a set for membership checks
@@ -151,12 +157,12 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Reconstruct the cell sets for the boundary conditions
                     # > They already exists for the triangular faces, but we create new quad faces with the edge and face centers
-                    trias, quads = tet_to_quad_faces(newNodes)
-                    for tria, quads in zip(trias, quads):
+                    faces, quads = tet_to_quad_faces(newNodes)
+                    for face, quads in zip(faces, quads):
                         # Check if the triangular faces is a boundary face
                         for cnodes, cname in csets_old.items():
                             cname = ''.join(list(chain.from_iterable(cname)))
-                            if tria.issubset(cnodes):
+                            if face.issubset(cnodes):
                                 # Create the new quadrilateral boundary faces
                                 for quad in quads:
                                     csets_old.setdefault(frozenset(quad), []).append(cname)
@@ -200,11 +206,97 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
                     except KeyError:
                         elems_new['hexahedron'] = np.array(subElems).astype(int)
 
+            case 'wedge':
+                for elem in cdata:
+                    # Create array for new nodes
+                    newPoints = np.zeros((8, 3), dtype=np.float64)
+                    # Corner nodes
+                    # newPoints[:4] = points[elem]
+                    # Nodes on edges
+                    newPoints[ 0] = np.mean(points[elem[[0, 1   ]]], axis=0)  # index 6
+                    newPoints[ 1] = np.mean(points[elem[[1, 2   ]]], axis=0)  # index 7
+                    newPoints[ 2] = np.mean(points[elem[[0, 2   ]]], axis=0)  # index 8
+                    newPoints[ 3] = np.mean(points[elem[[3, 4   ]]], axis=0)  # index 9
+                    newPoints[ 4] = np.mean(points[elem[[4, 5   ]]], axis=0)  # index 10
+                    newPoints[ 5] = np.mean(points[elem[[3, 5   ]]], axis=0)  # index 11
+                    # Nodes on faces
+                    newPoints[ 6] = np.mean(points[elem[[0, 1, 2]]], axis=0)  # index 12
+                    newPoints[ 7] = np.mean(points[elem[[3, 4, 5]]], axis=0)  # index 13
+                    points = np.append(points, newPoints, axis=0)
+
+                    # Assemble list of all the nodes
+                    newNodes = elem.tolist() + np.arange(nPoints, nPoints + 8).tolist()
+
+                    # Reconstruct the cell sets for the boundary conditions
+                    # > They already exists for the triangular faces, but we create new quad faces with the edge and face centers
+                    faces, quads = prism_to_quad_faces(newNodes)
+                    for face, quads in zip(faces, quads):
+                        # Check if the triangular faces is a boundary face
+                        for cnodes, cname in csets_old.items():
+                            cname = ''.join(list(chain.from_iterable(cname)))
+                            if face.issubset(cnodes):
+                                # Create the new quadrilateral boundary faces
+                                for quad in quads:
+                                    csets_old.setdefault(frozenset(quad), []).append(cname)
+                                # Done with this triangular face, break the (inner) loop
+                                break
+
+                    subElems = split_prism_to_hexs(newNodes)
+                    nPoints += 8
+
+                    for subElem in subElems:
+                        # Assemble the 6 hexahedral faces
+                        faces = hexa_faces(subElem)
+
+                        for subFace in faces:
+                            faceSet = frozenset(subFace)
+
+                            for cnodes, cname in csets_old.items():
+                                # Face is not a subset of an existing boundary face
+                                if not faceSet.issubset(cnodes):
+                                    continue
+
+                                # For the first side on the BC, the dict does not exist
+                                try:
+                                    prevSides          = csets_new[cname[0]]
+                                    prevSides[faceNum] = np.append(prevSides[faceNum], nFaces[faceNum]).astype(int)
+                                except KeyError:
+                                    # We only create the 2D and 3D elements
+                                    prevSides          = [np.array([], dtype=int) for _ in range(2)]
+                                    prevSides[faceNum] = np.asarray([nFaces[faceNum]]).astype(int)
+                                    csets_new.update({cname[0]: prevSides})
+
+                            try:
+                                elems_new[faceType[faceNum]] = np.append(elems_new[faceType[faceNum]], np.array([subFace]).astype(int), axis=0)  # noqa: E501
+                            except KeyError:
+                                elems_new[faceType[faceNum]] = np.array([subFace]).astype(int)
+
+                            nFaces[faceNum] += 1
+
+                    try:
+                        elems_new['hexahedron'] = np.append(elems_new['hexahedron'], np.array(subElems).astype(int), axis=0)  # noqa: E501
+                    except KeyError:
+                        elems_new['hexahedron'] = np.array(subElems).astype(int)
+
     mesh = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
+    hopout.separator()
 
     return mesh
+
+
+def hexa_faces(nodes: list) -> list:
+    """ Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
+        return a list of new hexahedral face connectivity lists.
+    """
+    return [tuple((nodes[0], nodes[1], nodes[2], nodes[3])),
+            tuple((nodes[4], nodes[5], nodes[6], nodes[7])),
+            tuple((nodes[0], nodes[1], nodes[5], nodes[4])),
+            tuple((nodes[2], nodes[3], nodes[7], nodes[6])),
+            tuple((nodes[0], nodes[3], nodes[7], nodes[4])),
+            tuple((nodes[1], nodes[2], nodes[6], nodes[5])),
+           ]
 
 
 def tet_to_quad_faces(nodes: list) -> Tuple[list, list]:
@@ -214,45 +306,32 @@ def tet_to_quad_faces(nodes: list) -> Tuple[list, list]:
     elemNodes = np.array(nodes)
 
     # Triangular faces
-    faces     = [frozenset(elemNodes[[0, 1, 2]]),
-                 frozenset(elemNodes[[0, 2, 3]]),
-                 frozenset(elemNodes[[0, 3, 1]]),
-                 frozenset(elemNodes[[1, 2, 3]])
+    faces     = [ frozenset(elemNodes[[0, 1, 2]]),
+                  frozenset(elemNodes[[0, 2, 3]]),
+                  frozenset(elemNodes[[0, 3, 1]]),
+                  frozenset(elemNodes[[1, 2, 3]])
                 ]
 
     # Quadrilateral faces
     subFaces  = [  # First triangle
-                 [tuple((elemNodes[ 0], elemNodes[ 4], elemNodes[ 6], elemNodes[10])),
-                  tuple((elemNodes[ 4], elemNodes[ 1], elemNodes[ 5], elemNodes[10])),
-                  tuple((elemNodes[ 5], elemNodes[ 2], elemNodes[ 6], elemNodes[10]))],
+                 [ tuple((elemNodes[ 0], elemNodes[ 4], elemNodes[ 6], elemNodes[10])),
+                   tuple((elemNodes[ 4], elemNodes[ 1], elemNodes[ 5], elemNodes[10])),
+                   tuple((elemNodes[ 5], elemNodes[ 2], elemNodes[ 6], elemNodes[10]))],
                    # Second triangle
-                 [tuple((elemNodes[ 0], elemNodes[ 6], elemNodes[ 7], elemNodes[13])),
-                  tuple((elemNodes[ 6], elemNodes[ 2], elemNodes[ 9], elemNodes[13])),
-                  tuple((elemNodes[ 9], elemNodes[ 3], elemNodes[ 7], elemNodes[13]))],
+                 [ tuple((elemNodes[ 0], elemNodes[ 6], elemNodes[ 7], elemNodes[13])),
+                   tuple((elemNodes[ 6], elemNodes[ 2], elemNodes[ 9], elemNodes[13])),
+                   tuple((elemNodes[ 9], elemNodes[ 3], elemNodes[ 7], elemNodes[13]))],
                    # Third triangle
-                 [tuple((elemNodes[ 0], elemNodes[ 4], elemNodes[ 7], elemNodes[11])),
-                  tuple((elemNodes[ 4], elemNodes[ 1], elemNodes[ 8], elemNodes[11])),
-                  tuple((elemNodes[ 8], elemNodes[ 3], elemNodes[ 7], elemNodes[11]))],
+                 [ tuple((elemNodes[ 0], elemNodes[ 4], elemNodes[ 7], elemNodes[11])),
+                   tuple((elemNodes[ 4], elemNodes[ 1], elemNodes[ 8], elemNodes[11])),
+                   tuple((elemNodes[ 8], elemNodes[ 3], elemNodes[ 7], elemNodes[11]))],
                    # Fourth triangle
-                 [tuple((elemNodes[ 1], elemNodes[ 5], elemNodes[ 8], elemNodes[12])),
-                  tuple((elemNodes[ 5], elemNodes[ 2], elemNodes[ 9], elemNodes[12])),
-                  tuple((elemNodes[ 9], elemNodes[ 3], elemNodes[ 8], elemNodes[12]))]
+                 [ tuple((elemNodes[ 1], elemNodes[ 5], elemNodes[ 8], elemNodes[12])),
+                   tuple((elemNodes[ 5], elemNodes[ 2], elemNodes[ 9], elemNodes[12])),
+                   tuple((elemNodes[ 9], elemNodes[ 3], elemNodes[ 8], elemNodes[12]))]
                 ]
 
     return faces, subFaces
-
-
-def hexa_faces(nodes: list) -> list:
-    """ Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-        return a list of new hexahedral face connectivity lists.
-    """
-    return [tuple((nodes[0], nodes[1], nodes[3], nodes[2])),
-            tuple((nodes[4], nodes[5], nodes[7], nodes[6])),
-            tuple((nodes[0], nodes[1], nodes[4], nodes[5])),
-            tuple((nodes[2], nodes[3], nodes[6], nodes[7])),
-            tuple((nodes[0], nodes[3], nodes[4], nodes[7])),
-            tuple((nodes[1], nodes[2], nodes[5], nodes[6])),
-           ]
 
 
 def split_tet_to_hexs(nodes: list) -> list:
@@ -263,4 +342,55 @@ def split_tet_to_hexs(nodes: list) -> list:
             tuple((nodes[ 1], nodes[ 5], nodes[10], nodes[ 4], nodes[ 8], nodes[12], nodes[14], nodes[11])),
             tuple((nodes[ 2], nodes[ 6], nodes[10], nodes[ 5], nodes[ 9], nodes[13], nodes[14], nodes[12])),
             tuple((nodes[ 3], nodes[ 7], nodes[13], nodes[ 9], nodes[ 8], nodes[11], nodes[14], nodes[12])),
+           ]
+
+
+def prism_to_quad_faces(nodes: list) -> Tuple[list, list]:
+    """ Given the 6 corner node indices of a single prism element (indexed 0..5),
+        return the 6 -> new <- quadrilateral faces.
+    """
+    elemNodes = np.array(nodes)
+
+    # Faces
+    faces     = [  # Triangular faces
+                   frozenset(elemNodes[[0, 1, 2]]),
+                   frozenset(elemNodes[[3, 4, 5]]),
+                   # Quadrilateral faces
+                   frozenset(elemNodes[[0, 1, 4, 3]]),
+                   frozenset(elemNodes[[1, 2, 5, 4]]),
+                   frozenset(elemNodes[[2, 0, 3, 5]]),
+                ]
+
+    # Quadrilateral faces
+    subFaces  = [  # First triangle
+                 [ tuple((elemNodes[ 0], elemNodes[ 6], elemNodes[12], elemNodes[ 8])),
+                   tuple((elemNodes[ 1], elemNodes[ 7], elemNodes[12], elemNodes[ 6])),
+                   tuple((elemNodes[ 2], elemNodes[ 8], elemNodes[12], elemNodes[ 7]))],
+                   # Second triangle
+                 [ tuple((elemNodes[ 3], elemNodes[ 9], elemNodes[13], elemNodes[11])),
+                   tuple((elemNodes[ 4], elemNodes[10], elemNodes[13], elemNodes[ 9])),
+                   tuple((elemNodes[ 5], elemNodes[11], elemNodes[13], elemNodes[10]))],
+                   # Unmodified quad faces
+                   # [ tuple((elemNodes[ 0], elemNodes[ 1], elemNodes[ 4], elemNodes[ 3])),
+                   #   tuple((elemNodes[ 1], elemNodes[ 2], elemNodes[ 5], elemNodes[ 4])),
+                   #   tuple((elemNodes[ 2], elemNodes[ 0], elemNodes[ 3], elemNodes[ 5]))],
+                   # Split quad faces
+                 [ tuple((elemNodes[ 0], elemNodes[ 6], elemNodes[ 9], elemNodes[ 3])),
+                   tuple((elemNodes[ 6], elemNodes[ 1], elemNodes[ 4], elemNodes[ 9])),
+                   tuple((elemNodes[ 1], elemNodes[ 7], elemNodes[10], elemNodes[ 4])),
+                   tuple((elemNodes[ 7], elemNodes[ 2], elemNodes[ 5], elemNodes[10])),
+                   tuple((elemNodes[ 0], elemNodes[ 8], elemNodes[11], elemNodes[ 3])),
+                   tuple((elemNodes[ 8], elemNodes[ 2], elemNodes[ 5], elemNodes[11]))]
+                ]
+
+    return faces, subFaces
+
+
+def split_prism_to_hexs(nodes: list) -> list:
+    """ Given the 6 corner node indices of a single prism element (indexed 0..5),
+        return a list of new hexahedral element connectivity lists.
+    """
+    return [tuple((nodes[ 0], nodes[ 6], nodes[12], nodes[ 8], nodes[ 3], nodes[ 9], nodes[13], nodes[11])),
+            tuple((nodes[ 1], nodes[ 7], nodes[12], nodes[ 6], nodes[ 4], nodes[10], nodes[13], nodes[ 9])),
+            tuple((nodes[ 2], nodes[ 8], nodes[12], nodes[ 7], nodes[ 5], nodes[11], nodes[13], nodes[10])),
            ]

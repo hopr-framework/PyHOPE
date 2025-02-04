@@ -186,4 +186,5 @@ def CheckJacobians() -> None:
         print(hopout.warn(f'Ignored element type{'s' if len(passedTypes) > 1 else ""}: {[s for s in passedTypes]}'))
 
     # Plot the histogram of the Jacobians
-    plot_histogram(np.array(jacs))
+    if len(jacs) > 0:
+        plot_histogram(np.array(jacs))
