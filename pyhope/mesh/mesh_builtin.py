@@ -55,9 +55,8 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.mesh_transform import CalcStretching
-    from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
-    from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()
@@ -254,6 +253,9 @@ def MeshCartesian() -> meshio.Mesh:
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)
 
+    # Finally done with GMSH, finalize
+    gmsh.finalize()
+
     # # Calculate the offset for the quad cells
     # offset    = 0
     # for elems in mesh.cells:
@@ -275,19 +277,6 @@ def MeshCartesian() -> meshio.Mesh:
     #                    cells     = elems,        # noqa: E251
     #                    cell_sets = csets)        # noqa: E251
     # del elems, csets
-
-    # Split elements if simplex elements are requested
-    elemType = GetIntFromStr('ElemType')
-    if elemType % 100 != 8:
-        #  FIXME: Currently not supported
-        if mesh_vars.nGeo > 2:
-            hopout.warning('Non-hexahedral elements are not supported for nGeo > 2, exiting...')
-            sys.exit(1)
-
-        mesh = MeshChangeElemType(mesh, elemType)
-
-    # Finally done with GMSH, finalize
-    gmsh.finalize()
 
     # Run garbage collector to release memory
     gc.collect()

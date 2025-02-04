@@ -195,19 +195,20 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     return mesh
 
 
-def BCCGNS() -> meshio.Mesh:
+def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
     """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
         > Add them here manually to the meshIO object
     """
     # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetStr
     # ------------------------------------------------------
 
-    mesh    = mesh_vars.mesh
-    points  = mesh_vars.mesh.points
-    cells   = mesh_vars.mesh.cells
+    hopout.routine('Setting boundary conditions')
+    hopout.sep()
+
+    points  = mesh.points
+    cells   = mesh.cells
     # elems   = mesh_vars.elems
     # sides   = mesh_vars.sides
     # bcs     = mesh_vars.bcs
@@ -340,6 +341,7 @@ def BCCGNS() -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    hopout.sep()
 
     return mesh
 

@@ -46,7 +46,7 @@ def MeshExternal() -> meshio.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_vars import BC
-    from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH
+    from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH, BCCGNS
     from pyhope.mesh.reader.reader_hopr import ReadHOPR
     from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
@@ -67,7 +67,7 @@ def MeshExternal() -> meshio.Mesh:
         # bc.update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
         #           bcid = iBC + 1,                                  # noqa: E251
         #           type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
-        bc.name = GetStr(     'BoundaryName', number=iBC).lower(  )  # noqa: E251
+        bc.name = GetStr(     'BoundaryName', number=iBC).lower()    # noqa: E251
         bc.bcid = iBC + 1                                            # noqa: E251
         bc.type = GetIntArray('BoundaryType', number=iBC)            # noqa: E251
 
@@ -113,6 +113,11 @@ def MeshExternal() -> meshio.Mesh:
         hopout.warning('Unknown file format {}, exiting...'.format(fnames))
         sys.exit(1)
 
+    # Regenerate the boundary conditions
+    if mesh_vars.CGNS.regenerate_BCs:
+        mesh = BCCGNS(mesh)
+
     hopout.info('LOADING EXTERNAL MESH DONE!')
+    hopout.sep()
 
     return mesh

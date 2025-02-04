@@ -41,11 +41,27 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
+def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_vars import ELEMTYPE, nGeo
+    from pyhope.readintools.readintools import GetIntFromStr
     # ------------------------------------------------------
+
+    # Split hexahedral elements if requested
+    elemType = GetIntFromStr('ElemType')
+
+    match elemType % 100:
+        case 8:
+            return mesh
+        case _:
+            # Simplex elements requested
+            #  FIXME: Currently not supported
+            if mesh_vars.nGeo > 2:
+                hopout.warning('Non-hexahedral elements are not supported for nGeo > 2, exiting...')
+                sys.exit(1)
+
     # Copy original points
     points    = mesh.points.copy()
     elems_old = mesh.cells.copy()
@@ -100,7 +116,7 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     # Set up the element splitting function
-    elemSplitter = {ho_key + 4: (split_hex_to_tets, tetra_faces),
+    elemSplitter = {ho_key + 4: (split_hex_to_tets , tetra_faces),
                     ho_key + 5: (split_hex_to_pyram, pyram_faces),
                     ho_key + 6: (split_hex_to_prism, prism_faces)}
     split, faces = elemSplitter.get(elemType, (None, None))
@@ -114,7 +130,7 @@ def MeshChangeElemType(mesh: meshio.Mesh, elemType: int) -> meshio.Mesh:
     nFaces   = np.zeros(2)
     match nGeo:
         case 1:
-            faceType = ['triangle', 'quad']
+            faceType = ['triangle' , 'quad']
         case 2:
             faceType = ['triangle6', 'quad9']
         case _:

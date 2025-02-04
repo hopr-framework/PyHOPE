@@ -84,6 +84,7 @@ def DefineMesh() -> None:
     CreateInt(      'NGeo'         ,        default=1,     help='Order of spline-reconstruction for curved surfaces')
     CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
     CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
@@ -145,6 +146,8 @@ def GenerateMesh() -> None:
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
     from pyhope.mesh.mesh_vars import MeshMode
+    from pyhope.mesh.topology.mesh_splittohex import MeshSplitToHex
+    from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
     # ------------------------------------------------------
 
     hopout.separator()
@@ -160,6 +163,10 @@ def GenerateMesh() -> None:
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
+    # Split hexahedral elements if requested
+    mesh = MeshChangeElemType(mesh)
+    # Split simplex elements if requested
+    mesh = MeshSplitToHex(mesh)
     mesh_vars.mesh = mesh
 
     # Final count
@@ -167,37 +174,10 @@ def GenerateMesh() -> None:
     for cellType in mesh.cells:
         if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
+
     hopout.sep()
     hopout.routine('Generated mesh with {} cells'.format(nElems))
     hopout.sep()
 
     hopout.info('GENERATE MESH DONE!')
     hopout.separator()
-
-
-def RegenerateMesh() -> None:
-    """ Finish missing mesh information such as BCs
-    """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
-    from pyhope.mesh.reader.reader_gmsh import BCCGNS
-    # ------------------------------------------------------
-
-    match mesh_vars.mode:
-        case 1:  # Internal Cartesian Mesh
-            mesh = mesh_vars.mesh
-        case 3:  # External CGNS mesh
-            if mesh_vars.CGNS.regenerate_BCs:
-                hopout.separator()
-                hopout.info('REGENERATE MESH...')
-                mesh = BCCGNS()
-                hopout.info('REGENERATE MESH DONE!')
-            else:
-                mesh = mesh_vars.mesh
-        case _:  # Default
-            hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
-
-    mesh_vars.mesh = mesh

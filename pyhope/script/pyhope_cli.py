@@ -49,7 +49,7 @@ def main() -> None:
     from pyhope.basis.basis_jacobian import CheckJacobians
     from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.io.io import IO, DefineIO, InitIO
-    from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
+    from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh
     from pyhope.mesh.mesh_connect import ConnectMesh
     from pyhope.mesh.mesh_duplicates import EliminateDuplicates
     from pyhope.mesh.mesh_orient import OrientMesh
@@ -120,7 +120,6 @@ def main() -> None:
     # Build our data structures
     GenerateSides()
     SortMesh()
-    RegenerateMesh()
     ConnectMesh()
     TransformMesh()
 

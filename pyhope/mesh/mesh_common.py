@@ -287,13 +287,17 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
 
     order     = nGeo
     faces_map = {  # Tetrahedron
+                   4: { 'y-': np.array([  0,  1,  3]),
+                        'x+': np.array([  1,  2,  3]),
+                        'x-': np.array([  2,  0,  3]),
+                        'z-': np.array([  0,  2,  1])},
                    # Pyramid
                    # Wedge / Prism
-                   6: {'y-': np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15]),
-                       'x+': np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16]),
-                       'x-': np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17]),
-                       'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
-                       'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
+                   6: { 'y-': np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15]),
+                        'x+': np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16]),
+                        'x-': np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17]),
+                        'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
+                        'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
                    # Hexahedron
                    8: { 'z-':              LINMAP(elemType, order=order)[:    , :    , 0    ],
                         'y-': np.transpose(LINMAP(elemType, order=order)[:    , 0    , :    ]),
