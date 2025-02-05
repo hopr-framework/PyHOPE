@@ -29,6 +29,7 @@ import copy
 import gc
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -276,12 +277,11 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
 
         # Check if the file is using HDF5 format internally
         tfile = None
+        # Create a temporary directory and keep it existing until manually cleaned
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tname = tfile.name
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
-            # Create a temporary directory and keep it existing until manually cleaned
-            tfile = tempfile.NamedTemporaryFile(delete=False)
-            tname = tfile.name
-
             hopout.sep()
             hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
             tStart = time.time()
@@ -292,6 +292,8 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Rest of this code operates on the converted file
             fname = tname
+        # Alternatively, load the file directly into tmpfs for faster access
+        shutil.copyfile(fname, tname)
 
         with h5py.File(fname, mode='r') as f:
             if 'CGNSLibraryVersion' not in f.keys():
