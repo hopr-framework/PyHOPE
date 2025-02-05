@@ -55,9 +55,9 @@ class ProgressBar:
         else:
             self.bar = None
 
-    def step(self):
+    def step(self, steps: int = 1):
         if self.bar is not None:
-            self.bar()
+            self.bar(steps)
 
     def close(self):
         if self.bar is not None:

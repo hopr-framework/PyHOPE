@@ -30,6 +30,8 @@ import heapq
 import itertools
 import sys
 import traceback
+from collections import defaultdict
+from itertools import combinations
 from typing import Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -437,8 +439,6 @@ def find_edge_combinations(comboEdges) -> list:
     """Build combinations of edges that share exactly one point and form a line
     """
     # Local imports ----------------------------------------
-    from collections import defaultdict
-    from itertools import combinations
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
@@ -620,26 +620,18 @@ def ConnectMesh() -> None:
 
     # Map sides to BC
     # > Create a dict containing only the face corners
-    side_corners = dict()
-    for elem in elems:
-        for iSide, side in enumerate(elem.sides):
-            corners = np.sort(sides[side].corners)
-            corners = hash(corners.tobytes())
-            side_corners.update({side: corners})
+    side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
 
     # Build the reverse dictionary
-    corner_side = dict()
-    for key, val in side_corners.items():
-        if val not in corner_side:
-            corner_side[val] = [key]
-        else:
-            corner_side[val].append(key)
+    corner_side = defaultdict(list)
+    for side, corners in side_corners.items():
+        corner_side[corners].append(side)
 
     bar = ProgressBar(value=len(sides), title='│                Processing Sides')
 
     # Try to connect the inner sides
     ninner = 0
-    for (key, val) in corner_side.items():
+    for val in corner_side.values():
         match len(val):
             case 1:  # BC side
                 continue
@@ -653,7 +645,7 @@ def ConnectMesh() -> None:
                 ninner += 1
 
                 # Update the progress bar
-                [bar.step() for _ in range(2)]
+                bar.step(2)
             case _:  # Zero or more than 2 sides
                 hopout.warning('Found internal side with more than two adjacent elements, exiting...')
                 traceback.print_stack(file=sys.stdout)
@@ -662,7 +654,11 @@ def ConnectMesh() -> None:
     # Set BC and periodic sides
     bcs = mesh_vars.bcs
     vvs = mesh_vars.vvs
-    csetMap = []
+
+    # Find the mapping to the (N-1)-dim elements
+    csetMap = {key: [s for s in range(len(cset)) if cset[s] is not None and np.size(cset[s]) > 0]
+                       for key, cset in mesh.cell_sets.items()}
+
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
         bcID = find_bc_index(bcs, key)
@@ -670,11 +666,8 @@ def ConnectMesh() -> None:
             hopout.warning(f'Could not find BC {key} in list, exiting...')
             sys.exit(1)
 
-        # Find the mapping to the (N-1)-dim elements
-        csetMap = [s for s in range(len(cset)) if cset[s] is not None and np.size(cset[s]) > 0]
-
         # Get the list of sides
-        for iMap in csetMap:
+        for iMap in csetMap[key]:
             iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
             mapFaces = mesh.cells[iMap].data
             # Support for hybrid meshes
@@ -716,6 +709,9 @@ def ConnectMesh() -> None:
         nbBCID     = find_index([s.type for s in bcs], nbType)
         nbBCName   = bcs[nbBCID].name
 
+        # Set the tolerance for periodic connections
+        tol        = np.linalg.norm(vvs[iVV]['Dir'], ord=2).astype(float) * mesh_vars.tolPeriodic
+
         # Collapse all opposing corner nodes into an [:, 12] array
         nbCellSet  = mesh.cell_sets[nbBCName]
         # Find the mapping to the (N-1)-dim elements
@@ -723,11 +719,14 @@ def ConnectMesh() -> None:
                       and cast(np.ndarray, nbCellSet[s]).size > 0]
 
         for iMap in nbcsetMap:
+            # Get the number of side cordners
+            nSideIdx   = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
+
             # Get the list of sides
             nbFaceSet  =  np.array(nbCellSet[iMap]).astype(int)
             nbmapFaces = mesh.cells[iMap].data
             nbCorners  = [np.array(nbmapFaces[s - offsetcs]) for s in nbFaceSet]
-            nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+            nbPoints   = np.sort(mesh.points[nbCorners], axis=1)
             nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
             del nbCorners
 
@@ -748,12 +747,10 @@ def ConnectMesh() -> None:
                 points    = np.sort(points, axis=0).flatten()
 
                 # Query the tree for the opposing side
-                tol       = np.linalg.norm(vvs[iVV]['Dir'], ord=2).astype(float) * mesh_vars.tolPeriodic
                 nbSideIdx = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'periodic')
                 nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
 
                 # Get our and neighbor corner nodes
-                nSideIdx  = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
                 sideID    = get_side_id(nbmapFaces[iSide  ][0:nSideIdx], corner_side)
                 nbSideID  = get_side_id(nbmapFaces[nbiSide][0:nSideIdx], corner_side)
 
@@ -788,7 +785,7 @@ def ConnectMesh() -> None:
                         periodic_update(locSides, locElems, vvs[iVV])
 
                 # Update the progress bar
-                [bar.step() for _ in range(2)]
+                bar.step(2)
 
     # Check if there are missing periodic sides
     nMissSide = [s for s in sides if s.connection is None and s.bcid is not None and bcs[s.bcid].type[0] == 1]
@@ -814,8 +811,7 @@ def ConnectMesh() -> None:
     iter    = 0
     maxIter = copy.copy(nInterZoneConnect)
     tol     = mesh_vars.tolInternal
-    # While maxIter should be enough, this results in non-connected mortar sides. We can append a maximum of 4 virtual sides,
-    # so let's set the maxIter to 5 just to be safe.
+
     while len(nConnSide) > 1 and iter <= maxIter:
         # Ensure the loop exits after checking every side
         iter += 1
@@ -825,10 +821,8 @@ def ConnectMesh() -> None:
         targetCenter = nConnCenter.pop(0)
 
         # Collapse all opposing corner nodes into an [:, 12] array
-        nbCorners  = [s.corners for s in nConnSide]
-        nbCorners  = [s for s in nbCorners if len(s) == len(targetSide.corners)]
-
-        nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+        nbCorners = [s.corners for s in nConnSide if len(s.corners) == len(targetSide.corners)]
+        nbPoints  = np.sort(mesh.points[nbCorners], axis=1)
         if nbPoints.shape[0] == 0:
             hopout.warning(f'Could not find matching sides for {len(nConnSide)+1} sides, exiting...')
             print(mesh.points[targetSide.corners])
@@ -871,7 +865,7 @@ def ConnectMesh() -> None:
             nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
             # Update the progress bar
-            [bar.step() for _ in range(2)]
+            bar.step(2)
 
             if not doMortars:
                 hopout.warning(f'Could not find internal side within tolerance {tol}, exiting...')
@@ -897,8 +891,7 @@ def ConnectMesh() -> None:
 
             # Collapse all opposing corner nodes into an [:, 12] array
             nbCorners  = [s.corners for s in nConnSide]
-            nbPoints   = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
-            nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+            nbPoints   = np.sort(mesh.points[nbCorners], axis=1).reshape(len(nbCorners), -1)
             del nbCorners
 
             # Build a k-dimensional tree of all points on the opposing side
@@ -925,9 +918,8 @@ def ConnectMesh() -> None:
             targetRadius = np.linalg.norm(targetMinMax[1] - targetMinMax[0], ord=2) / 2.
 
             # Find nearby sides to consider as candidate mortar sides
-            targetNeighbors = ctree.query_ball_point(targetCenter, targetRadius)
-            # Eliminate sides in the same element
-            targetNeighbors = [s for s in targetNeighbors if nConnSide[s].elemID != targetSide.elemID]
+            # > Eliminate sides in the same element
+            targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if nConnSide[s].elemID != targetSide.elemID]  # noqa: E501
 
             # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
             candidate_combinations = []
@@ -961,7 +953,7 @@ def ConnectMesh() -> None:
                 nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
 
                 # Update the progress bar
-                [bar.step() for _ in range(len(nbSideID) + 1)]
+                bar.step(len(nbSideID) + 1)
 
             # No connection, attach the side at the end
             else:
