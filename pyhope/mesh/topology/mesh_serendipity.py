@@ -246,6 +246,6 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # hopout.sep()
     # hopout.info('CONVERTING SERENDIPITY TO FULL LANGRANGE MESH DONE!')
-    hopout.sep()
+    # hopout.sep()
 
     return mesh

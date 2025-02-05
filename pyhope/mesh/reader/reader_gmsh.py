@@ -225,22 +225,23 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
+    cells_lst = list(mesh.cells_dict)
 
     # Now, for quadrilateral elements
-    nConnLen = 0
-    nConnNum = 0
-    stree    = spatial.KDTree([[0.0]])
+    nConnLen  = 0
+    nConnNum  = 0
+    stree     = spatial.KDTree([[0.0]])
 
-    if len([value for key, value in mesh.cells_dict.items() if 'quad' in key]) > 0:
+    if any('quad' in key for key in mesh.cells_dict):
         nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
         nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # noqa: E272, E501
-        nConnNum  = list(mesh.cells_dict).index(nConnType)
-        nConnLen  = len(list(mesh.cells_dict))
+        nConnNum  = cells_lst.index(nConnType)
+        nConnLen  = len(cells_lst)
 
         # Collapse all opposing corner nodes into an [:, 12] array
         # nbCorners  = [s['Corners'] for s in nConnSide]
         nbCorners = [s[0:4] for s in nConnSide]
-        nbPoints  = copy.copy(np.sort(mesh.points[nbCorners], axis=1))
+        nbPoints  = np.sort(mesh.points[nbCorners], axis=1).copy()
         nbPoints  = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
         del nbCorners
 
@@ -248,19 +249,19 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
         stree = spatial.KDTree(nbPoints)
 
     # Now, the same thing for triangular elements
-    tConnLen = 0
-    tConnNum = 0
-    ttree    = spatial.KDTree([[0.0]])
+    tConnLen  = 0
+    tConnNum  = 0
+    ttree     = spatial.KDTree([[0.0]])
 
-    if len([value for key, value in mesh.cells_dict.items() if 'triangle' in key]) > 0:
+    if any('triangle' in key for key in mesh.cells_dict):
         tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
         tConnType = [key   for key, _     in mesh.cells_dict.items() if 'triangle' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
-        tConnNum  = list(mesh.cells_dict).index(tConnType)
-        tConnLen  = len(list(mesh.cells_dict))
+        tConnNum  = cells_lst.index(tConnType)
+        tConnLen  = len(cells_lst)
 
         # Collapse all opposing corner nodes into an [:, 9] array
         tbCorners = [s[0:3] for s in tConnSide]
-        tbPoints  = copy.copy(np.sort(mesh.points[tbCorners], axis=1))
+        tbPoints  = np.sort(mesh.points[tbCorners], axis=1).copy()
         tbPoints  = tbPoints.reshape(tbPoints.shape[0], tbPoints.shape[1]*tbPoints.shape[2])
         del tbCorners
 
@@ -275,8 +276,6 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
         fname = GetStr('Filename', number=iName)
         fname = os.path.join(os.getcwd(), fname)
 
-        # Check if the file is using HDF5 format internally
-        tfile = None
         # Create a temporary directory and keep it existing until manually cleaned
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tname = tfile.name
@@ -301,17 +300,18 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
                 sys.exit(1)
 
             key = [s for s in f.keys() if "base" in s.lower()]
-            if len(key) == 0:
-                hopout.warning('Object [Base] does not exist in CGNS file')
-                sys.exit(1)
-            elif len(key) > 1:
-                hopout.warning('More than one object [Base] exists in CGNS file')
-                sys.exit(1)
-
-            if not isinstance(f[key[0]], h5py.Group):
-                hopout.warning('Object [Base] is not a group in CGNS file')
-                sys.exit(1)
-            base = cast(h5py.Group, f[key[0]])
+            match len(key):
+                case 0:
+                    hopout.warning('Object [Base] does not exist in CGNS file')
+                    sys.exit(1)
+                case 1:
+                    if not isinstance(f[key[0]], h5py.Group):
+                        hopout.warning('Object [Base] is not a group in CGNS file')
+                        sys.exit(1)
+                    base = cast(h5py.Group, f[key[0]])
+                case _:
+                    hopout.warning('More than one object [Base] exists in CGNS file')
+                    sys.exit(1)
 
             for baseZone in base.keys():
                 # Ignore the base dataset
@@ -407,13 +407,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     from pyhope.io.formats.cgns import ElemTypes
     # ------------------------------------------------------
     # Load the CGNS points
-    nPoints = int(zone[' data'][0])
-    bpoints = [np.zeros(3, dtype='f8') for _ in range(nPoints)]
-
-    for pointNum, point in enumerate(bpoints):
-        point[0] = float(zone['GridCoordinates']['CoordinateX'][' data'][pointNum])
-        point[1] = float(zone['GridCoordinates']['CoordinateY'][' data'][pointNum])
-        point[2] = float(zone['GridCoordinates']['CoordinateZ'][' data'][pointNum])
+    bpoints = np.column_stack([zone['GridCoordinates'][f'Coordinate{axis}'][' data'][:].astype(float) for axis in 'XYZ'])
 
     # Loop over all BCs
     cellsets = mesh.cell_sets
@@ -437,78 +431,42 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                 # Map the unique quad sides to our non-unique elem sides
                 corners  = cgnsBC[count+1:count+int(elemType['Nodes'])+1]
-                # BCpoints = copy.copy(bpoints[corners])
-                BCpoints = [bpoints[s-1] for s in corners]
-                BCpoints = np.sort(BCpoints, axis=0)
-                BCpoints = BCpoints.flatten()
+                BCpoints = np.sort(bpoints[corners - 1], axis=0).flatten()
                 cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
-                del BCpoints
 
                 # Move to the next element
                 count += int(elemType['Nodes']) + 1
 
         # Data attached to the zoneBC node
         elif f'{zoneBC}/PointList' in zone['ZoneBC']:
-            cgnsBC = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['PointList'][' data'])
-            cgnsBC = sorted(int(s) for s in cgnsBC)
+            cgnsBC = sorted(int(s) for s in zone['ZoneBC'][zoneBC]['PointList'][' data'])
 
-            # Read the shell elements (either from GridShells or SurfaceElements)
-            # Check how Surface Elements are stored in the file. This destinguishes
-            # for example ANSA unstructured and structured CGNS output
-            if 'GridShells' in zone:
-                cgnsShells  = cast(h5py.Dataset, zone['GridShells']['ElementConnectivity'][' data'])
-                nShells     = cast(int, zone['GridShells']['ElementRange'][' data'][0])
-            elif 'SurfaceElements' in zone:
-                cgnsShells  = cast(h5py.Dataset, zone['SurfaceElements']['ElementConnectivity'][' data'])
-                nShells     = cast(int, zone['SurfaceElements']['ElementRange'][' data'][0])
-            else:
+            # Identify how surface elements are stored
+            surface_key = 'GridShells' if 'GridShells' in zone else 'SurfaceElements' if 'SurfaceElements' in zone else None
+            if not surface_key:
                 hopout.warning('Format of BC implementation for FaceCenters not recognized, exiting...')
                 sys.exit(1)
 
+            cgnsShells  =     zone[surface_key]['ElementConnectivity'][' data']
+            nShells     = int(zone[surface_key]['ElementRange'       ][' data'][0])
+
             # Get the location of the BC faces
             cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
+            cgns_set    = set(cgnsBC)
 
-            if cgnsGridLoc == 'Vertex':
-                count    = 0
-                cgnsSmax = 0
-                cgnsSmin = sys.maxsize
+            # Read the surface elements, one at a time
+            count   = 0
 
-                # Precompute the min and max values in cgnsBC for filtering
-                cgns_set = set(cgnsBC)
+            # Loop over all elements and get the type
+            while count < cgnsShells.shape[0]:
+                elemType = ElemTypes(cgnsShells[count])
+                nNodes   = int(elemType['Nodes'])
 
-                # Loop over all elements and get the type
-                while count < cgnsShells.shape[0]:
-                    elemType = ElemTypes(cgnsShells[count])
-                    nNodes   = int(elemType['Nodes'])
+                corners  = cgnsShells[count+1:count+nNodes+1]
 
-                    corners  = cgnsShells[count+1:count+nNodes+1]
-                    # corners  = sorted(int(s) for s in corners)
-
-                    cgnsSmax = max(np.max(corners), cgnsSmax)
-                    cgnsSmin = min(np.min(corners), cgnsSmin)
-
-                    count   += int(elemType['Nodes']) + 1
-
-                # Read the surface elements, one at a time
-                count   = 0
-
-                # Loop over all elements and get the type
-                while count < cgnsShells.shape[0]:
-                    elemType = ElemTypes(cgnsShells[count])
-                    nNodes   = int(elemType['Nodes'])
-
-                    corners  = cgnsShells[count+1:count+nNodes+1]
-                    corners  = sorted(int(s) for s in corners)
-
-                    # Early rejection based on bounds
-                    # if max(corners) > cgnsSmax or min(corners) < cgnsSmin:
-                    #     count   += int(elemType['Nodes']) + 1
-                    #     continue
-
-                    # Filter cgnsBC to narrow the search space
-                    # filtered_cgnsBC = [x for x in cgnsBC if cgnsSmin <= x <= cgnsSmax]
-
+                if cgnsGridLoc == 'Vertex':
                     # Check if corners can form a subset of cgnsBC
+                    corners     = sorted(int(s) for s in corners)
                     corners_set = set(corners)
                     if corners_set.issubset(cgns_set):
                         BCpoints = [bpoints[s-1] for s in corners]
@@ -525,17 +483,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                     count   += int(elemType['Nodes']) + 1
 
-            elif cgnsGridLoc == 'FaceCenter':
-                count    = 0
-
-                # Loop over all elements and get the type
-                while count < cgnsShells.shape[0]:
-                    elemType = ElemTypes(cgnsShells[count])
-                    nNodes   = int(elemType['Nodes'])
-
-                    corners  = cgnsShells[count+1:count+nNodes+1]
-                    # corners  = sorted(int(s) for s in corners)
-
+                elif cgnsGridLoc == 'FaceCenter':
                     if nShells in cgnsBC:
                         BCpoints = [bpoints[s-1] for s in corners]
 
@@ -594,22 +542,19 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     # from pyhope.io.io_cgns import ElemTypes
     # ------------------------------------------------------
     # Load the zone BCs
-    zoneBCs = zone['ZoneBC']
-
-    for zoneBC in zoneBCs:
+    for zoneBC, bcData in zone['ZoneBC'].items():
         try:
-            cgnsBC   = cast(h5py.Dataset, zone['ZoneBC'][zoneBC]['FamilyName'][' data'])
+            cgnsBC   = bcData['FamilyName'][' data']
             cgnsName = ''.join(map(chr, cgnsBC)).lower()
         except KeyError:
-            cgnsName = zoneBC.rpartition('_')[0].lower()
+            cgnsName = zoneBC.split('_', 1)[0].lower()
 
         # Ignore internal DEFAULT BCs
         if 'DEFAULT' in cgnsName:
             continue
 
         try:
-            cgnsPointRange = zone['ZoneBC'][zoneBC]['PointRange'][' data']
-            cgnsPointRange = np.array(cgnsPointRange, dtype=int) - 1
+            cgnsPointRange = np.array(bcData['PointRange'][' data'], dtype=int) - 1
             # Sanity check the CGNS point range
             if any(cgnsPointRange[1, :] - cgnsPointRange[0, :] < 0):
                 hopout.warning(f'Point range is not monotonically increasing on BC "{cgnsName}", exiting...')
@@ -621,14 +566,11 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             kStart, kEnd = cgnsPointRange[:, 2]
 
             # Load the grid coordinates
-            iCoords = np.array(zone['GridCoordinates']['CoordinateX'][' data'])
-            jCoords = np.array(zone['GridCoordinates']['CoordinateY'][' data'])
-            kCoords = np.array(zone['GridCoordinates']['CoordinateZ'][' data'])
+            coords = {axis: np.array(zone['GridCoordinates'][f'Coordinate{axis}'][' data']) for axis in 'XYZ'}
 
             # Slice the grid
-            xSurf = iCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
-            ySurf = jCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
-            zSurf = kCoords[kStart:kEnd+1, jStart:jEnd+1, iStart:iEnd+1].squeeze()
+            slices = (slice(kStart, kEnd + 1), slice(jStart, jEnd + 1), slice(iStart, iEnd + 1))
+            xSurf, ySurf, zSurf = (coords[axis][slices].squeeze() for axis in 'XYZ')
 
             # Dimensions of the surface grid
             iDim, jDim = xSurf.shape
@@ -638,28 +580,23 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
                 raise ValueError(f"Grid dimensions ({iDim}, {jDim}) are not divisible by the agglomeration factor {mesh_vars.nGeo}")
 
             # Slice the grid for agglomeration
-            xSurfNGeo = xSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
-            ySurfNGeo = ySurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
-            zSurfNGeo = zSurf[::mesh_vars.nGeo, ::mesh_vars.nGeo]
+            step = mesh_vars.nGeo
+            xSurfNGeo, ySurfNGeo, zSurfNGeo = (arr[::step, ::step] for arr in (xSurf, ySurf, zSurf))
 
             # Updated dimensions after agglomeration
             iDimNGeo, jDimNGeo = xSurfNGeo.shape
 
             # Generate quads for the agglomerated grid
-            quads = []
-            for j in range(iDimNGeo - 1):
-                for k in range(jDimNGeo - 1):
-                    # Define the quad by its four corner points
-                    quads.append([(xSurfNGeo[j    , k    ], ySurfNGeo[j    , k    ], zSurfNGeo[j    , k    ]),
-                                  (xSurfNGeo[j + 1, k    ], ySurfNGeo[j + 1, k    ], zSurfNGeo[j + 1, k    ]),
-                                  (xSurfNGeo[j + 1, k + 1], ySurfNGeo[j + 1, k + 1], zSurfNGeo[j + 1, k + 1]),
-                                  (xSurfNGeo[j    , k + 1], ySurfNGeo[j    , k + 1], zSurfNGeo[j    , k + 1]),])
+            # Define the quad by its four corner points
+            quads = np.array([[(xSurfNGeo[j    , k    ], ySurfNGeo[j    , k    ], zSurfNGeo[j    , k    ]),
+                               (xSurfNGeo[j + 1, k    ], ySurfNGeo[j + 1, k    ], zSurfNGeo[j + 1, k    ]),
+                               (xSurfNGeo[j + 1, k + 1], ySurfNGeo[j + 1, k + 1], zSurfNGeo[j + 1, k + 1]),
+                               (xSurfNGeo[j    , k + 1], ySurfNGeo[j    , k + 1], zSurfNGeo[j    , k + 1]) ] for j in range(iDimNGeo - 1)    # noqa: E501
+                                                                                                             for k in range(jDimNGeo - 1)])  # noqa: E501
+
         except KeyError:
             hopout.warning(f'ZoneBC "{zoneBC}" does not have a PointRange. PointLists are currently not supported.')
             sys.exit(1)
-
-        # Convert to numpy array if needed
-        quads = np.array(quads)
 
         # Loop over all elements
         cellsets = mesh.cell_sets
@@ -667,13 +604,8 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             # elemType = ElemTypes(cgnsBC[count])
 
             # Map the unique quad sides to our non-unique elem sides
-            BCpoints = quad
-            BCpoints = np.sort(BCpoints, axis=0)
-            BCpoints = BCpoints.flatten()
+            BCpoints = np.sort(quad, axis=0).flatten()
             cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, cgnsName)
-
-            # Move to the next element
-            # count += int(elemType['Nodes']) + 1
 
         mesh   = meshio.Mesh(points    = points,    # noqa: E251
                              cells     = cells,     # noqa: E251
