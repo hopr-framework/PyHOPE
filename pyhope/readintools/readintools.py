@@ -367,12 +367,13 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     import pyhope.config.config as config
     import pyhope.output.output as hopout
     # ------------------------------------------------------
-    value = GetParam(name=name, default=default, number=number, calltype='int2str')
+    value  = GetParam(name=name, default=default, number=number, calltype='int2str')
+    source = 'DEFAULT' if config.prms[name]['counter'] == 0 else 'CUSTOM'
+
     # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']
     if type(value) is int:
-        value = value
-        hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), 'DEFAULT')
+        hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
     else:
         if not value.isdigit():
             value = [s for s, v in mapping.items() if v.lower() == value.lower()]
@@ -382,7 +383,9 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
                 sys.exit(1)
             else:
                 value = int(value[0])
-                hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), '*CUSTOM')
+                hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
+        else:
+            hopout.printoption(name, '{} [{}]'.format(value, mapping[int(value)]), source)
 
     return int(value)
 
