@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import re
 import sys
 from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -151,4 +152,4 @@ def OrientMesh() -> None:
 
     # Warn if we passed any element types
     if len(passedTypes) > 0:
-        print(hopout.warn(f'Ignored element type{'s' if len(passedTypes) > 1 else ""}: {[s for s in passedTypes]}'))
+        print(hopout.warn(f'Ignored element type{'s' if len(passedTypes) > 1 else ""}: {[re.sub(r"\d+$", "", s) for s in passedTypes]}'))

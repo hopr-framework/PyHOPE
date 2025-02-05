@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import plotext as plt
+import re
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -182,7 +183,7 @@ def CheckJacobians() -> None:
     # Only consider hexahedrons
     if any(e.type % 100 != 8 for e in elems):
         elemTypes   = list(set([e.type for e in elems if e.type % 100 != 8]))
-        passedTypes = [mesh_vars.ELEMTYPE.inam[e][0] for e in elemTypes]
+        passedTypes = [re.sub(r'\d+$', '', mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]
         print(hopout.warn(f'Ignored element type{'s' if len(passedTypes) > 1 else ""}: {[s for s in passedTypes]}'))
 
     # Plot the histogram of the Jacobians
