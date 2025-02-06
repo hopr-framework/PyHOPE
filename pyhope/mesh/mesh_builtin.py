@@ -211,9 +211,6 @@ def MeshCartesian() -> meshio.Mesh:
             else:
                 continue
 
-            hopout.routine('Generated periodicity constraint with vector {}'.format(
-                vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
-
             translation = [1., 0., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][0]),
                            0., 1., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][1]),
                            0., 0., 1., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][2]),
@@ -228,8 +225,21 @@ def MeshCartesian() -> meshio.Mesh:
             # > find_indices returns all we need!
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
 
+            # If the number of sides do not match, we cannot impose periodicity
+            # > Leave it out here and assume we can sort it out in ConnectMesh
+            if len(surfID) != len(nbSurfID):
+                print(hopout.warn(' No GMSH periodicity with vector {}'.format(
+                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
+                continue
+
+            hopout.routine('Generated periodicity constraint with vector {}'.format(
+                vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
+
             # Connect positive to negative side
             gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
+
+    if len(vvs) > 0:
+        hopout.sep()
 
     # To generate connect the generated cells, we can simply set
     gmsh.option.setNumber('Mesh.RecombineAll'  , 1)

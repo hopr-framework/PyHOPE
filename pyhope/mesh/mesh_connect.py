@@ -107,7 +107,27 @@ def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
     sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
 
 
-def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: list) -> list:
+def points_exist_in_target(pts, slavePts, tol) -> bool:
+    """ Check if the combined points of candidate sides match the target side within tolerance.
+    """
+    return all(any(np.allclose(pt, sp, rtol=tol, atol=tol) for sp in slavePts) for pt in pts)
+
+
+def point_exists_in_side(masterPoint, slaveSide, tol) -> bool:
+    """ Check if the combined points of candidate sides match the target side within tolerance.
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    slavePoints = mesh_vars.mesh.points[slaveSide.corners]
+    return any(np.allclose(masterPoint, sp, rtol=tol, atol=tol) for sp in slavePoints)
+
+
+def connect_mortar_sides( sideIDs  : list
+                        , elems    : list
+                        , sides    : list
+                        , nConnSide: list
+                        , vv       : Optional[np.ndarray] = None) -> list:
     """ Connect the master (big mortar) and the slave (small mortar) sides
         > Create the virtual sides as needed
     """
@@ -122,6 +142,12 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
     masterElem    = elems[masterSide.elemID]
     # masterType    = masterElem['Type']
     masterCorners = masterSide.corners
+    masterPoints  = mesh_vars.mesh.points[masterCorners].copy()
+
+    if vv is not None:
+        # Shift the points in periodic direction
+        masterPoints += vv
+    tol = mesh_vars.tolInternal if vv is None else mesh_vars.tolPeriodic
 
     # Build mortar type and orientation
     nMortars = len(sideIDs[1])
@@ -130,12 +156,14 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
             # Check which edges of big and small side are identical to determine the mortar type
             slaveSide    = sides[sideIDs[1][0]]
             slaveCorners = slaveSide.corners
+            slavePoints  = mesh_vars.mesh.points[slaveCorners]
 
-            if   all(s in slaveCorners for s in [masterCorners[0], masterCorners[1]]) or \
-                 all(s in slaveCorners for s in [masterCorners[2], masterCorners[3]]):  # noqa: E271
+            # Check which edges match
+            if   points_exist_in_target([masterPoints[0], masterPoints[1]], slavePoints, tol) or \
+                 points_exist_in_target([masterPoints[2], masterPoints[3]], slavePoints, tol):  # noqa: E271
                 mortarType = 2
-            elif all(s in slaveCorners for s in [masterCorners[1], masterCorners[2]]) or \
-                 all(s in slaveCorners for s in [masterCorners[0], masterCorners[3]]):
+            elif points_exist_in_target([masterPoints[1], masterPoints[2]], slavePoints, tol) or \
+                 points_exist_in_target([masterPoints[0], masterPoints[3]], slavePoints, tol):
                 mortarType = 3
             else:
                 hopout.warning('Could not determine mortar type, exiting...')
@@ -147,20 +175,32 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
 
             # Sort the small sides
             # > Order according to master corners, [0, 2]
-            slaveSides = [ sides[sideID] for i in [0, 2      ]
-                                         for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
+            # slaveSides = [ sides[sideID] for i in [0, 2      ]
+            #                              for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
+            slaveSides = [ sides[sideID] for i in [0, 2]
+                                         for sideID in sideIDs[1] if point_exists_in_side(masterPoints[i], sides[sideID], tol)
+        ]
 
         case 4:
             mortarType = 1
             # Sort the small sides
             # > Order according to master corners, [0, 1, 3, 2]
+            # slaveSides = [ sides[sideID] for i in [0, 1, 3, 2]
+            #                              for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
             slaveSides = [ sides[sideID] for i in [0, 1, 3, 2]
-                                         for sideID in sideIDs[1] if masterCorners[i] in sides[sideID].corners]
+                                         for sideID in sideIDs[1] if point_exists_in_side(masterPoints[i], sides[sideID], tol)
+        ]
 
         case _:
             hopout.warning('Found invalid number of sides for mortar side, exiting...')
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
+
+    # Sanity check
+    if len(slaveSides) != nMortars:
+        hopout.warning('Could not determine mortar type, exiting...')
+        traceback.print_stack(file=sys.stdout)
+        sys.exit(1)
 
     # Update the master side
     # sides[sideIDs[0]].update(
@@ -199,10 +239,9 @@ def connect_mortar_sides(sideIDs: list, elems: list, sides: list, nConnSide: lis
     # Insert the virtual sides
     for key, val in enumerate(slaveSides):
         tol        = mesh_vars.tolInternal
-        points     = mesh_vars.mesh.points[masterSide.corners]
         nbcorners  = mesh_vars.mesh.points[val.corners]
 
-        flipID = flip_physical(points[mortarCorners[key]], nbcorners, tol, 'mortar')
+        flipID = flip_physical(masterPoints[mortarCorners[key]], nbcorners, tol, 'mortar')
         flipID = flipMap.get(mortarCorners[key], {}).get(flipID, flipID)
         # val.update(flip=flipID)
         val.flip = flipID
@@ -275,10 +314,18 @@ def find_closest_side(points: np.ndarray, stree: spatial.KDTree, tol: float, msg
     return cast(int, trSide[1])
 
 
-def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.Mesh, tol: float) -> bool:
+def find_mortar_match( targetCorners: np.ndarray
+                     , comboSides   : list
+                     , mesh         : meshio.Mesh
+                     , tol          : float
+                     , vv           : Optional[np.ndarray] = None) -> bool:
     """ Check if the combined points of candidate sides match the target side within tolerance.
     """
-    targetPoints = mesh.points[targetCorners]
+    targetPoints = mesh.points[targetCorners].copy()
+    if vv is not None:
+        # Shift the points in periodic direction
+        targetPoints += vv
+
     ttree = spatial.KDTree(targetPoints)
 
     comboCorners = [s.corners for s in comboSides]
@@ -306,19 +353,21 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
         # Look for 2-1 matches, we need exactly one common edge
         for edge in sideEdges[0]:
-            targetP    = edge[:2]  # Start and end points (iX, jX)
+            # targetP    = edge[:2]  # Start and end points (iX, jX)
+            targetP    = [mesh.points[s] for s in edge[:2]]
             targetDist = edge[2]   # Distance between points
 
             # Initialize a list to store the matching combo edges for the current target edge
             matchEdges = []
 
             for comboEdge in sideEdges[1]:
-                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                # comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                comboP    = [mesh.points[s] for s in comboEdge[:2]]
                 comboDist = comboEdge[2]   # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
-                if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
-                    all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
+                if (np.allclose(np.stack(targetP), np.stack(comboP)      , rtol=tol, atol=tol)  or  # noqa: E272
+                    np.allclose(np.stack(targetP), np.stack(comboP[::-1]), rtol=tol, atol=tol)) and \
                     np.isclose(targetDist, comboDist):
                     matchEdges.append(comboEdge)
 
@@ -339,21 +388,27 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
         # Iterate over each target edge
         for targetEdge in targetEdges:
-            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+            # targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+            targetP    = [mesh.points[s].copy() for s in targetEdge[:2]]
             targetDist = targetEdge[2]   # Distance between points
+
+            if vv is not None:
+                # Shift the points in periodic direction
+                targetP += vv
 
             # Initialize a list to store the matching combo edges for the current target edge
             matchEdges = []
 
             # Iterate over comboEdges to find matching edges
             for comboEdge in comboEdges:
-                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                # comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                comboP    = [mesh.points[s] for s in comboEdge[:2]]
                 comboDist = comboEdge[2]   # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
-                if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
-                    all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
-                   np.isclose(targetDist, comboDist):
+                if (np.allclose(np.stack(targetP), np.stack(comboP)      , rtol=tol, atol=tol)  or  # noqa: E272
+                    np.allclose(np.stack(targetP), np.stack(comboP[::-1]), rtol=tol, atol=tol)) and \
+                    np.isclose(targetDist, comboDist):
                     matchEdges.append(comboEdge)
 
             # This should result in exactly 1 match
@@ -393,21 +448,27 @@ def find_mortar_match(targetCorners: np.ndarray, comboSides: list, mesh: meshio.
 
         # Iterate over each target edge
         for targetEdge in targetEdges:
-            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+            # targetP    = targetEdge[:2]  # Start and end points (iX, jX)
+            targetP    = [mesh.points[s].copy() for s in targetEdge[:2]]
             targetDist = targetEdge[2]   # Distance between points
+
+            if vv is not None:
+                # Shift the points in periodic direction
+                targetP += vv
 
             # Initialize a list to store the matching combo edges for the current target edge
             matchEdges = []
 
             # Iterate over comboEdges to find matching edges
             for comboEdge in comboEdges:
-                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                # comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                comboP    = [mesh.points[s] for s in comboEdge[:2]]
                 comboDist = comboEdge[2]  # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
-                if (all(np.isclose(tp, cp) for tp, cp in zip(targetP, comboP)) or
-                    all(np.isclose(tp, cp) for tp, cp in zip(targetP, reversed(comboP)))) and \
-                   np.isclose(targetDist, comboDist):
+                if (np.allclose(np.stack(targetP), np.stack(comboP)      , rtol=tol, atol=tol)  or  # noqa: E272
+                    np.allclose(np.stack(targetP), np.stack(comboP[::-1]), rtol=tol, atol=tol)) and \
+                    np.isclose(targetDist, comboDist):
                     matchEdges.append(comboEdge)
 
             # This should result in exactly 1 match
@@ -507,6 +568,19 @@ def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
     corners_sorted = np.sort(corners)
     corners_hash = hash(corners_sorted.tobytes())
     return side_dict[corners_hash][0]
+
+
+def get_nonconnperiod_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:
+    """ Get a list of internal sides that are not connected to any
+        other side together with a list of their centers
+    """
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    # Update the list
+    nConnSide   = [s for s in sides if s.connection is None and s.bcid is not None and mesh_vars.bcs[s.bcid].type[0] == 1]
+    nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
+    return nConnSide, nConnCenter
 
 
 def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:
@@ -739,56 +813,156 @@ def ConnectMesh() -> None:
             for iSide in iBCsides:
                 # Get the quad corner nodes
                 corners   = np.array(nbmapFaces[iSide])
-                points    = copy.copy(mesh.points[corners])
+                points    = mesh.points[corners].copy()
 
                 # Shift the points in periodic direction
-                for iPoint in range(points.shape[0]):
-                    points[iPoint, :] += vvs[iVV]['Dir']
+                points   += vvs[iVV]['Dir']
                 points    = np.sort(points, axis=0).flatten()
 
                 # Query the tree for the opposing side
-                nbSideIdx = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'periodic')
-                nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
+                nbSideIdx = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'periodic', doMortars)
 
-                # Get our and neighbor corner nodes
-                sideID    = get_side_id(nbmapFaces[iSide  ][0:nSideIdx], corner_side)
-                nbSideID  = get_side_id(nbmapFaces[nbiSide][0:nSideIdx], corner_side)
+                # Regular periodic side
+                if nbSideIdx >= 0:
+                    nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
+
+                    # Get our and neighbor corner nodes
+                    sideID    = get_side_id(nbmapFaces[iSide  ][0:nSideIdx], corner_side)
+                    nbSideID  = get_side_id(nbmapFaces[nbiSide][0:nSideIdx], corner_side)
+
+                    # Build the connection, including flip
+                    sideIDs   = [sideID, nbSideID]
+                    points    = mesh.points[sides[sideIDs[0]].corners]
+                    for iPoint in range(points.shape[0]):
+                        points[iPoint, :] += vvs[iVV]['Dir']
+
+                    # > Find the first neighbor point to determine the flip
+                    nbcorners = mesh.points[sides[sideIDs[1]].corners]
+                    flipID    = flip_physical(points[0], nbcorners, tol, 'periodic')
+
+                    # Connect the sides
+                    connect_sides(sideIDs, sides, flipID)
+
+                    # Update the sides
+                    if doPeriodicCorrect:
+                        locSides    = [mesh_vars.sides[s]        for s in sideIDs ]  # noqa: E272
+                        locElems    = [mesh_vars.elems[s.elemID] for s in locSides]
+
+                        # Only update hexahedral elements
+                        if any(e.type % 100 != 8 for e in locElems):
+                            for e in locElems:
+                                try:
+                                    # Increment the count for each type in passedTypes
+                                    passedTypes[e.type] += 1
+                                except KeyError:
+                                    # If the type is not in passedTypes, initialize it with 1
+                                    passedTypes[e.type] = 1
+                        else:
+                            periodic_update(locSides, locElems, vvs[iVV])
+
+                    # Update the progress bar
+                    bar.step(2)
+
+    # Check if there are missing periodic sides
+    nMissSide, nMissCenter = get_nonconnperiod_sides(sides, mesh)
+    nInterMissConnect      = len(nMissSide)
+
+    # Periodic mortar sides
+    if doMortars:
+        iter    = 0
+        maxIter = copy.copy(nInterMissConnect)
+        tol     = mesh_vars.tolPeriodic
+
+        while len(nMissSide) > 1 and iter <= maxIter:
+            # Ensure the loop exits after checking every side
+            iter += 1
+
+            # Remove the first side from the list
+            targetSide   = nMissSide  .pop(0)
+            targetCenter = nMissCenter.pop(0)
+
+            # Get the opposite side
+            bcID         = targetSide.bcid
+            iVV          = bcs[bcID].type[3] - 1
+
+            # Collapse all opposing corner nodes into an [:, 12] array
+            nbCorners  = [s.corners for s in nMissSide]
+            nbPoints   = np.sort(mesh.points[nbCorners], axis=1).reshape(len(nbCorners), -1)
+            del nbCorners
+
+            # Build a k-dimensional tree of all points on the opposing side
+            stree      = spatial.KDTree(nbPoints)
+            ctree      = spatial.KDTree(nMissCenter)
+
+            # Map the unique quad sides to our non-unique elem sides
+            corners    = targetSide.corners
+            points     = mesh.points[corners].copy()
+
+            # Shift the points in periodic direction
+            points    += vvs[iVV]['Dir']
+            points     = np.sort(points, axis=0).flatten()
+            targetCenter += vvs[iVV]['Dir']
+
+            # Query the tree for the opposing side
+            nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars)
+
+            # Mortar side
+            # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
+            # > generates no match, we simply append the side again at the end and try again. As the loop exists after checking
+            # > len(nMissSide), we will check each side once.
+            if nbSideIdx >= 0:
+                continue
+
+            # Calculate the radius of the convex hull
+            targetPoints = mesh.points[corners].copy()
+            targetMinMax = (targetPoints.min(axis=0), targetPoints.max(axis=0))
+            targetRadius = np.linalg.norm(targetMinMax[1] - targetMinMax[0], ord=2) / 2.
+
+            # Find nearby sides to consider as candidate mortar sides
+            # > Eliminate sides in the same element
+            targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if nMissSide[s].elemID != targetSide.elemID]  # noqa: E501
+
+            # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
+            candidate_combinations = []
+            if len(targetNeighbors) >= 2:
+                candidate_combinations += list(itertools.combinations(targetNeighbors, 2))
+            if len(targetNeighbors) >= 4:
+                candidate_combinations += list(itertools.combinations(targetNeighbors, 4))
+
+            # Attempt to match the target side with candidate combinations
+            matchFound   = False
+            comboSides   = []
+            for comboIDs in candidate_combinations:
+                # Get the candidate sides
+                comboSides   = [nMissSide[iSide] for iSide in comboIDs]
+
+                # Found a valid match
+                if find_mortar_match(targetSide.corners, comboSides, mesh, tol, vvs[iVV]['Dir']):
+                    matchFound = True
+                    break
+
+            if matchFound:
+                # Get our and neighbor corner quad nodes
+                sideID    =  targetSide.sideID
+                nbSideID  = [side.sideID for side in comboSides]
 
                 # Build the connection, including flip
                 sideIDs   = [sideID, nbSideID]
-                points    = mesh.points[sides[sideIDs[0]].corners]
-                for iPoint in range(points.shape[0]):
-                    points[iPoint, :] += vvs[iVV]['Dir']
 
-                # > Find the first neighbor point to determine the flip
-                nbcorners = mesh.points[sides[sideIDs[1]].corners]
-                flipID    = flip_physical(points[0], nbcorners, tol, 'periodic')
-
-                # Connect the sides
-                connect_sides(sideIDs, sides, flipID)
-
-                # Update the sides
-                if doPeriodicCorrect:
-                    locSides    = [mesh_vars.sides[s]        for s in sideIDs ]  # noqa: E272
-                    locElems    = [mesh_vars.elems[s.elemID] for s in locSides]
-
-                    # Only update hexahedral elements
-                    if any(e.type % 100 != 8 for e in locElems):
-                        for e in locElems:
-                            try:
-                                # Increment the count for each type in passedTypes
-                                passedTypes[e.type] += 1
-                            except KeyError:
-                                # If the type is not in passedTypes, initialize it with 1
-                                passedTypes[e.type] = 1
-                    else:
-                        periodic_update(locSides, locElems, vvs[iVV])
+                # Connect mortar sides and update the list
+                nMissSide   = connect_mortar_sides(sideIDs, elems, sides, nMissSide, vvs[iVV]['Dir'])
+                nMissCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nMissSide]
 
                 # Update the progress bar
-                bar.step(2)
+                bar.step(len(nbSideID) + 1)
 
-    # Check if there are missing periodic sides
-    nMissSide = [s for s in sides if s.connection is None and s.bcid is not None and bcs[s.bcid].type[0] == 1]
+            # No connection, attach the side at the end
+            else:
+                nMissSide  .append(targetSide)
+                nMissCenter.append(targetCenter)
+
+    nMissSide, _ = get_nonconnperiod_sides(sides, mesh)
+
     if len(nMissSide) > 0:
         nPeriSide = [s for s in sides if s.bcid is not None and bcs[s.bcid].type[0] == 1]
         hopout.warning(f'Failed to connect {len(nMissSide)} / {len(nPeriSide)} periodic sides')
