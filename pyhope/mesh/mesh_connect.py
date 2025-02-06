@@ -742,6 +742,10 @@ def ConnectMesh() -> None:
 
         # Get the list of sides
         for iMap in csetMap[key]:
+            # Only 2D faces
+            if not any(s in list(mesh_vars.mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
+                continue
+
             iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
             mapFaces = mesh.cells[iMap].data
             # Support for hybrid meshes
