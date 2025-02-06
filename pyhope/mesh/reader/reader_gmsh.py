@@ -202,7 +202,6 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
-    from pyhope.readintools.readintools import CountOption, GetStr
     # ------------------------------------------------------
 
     hopout.routine('Setting boundary conditions')
