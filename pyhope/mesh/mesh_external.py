@@ -45,6 +45,7 @@ def MeshExternal() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.config.config import prmfile
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH, BCCGNS
     from pyhope.mesh.reader.reader_hopr import ReadHOPR
@@ -83,12 +84,16 @@ def MeshExternal() -> meshio.Mesh:
     # Load the mesh(es)
     mesh   = meshio.Mesh(np.array([]), dict())
     fnames = [GetStr('Filename', number=i) for i in range(CountOption('Filename'))]
-    for fname in fnames:
-        fname = os.path.join(os.getcwd(), fname)
 
-        # check if the file exists
-        if not os.path.isfile(os.path.join(os.getcwd(), fname)):
-            hopout.warning('File [󰇘]/{} does not exist'.format(os.path.basename(fname)))
+    # Check whether mesh file exists in the current directory or in the same directory
+    for iFile, fname in enumerate(fnames):
+        if os.path.isfile(os.path.abspath(fname)):
+            fnames[iFile] = os.path.abspath(fname)
+        elif os.path.isfile(os.path.join(os.path.dirname(prmfile), fname)):
+            fnames[iFile] = os.path.abspath(os.path.join(os.path.dirname(prmfile), fname))
+            print(hopout.warn('Mesh not found in the CWD, but found in the prmfile directory.'))
+        else:
+            hopout.warning('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
             sys.exit(1)
 
     if not all(compatibleGMSH(fname) for fname in fnames):
@@ -115,7 +120,7 @@ def MeshExternal() -> meshio.Mesh:
 
     # Regenerate the boundary conditions
     if mesh_vars.CGNS.regenerate_BCs:
-        mesh = BCCGNS(mesh)
+        mesh = BCCGNS(mesh, fgmsh)
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()

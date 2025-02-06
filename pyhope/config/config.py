@@ -36,6 +36,7 @@ from configparser import ConfigParser
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+prmfile    : str                                 # Path to the parameter file
 prms       : dict                                # Defined parameter options
 params     : ConfigParser                        # ConfigParser containing the read options
 std_length : int                                 # Standard length for output printing

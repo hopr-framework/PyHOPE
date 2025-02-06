@@ -461,7 +461,11 @@ class ReadConfig():
             hopout.header(program, version, commit)
             hopout.warning('No parameter file given')
             sys.exit(1)
-        if not os.path.isfile(self.parameter):
+
+        # Sore full path of the parameter file
+        config.prmfile = os.path.abspath(self.parameter)
+
+        if not os.path.isfile(config.prmfile):
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
             common  = Common()
             program = common.program

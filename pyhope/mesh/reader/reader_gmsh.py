@@ -196,7 +196,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     return mesh
 
 
-def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
+def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
         > Add them here manually to the meshIO object
     """
@@ -271,10 +271,7 @@ def BCCGNS(mesh: meshio.Mesh) -> meshio.Mesh:
     tol = 1.E-10
 
     # Now set the missing CGNS boundaries
-    fnames = CountOption('Filename')
-    for iName in range(fnames):
-        fname = GetStr('Filename', number=iName)
-        fname = os.path.join(os.getcwd(), fname)
+    for fname in fnames:
 
         # Create a temporary directory and keep it existing until manually cleaned
         tfile = tempfile.NamedTemporaryFile(delete=False)

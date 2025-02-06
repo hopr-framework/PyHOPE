@@ -202,5 +202,3 @@ def PkgsInstallGmsh(system: str, arch: str, version: str):
     else:
         # Install the package in the current environment
         _ = subprocess.run(command + ['install'] + ['gmsh'], check=True)
-
-
