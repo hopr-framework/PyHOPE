@@ -163,6 +163,7 @@ def TransformMesh():
     if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot]) and meshPostDeform == 'none':
         return
 
+    # Start with basic transformations
     hopout.separator()
     hopout.info('TRANSFORM MESH...')
     hopout.sep()
@@ -193,6 +194,13 @@ def TransformMesh():
     if not np.array_equal(meshRot, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
         mesh.points = meshRotC + (mesh.points-meshRotC) @ meshRot
 
+    # Exit routine if no further advanced transformation is required
+    if meshPostDeform == 'none':
+        hopout.sep()
+        hopout.info('TRANSFORM MESH DONE!')
+        return
+
+    # Continue with advanced transformations
     hopout.sep()
     hopout.routine('Performing advanced transformations')
     hopout.routine('  Template: {}'.format(meshPostDeform))
