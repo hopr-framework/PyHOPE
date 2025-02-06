@@ -288,8 +288,9 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
             # Rest of this code operates on the converted file
             fname = tname
-        # Alternatively, load the file directly into tmpfs for faster access
-        shutil.copyfile(fname, tname)
+        else:
+            # Alternatively, load the file directly into tmpfs for faster access
+            shutil.copyfile(fname, tname)
 
         with h5py.File(fname, mode='r') as f:
             if 'CGNSLibraryVersion' not in f.keys():
