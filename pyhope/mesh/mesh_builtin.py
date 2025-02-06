@@ -54,7 +54,7 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
-    from pyhope.mesh.mesh_transform import CalcStretching
+    from pyhope.mesh.transform.mesh_transform import CalcStretching
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------

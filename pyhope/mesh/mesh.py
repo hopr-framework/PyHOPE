@@ -96,12 +96,10 @@ def DefineMesh() -> None:
     CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
     CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
     CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
-    CreateIntFromString('MeshPostDeform',   default='none',                           help='Mesh post-transformation template')
-    CreateIntOption(    'MeshPostDeform', number=0, name='none')
-    CreateIntOption(    'MeshPostDeform', number=1, name='convtest')
-    CreateRealArray('Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
+    CreateStr(       'MeshPostDeform',   default='none',                              help='Mesh post-transformation template')
+    CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
                                                                                       'each spatial direction.')  # noqa: E127
-    CreateRealArray('l0',              3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
+    CreateRealArray( 'l0',              3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
                                                                                                     'direction')  # noqa: E127
 
 

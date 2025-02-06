@@ -25,6 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import importlib.util
+import os
 import sys
 import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -141,26 +143,11 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
     return progFac
 
 
-def DistortMesh(points: np.ndarray) -> np.ndarray:
-    eps = 1./16
-    for iPoint, xPoint in enumerate(points):
-        points[iPoint, 0] = xPoint[0] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
-                                              np.sin(4*np.pi*(xPoint[1]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[2]-0.5))
-        points[iPoint, 1] = xPoint[1] + eps * np.cos(3*np.pi*(xPoint[0]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[1]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[2]-0.5))
-        points[iPoint, 2] = xPoint[2] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
-                                              np.cos(2*np.pi*(xPoint[1]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[2]-0.5))
-
-    return points
-
-
 def TransformMesh():
     # Local imports ----------------------------------------
+    from pyhope.config.config import prmfile
     from pyhope.readintools.readintools import CountOption
-    from pyhope.readintools.readintools import GetReal, GetRealArray, GetIntFromStr
+    from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
     from pyhope.mesh.mesh_vars import mesh
     import pyhope.output.output as hopout
     # ------------------------------------------------------
@@ -168,9 +155,12 @@ def TransformMesh():
     nMeshScale = CountOption('meshScale')
     nMeshTrans = CountOption('meshTrans')
     nMeshRot   = CountOption('meshRot')
-    meshPostDeform = GetIntFromStr('MeshPostDeform')
 
-    if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot, meshPostDeform]):
+    # Read in the mesh post-deformation flag
+    meshPostDeform = GetStr('MeshPostDeform')
+
+    # Leave if no transformation is required
+    if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot]) and meshPostDeform == 'none':
         return
 
     hopout.separator()
@@ -205,13 +195,40 @@ def TransformMesh():
 
     hopout.sep()
     hopout.routine('Performing advanced transformations')
+    hopout.routine('  Template: {}'.format(meshPostDeform))
     hopout.sep()
 
+    # Define locations of the transformation files
+    DeformLocations = [
+        os.path.join(os.path.dirname(__file__), "templates", f"{meshPostDeform}.py"),  # Search in 'templates'
+        os.path.join(os.getcwd(), f"{meshPostDeform}.py"),                             # Search in CWD
+        os.path.join(os.path.dirname(prmfile), f"{meshPostDeform}.py")                 # Search folder of parameter file
+    ]
+
+    # Check if the transformation file exists
+    PostDeformMod = None
+    for loc in DeformLocations:
+        if os.path.exists(loc):
+            spec = importlib.util.spec_from_file_location(meshPostDeform, loc)
+            PostDeformMod = importlib.util.module_from_spec(spec)
+            sys.modules[meshPostDeform] = PostDeformMod
+            spec.loader.exec_module(PostDeformMod)
+            break  # Stop once the module is successfully loaded
+
+    # If the transformation file is not found, exit
+    if PostDeformMod is None:
+        hopout.warning(f"Post Transformation template '{meshPostDeform}' not found!")
+        # Print all available default templates for post-deformation
+        templist = []
+        for file in os.listdir(os.path.join(os.path.dirname(__file__), "templates")):
+            if file.endswith(".py"):
+                templist.append(f"  {file[:-3]}")
+        hopout.warning('Available default transformation templates:' + ','.join(templist))
+        sys.exit(1)
+
+
     # perform actual post-deformation
-    if meshPostDeform > 1:
-        hopout.warning('Post-deformation not implemented yet!')
-    elif meshPostDeform == 1:
-        mesh.points = DistortMesh(mesh.points)
+    mesh.points = PostDeformMod.PostDeform(mesh.points)
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')
