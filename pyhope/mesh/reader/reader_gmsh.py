@@ -202,6 +202,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
     hopout.routine('Setting boundary conditions')
@@ -266,8 +267,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
         ttree = spatial.KDTree(tbPoints)
 
-    # TODO: SET ANOTHER TOLERANCE
-    tol = 1.E-10
+    tol = mesh_vars.tolExternal
 
     # Now set the missing CGNS boundaries
     for fname in fnames:

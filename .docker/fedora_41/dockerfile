@@ -44,3 +44,9 @@ RUN git clone --branch master --single-branch --depth 1 https://github.com/flexi
 WORKDIR /flexi
 RUN cmake -B build -DFLEXI_PERFORMANCE=ON -DFLEXI_PERFORMANCE_OPTLIFT=ON -DFLEXI_INSTRUCTION='-march=x86-64 -mtune=generic' && \
     cmake --build build
+
+# Setup FLEXI with PGO
+# RUN git clone --branch master --single-branch --depth 1 git@gitlab.iag.uni-stuttgart.de:flexi/codes/pgo.git /pgo
+# RUN cmake -B build -DFLEXI_PERFORMANCE=ON -DFLEXI_PERFORMANCE_OPTLIFT=ON -DFLEXI_INSTRUCTION='-march=x86-64 -mtune=generic'
+# WORKDIR /flexi/build
+# RUN python /pgo/PGO.py

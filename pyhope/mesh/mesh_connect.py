@@ -797,9 +797,6 @@ def ConnectMesh() -> None:
                       and cast(np.ndarray, nbCellSet[s]).size > 0]
 
         for iMap in nbcsetMap:
-            # Get the number of side cordners
-            nSideIdx   = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
-
             # Get the list of sides
             nbFaceSet  =  np.array(nbCellSet[iMap]).astype(int)
             nbmapFaces = mesh.cells[iMap].data
@@ -812,6 +809,9 @@ def ConnectMesh() -> None:
             stree    = spatial.KDTree(nbPoints)
             # Get the list of sides on our side
             iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
+
+            # Get the number of side cordners
+            nSideIdx   = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
 
             # Map the unique quad sides to our non-unique elem sides
             for iSide in iBCsides:
@@ -873,6 +873,11 @@ def ConnectMesh() -> None:
 
     # Periodic mortar sides
     if doMortars:
+        # Periodic mortar sides are not supported for mixed element types
+        if any(len(s.corners) != len(nMissSide[0].corners) for s in nMissSide):
+            hopout.warning('Periodic mortar sides are not supported for mixed element types, exiting...')
+            sys.exit(1)
+
         iter    = 0
         maxIter = copy.copy(nInterMissConnect)
         tol     = mesh_vars.tolPeriodic
