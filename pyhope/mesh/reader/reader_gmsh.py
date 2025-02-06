@@ -202,7 +202,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
-    from pyhope.readintools.readintools import CountOption, GetStr
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
     hopout.routine('Setting boundary conditions')
@@ -267,8 +267,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
         ttree = spatial.KDTree(tbPoints)
 
-    # TODO: SET ANOTHER TOLERANCE
-    tol = 1.E-10
+    tol = mesh_vars.tolExternal
 
     # Now set the missing CGNS boundaries
     for fname in fnames:
@@ -288,8 +287,9 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
             # Rest of this code operates on the converted file
             fname = tname
-        # Alternatively, load the file directly into tmpfs for faster access
-        shutil.copyfile(fname, tname)
+        else:
+            # Alternatively, load the file directly into tmpfs for faster access
+            shutil.copyfile(fname, tname)
 
         with h5py.File(fname, mode='r') as f:
             if 'CGNSLibraryVersion' not in f.keys():
