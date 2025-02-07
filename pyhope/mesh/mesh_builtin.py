@@ -82,7 +82,29 @@ def MeshCartesian() -> meshio.Mesh:
     for zone in range(nZones):
         hopout.routine('Generating zone {}'.format(zone+1))
 
-        corners  = GetRealArray( 'Corner'  , number=zone)
+        # check if corners are given in the input file
+        if CountOption('Corner') > 0:
+            corners  = GetRealArray( 'Corner'  , number=zone)
+        elif CountOption('DX') > 0:
+                # get extension of the computational zone
+                DX = GetRealArray( 'DX'  , number=zone)
+
+                # read in origin of the zone
+                X0 = GetRealArray( 'X0'  , number=zone)
+
+                # reconstruct points from DX and X0 such that all coreners are defined
+                corners = np.array( [np.array([X0[0],       X0[1],       X0[2]]      ),
+                                    np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
+                                    np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
+                                    np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
+                                    np.array([X0[0],       X0[1],       X0[2]+DX[2]]),
+                                    np.array([X0[0]+DX[0], X0[1],       X0[2]+DX[2]]),
+                                    np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2]]),
+                                    np.array([X0[0],       X0[1]+DX[1], X0[2]+DX[2]])])
+        else:
+            hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
+            sys.exit(1)
+
         nElems   = GetIntArray(  'nElems'  , number=zone)
         elemType = 108  # GMSH always builds hexahedral elements
 
