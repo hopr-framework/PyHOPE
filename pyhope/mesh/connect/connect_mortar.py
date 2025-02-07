@@ -30,6 +30,8 @@ import itertools
 import sys
 import traceback
 from collections import defaultdict
+from functools import lru_cache
+# from functools import cache
 from itertools import combinations
 from typing import Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -376,12 +378,18 @@ def find_mortar_match( targetCorners: np.ndarray
             return False
 
     # Build the target edges
-    targetEdges = build_edges(targetCorners, mesh)
+    # INFO: Uncached version
+    # targetEdges = build_edges(targetCorners, mesh.points[targetCorners])
+    # INFO: Cached version
+    targetEdges = build_edges(arrayToTuple(targetCorners), tuple(map(tuple, mesh.points[targetCorners])))
     matches     = []
 
     # First, check for 2-1 matches
     if len(comboSides) == 2:
-        sideEdges = [build_edges(side.corners, mesh) for side in comboSides]
+        # INFO: Uncached version
+        # sideEdges = [build_edges(side.corners, mesh.points[side.corners]) for side in comboSides]
+        # INFO: Cached version
+        sideEdges = [build_edges(arrayToTuple(side.corners), tuple(map(tuple, mesh.points[side.corners]))) for side in comboSides]
 
         # Look for 2-1 matches, we need exactly one common edge
         for edge in sideEdges[0]:
@@ -412,7 +420,11 @@ def find_mortar_match( targetCorners: np.ndarray
             return False
 
         # Here, we only allow 2-1 matches
-        comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
+        # INFO: Uncached version
+        # comboEdges  = (e for s in comboSides for e in build_edges(s.corners, mesh.points[s.corners]))
+        # INFO: Cached version
+        comboEdges = (e for s in comboSides
+                        for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, mesh.points[s.corners]))))
         comboEdges  = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
@@ -472,7 +484,11 @@ def find_mortar_match( targetCorners: np.ndarray
         if not matchFound:
             return False
 
-        comboEdges  = [e for s in comboSides for e in build_edges(s.corners, mesh)]
+        # INFO: Uncached version
+        # comboEdges  = (e for s in comboSides for e in build_edges(s.corners, mesh.points[s.corners]))
+        # INFO: Cached version
+        comboEdges = (e for s in comboSides
+                        for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, mesh.points[s.corners]))))
         comboEdges  = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
@@ -516,18 +532,39 @@ def find_mortar_match( targetCorners: np.ndarray
     return True
 
 
-def build_edges(corners: np.ndarray, mesh: meshio.Mesh) -> list[tuple]:
-    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
-    """
+# INFO: Uncached version
+# def build_edges(corners: np.ndarray, points: np.ndarray) -> list[tuple]:
+#     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
+#     """
+#     edges = [
+#         (corners[0], corners[1], np.linalg.norm(points[0] - points[1])),  # Edge between points 0 and 1
+#         (corners[1], corners[2], np.linalg.norm(points[1] - points[2])),  # Edge between points 1 and 2
+#         (corners[2], corners[3], np.linalg.norm(points[2] - points[3])),  # Edge between points 2 and 3
+#         (corners[3], corners[0], np.linalg.norm(points[3] - points[0])),  # Edge between points 3 and 0
+#     ]
+#     return edges
+
+
+# INFO: Cached version
+def arrayToTuple(array: np.ndarray) -> tuple:
+    return tuple(array.tolist())
+
+
+# @cache
+@lru_cache(maxsize=65536)
+def build_edges(corners: tuple, points : tuple) -> list:
+    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering"""
     edges = [
-        (corners[0], corners[1], np.linalg.norm(mesh.points[corners[0]] - mesh.points[corners[1]])),  # Edge between points 0 and 1
-        (corners[1], corners[2], np.linalg.norm(mesh.points[corners[1]] - mesh.points[corners[2]])),  # Edge between points 1 and 2
-        (corners[2], corners[3], np.linalg.norm(mesh.points[corners[2]] - mesh.points[corners[3]])),  # Edge between points 2 and 3
-        (corners[3], corners[0], np.linalg.norm(mesh.points[corners[3]] - mesh.points[corners[0]])),  # Edge between points 3 and 0
+        (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
+        (corners[1], corners[2], np.linalg.norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
+        (corners[2], corners[3], np.linalg.norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
+        (corners[3], corners[0], np.linalg.norm(np.array(points[3]) - np.array(points[0]))),  # Edge between points 3 and 0
     ]
     return edges
 
 
+# @cache
+@lru_cache(maxsize=65536)
 def find_edge_combinations(comboEdges) -> list:
     """Build combinations of edges that share exactly one point and form a line
     """

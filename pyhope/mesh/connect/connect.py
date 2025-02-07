@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import gc
 import heapq
 import sys
 import traceback
@@ -562,6 +563,9 @@ def ConnectMesh() -> None:
 
     # Close the progress bar
     bar.close()
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     hopout.separator()
     if nInterZoneConnect > 0:

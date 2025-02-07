@@ -150,8 +150,7 @@ def CheckJacobians() -> None:
             continue
 
         # Get the mapping
-        linMap = LINTEN(elem.type, order=mesh_vars.nGeo)
-        mapLin = {k: v for v, k in enumerate(linMap)}
+        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
 
         # Fill the NodeCoords
         nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)

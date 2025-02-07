@@ -29,7 +29,7 @@ import importlib.metadata
 import pathlib
 import re
 from functools import cache
-from typing import Final, final
+from typing import Callable, Final, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -44,9 +44,12 @@ from packaging.version import Version
 # ==================================================================================================================================
 
 
+np_mtp : int  # Number of threads for multiprocessing
+
+
 # PEP 318 – Decorators for Functions and Methods
 # > https://peps.python.org/pep-0318/
-def singleton(cls):
+def singleton(cls) -> Callable:
     instances = {}
 
     def getinstance():
@@ -64,7 +67,7 @@ class Common():
 
     @property
     @cache
-    def __version__(self):
+    def __version__(self) -> Version:
         # Retrieve version from package metadata
         try:
             package = pathlib.Path(__file__).parent.parent.name
@@ -84,15 +87,15 @@ class Common():
         return Version(version)
 
     @property
-    def __program__(self):
+    def __program__(self) -> str:
         return 'PyHOPE'
 
     @property
-    def program(self):
+    def program(self) -> str:
         return str(self._program)
 
     @property
-    def version(self):
+    def version(self) -> str:
         return str(self._version)
 
 
@@ -112,6 +115,3 @@ class Gitlab():
             "arm64"  : "ed03477fa3cdee5594a18e46a450acadf63b3d41c7bd575ef71192f221719361"
         }
     }
-
-
-np_mtp : int  # Number of threads for multiprocessing

@@ -205,7 +205,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
-    hopout.routine('Setting boundary conditions')
+    hopout.routine('Applying boundary conditions')
     hopout.sep()
 
     points  = mesh.points
@@ -277,13 +277,11 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         tname = tfile.name
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
-            hopout.sep()
             hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
             tStart = time.time()
             _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
             tEnd   = time.time()
             hopout.info('File {} converted HDF5 CGNS format [{:.2f} sec]'.format(os.path.basename(fname), tEnd - tStart))
-            hopout.sep()
 
             # Rest of this code operates on the converted file
             fname = tname

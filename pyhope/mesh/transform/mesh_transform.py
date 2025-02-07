@@ -43,6 +43,8 @@ import numpy as np
 
 
 def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarray) -> np.ndarray:
+    """ Calculate the stretching parameter for meshing the current zone
+    """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -143,7 +145,7 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
     return progFac
 
 
-def TransformMesh():
+def TransformMesh() -> None:
     # Local imports ----------------------------------------
     from pyhope.config.config import prmfile
     from pyhope.readintools.readintools import CountOption
@@ -156,12 +158,15 @@ def TransformMesh():
     nMeshTrans = CountOption('meshTrans')
     nMeshRot   = CountOption('meshRot')
 
+    if CountOption('MeshPostDeform') == 0:
+        return None
+
     # Read in the mesh post-deformation flag
     meshPostDeform = GetStr('MeshPostDeform')
 
     # Leave if no transformation is required
     if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot]) and meshPostDeform == 'none':
-        return
+        return None
 
     # Start with basic transformations
     hopout.separator()
@@ -208,9 +213,9 @@ def TransformMesh():
 
     # Define locations of the transformation files
     DeformLocations = [
-        os.path.join(os.path.dirname(__file__), "templates", f"{meshPostDeform}.py"),  # Search in 'templates'
-        os.path.join(os.getcwd(), f"{meshPostDeform}.py"),                             # Search in CWD
-        os.path.join(os.path.dirname(prmfile), f"{meshPostDeform}.py")                 # Search folder of parameter file
+        os.path.join(os.path.dirname(__file__), 'templates', f'{meshPostDeform}.py'),  # Search in 'templates'
+        os.path.join(os.getcwd(), f'{meshPostDeform}.py'),                             # Search in CWD
+        os.path.join(os.path.dirname(prmfile), f'{meshPostDeform}.py')                 # Search folder of parameter file
     ]
 
     # Check if the transformation file exists
@@ -218,24 +223,29 @@ def TransformMesh():
     for loc in DeformLocations:
         if os.path.exists(loc):
             spec = importlib.util.spec_from_file_location(meshPostDeform, loc)
+            # Skip to the next location if spec is None
+            if spec is None:
+                continue
+
             PostDeformMod = importlib.util.module_from_spec(spec)
             sys.modules[meshPostDeform] = PostDeformMod
             spec.loader.exec_module(PostDeformMod)
-            break  # Stop once the module is successfully loaded
+
+            # Stop once the module is successfully loaded
+            break
 
     # If the transformation file is not found, exit
     if PostDeformMod is None:
-        hopout.warning(f"Post Transformation template '{meshPostDeform}' not found!")
+        hopout.warning(f'Post Transformation template "{meshPostDeform}" not found!')
         # Print all available default templates for post-deformation
         templist = []
-        for file in os.listdir(os.path.join(os.path.dirname(__file__), "templates")):
-            if file.endswith(".py"):
-                templist.append(f"  {file[:-3]}")
+        for file in os.listdir(os.path.join(os.path.dirname(__file__), 'templates')):
+            if file.endswith('.py'):
+                templist.append(f'  {file[:-3]}')
         hopout.warning('Available default transformation templates:' + ','.join(templist))
         sys.exit(1)
 
-
-    # perform actual post-deformation
+    # Perform actual post-deformation
     mesh.points = PostDeformMod.PostDeform(mesh.points)
 
     hopout.sep()

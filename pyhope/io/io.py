@@ -266,16 +266,13 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
 
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        linMap    = LINTEN(elem.type, order=mesh_vars.nGeo)
-        # meshio accesses them in their own ordering
-        # > need to reverse the mapping
-        mapLin    = {k: v for v, k in enumerate(linMap)}
+        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
         elemNodes = elem.nodes
 
         # Access the actual nodeCoords and reorder them
         for iNode, nodeID in enumerate(elemNodes):
-            nodeInfo[  nodeCount + mapLin[iNode]   ] = nodeID + 1
-            nodeCoords[nodeCount + mapLin[iNode], :] = points[nodeID]
+            nodeInfo[  nodeCount + mapLin[np.int64(iNode)]   ] = nodeID + 1
+            nodeCoords[nodeCount + mapLin[np.int64(iNode)], :] = points[nodeID]
 
         nodeCount += len(elemNodes)
 

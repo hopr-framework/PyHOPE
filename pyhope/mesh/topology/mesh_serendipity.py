@@ -200,7 +200,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 # Get number of hexahedrons which have to be converted
                 nPyra13   = len(cdata)
 
-                face      = 'z-' # square faces of element
+                face      = 'z-'  # square faces of element
                 faceNodes = elementinfo.faces_to_nodes('pyramid13')[face]
 
                 # Preallocate the arrays for the new points and elements
