@@ -54,11 +54,12 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     match elemType % 100:
         case 8:
-            return mesh
+          pass
+            #  return mesh
         case _:
             # Simplex elements requested
             #  FIXME: Currently not supported
-            if mesh_vars.nGeo > 2:
+            if mesh_vars.nGeo > 4:
                 hopout.warning('Non-hexahedral elements are not supported for nGeo > 2, exiting...')
                 sys.exit(1)
 
@@ -121,10 +122,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                     ho_key + 6: (split_hex_to_prism, prism_faces)}
     split, faces = elemSplitter.get(elemType, (None, None))
 
-    if split is None or faces is None:
-        hopout.warning('Element type {} not supported for splitting'.format(elemType))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+    #  if split is None or faces is None:
+    #      hopout.warning('Element type {} not supported for splitting'.format(elemType))
+    #      traceback.print_stack(file=sys.stdout)
+    #      sys.exit(1)
 
     nPoints  = len(points)
     nFaces   = np.zeros(2)
@@ -133,6 +134,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             faceType = ['triangle' , 'quad']
         case 2:
             faceType = ['triangle6', 'quad9']
+        case 4:
+            faceType = ['triangle15', 'quad25']
         case _:
             hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
             sys.exit(1)
@@ -146,6 +149,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         ctype, cdata = cell.type, cell.data
 
         if ctype[:10] != 'hexahedron':
+            #  for k,i in enumerate(points):
+            #    print(k,i)
+            # Fill the cube recursively from the outside to the inside
             continue
 
         # Hex block: Split each element
@@ -185,7 +191,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
             for subElem in subElems:
                 for subFace in faces(subElem, nGeo):
-                    faceNum = faceMap(0) if len(subFace) == 3*nGeo else faceMap(1)
+                    nFace = (nGeo+1)*(nGeo+2)/2
+                    faceNum = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
 
                     for cnodes, cname in csets_old.items():
@@ -218,6 +225,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
+    #  print(elems_new)
+    #  print(mesh.cell_sets)
 
     return mesh
 
@@ -378,6 +387,31 @@ def split_hex_to_prism(nodes: list, order: int) -> list:
                      nodes[25], nodes[15], nodes[16], nodes[17], nodes[19], nodes[22], nodes[26], nodes[20]],
                     [nodes[ 1], nodes[ 2], nodes[ 3], nodes[ 5], nodes[ 6], nodes[ 7], nodes[ 9], nodes[10], nodes[24],
                      nodes[13], nodes[14], nodes[25], nodes[17], nodes[18], nodes[19], nodes[21], nodes[23], nodes[26]]]
+        case 4:
+            prism1 =[nodes[ 0], nodes[ 1], nodes[ 3], nodes[ 4], nodes[ 5], nodes[ 7],
+                     nodes[ 8], nodes[ 9], nodes[10], nodes[83], nodes[88], nodes[81], nodes[19], nodes[18], nodes[17],#6
+                     nodes[20], nodes[21], nodes[22], nodes[90], nodes[97], nodes[92], nodes[31], nodes[30], nodes[29],#15
+                     nodes[32], nodes[33], nodes[34], nodes[35], nodes[36], nodes[37], nodes[41], nodes[42], nodes[43],#24
+                     nodes[62], nodes[63], nodes[64], nodes[65], nodes[66], nodes[67], nodes[68], nodes[69], nodes[70],#face1:33
+                     nodes[99],nodes[101],nodes[105],nodes[103],nodes[122], nodes[117],nodes[123],nodes[115],nodes[124],#face2:42
+                     nodes[47], nodes[44], nodes[45], nodes[46], nodes[51], nodes[48], nodes[49], nodes[50], nodes[52],#face3:51
+                     nodes[89], nodes[93], nodes[96], #face4 #60
+                     nodes[80], nodes[87], nodes[84], #face5 #63
+                     nodes[98],nodes[106],nodes[109],nodes[114],nodes[120],nodes[118],nodes[102],nodes[110],nodes[113]] #volume
+
+            prism2 =[nodes[ 1], nodes[ 2], nodes[ 3], nodes[ 5], nodes[ 6], nodes[ 7],
+                     nodes[11], nodes[12], nodes[13], nodes[14], nodes[15], nodes[16], nodes[81], nodes[88], nodes[83],#6
+                     nodes[23], nodes[24], nodes[25], nodes[26], nodes[27], nodes[28], nodes[92], nodes[97], nodes[90],#15
+                     nodes[35], nodes[36], nodes[37], nodes[38], nodes[39], nodes[40], nodes[41], nodes[42], nodes[43],#24
+                     nodes[53], nodes[54], nodes[55], nodes[56], nodes[57], nodes[58], nodes[59], nodes[60], nodes[61],#face1
+                     nodes[71], nodes[72], nodes[73], nodes[74], nodes[75], nodes[76], nodes[77], nodes[78], nodes[79],#face3
+                    nodes[101], nodes[99],nodes[103],nodes[105],nodes[122],nodes[115],nodes[123],nodes[117], nodes[124],#face2
+                     nodes[94], nodes[91], nodes[95], #face4
+                     nodes[86], nodes[82], nodes[85], #face5
+                    nodes[107],nodes[100],nodes[108],nodes[119],nodes[116],nodes[121],nodes[111],nodes[104],nodes[112]] #volume
+
+            return [prism1,prism2]
+
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -405,6 +439,14 @@ def prism_faces(nodes: list, order: int) -> list:
                     tuple((nodes[0], nodes[1], nodes[4], nodes[3], nodes[6], nodes[13], nodes[9] , nodes[12], nodes[15])),
                     tuple((nodes[1], nodes[2], nodes[5], nodes[4], nodes[7], nodes[14], nodes[10], nodes[13], nodes[16])),
                     tuple((nodes[2], nodes[0], nodes[3], nodes[5], nodes[8], nodes[12], nodes[11], nodes[14], nodes[17]))]
+        case 4:
+            return [# Triangular faces  # noqa: E261
+                    tuple((nodes[0], nodes[1], nodes[2], *nodes[6:15] , *nodes[63:66])), # z-
+                    tuple((nodes[3], nodes[4], nodes[5], *nodes[15:24], *nodes[60:63])), # z+
+                    # Quadrilateral faces
+                    tuple((nodes[0], nodes[1], nodes[4], nodes[3], *nodes[6:9], *nodes[27:30], nodes[17], nodes[16] , nodes[15], nodes[26], nodes[25] , nodes[24], *nodes[33:42])),
+                    tuple((nodes[1], nodes[2], nodes[5], nodes[4], *nodes[9:12], *nodes[30:33], nodes[20], nodes[19] , nodes[18], nodes[29], nodes[28] , nodes[27], *nodes[42:51])),
+                    tuple((nodes[2], nodes[0], nodes[3], nodes[5], *nodes[12:15], *nodes[24:27], nodes[23] , nodes[22], nodes[21], nodes[32] , nodes[31], nodes[30], *nodes[51:60]))]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

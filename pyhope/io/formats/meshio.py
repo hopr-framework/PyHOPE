@@ -252,6 +252,7 @@ def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         for j in range(order):
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
+    print(tensor)
 
     return map, np.asarray(tensor)
 
@@ -271,33 +272,104 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
     count = 0
     # Fill the prism recursively from the outside to the inside
-    for iOrder in range(np.floor(order/2).astype(int)):
-        # Principal vertices
-        map[iOrder         , iOrder         , iOrder        ] = count+1
-        map[order-iOrder-1 , iOrder         , iOrder        ] = count+2
-        map[iOrder         , order-iOrder-1 , iOrder        ] = count+3
-        map[iOrder         , iOrder         , order-iOrder-1] = count+4
-        map[order-iOrder-1 , iOrder         , order-iOrder-1] = count+5
-        map[iOrder         , order-iOrder-1 , order-iOrder-1] = count+6
-        count += 6
+    iOrder = 0
+    # Principal vertices
+    map[iOrder         , iOrder         , iOrder        ] = count+1
+    map[order-iOrder-1 , iOrder         , iOrder        ] = count+2
+    map[iOrder         , order-iOrder-1 , iOrder        ] = count+3
+    map[iOrder         , iOrder         , order-iOrder-1] = count+4
+    map[order-iOrder-1 , iOrder         , order-iOrder-1] = count+5
+    map[iOrder         , order-iOrder-1 , order-iOrder-1] = count+6
+    count += 6
 
-    if order > 2:
+    if order == 3:
         # Loop over all edges
-        map[int(order/2), 0           , 0           ] = count+1
-        map[int(order/2), int(order/2), 0           ] = count+2
-        map[0           , int(order/2), 0           ] = count+3
-        map[int(order/2), 0           , order-1     ] = count+4
-        map[int(order/2), int(order/2), order-1     ] = count+5
-        map[0           , int(order/2), order-1     ] = count+6
+        for i in [0,order-1]:
+            map[1, 0, i ] = count+1
+            map[1, 1, i ] = count+2
+            map[0, 1, i ] = count+3
+            count += 3
         map[0           , 0           , int(order/2)] = count+7
         map[order-1     , 0           , int(order/2)] = count+8
         map[0           , order-1     , int(order/2)] = count+9
-        count += 9
+        count += 3
 
         # Internal points of upstanding faces
         map[int(order/2), 0           , int(order/2)] = count+1
         map[int(order/2), int(order/2), int(order/2)] = count+2
         map[0           , int(order/2), int(order/2)] = count+3
+    elif order == 5:
+        # Loop over all edges
+        for k in [0,order-1]:
+            for i in range(1,order-1):
+              map[i, 0, k ] = count+i
+            count += order-2
+            for i in range(1,order-1):
+              map[order-1-i, i, k ] = count+i
+            count += order-2
+            for i in reversed(range(1,order-1)):
+              map[0, i, k ] = count+(order-2-i)+1
+            count += order-2
+        for i in range(1,order-1):
+            map[0, 0, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[order-1, 0, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[0, order-1, i] = count+i
+        count += order-2
+
+        # Internal points of upstanding faces
+        map[1, 0, 1] = count+1
+        map[3, 0, 1] = count+2
+        map[3, 0, 3] = count+3
+        map[1, 0, 3] = count+4
+        map[2, 0, 1] = count+5
+        map[3, 0, 2] = count+6
+        map[2, 0, 3] = count+7
+        map[1, 0, 2] = count+8
+        map[2, 0, 2] = count+9
+        count += 9
+
+        map[3, 1, 1] = count+1
+        map[1, 3, 1] = count+2
+        map[1, 3, 3] = count+3
+        map[3, 1, 3] = count+4
+        map[2, 2, 1] = count+5
+        map[1, 3, 2] = count+6
+        map[2, 2, 3] = count+7
+        map[3, 1, 2] = count+8
+        map[2, 2, 2] = count+9
+        count += 9
+
+        map[0, 3, 1] = count+1
+        map[0, 1, 1] = count+2
+        map[0, 1, 3] = count+3
+        map[0, 3, 3] = count+4
+        map[0, 2, 1] = count+5
+        map[0, 1, 2] = count+6
+        map[0, 2, 3] = count+7
+        map[0, 3, 2] = count+8
+        map[0, 2, 2] = count+9
+        count += 9
+
+        map[1, 1, 4] = count+1
+        map[2, 1, 4] = count+2
+        map[1, 2, 4] = count+3
+        count += 3
+
+        map[1, 1, 0] = count+1
+        map[2, 1, 0] = count+2
+        map[1, 2, 0] = count+3
+        count += 3
+
+        # Internal points of volume
+        for k in [1,2,3]:
+            map[1, 1, k] = count+1
+            map[2, 1, k] = count+2
+            map[1, 2, k] = count+3
+            count += 3
 
     # Python indexing, 1 -> 0
     map -= 1
