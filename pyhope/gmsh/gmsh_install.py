@@ -131,7 +131,7 @@ def PkgsCheckGmsh() -> None:
             return None
 
 
-def PkgsInstallGmsh(system: str, arch: str, version: str):
+def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     # Local imports ----------------------------------------
     import hashlib
     import tempfile

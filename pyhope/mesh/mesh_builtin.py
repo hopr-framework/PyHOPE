@@ -82,7 +82,29 @@ def MeshCartesian() -> meshio.Mesh:
     for zone in range(nZones):
         hopout.routine('Generating zone {}'.format(zone+1))
 
-        corners  = GetRealArray( 'Corner'  , number=zone)
+        # check if corners are given in the input file
+        if CountOption('Corner') > 0:
+            corners  = GetRealArray( 'Corner'  , number=zone)
+        elif CountOption('DX') > 0:
+                # get extension of the computational zone
+                DX = GetRealArray( 'DX'  , number=zone)
+
+                # read in origin of the zone
+                X0 = GetRealArray( 'X0'  , number=zone)
+
+                # reconstruct points from DX and X0 such that all coreners are defined
+                corners = np.array( [np.array([X0[0],       X0[1],       X0[2]]      ),
+                                    np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
+                                    np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
+                                    np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
+                                    np.array([X0[0],       X0[1],       X0[2]+DX[2]]),
+                                    np.array([X0[0]+DX[0], X0[1],       X0[2]+DX[2]]),
+                                    np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2]]),
+                                    np.array([X0[0],       X0[1]+DX[1], X0[2]+DX[2]])])
+        else:
+            hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
+            sys.exit(1)
+
         nElems   = GetIntArray(  'nElems'  , number=zone)
         elemType = 108  # GMSH always builds hexahedral elements
 
@@ -225,18 +247,18 @@ def MeshCartesian() -> meshio.Mesh:
             # > find_indices returns all we need!
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
 
+            # Connect positive to negative side
+            try:
+                gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
+                hopout.routine('Generated periodicity constraint with vector {}'.format(
+                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
+
             # If the number of sides do not match, we cannot impose periodicity
             # > Leave it out here and assume we can sort it out in ConnectMesh
-            if len(surfID) != len(nbSurfID):
+            except Exception as e:
                 print(hopout.warn(' No GMSH periodicity with vector {}'.format(
                     vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
                 continue
-
-            hopout.routine('Generated periodicity constraint with vector {}'.format(
-                vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
-
-            # Connect positive to negative side
-            gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
 
     if len(vvs) > 0:
         hopout.sep()

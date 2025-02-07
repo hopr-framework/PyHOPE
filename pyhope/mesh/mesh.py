@@ -57,6 +57,9 @@ def DefineMesh() -> None:
     CreateInt(      'nZones',                              help='Number of mesh zones')
     CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
                                                                                          '... ,, x_8,y_8,z_8/)')  # noqa: E127
+    CreateRealArray('X0',              3,   multiple=True, help='Origin of a zone. Equivalent to a corner node.')
+    CreateRealArray('DX',              3,   multiple=True, help='Extension of the zone in each spatial direction ' +
+                                                                 'starting from the origin X0 corner node')
     CreateIntArray( 'nElems',          3,   multiple=True, help='Number of elements in each direction')
     CreateIntFromString('ElemType'      ,   default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():

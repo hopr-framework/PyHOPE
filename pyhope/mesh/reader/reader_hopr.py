@@ -159,8 +159,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     elemType  = elemType[0]
 
                 # ChangeBasis currently only supported for hexahedrons
-                linMap    = LINTEN(elemNum, order=mesh_vars.nGeo)
-                mapLin    = {k: v for v, k in enumerate(linMap)}
+                _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
 
                 if nGeo == mesh_vars.nGeo:
                     elemIDs   = np.arange(elem[4], elem[5])

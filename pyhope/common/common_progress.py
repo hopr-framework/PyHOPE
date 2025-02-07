@@ -44,7 +44,7 @@ barElems: Final[int] = int(1.E5)
 class ProgressBar:
     """ Provide a progress bar outside of the context manager
     """
-    def __init__(self, title: Optional[str], value: int, length: int = 33):
+    def __init__(self, title: Optional[str], value: int, length: int = 33) -> None:
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
@@ -55,10 +55,10 @@ class ProgressBar:
         else:
             self.bar = None
 
-    def step(self, steps: int = 1):
+    def step(self, steps: int = 1) -> None:
         if self.bar is not None:
             self.bar(steps)
 
-    def close(self):
+    def close(self) -> None:
         if self.bar is not None:
             _ = self.cm.__exit__(None, None, None)
