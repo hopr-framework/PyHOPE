@@ -51,7 +51,7 @@ class MultiOrderedDict(OrderedDict):
         thus overload the ConfigParser with this new dict_type
     """
     @override
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         if isinstance(value, list) and key in self:
             self[key].extend(value)
         else:

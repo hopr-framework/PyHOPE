@@ -247,18 +247,18 @@ def MeshCartesian() -> meshio.Mesh:
             # > find_indices returns all we need!
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
 
+            # Connect positive to negative side
+            try:
+                gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
+                hopout.routine('Generated periodicity constraint with vector {}'.format(
+                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
+
             # If the number of sides do not match, we cannot impose periodicity
             # > Leave it out here and assume we can sort it out in ConnectMesh
-            if len(surfID) != len(nbSurfID):
+            except Exception as e:
                 print(hopout.warn(' No GMSH periodicity with vector {}'.format(
                     vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
                 continue
-
-            hopout.routine('Generated periodicity constraint with vector {}'.format(
-                vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
-
-            # Connect positive to negative side
-            gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
 
     if len(vvs) > 0:
         hopout.sep()

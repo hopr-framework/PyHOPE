@@ -60,6 +60,7 @@ def phill_h(x_in: float) -> float:
 
     return out / 28.0
 
+
 def phill_normal(x_in: float) -> np.ndarray:
     xloc = x_in * 28.0
     if xloc > 54:
@@ -85,19 +86,22 @@ def phill_normal(x_in: float) -> np.ndarray:
     normal = np.array([1.0, -1.0 / h_deriv])
     return normal / np.linalg.norm(normal)
 
-# This is the default transformation function which has to be present in every Post-Deformation template.
-# PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
+
 def PostDeform(points: np.ndarray) -> np.ndarray:
+    """ This is the default transformation function which has to be present in every Post-Deformation template.
+        PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
+    """
+
     n_total = points.shape[1]
     X_out = np.copy(points)
     h_max = 3.035
 
     for i in range(n_total):
-        x = points[:, i]
-        xout = np.copy(x)
-        x_left = 4.5 - abs(x[0] - 4.5)
-        h = phill_h(x_left)
-        g = 2.0 / h_max**3 * x[1]**3 - 3.0 / h_max**2 * x[1]**2 + 1.0
+        x        = points[:, i]
+        xout     = np.copy(x)
+        x_left   = 4.5 - abs(x[0] - 4.5)
+        h        = phill_h(x_left)
+        g        = 2.0 / h_max**3 * x[1]**3 - 3.0 / h_max**2 * x[1]**2 + 1.0
         xout[1] += g * h
 
         if x_left >= 0.1 and x[1] < h_max:
@@ -106,13 +110,13 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             x_blend_bottom = 1.6
 
             if x_left < x_blend_top:
-                vec_ref_top = phill_normal(x_blend_top)
-                vec = np.array([0.0, 1.0]) + x_left / x_blend_top * (vec_ref_top - np.array([0.0, 1.0]))
+                vec_ref_top    = phill_normal(x_blend_top)
+                vec            = np.array([0.0, 1.0]) +  x_left / x_blend_top     * (vec_ref_top            - np.array([0.0, 1.0]))
             elif x_left >= x_blend_bottom:
                 vec_ref_bottom = phill_normal(x_blend_bottom)
-                vec = vec_ref_bottom + (x_left - x_blend_bottom) / (4.5 - x_blend_bottom) * (np.array([0.0, 1.0]) - vec_ref_bottom)
+                vec            = vec_ref_bottom       + (x_left - x_blend_bottom) / (4.5 - x_blend_bottom) * (np.array([0.0, 1.0]) - vec_ref_bottom)  # noqa: E501
             else:
-                vec = phill_normal(x_left)
+                vec            = phill_normal(x_left)
 
             if x[0] > 4.5:
                 vec[0] = -vec[0]

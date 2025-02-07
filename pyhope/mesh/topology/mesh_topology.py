@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 import traceback
+from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -184,7 +185,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 subElems = split(elem, nGeo)
 
             for subElem in subElems:
-                for subFace in faces(subElem, nGeo):
+                subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
+
+                for subFace in subFaces:
                     faceNum = faceMap(0) if len(subFace) == 3*nGeo else faceMap(1)
                     faceSet = frozenset(subFace)
 
@@ -222,6 +225,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     return mesh
 
 
+# TODO: FASTER IMPLEMENTATION WOULD ONLY RETURN THE INDICES
 def split_hex_to_tets(nodes: list, order: int) -> list:
     """
     Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
@@ -269,28 +273,30 @@ def split_hex_to_tets(nodes: list, order: int) -> list:
             sys.exit(1)
 
 
-def tetra_faces(nodes: list, order: int) -> list:
+@cache
+def tetra_faces(order: int) -> list:
     """
     Given 4 tet corner indices, return the 4 triangular faces as tuples.
     Each face is a triple (n0, n1, n2)
     """
     match order:
         case 1:
-            return [tuple((nodes[0], nodes[1], nodes[2])),
-                    tuple((nodes[0], nodes[1], nodes[3])),
-                    tuple((nodes[0], nodes[2], nodes[3])),
-                    tuple((nodes[1], nodes[2], nodes[3]))]
+            return [np.array([  0,  1,  2], dtype=int),
+                    np.array([  0,  1,  3], dtype=int),
+                    np.array([  0,  2,  3], dtype=int),
+                    np.array([  1,  2,  3], dtype=int)]
         case 2:
-            return [tuple((nodes[0], nodes[1], nodes[2], nodes[4], nodes[5], nodes[6])),
-                    tuple((nodes[0], nodes[1], nodes[3], nodes[4], nodes[8], nodes[7])),
-                    tuple((nodes[0], nodes[2], nodes[3], nodes[6], nodes[9], nodes[7])),
-                    tuple((nodes[1], nodes[2], nodes[3], nodes[5], nodes[9], nodes[8]))]
+            return [np.array([  0,  1,  2,  4,  5,  6], dtype=int),
+                    np.array([  0,  1,  3,  4,  8,  7], dtype=int),
+                    np.array([  0,  2,  3,  6,  9,  7], dtype=int),
+                    np.array([  1,  2,  3,  5,  9,  8], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
 
+# TODO: FASTER IMPLEMENTATION WOULD ONLY RETURN THE INDICES
 def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> list:
     """
     Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
@@ -336,33 +342,35 @@ def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> lis
             sys.exit(1)
 
 
-def pyram_faces(nodes: list, order: int) -> list:
+@cache
+def pyram_faces(order: int) -> list:
     """
     Given the 5 pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples.
     """
     match order:
         case 1:
             return [# Triangular faces  # noqa: E261
-                    tuple((nodes[0], nodes[1], nodes[4])),
-                    tuple((nodes[1], nodes[2], nodes[4])),
-                    tuple((nodes[2], nodes[3], nodes[4])),
-                    tuple((nodes[3], nodes[0], nodes[4])),
+                    np.array([  0,  1,  4], dtype=int),
+                    np.array([  1,  2,  4], dtype=int),
+                    np.array([  2,  3,  4], dtype=int),
+                    np.array([  3,  0,  4], dtype=int),
                     # Quadrilateral face
-                    tuple((nodes[0], nodes[1], nodes[2], nodes[3]))]
+                    np.array([  0,  1,  2,  3], dtype=int)]
         case 2:
             return [# Triangular faces  # noqa: E261
-                    tuple((nodes[0], nodes[1], nodes[4], nodes[5], nodes[10], nodes[9 ])),  # 8, 22,16
-                    tuple((nodes[1], nodes[2], nodes[4], nodes[6], nodes[11], nodes[10])),  # 9, 26,22
-                    tuple((nodes[2], nodes[3], nodes[4], nodes[7], nodes[12], nodes[11])),  # 10,20,26
-                    tuple((nodes[3], nodes[0], nodes[4], nodes[8], nodes[9] , nodes[12])),  # 11,16,20
+                    np.array([  0,  1,  4,  5, 10,  9], dtype=int),  # 8, 22,16
+                    np.array([  1,  2,  4,  6, 11, 10], dtype=int),  # 9, 26,22
+                    np.array([  2,  3,  4,  7, 12, 11], dtype=int),  # 10,20,26
+                    np.array([  3,  0,  4,  8,  9, 12], dtype=int),  # 11,16,20
                     # Quadrilateral face
-                    tuple((nodes[0], nodes[1], nodes[2], nodes[3], nodes[5], nodes[6], nodes[7], nodes[8], nodes[13]))]
+                    np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
 
+# TODO: FASTER IMPLEMENTATION WOULD ONLY RETURN THE INDICES
 def split_hex_to_prism(nodes: list, order: int) -> list:
     """
     Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
@@ -384,27 +392,29 @@ def split_hex_to_prism(nodes: list, order: int) -> list:
             sys.exit(1)
 
 
-def prism_faces(nodes: list, order: int) -> list:
+@cache
+def prism_faces(order: int) -> list:
     """
     Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
     """
     match order:
         case 1:
             return [# Triangular faces  # noqa: E261
-                    tuple((nodes[0], nodes[1], nodes[2])),
-                    tuple((nodes[3], nodes[4], nodes[5])),
+                    np.array([  0,  1,  2], dtype=int),
+                    np.array([  3,  4,  5], dtype=int),
                     # Quadrilateral faces
-                    tuple((nodes[0], nodes[1], nodes[4], nodes[3])),
-                    tuple((nodes[1], nodes[2], nodes[5], nodes[4])),
-                    tuple((nodes[2], nodes[0], nodes[3], nodes[5]))]
+                    np.array([  0,  1,  4,  3], dtype=int),
+                    np.array([  1,  2,  5,  4], dtype=int),
+                    np.array([  2,  0,  3,  5], dtype=int)]
         case 2:
             return [# Triangular faces  # noqa: E261
-                    tuple((nodes[0], nodes[1], nodes[2], nodes[6], nodes[7] , nodes[8] )),
-                    tuple((nodes[3], nodes[4], nodes[5], nodes[9], nodes[10], nodes[11])),
+                    np.array([  0,  1,  2,  6,  7,  8], dtype=int),
+                    np.array([  3,  4,  5,  9, 10, 11], dtype=int),
                     # Quadrilateral faces
-                    tuple((nodes[0], nodes[1], nodes[4], nodes[3], nodes[6], nodes[13], nodes[9] , nodes[12], nodes[15])),
-                    tuple((nodes[1], nodes[2], nodes[5], nodes[4], nodes[7], nodes[14], nodes[10], nodes[13], nodes[16])),
-                    tuple((nodes[2], nodes[0], nodes[3], nodes[5], nodes[8], nodes[12], nodes[11], nodes[14], nodes[17]))]
+                    np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15], dtype=int),
+                    np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16], dtype=int),
+                    np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17], dtype=int)]
+
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

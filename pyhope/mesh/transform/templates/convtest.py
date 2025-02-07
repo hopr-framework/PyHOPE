@@ -37,9 +37,11 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
-# This is the default transformation function which has to be present in every Post-Deformation template.
-# PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
+
 def PostDeform(points: np.ndarray) -> np.ndarray:
+    """ This is the default transformation function which has to be present in every Post-Deformation template.
+        PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
+    """
 
     eps = 1./16
     for iPoint, xPoint in enumerate(points):

@@ -120,7 +120,7 @@ def DebugEnabled() -> bool:
     return False
 
 
-def IsInteractive():
+def IsInteractive() -> bool:
     return cast(TextIOWrapper, sys.__stdin__).isatty()
 
 
