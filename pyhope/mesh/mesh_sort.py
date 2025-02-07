@@ -155,11 +155,11 @@ def SortMeshByIJK() -> None:
 
     # Calculate bounding box and conversion factor
     ptp_elemBary = np.ptp(elemBary, axis=0)
-    lower        = np.min(elemBary, axis=0) - 0.1 * ptp_elemBary
-    upper        = np.max(elemBary, axis=0) + 0.1 * ptp_elemBary
-    box = tBox(lower, upper)
+    lower        = np.min(np.min(elemBary, axis=0) - 0.1 * np.min(ptp_elemBary, axis=0), axis=0)
+    upper        = np.max(np.max(elemBary, axis=0) + 0.1 * np.max(ptp_elemBary, axis=0), axis=0)
 
     # Convert coordinates to integer space
+    box       = tBox(int(lower), int(upper))
     intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(int)
 
     # Initialize lists
