@@ -474,7 +474,7 @@ def find_mortar_match( targetCorners: np.ndarray
             matchedPoints = 0
             for side in comboSides[1:]:
                 for p1 in side.corners:
-                    if (all(np.isclose(tp, cp) for tp, cp in zip(mesh.points[p], mesh.points[p1]))):
+                    if np.allclose(mesh.points[p], mesh.points[p1], rtol=tol, atol=tol):
                         matchedPoints += 1
 
             if matchedPoints == 3:
@@ -620,8 +620,8 @@ def find_edge_combinations(comboEdges) -> list:
                 bbox_max = np.maximum(p1, p2)
 
                 # Check if the common point is within the bounding box of p1 and p2
-                if np.all(np.isclose(bbox_min, np.minimum(bbox_min, c1))) and \
-                   np.all(np.isclose(bbox_max, np.maximum(bbox_max, c1))):
+                if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
+                   np.allclose(bbox_max, np.maximum(bbox_max, c1)):
                     # Calculate the distance between the start and end points
                     lineDist = np.linalg.norm(p1 - p2)
 
