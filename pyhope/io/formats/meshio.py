@@ -252,7 +252,6 @@ def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         for j in range(order):
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
-    print(tensor)
 
     return map, np.asarray(tensor)
 
@@ -270,8 +269,8 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         tensor       = map
         return map, tensor
 
-    count = 0
     # Fill the prism recursively from the outside to the inside
+    count = 0
     iOrder = 0
     # Principal vertices
     map[iOrder         , iOrder         , iOrder        ] = count+1
@@ -451,15 +450,15 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
     # Fill the tetrahedron recursively from the outside to the inside
     count = 0
-    for iOrder in range(np.floor(order/2).astype(int)):
-        # Principal vertices
-        map[iOrder        , iOrder        , iOrder        ] = count+1
-        map[order-iOrder-1, iOrder        , iOrder        ] = count+2
-        map[iOrder        , order-iOrder-1, iOrder        ] = count+3
-        map[iOrder        , iOrder        , order-iOrder-1] = count+4
-        count += 4
+    iOrder = 0
+    # Principal vertices
+    map[iOrder        , iOrder        , iOrder        ] = count+1
+    map[order-iOrder-1, iOrder        , iOrder        ] = count+2
+    map[iOrder        , order-iOrder-1, iOrder        ] = count+3
+    map[iOrder        , iOrder        , order-iOrder-1] = count+4
+    count += 4
 
-    if order > 2:
+    if order == 3:
         # Loop over all edges
         map[int(order/2), 0           , 0           ] = count+1
         map[int(order/2), int(order/2), 0           ] = count+2
@@ -468,9 +467,54 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         map[int(order/2), 0           , int(order/2)] = count+5
         map[0           , int(order/2), int(order/2)] = count+6
         count += 6
+    elif order == 5:
+        # Loop over all edges
+        for i in range(1,order-1):
+          map[i, 0, 0 ] = count+i
+        count += order-2
+        for i in range(1,order-1):
+          map[order-1-i, i, 0 ] = count+i
+        count += order-2
+        for i in range(1,order-1):
+          map[0, order-1-i, 0 ] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[0, 0, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[order-1-i, 0, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[0, order-1-i, i] = count+i
+        count += order-2
 
-        # Loop over all faces for order > 3
-        #  map[int(order/2),int(order/2),0           ] = count+1
+        # Internal points of upstanding faces
+        # y-
+        map[1, 0, 1] = count+1
+        map[2, 0, 1] = count+2
+        map[1, 0, 2] = count+3
+        count += 3
+
+        map[2, 1, 1] = count+1
+        map[1, 2, 1] = count+2
+        map[1, 1, 2] = count+3
+        count += 3
+
+        # x-
+        map[0, 1, 1] = count+1
+        map[0, 2, 1] = count+2
+        map[0, 1, 2] = count+3
+        count += 3
+
+        # bottom
+        map[1, 1, 0] = count+1
+        map[2, 1, 0] = count+2
+        map[1, 2, 0] = count+3
+        count += 3
+
+        # Internal point
+        map[1, 1, 1] = count+1
+
 
     # Python indexing, 1 -> 0
     map -= 1

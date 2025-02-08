@@ -55,13 +55,11 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     match elemType % 100:
         case 8:
-          pass
-            #  return mesh
+            return mesh
         case _:
             # Simplex elements requested
-            #  FIXME: Currently not supported
             if mesh_vars.nGeo > 4:
-                hopout.warning('Non-hexahedral elements are not supported for nGeo > 2, exiting...')
+                hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
                 sys.exit(1)
 
     # Copy original points
@@ -123,10 +121,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                     ho_key + 6: (split_hex_to_prism, prism_faces)}
     split, faces = elemSplitter.get(elemType, (None, None))
 
-    #  if split is None or faces is None:
-    #      hopout.warning('Element type {} not supported for splitting'.format(elemType))
-    #      traceback.print_stack(file=sys.stdout)
-    #      sys.exit(1)
+    if split is None or faces is None:
+        hopout.warning('Element type {} not supported for splitting'.format(elemType))
+        traceback.print_stack(file=sys.stdout)
+        sys.exit(1)
 
     nPoints  = len(points)
     nFaces   = np.zeros(2)
@@ -150,8 +148,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         ctype, cdata = cell.type, cell.data
 
         if ctype[:10] != 'hexahedron':
-            #  for k,i in enumerate(points):
-            #    print(k,i)
             # Fill the cube recursively from the outside to the inside
             continue
 
@@ -228,8 +224,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
-    #  print(elems_new)
-    #  print(mesh.cell_sets)
 
     return mesh
 
@@ -276,6 +270,33 @@ def split_hex_to_tets(nodes: list, order: int) -> list:
                     [nodes[2], nodes[4], nodes[5], nodes[6], nodes[26], nodes[12], nodes[21], nodes[18], nodes[25], nodes[13]],
                     [nodes[1], nodes[2], nodes[4], nodes[5], nodes[9] , nodes[26], nodes[22], nodes[17], nodes[21], nodes[12]],
                     [nodes[2], nodes[3], nodes[4], nodes[7], nodes[10], nodes[20], nodes[26], nodes[23], nodes[19], nodes[15]]]
+        case 4:
+            tetra1 = [nodes[0], nodes[2], nodes[3], nodes[4], nodes[80], nodes[88], nodes[82], nodes[14], nodes[15], nodes[16],
+                      nodes[19], nodes[18], nodes[17], nodes[32], nodes[33], nodes[34], nodes[100], nodes[124], nodes[102],
+                      nodes[47], nodes[52], nodes[45], nodes[98], nodes[122], nodes[114], nodes[108], nodes[101], nodes[118],
+                      nodes[44], nodes[51], nodes[48], nodes[84], nodes[85], nodes[81],nodes[109]]
+            tetra2 = [nodes[0], nodes[1], nodes[2], nodes[4], nodes[8] , nodes[9] , nodes[10], nodes[11], nodes[12], nodes[13],
+                      nodes[82], nodes[88], nodes[80], nodes[32], nodes[33], nodes[34], nodes[63], nodes[70], nodes[65],
+                      nodes[100], nodes[124], nodes[102], nodes[62], nodes[66], nodes[69], nodes[99], nodes[107], nodes[120],
+                      nodes[98], nodes[122], nodes[114], nodes[87], nodes[83], nodes[86], nodes[106]]
+            tetra3 = [nodes[2], nodes[4], nodes[6], nodes[7], nodes[100], nodes[124], nodes[102], nodes[89], nodes[97], nodes[91],
+                      nodes[40], nodes[39], nodes[38], nodes[71], nodes[79], nodes[73], nodes[29], nodes[30], nodes[31],
+                      nodes[26], nodes[27], nodes[28], nodes[121], nodes[113], nodes[105], nodes[96], nodes[95], nodes[92],
+                      nodes[78] , nodes[74] , nodes[77], nodes[116], nodes[123], nodes[104], nodes[112]]
+            tetra4 = [nodes[2], nodes[4], nodes[5], nodes[6], nodes[100], nodes[124], nodes[102], nodes[20], nodes[21], nodes[22],
+                      nodes[56], nodes[61], nodes[54], nodes[38], nodes[39], nodes[40], nodes[89], nodes[97], nodes[91],
+                      nodes[23], nodes[24], nodes[25], nodes[116], nodes[123], nodes[104], nodes[93], nodes[90], nodes[94],
+                      nodes[58], nodes[59], nodes[55], nodes[119], nodes[110], nodes[103], nodes[111]]
+            tetra5 = [nodes[1], nodes[2], nodes[4], nodes[5], nodes[11], nodes[12], nodes[13], nodes[100], nodes[124], nodes[102],
+                      nodes[65], nodes[70], nodes[63], nodes[35], nodes[36], nodes[37], nodes[54], nodes[61], nodes[56],
+                      nodes[20], nodes[21], nodes[22], nodes[53], nodes[57], nodes[60], nodes[119], nodes[110], nodes[103],
+                      nodes[67], nodes[68], nodes[64], nodes[99], nodes[107], nodes[120], nodes[115]]
+            tetra6 = [nodes[2], nodes[3], nodes[4], nodes[7], nodes[14], nodes[15], nodes[16], nodes[47], nodes[52], nodes[45],
+                      nodes[102], nodes[124], nodes[100], nodes[71], nodes[79], nodes[73], nodes[41], nodes[42], nodes[43],
+                      nodes[29], nodes[30], nodes[31], nodes[75], nodes[72], nodes[76], nodes[50], nodes[49], nodes[46],
+                      nodes[121], nodes[113], nodes[105], nodes[108], nodes[101], nodes[118], nodes[117]]
+
+            return [tetra1,tetra2,tetra3,tetra4,tetra5,tetra6]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -299,6 +320,11 @@ def tetra_faces(order: int) -> list:
                     np.array([  0,  1,  3,  4,  8,  7], dtype=int),
                     np.array([  0,  2,  3,  6,  9,  7], dtype=int),
                     np.array([  1,  2,  3,  5,  9,  8], dtype=int)]
+        case 4:
+            return [np.array([  0,  1,  2,  *range(4,13), *range(31,34)], dtype=int),
+                    np.array([  0,  1,  3,  *range(4,7) , *range(16,19),  *reversed(range(13,16)), *range(22,25)], dtype=int),
+                    np.array([  0,  2,  3,  *reversed(range(10,13)), *range(19,22),  *reversed(range(13,16)), *range(28,31)], dtype=int),
+                    np.array([  1,  2,  3,  *range(7,10), *range(19,22), *reversed(range(16,19)), *range(25,28)], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
