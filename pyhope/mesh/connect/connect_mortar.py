@@ -87,8 +87,8 @@ def ConnectMortar( nConnSide   : list
         # Get the opposite side
         if doPeriodic:
             bcID   = targetSide.bcid
-            iVV    = bcs[bcID].type[3] - 1
-            VV     = vvs[iVV]['Dir']
+            iVV    = bcs[bcID].type[3]
+            VV     = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
         else:
             VV     = None
 

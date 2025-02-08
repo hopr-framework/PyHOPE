@@ -159,7 +159,7 @@ def SortMeshByIJK() -> None:
     upper        = np.max(np.max(elemBary, axis=0) + 0.1 * np.max(ptp_elemBary, axis=0), axis=0)
 
     # Convert coordinates to integer space
-    box       = tBox(int(lower), int(upper))
+    box       = tBox(np.floor(lower), np.ceil(upper))
     intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(int)
 
     # Initialize lists
