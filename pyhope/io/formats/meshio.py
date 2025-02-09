@@ -398,16 +398,16 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
     # Fill the pyramid recursively from the outside to the inside
     count = 0
-    for iOrder in range(np.floor(order/2).astype(int)):
-        # Principal vertices
-        map[iOrder        , iOrder        , iOrder        ] = count+1
-        map[order-iOrder-1, iOrder        , iOrder        ] = count+2
-        map[order-iOrder-1, order-iOrder-1, iOrder        ] = count+3
-        map[iOrder        , order-iOrder-1, iOrder        ] = count+4
-        map[iOrder        , iOrder        , order-iOrder-1] = count+5
-        count += 5
+    iOrder = 0
+    # Principal vertices
+    map[iOrder        , iOrder        , iOrder        ] = count+1
+    map[order-iOrder-1, iOrder        , iOrder        ] = count+2
+    map[order-iOrder-1, order-iOrder-1, iOrder        ] = count+3
+    map[iOrder        , order-iOrder-1, iOrder        ] = count+4
+    map[iOrder        , iOrder        , order-iOrder-1] = count+5
+    count += 5
 
-    if order > 2:
+    if order == 3:
         # Loop over all edges
         map[int(order/2), 0           , 0           ] = count+1
         map[order-1     , int(order/2), 0           ] = count+2
@@ -421,6 +421,78 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
         # Loop over all faces
         map[int(order/2), int(order/2), 0           ] = count+1
+
+    elif order == 5:
+        # Loop over all edges
+        for i in range(1,order-1):
+          map[i, 0, 0 ] = count+i
+        count += order-2
+        for i in range(1,order-1):
+          map[order-1, i, 0 ] = count+i
+        count += order-2
+        for i in range(1,order-1):
+          map[order-1-i, order-1, 0 ] = count+i
+        count += order-2
+        for i in range(1,order-1):
+          map[0, order-1-i, 0 ] = count+i
+        count += order-2
+
+        for i in range(1,order-1):
+            map[0, 0, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[order-1-i, 0, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[order-1-i, order-1-i, i] = count+i
+        count += order-2
+        for i in range(1,order-1):
+            map[0, order-1-i, i] = count+i
+        count += order-2
+
+        # Internal points of upstanding faces
+        # y-
+        map[1, 0, 1] = count+1
+        map[2, 0, 1] = count+2
+        map[1, 0, 2] = count+3
+        count += 3
+
+        # x+
+        map[3, 1, 1] = count+1
+        map[3, 2, 1] = count+2
+        map[2, 1, 2] = count+3
+        count += 3
+
+        # y+
+        map[1, 3, 1] = count+1
+        map[2, 3, 1] = count+2
+        map[1, 2, 2] = count+3
+        count += 3
+
+        # x-
+        map[0, 1, 1] = count+1
+        map[0, 2, 1] = count+2
+        map[0, 1, 2] = count+3
+        count += 3
+
+        # bottom
+        map[1, 1, 0] = count+1
+        map[3, 1, 0] = count+2
+        map[3, 3, 0] = count+3
+        map[1, 3, 0] = count+4
+        map[2, 1, 0] = count+5
+        map[3, 2, 0] = count+6
+        map[2, 3, 0] = count+7
+        map[1, 2, 0] = count+8
+        map[2, 2, 0] = count+9
+        count += 9
+
+        # Internal point
+        map[1, 1, 1] = count+1
+        map[2, 1, 1] = count+2
+        map[2, 2, 1] = count+3
+        map[1, 2, 1] = count+4
+        map[1, 1, 2] = count+5
 
     # Python indexing, 1 -> 0
     map -= 1

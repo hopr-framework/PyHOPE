@@ -223,7 +223,7 @@ class ELEMTYPE:
     name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,
                                'tetra84'      : 204, 'tetra120'      : 204, 'tetra165'      : 204, 'tetra220'      : 204,
                                'tetra286'     : 204,
-            'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205,
+            'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205, 'pyramid30'     : 205, 'pyramid55'     : 205,
             'wedge'     : 106, 'wedge15'      : 206, 'wedge18'       : 206, 'wedge40'       : 206, 'wedge75'       : 206,
                                'wedge126'     : 206, 'wedge196'      : 206, 'wedge288'      : 206, 'wedge405'      : 206,
                                'wedge550'     : 206,

@@ -84,7 +84,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         # Get the element name and skip the entries for incomplete 2nd order elements
         try:
             if elemType % 100 == 5:    # pyramids (skip 1)
-                elemName = ELEMTYPE.inam[elemType][nGeo-1]
+                # FIXME: meshio package doesnt know
+                # elemName = ELEMTYPE.inam[elemType][nGeo-1]
+                elemName = ELEMTYPE.inam[elemType][1]
             elif elemType % 100 == 6:  # prisms (skip 1)
                 elemName = ELEMTYPE.inam[elemType][nGeo-1]
             elif elemType % 100 == 8:  # hexahedra (skip 2)
@@ -178,11 +180,28 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                                     count+=1
                         points   = np.append(points, edges, axis=0)
                         subElems = split(elem, nPoints, np.arange(nPoints, nPoints+8), nGeo)
-                        nPoints += 8
-                    # case _:
-                    #     hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
-                    #     traceback.print_stack(file=sys.stdout)
-                    #     sys.exit(1)
+                        nPoints += count
+                    case 4:
+                        edges = []
+                        center   = np.mean(points[elem], axis=0)
+                        minext   = np.min( points[elem], axis=0)
+                        edges    = np.zeros((64, 3))
+                        signarr  = [-3./4., -1./4., 1./4., 3./4.]
+                        count = 0
+                        for k in signarr:
+                            for j in signarr:
+                                for i in signarr:
+                                    edges[count, :] = [center[0]+i*abs(center[0]-minext[0]),
+                                                       center[1]+j*abs(center[1]-minext[1]),
+                                                       center[2]+k*abs(center[2]-minext[2])]
+                                    count+=1
+                        points   = np.append(points, edges, axis=0)
+                        subElems = split(elem, nPoints, np.arange(nPoints, nPoints+count), nGeo)
+                        nPoints += count
+                    case _:
+                        hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
+                        traceback.print_stack(file=sys.stdout)
+                        sys.exit(1)
             else:
                 subElems = split(elem, nGeo)
 
@@ -190,7 +209,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
 
                 for subFace in subFaces:
-                    nFace = (nGeo+1)*(nGeo+2)/2
+                    nFace   = (nGeo+1)*(nGeo+2)/2
                     faceNum = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
 
@@ -371,6 +390,42 @@ def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> lis
             #                 nodes[22], nodes[12], nodes[25], nodes[26], nodes[21])),
             #          tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[4], nodes[14], nodes[19], nodes[10], nodes[18],
             #                 nodes[25], nodes[15], nodes[20], nodes[26], nodes[23]))]
+        case 4:
+            return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[124], *nodes[8:17], *reversed(nodes[17:20]),
+                           edges[0],  nodes[98], edges[21], edges[3],  nodes[99], edges[22], edges[15],nodes[100], edges[26],edges[12],nodes[101], edges[25],
+                           edges[1],  edges[2], nodes[106], edges[7] , edges[11], nodes[107], edges[13], edges[14], nodes[108],edges[4] , edges[8] , nodes[109],
+                           nodes[80], nodes[83], nodes[82], nodes[81], nodes[87], nodes[86], nodes[85], nodes[84], nodes[88],
+                           edges[5] , edges[6] , edges[10], edges[9] , nodes[122])),
+                    tuple((nodes[0] , nodes[4] , nodes[5] , nodes[1] , nodes[124],
+                           *nodes[32:35], *nodes[20:23], nodes[37], nodes[36], nodes[35], nodes[10], nodes[9], nodes[8],
+                           edges[0],  nodes[98], edges[21],edges[48], nodes[102], edges[37], edges[51],nodes[103], edges[38],edges[3],  nodes[99], edges[22],
+                           edges[16], edges[32], nodes[114], edges[49] , edges[50], nodes[110], edges[19], edges[35], nodes[115],edges[1] , edges[2] , nodes[106],
+                           nodes[62], nodes[65], nodes[64], nodes[63], nodes[69], nodes[68], nodes[67], nodes[66], nodes[70],
+                           edges[17] , edges[33] , edges[34], edges[18] , nodes[120])),
+                    tuple((nodes[1] , nodes[5] , nodes[6] , nodes[2] , nodes[124],
+                           *nodes[35:38], *nodes[23:26], nodes[40], nodes[39], nodes[38], nodes[13], nodes[12], nodes[11],
+                           edges[3],  nodes[99], edges[22], edges[51],nodes[103], edges[38], edges[63],nodes[104], edges[42],edges[15],nodes[100], edges[26],
+                           edges[19], edges[35], nodes[115], edges[55], edges[59], nodes[111], edges[31], edges[47], nodes[116],edges[7], edges[11], nodes[107],
+                           nodes[53], nodes[56], nodes[55], nodes[54], nodes[60], nodes[59], nodes[58], nodes[57], nodes[61],
+                           edges[23], edges[39], edges[43], edges[27] , nodes[119])),
+                    tuple((nodes[0] , nodes[3] , nodes[7] , nodes[4] , nodes[124],
+                           nodes[17], nodes[18], nodes[19], *nodes[41:44], *reversed(nodes[29:32]), nodes[34], nodes[33], nodes[32],
+                           edges[0],  nodes[98], edges[21], edges[12],nodes[101], edges[25], edges[60],nodes[105], edges[41],edges[48], nodes[102], edges[37],
+                           edges[4],  edges[8], nodes[109], edges[28], edges[44], nodes[117], edges[52], edges[56], nodes[113],edges[16], edges[32], nodes[114],
+                           nodes[44], nodes[47], nodes[46], nodes[45], nodes[51], nodes[50], nodes[49], nodes[48], nodes[52],
+                           edges[20], edges[24], edges[40], edges[36], nodes[118])),
+                    tuple((nodes[4] , nodes[7] , nodes[6] , nodes[5] , nodes[124],
+                           nodes[29], nodes[30], nodes[31], nodes[28], nodes[27], nodes[26], nodes[25], nodes[24], nodes[23], nodes[22], nodes[21], nodes[20],
+                           edges[48], nodes[102], edges[37], edges[60],nodes[105], edges[41], edges[63],nodes[104], edges[42],edges[51],nodes[103], edges[38],
+                           edges[52], edges[56], nodes[113], edges[61] , edges[62], nodes[112], edges[55], edges[59], nodes[111],edges[49] , edges[50] , nodes[110],
+                           nodes[89], nodes[92], nodes[91], nodes[90], nodes[96], nodes[95], nodes[94], nodes[93], nodes[97],
+                           edges[53] , edges[57] , edges[58], edges[54] , nodes[123])),
+                    tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[124],
+                           *nodes[26:29], nodes[43], nodes[42], nodes[41], nodes[16], nodes[15], nodes[14], *nodes[38:41],
+                           edges[63],nodes[104], edges[42], edges[60],nodes[105], edges[41], edges[12],nodes[101], edges[25], edges[15],nodes[100], edges[26],
+                           edges[62], edges[61], nodes[112], edges[44], edges[28], nodes[117], edges[14], edges[13], nodes[108],edges[47], edges[31], nodes[116],
+                           nodes[74], nodes[73], nodes[72], nodes[71], nodes[77], nodes[76], nodes[75], nodes[78], nodes[79],
+                           edges[46], edges[45], edges[29], edges[30], nodes[121]))]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -399,6 +454,14 @@ def pyram_faces(order: int) -> list:
                     np.array([  3,  0,  4,  8,  9, 12], dtype=int),  # 11,16,20
                     # Quadrilateral face
                     np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
+        case 4:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  4,  *range(4,7)  , *range(19,22), *reversed(range(16,19)), *range(28,31)], dtype=int),
+                    np.array([  1,  2,  4,  *range(7,10) , *range(22,25), *reversed(range(19,22)), *range(31,34)], dtype=int),
+                    np.array([  2,  3,  4,  *range(10,13), *range(25,28), *reversed(range(22,25)), *range(34,37)], dtype=int),
+                    np.array([  3,  0,  4,  *range(13,16), *range(16,19), *reversed(range(25,28)), *range(37,40)], dtype=int),
+                    # Quadrilateral face
+                    np.array([ 0,  1,  2,  3, *range(5,17), *range(41,50)], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

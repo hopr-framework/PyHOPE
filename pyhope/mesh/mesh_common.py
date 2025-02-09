@@ -472,7 +472,7 @@ def LINTEN(elemType: int, order: int = 1) -> tuple[np.ndarray, dict[np.int64, in
             TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
             return HEXTEN, TENHEX
         case _:  # Default
-            print('Error in LINMAP, unknown elemType')
+            print('Error in LINTEN, unknown elemType')
             sys.exit(1)
 
 
