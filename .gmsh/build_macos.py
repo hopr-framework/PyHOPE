@@ -177,6 +177,8 @@ LIBXFT_VERSION = '2.3.8'
 
 # Gmsh
 GMSH_VERSION = '4.13.1'
+GMSH_PATCH   = '1'
+GMSH_FULLVER = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 GMSH_DIR     = os.path.join(WORK_DIR, 'gmsh')
 
@@ -219,7 +221,7 @@ def clean():
     shutil.rmtree(EGG_DIR,           ignore_errors=True)
     # Python wheel
     try:
-        os.remove(os.path.join(WORK_DIR, 'dist', f'gmsh-{GMSH_VERSION}-py3-none-any.whl'))
+        os.remove(os.path.join(WORK_DIR, 'dist', f'gmsh-{GMSH_FULLVER}-py3-none-any.whl'))
     except OSError:
         pass
 
@@ -731,6 +733,14 @@ def build_gmsh() -> None:
     subprocess.run(['git', 'clone'   , git_url, gmsh_dir], check=True)
     subprocess.run(['git', 'checkout', GMSH_STRING      ], check=True, cwd=gmsh_dir)
 
+    # Apply patches to gmsh source code
+    patch_dir = os.path.abspath('patches')  # Get absolute path of patches directory
+
+    for patch_file in os.listdir(patch_dir):
+        patch_path = os.path.join(patch_dir, patch_file)  # Full path to patch file
+        if patch_file.endswith('.patch'):  # Ensure it's a patch file
+            subprocess.run(['git', 'apply', patch_path], check=True, cwd=gmsh_dir)
+
     conf_env = os.environ.copy()
 
     # We need to include a whole bunch of our libraries manually, so here we go ...
@@ -833,8 +843,8 @@ def build_gmsh() -> None:
 def package() -> None:
     print_header('PREPARING GMSH PYTHON WHEEL...')
     PYTHON_DIR   = os.path.join(INSTALL_DIR, 'python')
-    # PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-manylinux_{platform.machine()}.whl'
-    PYTHON_WHEEL = f'gmsh-{GMSH_VERSION}-py3-none-macosx_{platform.machine()}.whl'
+    # PYTHON_WHEEL = f'gmsh-{GMSH_FULLVER}-py3-none-manylinux_{platform.machine()}.whl'
+    PYTHON_WHEEL = f'gmsh-{GMSH_FULLVER}-py3-none-macosx_{platform.machine()}.whl'
     GMESH_PY_API = os.path.join(WORK_DIR   , 'gmsh', 'api'    , 'gmsh.py')
     # GMESH_PY_DST = os.path.join(PYTHON_DIR , 'gmsh', 'gmsh.py')
     GMESH_PY_DST = os.path.join(WORK_DIR   , 'gmsh.py')
@@ -869,7 +879,7 @@ def package() -> None:
 
     [project]
     name        = 'gmsh'
-    version     = '4.13.1'
+    version     = '4.13.1-1'
     description = 'Gmsh with updated CGNS, OpenCASCADE, and local static libraries'
     readme      = 'README.md'
     authors     = [
@@ -927,7 +937,7 @@ def package() -> None:
 
     # Rename the generated Python wheel
     print_step('Renaming the wheel to {}'.format(PYTHON_WHEEL))
-    shutil.move(os.path.join(WORK_DIR, 'dist', f'gmsh-{GMSH_VERSION}-py3-none-any.whl'), os.path.join(WORK_DIR, PYTHON_WHEEL))
+    shutil.move(os.path.join(WORK_DIR, 'dist', f'gmsh-{GMSH_FULLVER}-py3-none-any.whl'), os.path.join(WORK_DIR, PYTHON_WHEEL))
 
     print_header('PYTHON WHEEL BUILD COMPLETED!')
 

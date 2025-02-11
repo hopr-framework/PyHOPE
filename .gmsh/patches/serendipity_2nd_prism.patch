@@ -1,0 +1,41 @@
+diff --git a/src/geo/CGNSConventions.cpp b/src/geo/CGNSConventions.cpp
+index 45ac8d8a6..23fb494af 100644
+--- a/src/geo/CGNSConventions.cpp
++++ b/src/geo/CGNSConventions.cpp
+@@ -369,20 +369,23 @@ namespace {
+     // internal points in upstanding edges
+     for(int i = 0; i < 4; i++) addEdgePointsCGNS(pp[i], pp[4], order, pp);
+ 
+-    // internal points in base quadrilateral
+-    addQuaPointsCGNS(pp[0], pp[1], pp[2], pp[3], order, pp);
+-
+-    // internal points in upstanding triangles
+-    for(int i = 0; i < 4; i++)
+-      addTriPointsCGNS(pp[i], pp[(i + 1) % 4], pp[4], order, pp);
++    // WIP: Patch 2nd order serendipity elements
++    if(complete){
++      // internal points in base quadrilateral
++      addQuaPointsCGNS(pp[0], pp[1], pp[2], pp[3], order, pp);
+ 
+-    // internal points as an internal pyramid of order p-3
+-    if(order > 2) {
+-      std::vector<SVector3> pyr = generatePointsPyrCGNS(order - 3, true);
+-      SVector3 offset(0, 0, 1. / order);
+-      double scale = double(order - 3) / double(order);
+-      for(size_t i = 0; i < pyr.size(); ++i)
+-        pp.push_back((pyr[i] * scale) + offset);
++      // internal points in upstanding triangles
++      for(int i = 0; i < 4; i++)
++        addTriPointsCGNS(pp[i], pp[(i + 1) % 4], pp[4], order, pp);
++
++      // internal points as an internal pyramid of order p-3
++      if(order > 2) {
++        std::vector<SVector3> pyr = generatePointsPyrCGNS(order - 3, true);
++        SVector3 offset(0, 0, 1. / order);
++        double scale = double(order - 3) / double(order);
++        for(size_t i = 0; i < pyr.size(); ++i)
++          pp.push_back((pyr[i] * scale) + offset);
++      }
+     }
+ 
+     return pp;
