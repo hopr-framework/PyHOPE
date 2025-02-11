@@ -33,7 +33,7 @@ from collections import defaultdict
 from functools import lru_cache
 # from functools import cache
 from itertools import combinations
-from typing import Optional, cast
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -64,7 +64,6 @@ def ConnectMortar( nConnSide   : list
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.mesh.connect.connect import find_closest_side
     # ------------------------------------------------------
 
     # Set BC and periodic sides
@@ -81,8 +80,11 @@ def ConnectMortar( nConnSide   : list
         iter += 1
 
         # Remove the first side from the list
-        targetSide   = nConnSide  .pop(0)
-        targetCenter = nConnCenter.pop(0)
+        # > We need a save backup of the original sides
+        origSide     = nConnSide  .pop(0)
+        origCenter   = nConnCenter.pop(0)
+        targetSide   = copy.copy(origSide)
+        targetCenter = copy.copy(origCenter)
 
         # Get the opposite side
         if doPeriodic:
@@ -92,13 +94,7 @@ def ConnectMortar( nConnSide   : list
         else:
             VV     = None
 
-        # Collapse all opposing corner nodes into an [:, 12] array
-        nbCorners  = [s.corners for s in nConnSide]
-        nbPoints   = np.sort(mesh.points[nbCorners], axis=1).reshape(len(nbCorners), -1)
-        del nbCorners
-
         # Build a k-dimensional tree of all points on the opposing side
-        stree      = spatial.KDTree(nbPoints)
         ctree      = spatial.KDTree(nConnCenter)
 
         # Map the unique quad sides to our non-unique elem sides
@@ -106,22 +102,12 @@ def ConnectMortar( nConnSide   : list
 
         if doPeriodic:
             # Shift the points in periodic direction
-            points     = mesh.points[corners].copy()
+            points     = mesh.points[corners]
             points    += VV
             points     = np.sort(points, axis=0).flatten()
             targetCenter += VV
         else:
             points     = np.sort(mesh.points[corners], axis=0).flatten()
-
-        # Query the tree for the opposing side
-        nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars=True)
-
-        # Mortar side
-        # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
-        # > generates no match, we simply append the side again at the end and try again. As the loop exists after checking
-        # > len(nConnSide), we will check each side once.
-        if nbSideIdx >= 0:
-            continue
 
         # Calculate the radius of the convex hull
         targetPoints = mesh.points[corners].copy()
@@ -130,6 +116,11 @@ def ConnectMortar( nConnSide   : list
 
         # Find nearby sides to consider as candidate mortar sides
         # > Eliminate sides in the same element
+        #
+        # Mortar side
+        # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar sides which
+        # > generates no match, we simply append the side again at the end and try again. As the loop exists after checking
+        # > len(nConnSide), we will check each side once.
         targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if nConnSide[s].elemID != targetSide.elemID]  # noqa: E501
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
@@ -168,8 +159,8 @@ def ConnectMortar( nConnSide   : list
 
         # No connection, attach the side at the end
         else:
-            nConnSide  .append(targetSide)
-            nConnCenter.append(targetCenter)
+            nConnSide  .append(origSide)
+            nConnCenter.append(origCenter)
 
 
 def points_exist_in_target(pts, slavePts, tol) -> bool:
