@@ -93,7 +93,7 @@ def MeshCartesian() -> meshio.Mesh:
                 X0 = GetRealArray( 'X0'  , number=zone)
 
                 # reconstruct points from DX and X0 such that all coreners are defined
-                corners = np.array( [np.array([X0[0],       X0[1],       X0[2]]      ),
+                corners = np.array([np.array([X0[0],       X0[1],       X0[2]]      ),
                                     np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
                                     np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
                                     np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
@@ -130,15 +130,48 @@ def MeshCartesian() -> meshio.Mesh:
         for i in range(3):
             lEdges[i] = np.abs(box[i+3]-box[i])
 
-        # Calculate the stretching parameter for meshing the current zone
-        progFac = CalcStretching(nZones, zone, nElems, lEdges)
+        # Get streching information of current zone
+        stretchType = GetIntArray('StretchType', number=zone)
+
+        # Check which stretching type is used and calculate the required factors
+        if np.all(stretchType == 0) and (CountOption('l0') > 0 or CountOption('Factor') > 0):
+            # No stretching however check if l0 or factor is gievn in parameter file
+            # and assume that the user wants to use the factor stretching by default.
+            # Calculate the stretching parameter for meshing the current zone
+            stretchType[:] = 1
+            # print warning which indicates that default value has been changed
+            print(hopout.warn('Default StretchType changed for the current zone since '
+                              'Factor or l0 is provided.'))
+
+        # Progression factor stretching or double sided stretching
+        if 1 in stretchType or 3 in stretchType:
+            stretchFac = CalcStretching(nZones, zone, nElems, lEdges)
+
+        # Ration based stretching
+        if 2 in stretchType:
+            DXmaxToDXmin = GetRealArray('DxMax')
+            ratFac = DXmaxToDXmin ** (1. / (nElems - 1.))
 
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
+
             # We set the number of nodes, so Elems+1
             currDir = edge_to_dir(index, elemType)
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, 'Progression', currDir[1]*progFac[currDir[0]])
+            stretch_type = stretchType[currDir[0]]
+
+            # Set default values for equidistant elements
+            progType = 'Progression'
+            progFac = 1.
+
+            # Overwrite default values to consider streching in current zone
+            if stretch_type == 3:
+                progType = 'Bump'
+            if stretch_type in {1, 3}:
+                progFac = stretchFac[currDir[0]]
+            elif stretch_type == 2:
+                progFac = ratFac[currDir[0]]
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, progType, currDir[1]*progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]

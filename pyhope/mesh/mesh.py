@@ -93,17 +93,22 @@ def DefineMesh() -> None:
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
-    # Scale
+    # Transformation
     CreateSection('Transformation')
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
     CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
     CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
     CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
     CreateStr(       'MeshPostDeform',   default='none',                              help='Mesh post-transformation template')
+    # Stretching
+    CreateSection('Stretching')
+    CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
+                                                                                             'zone per spatial direction.')  # noqa: E127
     CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
-                                                                                      'each spatial direction.')  # noqa: E127
-    CreateRealArray( 'l0',              3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
-                                                                                                    'direction')  # noqa: E127
+                                                                                                 'each spatial direction.')  # noqa: E127
+    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')  # noqa: E127
+    CreateRealArray( 'DxMaxToDxMin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
+                                                                                                               'direction')  # noqa: E127
 
 
 def InitMesh() -> None:
