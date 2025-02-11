@@ -86,21 +86,21 @@ def MeshCartesian() -> meshio.Mesh:
         if CountOption('Corner') > 0:
             corners  = GetRealArray( 'Corner'  , number=zone)
         elif CountOption('DX') > 0:
-                # get extension of the computational zone
-                DX = GetRealArray( 'DX'  , number=zone)
+            # get extension of the computational zone
+            DX = GetRealArray( 'DX'  , number=zone)
 
-                # read in origin of the zone
-                X0 = GetRealArray( 'X0'  , number=zone)
+            # read in origin of the zone
+            X0 = GetRealArray( 'X0'  , number=zone)
 
-                # reconstruct points from DX and X0 such that all coreners are defined
-                corners = np.array([np.array([X0[0],       X0[1],       X0[2]]      ),
-                                    np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
-                                    np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
-                                    np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
-                                    np.array([X0[0],       X0[1],       X0[2]+DX[2]]),
-                                    np.array([X0[0]+DX[0], X0[1],       X0[2]+DX[2]]),
-                                    np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2]]),
-                                    np.array([X0[0],       X0[1]+DX[1], X0[2]+DX[2]])])
+            # reconstruct points from DX and X0 such that all coreners are defined
+            corners = np.array([np.array([X0[0],       X0[1],       X0[2]]      ),
+                                np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
+                                np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
+                                np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
+                                np.array([X0[0],       X0[1],       X0[2]+DX[2]]),
+                                np.array([X0[0]+DX[0], X0[1],       X0[2]+DX[2]]),
+                                np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2]]),
+                                np.array([X0[0],       X0[1]+DX[1], X0[2]+DX[2]])])
         else:
             hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
             sys.exit(1)
@@ -144,10 +144,12 @@ def MeshCartesian() -> meshio.Mesh:
                               'Factor or l0 is provided.'))
 
         # Progression factor stretching or double sided stretching
+        stretchFac = np.ndarray([])
         if 1 in stretchType:
             stretchFac = CalcStretching(nZones, zone, nElems, lEdges)
 
         # Ratio based stretching
+        DXmaxToDXmin = np.ndarray([])
         if 2 in stretchType or 3 in stretchType:
             DXmaxToDXmin = GetRealArray('DXmaxToDXmin', number=zone)
 
