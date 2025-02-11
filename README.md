@@ -22,21 +22,17 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ┃ P y H O P E — Python High-Order Preprocessing Environment
 ┃ PyHOPE version x.x.x
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-├─────────────────────────────────────────────
 │ INIT PROGRAM...
-│                        nThreads │ 4                               │ DEFAULT │
-│ INIT PROGRAM DONE!
+│                        nThreads │ 10                              │ DEFAULT │
 ├─────────────────────────────────────────────
 │ INIT OUTPUT...
 │                     ProjectName │ 1-01-cartbox                    │ *CUSTOM │
 │                    OutputFormat │ 0 [HDF5]                        │ *CUSTOM │
 │                       DebugVisu │ F                               │ *CUSTOM │
-│ INIT OUTPUT DONE!
 ├─────────────────────────────────────────────
 │ INIT MESH...
-│                            Mode │ 1                               │ *CUSTOM │
-│                   BoundaryOrder │ 2                               │ DEFAULT │
-│ INIT MESH DONE!
+│                            Mode │ 1 [Internal]                    │ *CUSTOM │
+│                            NGeo │ 4                               │ *CUSTOM │
 ├─────────────────────────────────────────────
 │ GENERATE MESH...
 ├────
@@ -44,6 +40,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├── Generating zone 1
 │                          Corner │ (/0.,0.,0. ,,1.,0.,0. ,,1.,1... │ *CUSTOM │
 │                          nElems │ (/8,8,8/)                       │ *CUSTOM │
+│                     StretchType │ (/0,0,0/)                       │ DEFAULT │
 │                         BCIndex │ (/1,2,3,4,5,6/)                 │ *CUSTOM │
 ├────
 ├── Setting boundary conditions
@@ -60,27 +57,35 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │                    BoundaryType │ (/2,0,0,0/)                     │ *CUSTOM │
 │                    BoundaryName │ BC_zplus                        │ *CUSTOM │
 │                    BoundaryType │ (/9,0,0,0/)                     │ *CUSTOM │
+│                              vv │ (/1., 0., 0./)                  │ *CUSTOM │
+│                              vv │ (/0., 1., 0./)                  │ *CUSTOM │
+│                              vv │ (/0., 0., 1./)                  │ *CUSTOM │
+├────
+├────
+│                        ElemType │ 108 [hexahedron]                │ *CUSTOM │
 ├────
 ├── Generated mesh with 512 cells
-├────
-│ GENERATE MESH DONE!
 ├─────────────────────────────────────────────
+├── BUILD DATA STRUCTURE...
+├────
+├── Removing duplicate points
+├── Ensuring normals point outward
+├────
+│             CheckSurfaceNormals │ True                            │ DEFAULT │
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
+├────
+├── Generating sides
+├─────────────────────────────────────────────
+│ SORT MESH...
+├────
 │                       doSortIJK │ False                           │ DEFAULT │
 ├────
 ├── Sorting elements along space-filling curve
-├────
-├── Eliminating duplicate points
-├────
-├── Checking if surface normal vectors point outwards
-├────
-│             CheckSurfaceNormals │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s) 
 ├─────────────────────────────────────────────
 │ CONNECT MESH...
 ├────
 │               doPeriodicCorrect │ True                            │ DEFAULT │
 │                       doMortars │ True                            │ DEFAULT │
-├─────────────────────────────────────────────
 ├────
 │  Number of sides                :         3072
 │  Number of inner sides          :         2688
@@ -88,18 +93,16 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │  Number of mortar sides (small) :            0
 │  Number of boundary sides       :          384
 │  Number of periodic sides       :            0
-├────
-│ CONNECT MESH DONE!
 ├─────────────────────────────────────────────
 │ CHECK WATERTIGHTNESS...
 ├────
 │             CheckWatertightness │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s) 
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
 ├─────────────────────────────────────────────
 │ CHECK JACOBIANS...
 ├────
 │              CheckElemJacobians │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s) 
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
 ├────
 │ Scaled Jacobians
 ├─────────────────
@@ -118,11 +121,9 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├─────────────────────────────────────────────
 │ OUTPUT MESH...
 ├────
-│   Planar-faced Hexahedra  :          512
+│         Curved Hexahedra  :          512
 ├────
 ├── Writing HDF5 mesh to "1-01-cartbox_mesh.h5"
-├────
-│ OUTPUT MESH DONE!
 ┢━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ PyHOPE completed in [0.25 sec]
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -292,9 +292,9 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
             map[1, 1, i ] = count+2
             map[0, 1, i ] = count+3
             count += 3
-        map[0           , 0           , int(order/2)] = count+7
-        map[order-1     , 0           , int(order/2)] = count+8
-        map[0           , order-1     , int(order/2)] = count+9
+        map[0           , 0           , int(order/2)] = count+1
+        map[order-1     , 0           , int(order/2)] = count+2
+        map[0           , order-1     , int(order/2)] = count+3
         count += 3
 
         # Internal points of upstanding faces
