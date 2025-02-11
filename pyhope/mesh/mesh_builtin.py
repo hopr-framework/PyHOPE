@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
+import gc
 import math
 import sys
 import traceback
@@ -36,7 +37,6 @@ from typing import cast
 import gmsh
 import meshio
 import numpy as np
-import pygmsh
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -54,8 +54,9 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
-    from pyhope.mesh.mesh_transform import CalcStretching
-    from pyhope.readintools.readintools import CountOption, GetInt, GetIntFromStr, GetIntArray, GetRealArray, GetStr
+    from pyhope.mesh.transform.mesh_transform import CalcStretching
+    from pyhope.meshio.meshio_convert import gmsh_to_meshio
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()
@@ -81,9 +82,31 @@ def MeshCartesian() -> meshio.Mesh:
     for zone in range(nZones):
         hopout.routine('Generating zone {}'.format(zone+1))
 
-        corners  = GetRealArray( 'Corner'  , number=zone)
+        # check if corners are given in the input file
+        if CountOption('Corner') > 0:
+            corners  = GetRealArray( 'Corner'  , number=zone)
+        elif CountOption('DX') > 0:
+            # get extension of the computational zone
+            DX = GetRealArray( 'DX'  , number=zone)
+
+            # read in origin of the zone
+            X0 = GetRealArray( 'X0'  , number=zone)
+
+            # reconstruct points from DX and X0 such that all coreners are defined
+            corners = np.array([np.array([X0[0],       X0[1],       X0[2]]      ),
+                                np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
+                                np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
+                                np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
+                                np.array([X0[0],       X0[1],       X0[2]+DX[2]]),
+                                np.array([X0[0]+DX[0], X0[1],       X0[2]+DX[2]]),
+                                np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2]]),
+                                np.array([X0[0],       X0[1]+DX[1], X0[2]+DX[2]])])
+        else:
+            hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
+            sys.exit(1)
+
         nElems   = GetIntArray(  'nElems'  , number=zone)
-        elemType = GetIntFromStr('ElemType', number=zone)
+        elemType = 108  # GMSH always builds hexahedral elements
 
         # Create all the corner points
         p = [None for _ in range(len(corners))]
@@ -107,15 +130,51 @@ def MeshCartesian() -> meshio.Mesh:
         for i in range(3):
             lEdges[i] = np.abs(box[i+3]-box[i])
 
-        # Calculate the stretching parameter for meshing the current zone
-        progFac = CalcStretching(nZones, zone, nElems, lEdges)
+        # Get streching information of current zone
+        stretchType = GetIntArray('StretchType', number=zone)
+
+        # Check which stretching type is used and calculate the required factors
+        if np.all(stretchType == 0) and (CountOption('l0') > 0 or CountOption('Factor') > 0):
+            # No stretching however check if l0 or factor is gievn in parameter file
+            # and assume that the user wants to use the factor stretching by default.
+            # Calculate the stretching parameter for meshing the current zone
+            stretchType[:] = 1
+            # print warning which indicates that default value has been changed
+            print(hopout.warn('Default StretchType changed for the current zone since '
+                              'Factor or l0 is provided.'))
+
+        # Progression factor stretching or double sided stretching
+        stretchFac = np.ndarray([])
+        if 1 in stretchType:
+            stretchFac = CalcStretching(nZones, zone, nElems, lEdges)
+
+        # Ratio based stretching
+        DXmaxToDXmin = np.ndarray([])
+        if 2 in stretchType or 3 in stretchType:
+            DXmaxToDXmin = GetRealArray('DXmaxToDXmin', number=zone)
 
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
+
             # We set the number of nodes, so Elems+1
             currDir = edge_to_dir(index, elemType)
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, 'Progression', currDir[1]*progFac[currDir[0]])
+            stretch_type = stretchType[currDir[0]]
+
+            # Set default values for equidistant elements
+            progType = 'Progression'
+            progFac = 1.
+
+            # Overwrite default values to consider streching in current zone
+            if stretch_type == 3:
+                progType = 'Bump'
+            if stretch_type == 1:
+                progFac = stretchFac[currDir[0]]
+            elif stretch_type == 2:
+                progFac = -1./(DXmaxToDXmin[currDir[0]] ** (1. / (nElems[currDir[0]] - 1.)))
+            elif stretch_type == 3:
+                progFac = 1./DXmaxToDXmin[currDir[0]]
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, progType, currDir[1]* progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]
@@ -167,18 +226,18 @@ def MeshCartesian() -> meshio.Mesh:
         # bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
         #                 bcid = iBC + 1,                                  # noqa: E251
         #                 type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
-        bcs[iBC].name = GetStr(     'BoundaryName', number=iBC)  # noqa: E251
-        bcs[iBC].bcid = iBC + 1                                  # noqa: E251
-        bcs[iBC].type = GetIntArray('BoundaryType', number=iBC)  # noqa: E251
+        bcs[iBC].name = GetStr(     'BoundaryName', number=iBC).lower()    # noqa: E251
+        bcs[iBC].bcid = iBC + 1                                            # noqa: E251
+        bcs[iBC].type = GetIntArray('BoundaryType', number=iBC)            # noqa: E251
 
     nVVs = CountOption('vv')
+    if nVVs > 0:
+        hopout.sep()
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     for iVV, _ in enumerate(vvs):
         vvs[iVV] = dict()
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
-    if len(vvs) > 0:
-        hopout.sep()
 
     # Flatten the BC array, the surface numbering follows from the 2-D ordering
     bcIndex = [item for row in bcZones for item in row]
@@ -210,9 +269,6 @@ def MeshCartesian() -> meshio.Mesh:
             else:
                 continue
 
-            hopout.routine('Generated periodicity constraint with vector {}'.format(
-                vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
-
             translation = [1., 0., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][0]),
                            0., 1., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][1]),
                            0., 0., 1., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][2]),
@@ -220,7 +276,7 @@ def MeshCartesian() -> meshio.Mesh:
 
             # Find the opposing side(s)
             # > copy, otherwise we modify bcs
-            nbType     = copy.copy(bcs[iBC].type)
+            nbType     = cast(list, copy.copy(bcs[iBC].type))
             nbType[3] *= -1
             nbBCID     = find_index([s.type for s in bcs], nbType)
             # nbSurfID can hold multiple surfaces, depending on the number of zones
@@ -228,7 +284,20 @@ def MeshCartesian() -> meshio.Mesh:
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
 
             # Connect positive to negative side
-            gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
+            try:
+                gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
+                hopout.routine('Generated periodicity constraint with vector {}'.format(
+                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
+
+            # If the number of sides do not match, we cannot impose periodicity
+            # > Leave it out here and assume we can sort it out in ConnectMesh
+            except Exception as e:
+                print(hopout.warn(' No GMSH periodicity with vector {}'.format(
+                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
+                continue
+
+    if len(vvs) > 0:
+        hopout.sep()
 
     # To generate connect the generated cells, we can simply set
     gmsh.option.setNumber('Mesh.RecombineAll'  , 1)
@@ -238,18 +307,46 @@ def MeshCartesian() -> meshio.Mesh:
     # Force Gmsh to output all mesh elements
     gmsh.option.setNumber('Mesh.SaveAll', 1)
 
+    gmsh.model.mesh.generate(3)
+
     # Set the element order
-    # > Technically, this is only required in generate_mesh but let's be precise here
+    # > This needs to be executed after generate_mesh, see
+    # > https://github.com/nschloe/pygmsh/issues/515#issuecomment-1020106499
     gmsh.model.mesh.setOrder(mesh_vars.nGeo)
     gmsh.model.geo.synchronize()
-
-    # PyGMSH returns a meshio.mesh datatype
-    mesh = pygmsh.geo.Geometry().generate_mesh(order=mesh_vars.nGeo)
 
     if debugvisu:
         gmsh.fltk.run()
 
+    # Convert Gmsh object to meshio object
+    mesh = gmsh_to_meshio(gmsh)
+
     # Finally done with GMSH, finalize
     gmsh.finalize()
+
+    # # Calculate the offset for the quad cells
+    # offset    = 0
+    # for elems in mesh.cells:
+    #     if any(sub in elems.type for sub in {'vertex', 'line'}):
+    #         offset += len(elems.data)
+    #
+    # # Remove 0D/1D entities
+    # elems  = []
+    # csets  = {}
+    # for key, val in enumerate(mesh.cells):
+    #     if any(sub in val.type for sub in {'vertex', 'line'}):
+    #         for cset in mesh.cell_sets.items():
+    #             cset_new = [(cast(np.ndarray, s) - offset) if s is not None else None for s in cset[1][key+1:]]
+    #             csets.update({cset[0]: cset_new})
+    #     else:
+    #         elems.append(val)
+    #
+    # mesh = meshio.Mesh(points    = mesh.points,  # noqa: E251
+    #                    cells     = elems,        # noqa: E251
+    #                    cell_sets = csets)        # noqa: E251
+    # del elems, csets
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh

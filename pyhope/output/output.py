@@ -37,11 +37,11 @@ from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
-STD_LENGTH = 79  # Standard length for output to console
+STD_LENGTH: Final[int] = 79  # Standard length for output to console
 # ==================================================================================================================================
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Colors:
     # Define colors used throughout this framework
     #
@@ -100,8 +100,8 @@ def warn(string: str, length: int = STD_LENGTH) -> str:
                 string (str): String to be printed in banner.
                 length (int): (Optional.) Number of characters in each line.
     """
-    prefix   = Colors.WARN + ' WARNING  ┃ '  + Colors.END
-    lprefix  = len(' WARNING  ┃ ')
+    prefix   = Colors.WARN + '│  WARNING  ┃ '  + Colors.END
+    lprefix  = len('│  WARNING  ┃ ')
     wrap_msg = textwrap.fill(string, width=length - lprefix)
 
     # Add prefix to each line
@@ -116,7 +116,7 @@ def warning(string: str) -> None:
             string (str): String to be printed in banner.
             length (int): (Optional.) Number of characters in each line.
     """
-    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END)
+    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True)
 
 
 def sep(length: int = 5) -> None:

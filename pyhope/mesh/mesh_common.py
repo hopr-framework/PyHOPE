@@ -27,8 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from functools import cache
-from typing import Union
-from typing import Tuple
+from typing import Union, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -50,8 +49,11 @@ def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of a hexahedron
     """
     faces_map = {  # Tetrahedron
+                   4: ['z-', 'y-', 'x+', 'x-'            ],
                    # Pyramid
+                   5: ['z-', 'y-', 'x+', 'y+', 'x-'      ],
                    # Wedge / Prism
+                   6: ['y-', 'x+', 'x-', 'z-', 'z+'      ],
                    # Hexahedron
                    8: ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
                 }
@@ -187,8 +189,22 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
+                   4: {'z-': np.array([  0,  2,  1    ], dtype=dtype),
+                       'y-': np.array([  0,  1,  3    ], dtype=dtype),
+                       'x+': np.array([  1,  2,  3    ], dtype=dtype),
+                       'x-': np.array([  2,  0,  3    ], dtype=dtype)},
                    # Pyramid
+                   5: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),
+                       'y-': np.array([  0,  1,  4    ], dtype=dtype),
+                       'x+': np.array([  1,  2,  4    ], dtype=dtype),
+                       'y+': np.array([  2,  3,  4    ], dtype=dtype),
+                       'x-': np.array([  3,  0,  4    ], dtype=dtype)},
                    # Wedge / Prism
+                   6: {'y-': np.array([  0,  1,  4,  3], dtype=dtype),
+                       'x+': np.array([  1,  2,  5,  4], dtype=dtype),
+                       'x-': np.array([  2,  0,  3,  5], dtype=dtype),
+                       'z-': np.array([  0,  2,  1    ], dtype=dtype),
+                       'z+': np.array([  3,  4,  5    ], dtype=dtype)},
                    # Hexahedron
                    8: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),
                        'y-': np.array([  0,  1,  5,  4], dtype=dtype),
@@ -271,8 +287,17 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
 
     order     = nGeo
     faces_map = {  # Tetrahedron
+                   4: { 'y-': np.array([  0,  1,  3]),
+                        'x+': np.array([  1,  2,  3]),
+                        'x-': np.array([  2,  0,  3]),
+                        'z-': np.array([  0,  2,  1])},
                    # Pyramid
                    # Wedge / Prism
+                   6: { 'y-': np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15]),
+                        'x+': np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16]),
+                        'x-': np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17]),
+                        'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
+                        'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
                    # Hexahedron
                    8: { 'z-':              LINMAP(elemType, order=order)[:    , :    , 0    ],
                         'y-': np.transpose(LINMAP(elemType, order=order)[:    , 0    , :    ]),
@@ -298,10 +323,25 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
     if isinstance(elemType, str):
         elemType = mesh_vars.ELEMTYPE.name[elemType]
 
+    # FIXME: check for non-hexahedral elements
     order     = nGeo
     faces_map = {  # Tetrahedron
+                   4: { 'z-':              elemNodes[:    , :    , 0    ],
+                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
+                        'x+': np.transpose(elemNodes[order, :    , :    ]),
+                        'x-':              elemNodes[0    , :    , :    ]},
                    # Pyramid
+                   5: { 'z-':              elemNodes[:    , :    , 0    ],
+                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
+                        'x+': np.transpose(elemNodes[order, :    , :    ]),
+                        'y+':              elemNodes[:    , order, :    ],
+                        'x-':              elemNodes[0    , :    , :    ]},
                    # Wedge / Prism
+                   6: { 'z-':              elemNodes[:    , :    , 0    ],
+                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
+                        'x+': np.transpose(elemNodes[order, :    , :    ]),
+                        'x-':              elemNodes[0    , :    , :    ],
+                        'z+': np.transpose(elemNodes[:    , :    , order])},
                    # Hexahedron
                    8: { 'z-':              elemNodes[:    , :    , 0    ],
                         'y-': np.transpose(elemNodes[:    , 0    , :    ]),
@@ -336,43 +376,85 @@ def count_elems(mesh: meshio.Mesh) -> int:
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
-def calc_elem_bary(mesh: meshio.Mesh) -> np.ndarray:
+def calc_elem_bary(elems: list) -> np.ndarray:
+    """
+    Compute barycenters of all three-dimensional elements in the mesh.
+
+    Returns:
+        elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
+    """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    import numpy as np
     # ------------------------------------------------------
-    # Only consider three-dimensional types
-    elem_cells = []
-    for elemType in mesh.cells_dict:
-        if any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
-            elem_cells.append(mesh.get_cells_type(elemType))
 
-    # Flatten the list of cells (concatenate all cells into one array)
-    all_cells = np.concatenate(elem_cells, axis=0)
+    elem_bary = []
+    for elem in elems:
+        # Calculate barycenters
+        bary = np.mean(mesh_vars.mesh.points[elem.nodes], axis=0)
+        elem_bary.append(bary)
 
-    # Calculate the centroid (mean of coordinates) for all cells at once
-    return np.mean(mesh_vars.mesh.points[all_cells], axis=1)
+    return np.asarray(elem_bary)
 
 
 @cache
-def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
-    """ CGNS -> IJK ordering for element corner nodes
+def LINTEN(elemType: int, order: int = 1) -> tuple[np.ndarray, dict[np.int64, int]]:
+    """ MESHIO -> IJK ordering for element volume nodes
     """
     # Local imports ----------------------------------------
-    # from pyhope.io.io_cgns import genHEXMAPCGNS
-    # from pyhope.io.io_vtk import genHEXMAPVTK
-    from pyhope.io.io_meshio import HEXMAPMESHIO
+    # from pyhope.io.formats.cgns import genHEXMAPCGNS
+    # from pyhope.io.formats.vtk import genHEXMAPVTK
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            return np.array([0, 1, 2, 3])
+            # return np.array([0, 1, 2, 3])
+            TETRTEN = np.array([0, 1, 2, 3])
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
+            return TETRTEN, TENTETR
         case 105:  # Pyramid
-            return np.array([0, 1, 3, 2, 4])
+            # return np.array([0, 1, 3, 2, 4])
+            PYRATEN = np.array([0, 1, 3, 2, 4])
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
+            return PYRATEN, TENPYRA
         case 106:  # Prism
-            return np.array([0, 1, 2, 3, 4, 5])
+            # return np.array([0, 1, 2, 3, 4, 5])
+            PRISTEN = np.array([0, 1, 2, 3, 4, 5])
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
+            return PRISTEN, TENPRIS
         case 108:  # Hexaeder
-            return np.array([0, 1, 3, 2, 4, 5, 7, 6])
+            # return np.array([0, 1, 3, 2, 4, 5, 7, 6])
+            HEXTEN = np.array([0, 1, 3, 2, 4, 5, 7, 6])
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
+            return HEXTEN, TENHEX
         # Curved elements, use mapping
+        case 204:  # Tetraeder
+            _, TETRTEN = TETRMAPMESHIO(order+1)
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
+            return TETRTEN, TENTETR
+        case 205:  # Pyramid
+            _, PYRATEN = PYRAMAPMESHIO(order+1)
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
+            return PYRATEN, TENPYRA
+        case 206:  # Prism
+            _, PRISTEN = PRISMAPMESHIO(order+1)
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
+            return PRISTEN, TENPRIS
         case 208:  # Hexaeder
             # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
             # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
@@ -385,32 +467,32 @@ def LINTEN(elemType: int, order: int = 1) -> np.ndarray:
 
             # MESHIO
             _, HEXTEN = HEXMAPMESHIO(order+1)
-            return HEXTEN
+            # meshio accesses them in their own ordering
+            # > need to reverse the mapping
+            TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
+            return HEXTEN, TENHEX
         case _:  # Default
-            print('Error in LINMAP, unknown elemType')
+            print('Error in LINTEN, unknown elemType')
             sys.exit(1)
 
 
 @cache
 def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
-    """ CGNS -> IJK ordering for element corner nodes
+    """ MESHIO -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
-    # from pyhope.io.io_cgns import HEXMAPCGNS
-    # from pyhope.io.io_vtk import HEXMAPVTK
-    from pyhope.io.io_meshio import HEXMAPMESHIO
+    # from pyhope.io.formats.cgns import HEXMAPCGNS
+    # from pyhope.io.formats.vtk import HEXMAPVTK
+    from pyhope.io.formats.meshio import HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
             sys.exit(1)
-            return np.array([0, 1, 2, 3])
         case 105:  # Pyramid
             sys.exit(1)
-            return np.array([0, 1, 3, 2, 4])
         case 106:  # Prism
             sys.exit(1)
-            return np.array([0, 1, 2, 3, 4, 5])
         case 108:  # Hexaeder
             linmap = np.zeros((2, 2, 2), dtype=int)
             indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),

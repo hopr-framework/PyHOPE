@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import re
 import sys
 from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,8 +45,7 @@ from pyhope.mesh.mesh_common import dir_to_nodes, faces
 
 
 def check_orientation(ionodes : np.ndarray,
-                      elemType: int,
-                      ) -> tuple[bool, Optional[str]]:
+                      elemType: int) -> tuple[bool, Optional[str]]:
     """ Check the orientation of the surface normals
     """
     mapLin   = LINMAP(elemType, order=mesh_vars.nGeo)
@@ -110,10 +110,16 @@ def OrientMesh() -> None:
 
     mesh   = mesh_vars.mesh
     nElems = 0
+    passedTypes = []
 
     for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
         if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+            continue
+
+        # Only consider hexahedrons
+        if 'hexahedron' not in elemType:
+            passedTypes.append(elemType)
             continue
 
         # Get the elements
@@ -142,3 +148,8 @@ def OrientMesh() -> None:
 
         # Add to nElems
         nElems += nIOElems
+
+    # Warn if we passed any element types
+    if len(passedTypes) > 0:
+        print(hopout.warn('Ignored element type{}: {}'.format('s' if len(passedTypes) > 1 else '',
+                                                              [re.sub(r"\d+$", "", s) for s in passedTypes])))

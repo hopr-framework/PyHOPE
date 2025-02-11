@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+from argparse import Namespace
 from typing import Optional, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -90,6 +91,10 @@ class CommandLine:
             else:
                 default = ''
 
+            # Convert booleans to strings
+            if isinstance(default, bool):
+                default = 'T' if default else 'F'
+
             if config.prms[key]['help']:
                 help    = config.prms[key]['help']
             else:
@@ -99,7 +104,7 @@ class CommandLine:
 
         return None
 
-    def __enter__(self):
+    def __enter__(self) -> tuple[Namespace, list]:
         # Setup an argument parser and add know arguments
         _ = parser = argparse.ArgumentParser(prog=self.name,
                                              formatter_class=argparse.RawDescriptionHelpFormatter,

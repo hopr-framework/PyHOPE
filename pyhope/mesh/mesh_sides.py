@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import string
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -83,7 +82,7 @@ def GenerateSides() -> None:
         ioelems  = mesh.get_cells_type(elemType)
         elemMap  = mesh_vars.ELEMMAP(elemType)
         nIOElems = ioelems.shape[0]
-        nIOSides = mesh_vars.ELEMTYPE.type[elemType.rstrip(string.digits)]
+        nIOSides = len(faces(elemType))
 
         # Create non-unique sides
         # mesh_vars.elems += tuple(ELEM() for _ in range(nIOElems         ))
@@ -98,6 +97,7 @@ def GenerateSides() -> None:
 
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
+            nodes = ioelems[iElem-nElems]
             # elems[iElem].update(type   = elemMap,                      # noqa: E251
             #                     elemID = iElem,                        # noqa: E251
             #                     sides  = [],                           # noqa: E251
@@ -105,16 +105,16 @@ def GenerateSides() -> None:
             elems[iElem].type   = elemMap                       # noqa: E251
             elems[iElem].elemID = iElem                         # noqa: E251
             elems[iElem].sides  = []                            # noqa: E251
-            elems[iElem].nodes  = ioelems[iElem]                # noqa: E251
+            elems[iElem].nodes  = nodes                         # noqa: E251
 
             # Create the sides
-            for iSide in range(nSides, nSides+nIOSides):
+            for key, val in enumerate(corner_faces):
                 # sides[iSide].update(sideType=4)
-                sides[iSide].sideType=4
+                sides[nSides + key].sideType = len(val)
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
-                corners = [ioelems[iElem][s] for s in corner_faces[index]]
+                corners = [nodes[s] for s in corner_faces[index]]
                 # sides[sCount].update(face    = face,                   # noqa: E251
                 #                      elemID  = iElem,                  # noqa: E251
                 #                      sideID  = sCount,                 # noqa: E251
@@ -124,7 +124,7 @@ def GenerateSides() -> None:
                 sides[sCount].elemID  = iElem                   # noqa: E251
                 sides[sCount].sideID  = sCount                  # noqa: E251
                 sides[sCount].locSide = index+1                 # noqa: E251
-                sides[sCount].corners = np.array(corners)      # noqa: E251
+                sides[sCount].corners = np.array(corners)       # noqa: E251
                 sCount += 1
 
             # Add to nSides
@@ -137,7 +137,7 @@ def GenerateSides() -> None:
         nElems += nIOElems
 
     # Append sides to elem
-    for iSide, side in enumerate(sides):
+    for side in sides:
         elemID = side.elemID
         sideID = side.sideID
         elems[elemID].sides.append(sideID)

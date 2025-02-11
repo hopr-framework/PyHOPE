@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import re
 import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -201,6 +202,12 @@ def CheckWatertight() -> None:
     sides     = mesh_vars.sides
     points    = mesh_vars.mesh.points
     # checked = np.zeros((len(sides)), dtype=bool)
+
+    # Only consider hexahedrons
+    if any(e.type % 100 != 8 for e in elems):
+        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
+        print(hopout.warn(f'Ignored element type: {[re.sub(r"\d+$", "", mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]}'))
+        return
 
     # Prepare elements for parallel processing
     if np_mtp > 0:

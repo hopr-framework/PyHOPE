@@ -25,6 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import copy
+import gc
 import os
 import sys
 from string import digits
@@ -79,11 +81,11 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Create an empty meshio object
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     cells    = mesh.cells_dict
-    cellsets = mesh.cell_sets
+    cellsets = {}
 
     nodeCoords   = mesh.points
     offsetnNodes = nodeCoords.shape[0]
-    nSides       = 0
+    nSides       = np.zeros(2, dtype=int)
 
     # Vandermonde for changeBasis
     VdmEqHdf5ToEqMesh = np.array([])
@@ -157,8 +159,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     elemType  = elemType[0]
 
                 # ChangeBasis currently only supported for hexahedrons
-                linMap    = LINTEN(elemNum, order=mesh_vars.nGeo)
-                mapLin    = {k: v for v, k in enumerate(linMap)}
+                _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
 
                 if nGeo == mesh_vars.nGeo:
                     elemIDs   = np.arange(elem[4], elem[5])
@@ -198,13 +199,13 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     sideType  = sideInfo[index, 0]
                     sideBC    = sideInfo[index, 4]
 
-                    BCName    = BCNames[sideBC-1]
+                    BCName    = BCNames[sideBC-1].lower()
                     face      = faces(elemType)[sCounter]
                     corners   = [elemNodes[0][s] for s in face_to_cgns(face, elemType)]
 
                     # Get the number of corners
                     nCorners  = abs(sideType % 10)
-                    sideName  = 'quad' if nCorners == 4 else 'tri'
+                    sideName  = 'quad' if nCorners == 4 else 'triangle'
                     if mesh_vars.nGeo > 1:
                         sideName += str(NDOFperElemType(sideName, mesh_vars.nGeo))
                     sideNodes = np.expand_dims(corners, axis=0)
@@ -216,24 +217,55 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Increment the side counter
                     sCounter += 1
-                    nSides   += 1
+                    sideType  = 0 if nCorners == 4 else 1
+                    nSides[sideType] += 1
 
                     if sideBC == 0:
                         continue
 
                     # Add the side to the cellset
-                    # > We did not create any 0D/1D objects, so we do not need to consider any offset
+                    # > CS1: We create a dictionary of the BC sides and types that we want
                     try:
-                        cellsets[BCName][1] = np.append(cellsets[BCName][1], np.array([nSides-1], dtype=np.uint64))
+                        cellsets[BCName][sideName] = np.append(cellsets[BCName][sideName],
+                                                               np.array([nSides[sideType]-1], dtype=np.uint64))
                     except KeyError:
-                        # Pyright does not understand that Meshio expects a list with one None entry
-                        cellsets[BCName]    = [None, np.array([nSides-1], dtype=np.uint64)]  # type: ignore
+                        cellsets[BCName] = { sideName: np.array([nSides[sideType]-1], dtype=np.uint64)}
 
             # Update the offset for the next file
             offsetnNodes = points.shape[0]
 
+    # > CS2: We create a meshio.Mesh object without cell_sets
     mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = cellsets)  # noqa: E251
+                         cells     = cells)     # noqa: E251
+                         # cell_sets = cellsets)  # noqa: E114, E116, E251
+
+    # > CS3: We build the cell sets depending on the cells
+    cell_sets  = mesh.cell_sets
+    cell_types = [s for s in mesh.cells_dict.keys()]
+    cell_list  = [None for _ in cell_types]
+
+    for key, val in cellsets.items():
+        for v_key, v_val in val.items():
+            if key in cell_sets.keys():
+                entry = cell_sets[key]
+            else:
+                entry = copy.copy(cell_list)
+
+            # Find matching cell type and populate the corresponding entry
+            if entry[cell_types.index(v_key)] is not None:
+                entry[cell_types.index(v_key)] = np.append(cast(np.ndarray, entry[cell_types.index(v_key)]), v_val)  # type: ignore
+            else:
+                entry[cell_types.index(v_key)] = v_val
+
+            # Assign the entry to the cell set
+            cell_sets[key] = entry  # type: ignore
+
+    # > CS4: We create the final meshio.Mesh object with cell_sets
+    mesh   = meshio.Mesh(points    = points,     # noqa: E251
+                         cells     = cells,      # noqa: E251
+                         cell_sets = cell_sets)  # noqa: E251
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh

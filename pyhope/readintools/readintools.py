@@ -51,7 +51,7 @@ class MultiOrderedDict(OrderedDict):
         thus overload the ConfigParser with this new dict_type
     """
     @override
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         if isinstance(value, list) and key in self:
             self[key].extend(value)
         else:
@@ -190,6 +190,7 @@ def CreateReal(string: str, help: Optional[str] = None, default: Optional[float]
                                counter=0,
                                multiple=multiple)
 
+
 def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
@@ -309,6 +310,11 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
             value = [s for s in config.params.get('general', name).split('\n') if s != ''][num]
         else:
             value = config.params.get('general', name)
+            # Single values cannot contain spaces
+            if '\n' in value:
+                hopout.warning(f'Option "{name}" is already set, but is not a multiple option!')
+                # traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
 
         # int2str has custom output
         if calltype != 'int2str':
@@ -330,9 +336,8 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
                     else:
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
-                hopout.warning('Keyword "{}" not found in file and no default given, exiting...'
-                               .format(name))
-                traceback.print_stack(file=sys.stdout)
+                hopout.warning(f'Keyword "{name}" not found in file and no default given, exiting...')
+                # traceback.print_stack(file=sys.stdout)
                 sys.exit(1)
     return value
 
@@ -341,9 +346,11 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
 
+
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
     return float(value)
+
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
     value = GetParam(name=name, default=default, number=number, calltype='int')
@@ -360,13 +367,13 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     import pyhope.config.config as config
     import pyhope.output.output as hopout
     # ------------------------------------------------------
-    value = GetParam(name=name, default=default, number=number, calltype='int2str')
-    # Check if we already received the int. Otherwise, get the value from the
-    # mapping
+    value  = GetParam(name=name, default=default, number=number, calltype='int2str')
+    source = 'DEFAULT' if config.prms[name]['counter'] == 0 else '*CUSTOM'
+
+    # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']
     if type(value) is int:
-        value = value
-        hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), 'DEFAULT')
+        hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
     else:
         if not value.isdigit():
             value = [s for s, v in mapping.items() if v.lower() == value.lower()]
@@ -376,7 +383,9 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
                 sys.exit(1)
             else:
                 value = int(value[0])
-                hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), '*CUSTOM')
+                hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
+        else:
+            hopout.printoption(name, '{} [{}]'.format(value, mapping[int(value)]), source)
 
     return int(value)
 
@@ -452,7 +461,11 @@ class ReadConfig():
             hopout.header(program, version, commit)
             hopout.warning('No parameter file given')
             sys.exit(1)
-        if not os.path.isfile(self.parameter):
+
+        # Sore full path of the parameter file
+        config.prmfile = os.path.abspath(self.parameter)
+
+        if not os.path.isfile(config.prmfile):
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
             common  = Common()
             program = common.program

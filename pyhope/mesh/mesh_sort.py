@@ -25,11 +25,11 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 from typing import cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -84,45 +84,60 @@ def SortMeshBySFC() -> None:
     from pyhope.mesh.mesh_common import calc_elem_bary
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    import numpy as np
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along space-filling curve')
 
-    mesh   = mesh_vars.mesh
+    mesh  = mesh_vars.mesh
+    elems = mesh_vars.elems
+    sides = mesh_vars.sides
 
     # Global bounding box
     points = mesh.points
-    xmin   = np.min(points, axis=0)
-    xmax   = np.max(points, axis=0)
+    xmin = np.min(points, axis=0)
+    xmax = np.max(points, axis=0)
 
-    # Calculate the element bary centers
-    elemBary = calc_elem_bary(mesh)
+    # Calculate the element barycenters and associated element offsets
+    elem_bary = calc_elem_bary(elems)
 
     # Calculate the space-filling curve resolution for the given KIND
     kind = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
-    # Discretize the element positions along according to the chosen resolution
-    elemDisc = Coords2Int(elemBary, spacing, xmin)
+    # Discretize the element positions according to the chosen resolution
+    elem_disc      = Coords2Int(elem_bary, spacing, xmin)
 
     # Generate the space-filling curve and order elements along it
-    hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
-    distances = np.array(hc.distances_from_points(elemDisc))  # bottleneck
-
-    # Sort mesh cells along the SFC
+    hc             = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
+    distances      = np.array(hc.distances_from_points(elem_disc))  # bottleneck
     sorted_indices = np.argsort(distances)
-    for cellType in mesh.cells:
-        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
-            # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
-            cellType.data = cellType.data[sorted_indices]
 
-    # Overwrite the old mesh
-    mesh_vars.mesh = meshio.Mesh(points=points,
-                                 cells=mesh.cells,
-                                 cell_sets=mesh.cell_sets)
+    # Initialize sorted cells
+    sorted_elems   = [elems[i] for i in sorted_indices]
+    sorted_sides   = []
+
+    # Overwrite the elem/side IDs
+    offsetSide = 0
+    for elemID, elem in enumerate(sorted_elems):
+        elem.elemID = elemID
+
+        for key, val in enumerate(elem.sides):
+            side        = sides[val]
+            side.sideID = offsetSide + key
+            side.elemID = elemID
+
+            sorted_sides.append(side)
+
+        # Correct the sideID
+        elem.sides  = np.arange(offsetSide, offsetSide + len(elem.sides)).tolist()
+        offsetSide += len(elem.sides)
+
+    mesh_vars.elems = sorted_elems
+    mesh_vars.sides = sorted_sides
 
 
-def SortMeshByIJK():
+def SortMeshByIJK() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -131,29 +146,29 @@ def SortMeshByIJK():
 
     hopout.routine('Sorting elements along I,J,K direction')
 
-    # We only need the volume cells
-    mesh     = mesh_vars.mesh
-    nElems   = count_elems(mesh)
-    # Calculate the element bary centers
-    elemBary = calc_elem_bary(mesh)
+    mesh  = mesh_vars.mesh
+    elems = mesh_vars.elems
+    sides = mesh_vars.sides
+
+    # Calculate the element bary centers and type offsets
+    elemBary = calc_elem_bary(elems)
 
     # Calculate bounding box and conversion factor
     ptp_elemBary = np.ptp(elemBary, axis=0)
-    lower        = np.min(elemBary, axis=0) - 0.1 * ptp_elemBary
-    upper        = np.max(elemBary, axis=0) + 0.1 * ptp_elemBary
-    box = tBox(lower, upper)
+    lower        = np.min(np.min(elemBary, axis=0) - 0.1 * np.min(ptp_elemBary, axis=0), axis=0)
+    upper        = np.max(np.max(elemBary, axis=0) + 0.1 * np.max(ptp_elemBary, axis=0), axis=0)
 
     # Convert coordinates to integer space
+    box       = tBox(np.floor(lower), np.ceil(upper))
     intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(int)
 
     # Initialize lists
+    nElems    = count_elems(mesh)
     nElemsIJK = np.zeros(3, dtype=int)
     structDir = np.zeros(3, dtype=bool)
+    tol       = 1
+    intList   = []
 
-    nStructDirs = 0
-    tol = 1
-
-    intList = []
     for dir in range(3):
         # Sort elements by coordinate directions
         intList = intCoords[:, dir]
@@ -173,7 +188,6 @@ def SortMeshByIJK():
             else:
                 counter += 1
 
-        # print(f'  dir,min,max: {dir + 1}, {nElems_min}, {nElems_max}')
         if nElems_max != nElems_min:
             nElemsIJK[dir] = 0  # Not structured
             structDir[dir] = False
@@ -204,30 +218,35 @@ def SortMeshByIJK():
         hopout.warning('Problem during sort elements by coordinate: nElems /= nElems_I * Elems_J * nElems_K')
 
     hopout.sep()
-    hopout.info(' Number of structured dirs: {}'.format(nStructDirs))
-    hopout.info(' Number of elems [I,J,K]  : {}'.format(nElemsIJK))
+    hopout.info(' Number of structured dirs      : {}'.format(nStructDirs))
+    hopout.info(' Number of elems [I,J,K]        : {}'.format(nElemsIJK))
 
     # Now sort the elements based on z, y, then x coordinates
-    intList = (intCoords[:, 2] * 10000 + intCoords[:, 1]) * 10000 + intCoords[:, 0]
-
-    # Create a new mesh with only volume elements and sorted along SFC
-    points   = mesh_vars.mesh.points
-    cells    = mesh_vars.mesh.cells
-    cellsets = mesh_vars.mesh.cell_sets
-
-    valid_types = set(mesh_vars.ELEMTYPE.type.keys())
+    intList        = (intCoords[:, 2] * 10000 + intCoords[:, 1]) * 10000 + intCoords[:, 0]
     sorted_indices = np.argsort(intList)
-    for cellType in cells:
-        if any(s in cellType.type for s in valid_types):
-            # FIXME: THIS BREAKS FOR HYBRID MESHES SINCE THE LIST ARE NOT THE SAME LENGTH THEN!
-            cellType.data = np.asarray(cellType.data)[sorted_indices]
 
-    # Overwrite the old mesh
-    mesh   = meshio.Mesh(points=points,
-                         cells=cells,
-                         cell_sets=cellsets)
+    # Initialize sorted cells
+    sorted_elems   = [elems[i] for i in sorted_indices]
+    sorted_sides   = []
 
-    mesh_vars.mesh = mesh
+    # Overwrite the elem/side IDs
+    offsetSide = 0
+    for elemID, elem in enumerate(sorted_elems):
+        elem.elemID = elemID
+
+        for key, val in enumerate(elem.sides):
+            side        = sides[val]
+            side.sideID = offsetSide + key
+            side.elemID = elemID
+
+            sorted_sides.append(side)
+
+        # Correct the sideID
+        elem.sides  = np.arange(offsetSide, offsetSide + len(elem.sides)).tolist()
+        offsetSide += len(elem.sides)
+
+    mesh_vars.elems = sorted_elems
+    mesh_vars.sides = sorted_sides
 
 
 def SortMesh() -> None:
@@ -238,6 +257,9 @@ def SortMesh() -> None:
     # ------------------------------------------------------
 
     hopout.separator()
+    hopout.info('SORT MESH...')
+    hopout.sep()
+
     mesh_vars.sortIJK = GetLogical('doSortIJK')
     hopout.sep()
 
@@ -246,3 +268,6 @@ def SortMesh() -> None:
         SortMeshByIJK()
     else:
         SortMeshBySFC()
+
+    # Run garbage collector to release memory
+    gc.collect()

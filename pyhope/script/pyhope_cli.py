@@ -49,13 +49,13 @@ def main() -> None:
     from pyhope.basis.basis_jacobian import CheckJacobians
     from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.io.io import IO, DefineIO, InitIO
-    from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh, RegenerateMesh
-    from pyhope.mesh.mesh_connect import ConnectMesh
+    from pyhope.mesh.connect.connect import ConnectMesh
+    from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh
     from pyhope.mesh.mesh_duplicates import EliminateDuplicates
     from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
-    from pyhope.mesh.mesh_transform import TransformMesh
+    from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
     # ------------------------------------------------------
@@ -114,13 +114,17 @@ def main() -> None:
 
     # Generate the actual mesh
     GenerateMesh()
-    SortMesh()
+
+    # Optimize the Gmsh mesh
+    hopout.routine('BUILD DATA STRUCTURE...')
+    hopout.sep()
+
     EliminateDuplicates()
     OrientMesh()
 
     # Build our data structures
     GenerateSides()
-    RegenerateMesh()
+    SortMesh()
     ConnectMesh()
     TransformMesh()
 

@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import threading
 from multiprocessing import Pool, Queue
+from typing import Callable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -37,13 +38,13 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-def distribute_work(elems, chunk_size: int) -> list[object]:
+def distribute_work(elems: list, chunk_size: int) -> list[object]:
     """Distribute elements into chunks of a given size
     """
     return [elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size)]
 
 
-def update_progress(progress_queue, total_elements) -> None:
+def update_progress(progress_queue: Queue, total_elements: int) -> None:
     """ Function to update the progress bar from the queue
     """
     with alive_bar(total_elements, title='│             Processing Elements', length=33) as bar:
@@ -53,7 +54,7 @@ def update_progress(progress_queue, total_elements) -> None:
             bar()
 
 
-def run_in_parallel(process_chunk, elems, chunk_size=10):
+def run_in_parallel(process_chunk: Callable, elems: list, chunk_size: int = 10) -> list:
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------

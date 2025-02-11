@@ -47,7 +47,7 @@ nGeo   : int                                      # Order of spline-reconstructi
 sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
 
 bcs    : list[type | None]                        # [list of dict] - Boundary conditions
-vvs    : list      | None                         # [list of dict] - Periodic vectors
+vvs    : list                                     # [list of dict] - Periodic vectors
 
 elems  : list[type | None]                        # [list of list] - Element nodes
 sides  : list[type | None]                        # [list of list] - Side    nodes
@@ -63,12 +63,18 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
-@dataclass
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
+class MeshMode:
+    MODE_INT:    int = 1
+    MODE_EXT:    int = 3
+
+
+@dataclass(init=False, repr=False, eq=False, slots=False)
 class CGNS:
     regenerate_BCs: bool = False                  # Flag if CGNS needs BC regeneration
 
 
-@dataclass
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class SIDE:
     # Explicitly declare data members
     # __slots__ = ('elemID', 'sideID', 'locSide', 'face', 'corners', 'sideType',
@@ -145,7 +151,7 @@ class SIDE:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
-@dataclass
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class ELEM:
     # Explicitly declare data members
     # __slots__ = ('type', 'elemID', 'sides', 'nodes')
@@ -175,7 +181,7 @@ class ELEM:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
 
-@dataclass
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class BC:
     # Explicitly declare data members
     # __slots__ = ('name', 'bcid', 'type', 'dir')
@@ -217,7 +223,7 @@ class ELEMTYPE:
     name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,
                                'tetra84'      : 204, 'tetra120'      : 204, 'tetra165'      : 204, 'tetra220'      : 204,
                                'tetra286'     : 204,
-            'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205,
+            'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205, 'pyramid30'     : 205, 'pyramid55'     : 205,
             'wedge'     : 106, 'wedge15'      : 206, 'wedge18'       : 206, 'wedge40'       : 206, 'wedge75'       : 206,
                                'wedge126'     : 206, 'wedge196'      : 206, 'wedge288'      : 206, 'wedge405'      : 206,
                                'wedge550'     : 206,

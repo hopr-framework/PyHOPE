@@ -46,50 +46,69 @@ def DefineMesh() -> None:
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
-    from pyhope.mesh.mesh_vars import ELEMTYPE
+    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateInt(      'Mode',                                help='Mesh generation mode (1 - Internal, 2 - External [MeshIO])')
+    CreateIntFromString('Mode',                            help='Mesh generation mode (1 - Internal, 3 - External [MeshIO])')
+    CreateIntOption(    'Mode', number=MeshMode.MODE_INT,  name='Internal')
+    CreateIntOption(    'Mode', number=MeshMode.MODE_EXT,  name='External')
     # Internal mesh generator
     CreateInt(      'nZones',                              help='Number of mesh zones')
     CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
                                                                                          '... ,, x_8,y_8,z_8/)')  # noqa: E127
+    CreateRealArray('X0',              3,   multiple=True, help='Origin of a zone. Equivalent to a corner node.')
+    CreateRealArray('DX',              3,   multiple=True, help='Extension of the zone in each spatial direction ' +
+                                                                 'starting from the origin X0 corner node')
     CreateIntArray( 'nElems',          3,   multiple=True, help='Number of elements in each direction')
-    CreateRealArray('Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
-                                                                                      'each spatial direction.')  # noqa: E127
-    CreateRealArray('l0',              3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
-                                                                                                    'direction')  # noqa: E127
-    CreateIntFromString('ElemType'      ,   multiple=True, default='hexahedron', help='Element type')
+    CreateIntFromString('ElemType'      ,   default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
+        # Only consider uncurved element types
+        if val > 200:
+            continue
         CreateIntOption('ElemType', number=val, name=key)
-    CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')
-    CreateIntArray( 'BoundaryType',    4,   multiple=True, help='(/ Type, curveIndex, State, alpha /)')
-    CreateIntArray( 'BCIndex',         6,   multiple=True, help='Index of BC for each boundary face')
     # Gmsh
     CreateLogical(  'EliminateNearDuplicates', default=True, help='Enables elimination of near duplicate points')
-    # Periodicity
-    CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
-    CreateLogical(  'doPeriodicCorrect',    default=True,  help='Enables periodic correction')
     # External mesh readin through GMSH
     CreateStr(      'Filename',             multiple=True, help='Name of external mesh file')
     CreateLogical(  'MeshIsAlreadyCurved',  default=False, help='Enables mesh agglomeration')
     # Common settings
     CreateInt(      'NGeo'         ,        default=1,     help='Order of spline-reconstruction for curved surfaces')
     CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
+    # Periodicity
+    CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
+    CreateLogical(  'doPeriodicCorrect',    default=True,  help='Enables periodic correction')
+    # Connections
     CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
+    # Mortars
+    CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
+    # Boundaries
+    CreateSection('Boundaries')
+    CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')
+    CreateIntArray( 'BoundaryType',    4,   multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray( 'BCIndex',         6,   multiple=True, help='Index of BC for each boundary face')
+    # Checking
+    CreateSection('Mesh Checks')
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
-    # Mortars
-    CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
-    # Scale
+    # Transformation
+    CreateSection('Transformation')
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
     CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
     CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
     CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
-    CreateIntFromString('MeshPostDeform',   default='none',                           help='Mesh post-transformation template')
-    CreateIntOption(    'MeshPostDeform', number=0, name='none')
+    CreateStr(       'MeshPostDeform',   default='none',                              help='Mesh post-transformation template')
+    # Stretching
+    CreateSection('Stretching')
+    CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
+                                                                                             'zone per spatial direction.')  # noqa: E127
+    CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
+                                                                                                 'each spatial direction.')  # noqa: E127
+    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')  # noqa: E127
+    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
+                                                                                                               'direction')  # noqa: E127
 
 
 def InitMesh() -> None:
@@ -98,13 +117,13 @@ def InitMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.readintools.readintools import GetInt, CountOption
+    from pyhope.readintools.readintools import GetInt, GetIntFromStr, CountOption
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('INIT MESH...')
 
-    mesh_vars.mode = GetInt('Mode')
+    mesh_vars.mode = GetIntFromStr('Mode')
 
     NGeo     = GetInt('NGeo')          if CountOption('NGeo')          else None  # noqa: E272
     BCOrder  = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None  # noqa: E272
@@ -124,7 +143,7 @@ def InitMesh() -> None:
             hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
             sys.exit(1)
 
-    hopout.info('INIT MESH DONE!')
+    # hopout.info('INIT MESH DONE!')
 
 
 def GenerateMesh() -> None:
@@ -137,21 +156,28 @@ def GenerateMesh() -> None:
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
+    from pyhope.mesh.mesh_vars import MeshMode
+    from pyhope.mesh.topology.mesh_splittohex import MeshSplitToHex
+    from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('GENERATE MESH...')
 
     match mesh_vars.mode:
-        case 1:  # Internal Cartesian Mesh
+        case MeshMode.MODE_INT:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
-        case 3:  # External mesh
+        case MeshMode.MODE_EXT:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
             hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
+    # Split hexahedral elements if requested
+    mesh = MeshChangeElemType(mesh)
+    # Split simplex elements if requested
+    mesh = MeshSplitToHex(mesh)
     mesh_vars.mesh = mesh
 
     # Final count
@@ -159,36 +185,8 @@ def GenerateMesh() -> None:
     for cellType in mesh.cells:
         if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
-    hopout.sep()
+
     hopout.routine('Generated mesh with {} cells'.format(nElems))
-    hopout.sep()
-
-    hopout.info('GENERATE MESH DONE!')
-
-
-def RegenerateMesh() -> None:
-    """ Finish missing mesh information such as BCs
-    """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
-    from pyhope.mesh.reader.reader_gmsh import BCCGNS
-    # ------------------------------------------------------
-
-    match mesh_vars.mode:
-        case 1:  # Internal Cartesian Mesh
-            mesh = mesh_vars.mesh
-        case 3:  # External CGNS mesh
-            if mesh_vars.CGNS.regenerate_BCs:
-                hopout.separator()
-                hopout.info('REGENERATE MESH...')
-                mesh = BCCGNS()
-                hopout.info('REGENERATE MESH DONE!')
-            else:
-                mesh = mesh_vars.mesh
-        case _:  # Default
-            hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
-
-    mesh_vars.mesh = mesh
+    # hopout.sep()
+    # hopout.info('GENERATE MESH DONE!')
+    hopout.separator()

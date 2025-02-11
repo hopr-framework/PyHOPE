@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import plotext as plt
+import re
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -113,7 +114,10 @@ def CheckJacobians() -> None:
     if not checkElemJacobians:
         return None
 
-    nGeo = mesh_vars.nGeo + 1
+    # Map all points to tensor product
+    nGeo  = mesh_vars.nGeo + 1
+    elems = mesh_vars.elems
+    nodes = mesh_vars.mesh.points
 
     # Compute the equidistant point set used by meshIO
     xEq = np.zeros(nGeo)
@@ -137,10 +141,6 @@ def CheckJacobians() -> None:
     # INFO: ALTERNATIVE VERSION, CACHING VDM, D
     # evaluate_jacobian = JacobianEvaluator(VdmGLtoAP, D_EqToGL).evaluate_jacobian
 
-    # Map all points to tensor product
-    elems = mesh_vars.elems
-    nodes = mesh_vars.mesh.points
-
     # Prepare elements for parallel processing
     tasks = []
 
@@ -150,8 +150,7 @@ def CheckJacobians() -> None:
             continue
 
         # Get the mapping
-        linMap = LINTEN(elem.type, order=mesh_vars.nGeo)
-        mapLin = {k: v for v, k in enumerate(linMap)}
+        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
 
         # Fill the NodeCoords
         nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
@@ -180,5 +179,12 @@ def CheckJacobians() -> None:
     else:
         jacs = np.array(tasks)
 
+    # Only consider hexahedrons
+    if any(e.type % 100 != 8 for e in elems):
+        elemTypes   = list(set([e.type for e in elems if e.type % 100 != 8]))
+        passedTypes = [re.sub(r'\d+$', '', mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]
+        print(hopout.warn(f'Ignored element type{"s" if len(passedTypes) > 1 else ""}: {[s for s in passedTypes]}'))
+
     # Plot the histogram of the Jacobians
-    plot_histogram(np.array(jacs))
+    if len(jacs) > 0:
+        plot_histogram(np.array(jacs))

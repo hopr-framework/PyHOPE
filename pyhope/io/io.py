@@ -26,8 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-from dataclasses import dataclass
-from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -42,61 +40,6 @@ import numpy as np
 # ==================================================================================================================================
 
 
-@dataclass
-class ELEM:
-    INFOSIZE:  int = 6
-    TYPE:      int = 0
-    ZONE:      int = 1
-    FIRSTSIDE: int = 2
-    LASTSIDE:  int = 3
-    FIRSTNODE: int = 4
-    LASTNODE:  int = 5
-
-    TYPES: tuple[int, ...] = (104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208)
-
-
-@dataclass
-class SIDE:
-    INFOSIZE: int = 5
-    TYPE:     int = 0
-    ID:       int = 1
-    NBELEMID: int = 2
-    NBLOCSIDE_FLIP: int = 3
-    BCID:     int = 4
-
-
-@cache
-def ELEMTYPE(elemType: int) -> str:
-    """ Name of a given element type
-    """
-    match elemType:
-        case 104:
-            return ' Straight-edge Tetrahedra '
-        case 204:
-            return '        Curved Tetrahedra '
-        case 105:
-            return '  Planar-faced Pyramids   '
-        case 115:
-            return ' Straight-edge Pyramids   '
-        case 205:
-            return '        Curved Pyramids   '
-        case 106:
-            return '  Planar-faced Prisms     '
-        case 116:
-            return ' Straight-edge Prisms     '
-        case 206:
-            return '        Curved Prisms     '
-        case 108:
-            return '  Planar-faced Hexahedra  '
-        case 118:
-            return ' Straight-edge Hexahedra  '
-        case 208:
-            return '        Curved Hexahedra  '
-        case _:  # Default
-            print('Error in ELEMTYPE, unknown elemType')
-            sys.exit(1)
-
-
 def DefineIO() -> None:
     # Local imports ----------------------------------------
     from pyhope.io.io_vars import MeshFormat
@@ -108,6 +51,7 @@ def DefineIO() -> None:
     CreateIntFromString('OutputFormat', default='HDF5', help='Mesh output format')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_HDF5, name='HDF5')
     CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_VTK , name='VTK')
+    CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_GMSH, name='GMSH')
     CreateLogical(      'DebugVisu'   , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
 
@@ -126,7 +70,7 @@ def InitIO() -> None:
 
     io_vars.debugvisu    = GetLogical('DebugVisu')
 
-    hopout.info('INIT OUTPUT DONE!')
+    # hopout.info('INIT OUTPUT DONE!')
 
 
 def IO() -> None:
@@ -135,7 +79,7 @@ def IO() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
-    from pyhope.io.io_vars import MeshFormat
+    from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     # ------------------------------------------------------
 
     hopout.separator()
@@ -166,7 +110,6 @@ def IO() -> None:
                     hopout.info( ELEMTYPE(elemType) + ': {:12d}'.format(elemCounter[elemType]))
             hopout.sep()
             hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
-            hopout.sep()
 
             with h5py.File(fname, mode='w') as f:
                 # Store same basic information
@@ -192,7 +135,7 @@ def IO() -> None:
                 for iBC, bc in enumerate(bcs):
                     bcTypes[iBC, :] = bc.type
 
-                _ = f.create_dataset('BCNames'   , data=np.bytes_(bcNames))
+                _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
                 _ = f.create_dataset('BCType'    , data=bcTypes)
 
         case MeshFormat.FORMAT_VTK:
@@ -200,21 +143,48 @@ def IO() -> None:
             pname = io_vars.projectname
             fname = '{}_mesh.vtk'.format(pname)
 
+            hopout.sep()
             hopout.routine('Writing VTK mesh to "{}"'.format(fname))
 
             mesh.write(fname, file_format='vtk42')
+
+        case MeshFormat.FORMAT_GMSH:
+            mesh  = mesh_vars.mesh
+            pname = io_vars.projectname
+            fname = '{}_mesh.msh'.format(pname)
+
+            # Mixed elements required gmsh:dim_tags
+            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
+            mesh.point_data.update({'gmsh:dim_tags': np.array([[0, i] for i in range(len(mesh.points))])})
+
+            # Mixed elements require gmsh:physical and gmsh:geometrical
+            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
+            cell_types = mesh.cells_dict.keys()
+            cell_data  = [np.ravel(np.array([[1] for _ in range(mesh.cells_dict[cell_type].data.shape[1])]))
+                                                 for cell_type in cell_types]
+            mesh.cell_data_dict.update({'gmsh:physical':    cell_data})
+            mesh.cell_data_dict.update({'gmsh:geometrical': cell_data})
+
+            hopout.sep()
+            hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
+
+            hopout.warning('GMSH output is not yet fully supported, only a point mesh is generated!')
+
+            mesh.write(fname, file_format='gmsh')
 
         case _:  # Default
             hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))
             sys.exit(1)
 
-    hopout.info('OUTPUT MESH DONE!')
+    # hopout.sep()
+    # hopout.info('OUTPUT MESH DONE!')
 
 
 def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[int, int]]:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import LINTEN
+    from pyhope.io.io_vars import ELEM, SIDE
     # ------------------------------------------------------
 
     mesh   = mesh_vars.mesh
@@ -294,16 +264,13 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
 
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        linMap    = LINTEN(elem.type, order=mesh_vars.nGeo)
-        # meshio accesses them in their own ordering
-        # > need to reverse the mapping
-        mapLin    = {k: v for v, k in enumerate(linMap)}
+        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
         elemNodes = elem.nodes
 
         # Access the actual nodeCoords and reorder them
         for iNode, nodeID in enumerate(elemNodes):
-            nodeInfo[  nodeCount + mapLin[iNode]   ] = nodeID + 1
-            nodeCoords[nodeCount + mapLin[iNode], :] = points[nodeID]
+            nodeInfo[  nodeCount + mapLin[np.int64(iNode)]   ] = nodeID + 1
+            nodeCoords[nodeCount + mapLin[np.int64(iNode)], :] = points[nodeID]
 
         nodeCount += len(elemNodes)
 

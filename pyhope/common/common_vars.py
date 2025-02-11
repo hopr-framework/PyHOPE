@@ -29,7 +29,7 @@ import importlib.metadata
 import pathlib
 import re
 from functools import cache
-from typing import Final, final
+from typing import Callable, Final, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -44,9 +44,12 @@ from packaging.version import Version
 # ==================================================================================================================================
 
 
+np_mtp : int  # Number of threads for multiprocessing
+
+
 # PEP 318 – Decorators for Functions and Methods
 # > https://peps.python.org/pep-0318/
-def singleton(cls):
+def singleton(cls) -> Callable:
     instances = {}
 
     def getinstance():
@@ -64,7 +67,7 @@ class Common():
 
     @property
     @cache
-    def __version__(self):
+    def __version__(self) -> Version:
         # Retrieve version from package metadata
         try:
             package = pathlib.Path(__file__).parent.parent.name
@@ -84,15 +87,15 @@ class Common():
         return Version(version)
 
     @property
-    def __program__(self):
+    def __program__(self) -> str:
         return 'PyHOPE'
 
     @property
-    def program(self):
+    def program(self) -> str:
         return str(self._program)
 
     @property
-    def version(self):
+    def version(self) -> str:
         return str(self._version)
 
 
@@ -102,16 +105,13 @@ class Gitlab():
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
-    LIB_VERSION: str = '4.13.1'
+    LIB_VERSION: str = '4.13.1.post1'
     LIB_SUPPORT: dict[str, dict[str, str]] = {
         "linux": {
-            "x86_64" : "00a42b3b9c9ae51297052a9e9a16646d34743fa0b0742d1998df297c48a212ce",
-            "aarch64": "c57abb56759cc476752c21b6b19127888bd3fed67c4a0dd38f6755603d8d6b74"
+            "x86_64" : "6d96f1f0a3a3d96f942a6cb62deaf959380d94bbe329d61fdcf3b1dd9762981d",
+            "aarch64": "104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da"
         },
         "darwin": {
-            "arm64"  : "ed03477fa3cdee5594a18e46a450acadf63b3d41c7bd575ef71192f221719361"
+            "arm64"  : "cf91a48a6207c3eae9321a3c97df105320a8c3777b6b5d7411ca7343ebddf187"
         }
     }
-
-
-np_mtp : int  # Number of threads for multiprocessing

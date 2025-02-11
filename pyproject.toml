@@ -17,7 +17,6 @@ dependencies = [
     'numpy>=2.0.0',
     'packaging',
     'plotext',
-    'pygmsh',
     'scipy',
     'gmsh',
     'typing-extensions'
