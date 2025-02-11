@@ -70,7 +70,7 @@ def InitIO() -> None:
 
     io_vars.debugvisu    = GetLogical('DebugVisu')
 
-    hopout.info('INIT OUTPUT DONE!')
+    # hopout.info('INIT OUTPUT DONE!')
 
 
 def IO() -> None:
@@ -110,7 +110,6 @@ def IO() -> None:
                     hopout.info( ELEMTYPE(elemType) + ': {:12d}'.format(elemCounter[elemType]))
             hopout.sep()
             hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
-            hopout.sep()
 
             with h5py.File(fname, mode='w') as f:
                 # Store same basic information
@@ -146,7 +145,6 @@ def IO() -> None:
 
             hopout.sep()
             hopout.routine('Writing VTK mesh to "{}"'.format(fname))
-            hopout.sep()
 
             mesh.write(fname, file_format='vtk42')
 
@@ -169,7 +167,6 @@ def IO() -> None:
 
             hopout.sep()
             hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
-            hopout.sep()
 
             hopout.warning('GMSH output is not yet fully supported, only a point mesh is generated!')
 
@@ -179,7 +176,8 @@ def IO() -> None:
             hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))
             sys.exit(1)
 
-    hopout.info('OUTPUT MESH DONE!')
+    # hopout.sep()
+    # hopout.info('OUTPUT MESH DONE!')
 
 
 def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[int, int]]:

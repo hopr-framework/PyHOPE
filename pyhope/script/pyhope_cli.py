@@ -114,6 +114,11 @@ def main() -> None:
 
     # Generate the actual mesh
     GenerateMesh()
+
+    # Optimize the Gmsh mesh
+    hopout.routine('BUILD DATA STRUCTURE...')
+    hopout.sep()
+
     EliminateDuplicates()
     OrientMesh()
 

@@ -71,7 +71,6 @@ def InitCommon() -> None:
     from pyhope.readintools.readintools import GetInt
     # ------------------------------------------------------
 
-    hopout.separator()
     hopout.info('INIT PROGRAM...')
 
     # Check the number of available threads
@@ -98,7 +97,7 @@ def InitCommon() -> None:
     # Check if we are using the NRG Gmsh version and install it if not
     PkgsCheckGmsh()
 
-    hopout.info('INIT PROGRAM DONE!')
+    # hopout.info('INIT PROGRAM DONE!')
 
 
 def DebugEnabled() -> bool:

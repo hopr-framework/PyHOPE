@@ -143,7 +143,7 @@ def InitMesh() -> None:
             hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
             sys.exit(1)
 
-    hopout.info('INIT MESH DONE!')
+    # hopout.info('INIT MESH DONE!')
 
 
 def GenerateMesh() -> None:
@@ -187,7 +187,6 @@ def GenerateMesh() -> None:
             nElems += mesh.get_cells_type(cellType.type).shape[0]
 
     hopout.routine('Generated mesh with {} cells'.format(nElems))
-    hopout.sep()
-
-    hopout.info('GENERATE MESH DONE!')
+    # hopout.sep()
+    # hopout.info('GENERATE MESH DONE!')
     hopout.separator()

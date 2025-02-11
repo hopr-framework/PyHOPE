@@ -567,7 +567,6 @@ def ConnectMesh() -> None:
     # Run garbage collector to release memory
     gc.collect()
 
-    hopout.separator()
     if nInterZoneConnect > 0:
         hopout.sep()
         hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
@@ -636,6 +635,6 @@ def ConnectMesh() -> None:
     hopout.info(' Number of mortar sides (small) : {:12d}'.format(nmortarsmallsides))
     hopout.info(' Number of boundary sides       : {:12d}'.format(nbcsides))
     hopout.info(' Number of periodic sides       : {:12d}'.format(nperiodicsides))
-    hopout.sep()
 
-    hopout.info('CONNECT MESH DONE!')
+    # hopout.sep()
+    # hopout.info('CONNECT MESH DONE!')
