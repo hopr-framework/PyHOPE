@@ -290,32 +290,32 @@ def split_hex_to_tets(nodes: list, order: int) -> list:
                     [nodes[1], nodes[2], nodes[4], nodes[5], nodes[9] , nodes[26], nodes[22], nodes[17], nodes[21], nodes[12]],
                     [nodes[2], nodes[3], nodes[4], nodes[7], nodes[10], nodes[20], nodes[26], nodes[23], nodes[19], nodes[15]]]
         case 4:
-            tetra1 = [nodes[0], nodes[2], nodes[3], nodes[4], nodes[80], nodes[88], nodes[82], nodes[14], nodes[15], nodes[16],
-                      nodes[19], nodes[18], nodes[17], nodes[32], nodes[33], nodes[34], nodes[100], nodes[124], nodes[102],
-                      nodes[47], nodes[52], nodes[45], nodes[98], nodes[122], nodes[114], nodes[108], nodes[101], nodes[118],
-                      nodes[44], nodes[51], nodes[48], nodes[84], nodes[85], nodes[81],nodes[109]]
-            tetra2 = [nodes[0], nodes[1], nodes[2], nodes[4], nodes[8] , nodes[9] , nodes[10], nodes[11], nodes[12], nodes[13],
-                      nodes[82], nodes[88], nodes[80], nodes[32], nodes[33], nodes[34], nodes[63], nodes[70], nodes[65],
-                      nodes[100], nodes[124], nodes[102], nodes[62], nodes[66], nodes[69], nodes[99], nodes[107], nodes[120],
-                      nodes[98], nodes[122], nodes[114], nodes[87], nodes[83], nodes[86], nodes[106]]
-            tetra3 = [nodes[2], nodes[4], nodes[6], nodes[7], nodes[100], nodes[124], nodes[102], nodes[89], nodes[97], nodes[91],
-                      nodes[40], nodes[39], nodes[38], nodes[71], nodes[79], nodes[73], nodes[29], nodes[30], nodes[31],
-                      nodes[26], nodes[27], nodes[28], nodes[121], nodes[113], nodes[105], nodes[96], nodes[95], nodes[92],
-                      nodes[78] , nodes[74] , nodes[77], nodes[116], nodes[123], nodes[104], nodes[112]]
-            tetra4 = [nodes[2], nodes[4], nodes[5], nodes[6], nodes[100], nodes[124], nodes[102], nodes[20], nodes[21], nodes[22],
-                      nodes[56], nodes[61], nodes[54], nodes[38], nodes[39], nodes[40], nodes[89], nodes[97], nodes[91],
-                      nodes[23], nodes[24], nodes[25], nodes[116], nodes[123], nodes[104], nodes[93], nodes[90], nodes[94],
-                      nodes[58], nodes[59], nodes[55], nodes[119], nodes[110], nodes[103], nodes[111]]
-            tetra5 = [nodes[1], nodes[2], nodes[4], nodes[5], nodes[11], nodes[12], nodes[13], nodes[100], nodes[124], nodes[102],
-                      nodes[65], nodes[70], nodes[63], nodes[35], nodes[36], nodes[37], nodes[54], nodes[61], nodes[56],
-                      nodes[20], nodes[21], nodes[22], nodes[53], nodes[57], nodes[60], nodes[119], nodes[110], nodes[103],
-                      nodes[67], nodes[68], nodes[64], nodes[99], nodes[107], nodes[120], nodes[115]]
-            tetra6 = [nodes[2], nodes[3], nodes[4], nodes[7], nodes[14], nodes[15], nodes[16], nodes[47], nodes[52], nodes[45],
-                      nodes[102], nodes[124], nodes[100], nodes[71], nodes[79], nodes[73], nodes[41], nodes[42], nodes[43],
-                      nodes[29], nodes[30], nodes[31], nodes[75], nodes[72], nodes[76], nodes[50], nodes[49], nodes[46],
+            tetra1 = [nodes[  0], nodes[  2], nodes[  3], nodes[  4], nodes[ 80], nodes[ 88], nodes[ 82], nodes[ 14], nodes[ 15], nodes[ 16],  # noqa: E501
+                      nodes[ 19], nodes[ 18], nodes[ 17], nodes[ 32], nodes[ 33], nodes[ 34], nodes[100], nodes[124], nodes[102],
+                      nodes[ 47], nodes[ 52], nodes[ 45], nodes[ 98], nodes[122], nodes[114], nodes[108], nodes[101], nodes[118],
+                      nodes[ 44], nodes[ 51], nodes[ 48], nodes[ 84], nodes[ 85], nodes[ 81], nodes[109]]
+            tetra2 = [nodes[  0], nodes[  1], nodes[  2], nodes[  4], nodes[  8], nodes[  9], nodes[ 10], nodes[ 11], nodes[ 12], nodes[ 13],  # noqa: E501
+                      nodes[ 82], nodes[ 88], nodes[ 80], nodes[ 32], nodes[ 33], nodes[ 34], nodes[ 63], nodes[ 70], nodes[ 65],
+                      nodes[100], nodes[124], nodes[102], nodes[ 62], nodes[ 66], nodes[ 69], nodes[ 99], nodes[107], nodes[120],
+                      nodes[ 98], nodes[122], nodes[114], nodes[ 87], nodes[ 83], nodes[ 86], nodes[106]]
+            tetra3 = [nodes[  2], nodes[  4], nodes[  6], nodes[  7], nodes[100], nodes[124], nodes[102], nodes[ 89], nodes[ 97], nodes[ 91],  # noqa: E501
+                      nodes[ 40], nodes[ 39], nodes[ 38], nodes[ 71], nodes[ 79], nodes[ 73], nodes[ 29], nodes[ 30], nodes[ 31],
+                      nodes[ 26], nodes[ 27], nodes[ 28], nodes[121], nodes[113], nodes[105], nodes[ 96], nodes[ 95], nodes[ 92],
+                      nodes[ 78], nodes[ 74], nodes[ 77], nodes[116], nodes[123], nodes[104], nodes[112]]
+            tetra4 = [nodes[  2], nodes[  4], nodes[  5], nodes[  6], nodes[100], nodes[124], nodes[102], nodes[ 20], nodes[ 21], nodes[ 22],  # noqa: E501
+                      nodes[ 56], nodes[ 61], nodes[ 54], nodes[ 38], nodes[ 39], nodes[ 40], nodes[ 89], nodes[ 97], nodes[ 91],
+                      nodes[ 23], nodes[ 24], nodes[ 25], nodes[116], nodes[123], nodes[104], nodes[ 93], nodes[ 90], nodes[ 94],
+                      nodes[ 58], nodes[ 59], nodes[ 55], nodes[119], nodes[110], nodes[103], nodes[111]]
+            tetra5 = [nodes[  1], nodes[  2], nodes[  4], nodes[  5], nodes[ 11], nodes[ 12], nodes[ 13], nodes[100], nodes[124], nodes[102],  # noqa: E501
+                      nodes[ 65], nodes[ 70], nodes[ 63], nodes[ 35], nodes[ 36], nodes[ 37], nodes[ 54], nodes[ 61], nodes[ 56],
+                      nodes[ 20], nodes[ 21], nodes[ 22], nodes[ 53], nodes[ 57], nodes[ 60], nodes[119], nodes[110], nodes[103],
+                      nodes[ 67], nodes[ 68], nodes[ 64], nodes[ 99], nodes[107], nodes[120], nodes[115]]
+            tetra6 = [nodes[  2], nodes[  3], nodes[  4], nodes[  7], nodes[ 14], nodes[ 15], nodes[ 16], nodes[ 47], nodes[ 52], nodes[ 45],  # noqa: E501
+                      nodes[102], nodes[124], nodes[100], nodes[ 71], nodes[ 79], nodes[ 73], nodes[ 41], nodes[ 42], nodes[ 43],
+                      nodes[ 29], nodes[ 30], nodes[ 31], nodes[ 75], nodes[ 72], nodes[ 76], nodes[ 50], nodes[ 49], nodes[ 46],
                       nodes[121], nodes[113], nodes[105], nodes[108], nodes[101], nodes[118], nodes[117]]
 
-            return [tetra1,tetra2,tetra3,tetra4,tetra5,tetra6]
+            return [tetra1, tetra2, tetra3, tetra4, tetra5, tetra6]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -340,10 +340,10 @@ def tetra_faces(order: int) -> list:
                     np.array([  0,  2,  3,  6,  9,  7], dtype=int),
                     np.array([  1,  2,  3,  5,  9,  8], dtype=int)]
         case 4:
-            return [np.array([  0,  1,  2,  *range(4,13), *range(31,34)], dtype=int),
-                    np.array([  0,  1,  3,  *range(4,7) , *range(16,19),  *reversed(range(13,16)), *range(22,25)], dtype=int),
-                    np.array([  0,  2,  3,  *reversed(range(10,13)), *range(19,22),  *reversed(range(13,16)), *range(28,31)], dtype=int),
-                    np.array([  1,  2,  3,  *range(7,10), *range(19,22), *reversed(range(16,19)), *range(25,28)], dtype=int)]
+            return [np.array([  0,  1,  2,  *range( 4, 13)          , *range(31, 34)], dtype=int),
+                    np.array([  0,  1,  3,  *range( 4,  7)          , *range(16, 19), *reversed(range(13, 16)), *range(22, 25)], dtype=int),  # noqa: E501
+                    np.array([  0,  2,  3,  *reversed(range(10, 13)), *range(19, 22), *reversed(range(13, 16)), *range(28, 31)], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)], dtype=int)]  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -371,18 +371,18 @@ def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> lis
             #          tuple((nodes[6], nodes[7], nodes[3], nodes[2], nodes[4]))]
         case 2:
             # Perform the 6-pyramid split of the cube-like cell
-            return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[26], nodes[8] , nodes[9] , nodes[10], nodes[11],
-                           edges[0] , edges[1] , edges[3] , edges[2] , nodes[24])),
-                    tuple((nodes[0] , nodes[4] , nodes[5] , nodes[1] , nodes[26], nodes[16], nodes[12], nodes[17], nodes[8] ,
-                           edges[0] , edges[4] , edges[5] , edges[1] , nodes[22])),
-                    tuple((nodes[1] , nodes[5] , nodes[6] , nodes[2] , nodes[26], nodes[17], nodes[13], nodes[18], nodes[9] ,
-                           edges[1] , edges[5] , edges[7] , edges[3] , nodes[21])),
-                    tuple((nodes[0] , nodes[3] , nodes[7] , nodes[4] , nodes[26], nodes[11], nodes[19], nodes[15], nodes[16],
-                           edges[0] , edges[2] , edges[6] , edges[4] , nodes[20])),
-                    tuple((nodes[4] , nodes[7] , nodes[6] , nodes[5] , nodes[26], nodes[15], nodes[14], nodes[13], nodes[12],
-                           edges[4] , edges[6] , edges[7] , edges[5] , nodes[25])),
-                    tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[26], nodes[14], nodes[19], nodes[10], nodes[18],
-                           edges[7] , edges[6] , edges[2] , edges[3] , nodes[23]))]
+            return [tuple((nodes[ 0] , nodes[ 1] , nodes[ 2] , nodes[ 3] , nodes[26], nodes[ 8], nodes[ 9], nodes[10], nodes[11],
+                           edges[ 0] , edges[ 1] , edges[ 3] , edges[ 2] , nodes[24])),
+                    tuple((nodes[ 0] , nodes[ 4] , nodes[ 5] , nodes[ 1] , nodes[26], nodes[16], nodes[12], nodes[17], nodes[ 8],
+                           edges[ 0] , edges[ 4] , edges[ 5] , edges[ 1] , nodes[22])),
+                    tuple((nodes[ 1] , nodes[ 5] , nodes[ 6] , nodes[ 2] , nodes[26], nodes[17], nodes[13], nodes[18], nodes[ 9],
+                           edges[ 1] , edges[ 5] , edges[ 7] , edges[ 3] , nodes[21])),
+                    tuple((nodes[ 0] , nodes[ 3] , nodes[ 7] , nodes[ 4] , nodes[26], nodes[11], nodes[19], nodes[15], nodes[16],
+                           edges[ 0] , edges[ 2] , edges[ 6] , edges[ 4] , nodes[20])),
+                    tuple((nodes[ 4] , nodes[ 7] , nodes[ 6] , nodes[ 5] , nodes[26], nodes[15], nodes[14], nodes[13], nodes[12],
+                           edges[ 4] , edges[ 6] , edges[ 7] , edges[ 5] , nodes[25])),
+                    tuple((nodes[ 6] , nodes[ 7] , nodes[ 3] , nodes[ 2] , nodes[26], nodes[14], nodes[19], nodes[10], nodes[18],
+                           edges[ 7] , edges[ 6] , edges[ 2] , edges[ 3] , nodes[23]))]
             # 3-pyramid split
             #  return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[4], nodes[8] , nodes[9] , nodes[10], nodes[11],
             #                 nodes[16], nodes[22], nodes[26], nodes[20], nodes[24])),
@@ -391,41 +391,41 @@ def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> lis
             #          tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[4], nodes[14], nodes[19], nodes[10], nodes[18],
             #                 nodes[25], nodes[15], nodes[20], nodes[26], nodes[23]))]
         case 4:
-            return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[124], *nodes[8:17], *reversed(nodes[17:20]),
-                           edges[0],  nodes[98], edges[21], edges[3],  nodes[99], edges[22], edges[15],nodes[100], edges[26],edges[12],nodes[101], edges[25],
-                           edges[1],  edges[2], nodes[106], edges[7] , edges[11], nodes[107], edges[13], edges[14], nodes[108],edges[4] , edges[8] , nodes[109],
-                           nodes[80], nodes[83], nodes[82], nodes[81], nodes[87], nodes[86], nodes[85], nodes[84], nodes[88],
-                           edges[5] , edges[6] , edges[10], edges[9] , nodes[122])),
-                    tuple((nodes[0] , nodes[4] , nodes[5] , nodes[1] , nodes[124],
-                           *nodes[32:35], *nodes[20:23], nodes[37], nodes[36], nodes[35], nodes[10], nodes[9], nodes[8],
-                           edges[0],  nodes[98], edges[21],edges[48], nodes[102], edges[37], edges[51],nodes[103], edges[38],edges[3],  nodes[99], edges[22],
-                           edges[16], edges[32], nodes[114], edges[49] , edges[50], nodes[110], edges[19], edges[35], nodes[115],edges[1] , edges[2] , nodes[106],
-                           nodes[62], nodes[65], nodes[64], nodes[63], nodes[69], nodes[68], nodes[67], nodes[66], nodes[70],
-                           edges[17] , edges[33] , edges[34], edges[18] , nodes[120])),
-                    tuple((nodes[1] , nodes[5] , nodes[6] , nodes[2] , nodes[124],
-                           *nodes[35:38], *nodes[23:26], nodes[40], nodes[39], nodes[38], nodes[13], nodes[12], nodes[11],
-                           edges[3],  nodes[99], edges[22], edges[51],nodes[103], edges[38], edges[63],nodes[104], edges[42],edges[15],nodes[100], edges[26],
-                           edges[19], edges[35], nodes[115], edges[55], edges[59], nodes[111], edges[31], edges[47], nodes[116],edges[7], edges[11], nodes[107],
-                           nodes[53], nodes[56], nodes[55], nodes[54], nodes[60], nodes[59], nodes[58], nodes[57], nodes[61],
-                           edges[23], edges[39], edges[43], edges[27] , nodes[119])),
-                    tuple((nodes[0] , nodes[3] , nodes[7] , nodes[4] , nodes[124],
-                           nodes[17], nodes[18], nodes[19], *nodes[41:44], *reversed(nodes[29:32]), nodes[34], nodes[33], nodes[32],
-                           edges[0],  nodes[98], edges[21], edges[12],nodes[101], edges[25], edges[60],nodes[105], edges[41],edges[48], nodes[102], edges[37],
-                           edges[4],  edges[8], nodes[109], edges[28], edges[44], nodes[117], edges[52], edges[56], nodes[113],edges[16], edges[32], nodes[114],
-                           nodes[44], nodes[47], nodes[46], nodes[45], nodes[51], nodes[50], nodes[49], nodes[48], nodes[52],
-                           edges[20], edges[24], edges[40], edges[36], nodes[118])),
-                    tuple((nodes[4] , nodes[7] , nodes[6] , nodes[5] , nodes[124],
-                           nodes[29], nodes[30], nodes[31], nodes[28], nodes[27], nodes[26], nodes[25], nodes[24], nodes[23], nodes[22], nodes[21], nodes[20],
-                           edges[48], nodes[102], edges[37], edges[60],nodes[105], edges[41], edges[63],nodes[104], edges[42],edges[51],nodes[103], edges[38],
-                           edges[52], edges[56], nodes[113], edges[61] , edges[62], nodes[112], edges[55], edges[59], nodes[111],edges[49] , edges[50] , nodes[110],
-                           nodes[89], nodes[92], nodes[91], nodes[90], nodes[96], nodes[95], nodes[94], nodes[93], nodes[97],
-                           edges[53] , edges[57] , edges[58], edges[54] , nodes[123])),
-                    tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[124],
-                           *nodes[26:29], nodes[43], nodes[42], nodes[41], nodes[16], nodes[15], nodes[14], *nodes[38:41],
-                           edges[63],nodes[104], edges[42], edges[60],nodes[105], edges[41], edges[12],nodes[101], edges[25], edges[15],nodes[100], edges[26],
-                           edges[62], edges[61], nodes[112], edges[44], edges[28], nodes[117], edges[14], edges[13], nodes[108],edges[47], edges[31], nodes[116],
-                           nodes[74], nodes[73], nodes[72], nodes[71], nodes[77], nodes[76], nodes[75], nodes[78], nodes[79],
-                           edges[46], edges[45], edges[29], edges[30], nodes[121]))]
+            return [tuple((nodes[  0], nodes[  1], nodes[  2], nodes[  3], nodes[124], *nodes[8:17], *reversed(nodes[17:20]),
+                           edges[  0], nodes[ 98], edges[ 21], edges[  3], nodes[ 99], edges[  22], edges[ 15], nodes[100], edges[ 26], edges[ 12], nodes[101], edges[ 25],  # noqa: E501
+                           edges[  1], edges[  2], nodes[106], edges[  7], edges[ 11], nodes[ 107], edges[ 13], edges[ 14], nodes[108], edges[  4], edges[  8], nodes[109],  # noqa: E501
+                           nodes[ 80], nodes[ 83], nodes[ 82], nodes[ 81], nodes[ 87], nodes[  86], nodes[ 85], nodes[ 84], nodes[ 88],                                      # noqa: E501
+                           edges[  5], edges[  6], edges[ 10], edges[  9], nodes[122])),
+                    tuple((nodes[  0], nodes[  4], nodes[  5], nodes[  1], nodes[124],
+                           *nodes[32:35], *nodes[20:23], nodes[ 37], nodes[ 36], nodes[ 35], nodes[ 10], nodes[  9], nodes[  8],
+                           edges[  0], nodes[ 98], edges[ 21], edges[ 48], nodes[102], edges[ 37], edges[ 51], nodes[103], edges[ 38], edges[  3], nodes[ 99], edges[ 22],  # noqa: E501
+                           edges[ 16], edges[ 32], nodes[114], edges[ 49], edges[ 50], nodes[110], edges[ 19], edges[ 35], nodes[115], edges[  1], edges[  2], nodes[106],  # noqa: E501
+                           nodes[ 62], nodes[ 65], nodes[ 64], nodes[ 63], nodes[ 69], nodes[ 68], nodes[ 67], nodes[ 66], nodes[ 70],                                      # noqa: E501
+                           edges[ 17], edges[ 33], edges[ 34], edges[ 18], nodes[120])),
+                    tuple((nodes[  1], nodes[  5], nodes[  6], nodes[  2], nodes[124],
+                           *nodes[35:38], *nodes[23:26], nodes[ 40], nodes[ 39], nodes[ 38], nodes[ 13], nodes[ 12], nodes[ 11],
+                           edges[  3], nodes[ 99], edges[ 22], edges[ 51], nodes[103], edges[ 38], edges[ 63], nodes[104], edges[ 42], edges[ 15], nodes[100], edges[ 26],  # noqa: E501
+                           edges[ 19], edges[ 35], nodes[115], edges[ 55], edges[ 59], nodes[111], edges[ 31], edges[ 47], nodes[116], edges[  7], edges[ 11], nodes[107],  # noqa: E501
+                           nodes[ 53], nodes[ 56], nodes[ 55], nodes[ 54], nodes[ 60], nodes[ 59], nodes[ 58], nodes[ 57], nodes[ 61],                                      # noqa: E501
+                           edges[ 23], edges[ 39], edges[ 43], edges[ 27], nodes[119])),
+                    tuple((nodes[  0], nodes[  3], nodes[  7], nodes[  4] , nodes[124],
+                           nodes[ 17], nodes[ 18], nodes[ 19], *nodes[41:44], *reversed(nodes[29:32]), nodes[ 34], nodes[ 33], nodes[ 32],                                  # noqa: E501
+                           edges[  0], nodes[ 98], edges[ 21], edges[ 12], nodes[101], edges[ 25], edges[ 60], nodes[105], edges[ 41], edges[ 48], nodes[102], edges[ 37],  # noqa: E501
+                           edges[  4], edges[  8], nodes[109], edges[ 28], edges[ 44], nodes[117], edges[ 52], edges[ 56], nodes[113], edges[ 16], edges[ 32], nodes[114],  # noqa: E501
+                           nodes[ 44], nodes[ 47], nodes[ 46], nodes[ 45], nodes[ 51], nodes[ 50], nodes[ 49], nodes[ 48], nodes[ 52],  # noqa: E501
+                           edges[ 20], edges[ 24], edges[ 40], edges[ 36], nodes[118])),
+                    tuple((nodes[  4], nodes[  7], nodes[  6], nodes[  5], nodes[124],
+                           nodes[ 29], nodes[ 30], nodes[ 31], nodes[ 28], nodes[ 27], nodes[ 26], nodes[ 25], nodes[ 24], nodes[ 23], nodes[ 22], nodes[ 21], nodes[ 20],  # noqa: E501
+                           edges[ 48], nodes[102], edges[ 37], edges[ 60], nodes[105], edges[ 41], edges[ 63], nodes[104], edges[ 42], edges[ 51], nodes[103], edges[ 38],  # noqa: E501
+                           edges[ 52], edges[ 56], nodes[113], edges[ 61], edges[ 62], nodes[112], edges[ 55], edges[ 59], nodes[111], edges[ 49], edges[ 50], nodes[110],  # noqa: E501
+                           nodes[ 89], nodes[ 92], nodes[ 91], nodes[ 90], nodes[ 96], nodes[ 95], nodes[ 94], nodes[ 93], nodes[ 97],                                      # noqa: E501
+                           edges[ 53], edges[ 57], edges[ 58], edges[ 54], nodes[123])),
+                    tuple((nodes[  6], nodes[  7], nodes[  3], nodes[  2], nodes[124],
+                           *nodes[26:29], nodes[ 43], nodes[ 42], nodes[ 41], nodes[ 16], nodes[ 15], nodes[ 14], *nodes[38:41],
+                           edges[ 63], nodes[104], edges[ 42], edges[ 60], nodes[105], edges[ 41], edges[ 12], nodes[101], edges[ 25], edges[ 15], nodes[100], edges[ 26],  # noqa: E501
+                           edges[ 62], edges[ 61], nodes[112], edges[ 44], edges[ 28], nodes[117], edges[ 14], edges[ 13], nodes[108], edges[ 47], edges[ 31], nodes[116],  # noqa: E501
+                           nodes[ 74], nodes[ 73], nodes[ 72], nodes[ 71], nodes[ 77], nodes[ 76], nodes[ 75], nodes[ 78], nodes[ 79],                                      # noqa: E501
+                           edges[ 46], edges[ 45], edges[ 29], edges[ 30], nodes[121]))]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -456,12 +456,12 @@ def pyram_faces(order: int) -> list:
                     np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
         case 4:
             return [# Triangular faces  # noqa: E261
-                    np.array([  0,  1,  4,  *range(4,7)  , *range(19,22), *reversed(range(16,19)), *range(28,31)], dtype=int),
-                    np.array([  1,  2,  4,  *range(7,10) , *range(22,25), *reversed(range(19,22)), *range(31,34)], dtype=int),
-                    np.array([  2,  3,  4,  *range(10,13), *range(25,28), *reversed(range(22,25)), *range(34,37)], dtype=int),
-                    np.array([  3,  0,  4,  *range(13,16), *range(16,19), *reversed(range(25,28)), *range(37,40)], dtype=int),
+                    np.array([  0,  1,  4,  *range( 4,  7), *range(19, 22), *reversed(range(16, 19)), *range(28, 31)], dtype=int),
+                    np.array([  1,  2,  4,  *range( 7, 10), *range(22, 25), *reversed(range(19, 22)), *range(31, 34)], dtype=int),
+                    np.array([  2,  3,  4,  *range(10, 13), *range(25, 28), *reversed(range(22, 25)), *range(34, 37)], dtype=int),
+                    np.array([  3,  0,  4,  *range(13, 16), *range(16, 19), *reversed(range(25, 28)), *range(37, 40)], dtype=int),
                     # Quadrilateral face
-                    np.array([ 0,  1,  2,  3, *range(5,17), *range(41,50)], dtype=int)]
+                    np.array([ 0,  1,  2,  3, *range(5, 17), *range(41, 50)], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -485,29 +485,29 @@ def split_hex_to_prism(nodes: list, order: int) -> list:
                     [nodes[ 1], nodes[ 2], nodes[ 3], nodes[ 5], nodes[ 6], nodes[ 7], nodes[ 9], nodes[10], nodes[24],
                      nodes[13], nodes[14], nodes[25], nodes[17], nodes[18], nodes[19], nodes[21], nodes[23], nodes[26]]]
         case 4:
-            prism1 =[nodes[ 0], nodes[ 1], nodes[ 3], nodes[ 4], nodes[ 5], nodes[ 7],
-                     nodes[ 8], nodes[ 9], nodes[10], nodes[83], nodes[88], nodes[81], nodes[19], nodes[18], nodes[17],#6
-                     nodes[20], nodes[21], nodes[22], nodes[90], nodes[97], nodes[92], nodes[31], nodes[30], nodes[29],#15
-                     nodes[32], nodes[33], nodes[34], nodes[35], nodes[36], nodes[37], nodes[41], nodes[42], nodes[43],#24
-                     nodes[62], nodes[63], nodes[64], nodes[65], nodes[66], nodes[67], nodes[68], nodes[69], nodes[70],#face1:33
-                     nodes[99],nodes[101],nodes[105],nodes[103],nodes[122], nodes[117],nodes[123],nodes[115],nodes[124],#face2:42
-                     nodes[47], nodes[44], nodes[45], nodes[46], nodes[51], nodes[48], nodes[49], nodes[50], nodes[52],#face3:51
-                     nodes[89], nodes[93], nodes[96], #face4 #60
-                     nodes[80], nodes[87], nodes[84], #face5 #63
-                     nodes[98],nodes[106],nodes[109],nodes[114],nodes[120],nodes[118],nodes[102],nodes[110],nodes[113]] #volume
+            prism1 =[nodes[  0], nodes[  1], nodes[  3], nodes[  4], nodes[  5], nodes[  7],
+                     nodes[  8], nodes[  9], nodes[ 10], nodes[ 83], nodes[ 88], nodes[ 81], nodes[ 19], nodes[ 18], nodes[ 17],  # 6         #  noqa: E501
+                     nodes[ 20], nodes[ 21], nodes[ 22], nodes[ 90], nodes[ 97], nodes[ 92], nodes[ 31], nodes[ 30], nodes[ 29],  # 15        #  noqa: E501
+                     nodes[ 32], nodes[ 33], nodes[ 34], nodes[ 35], nodes[ 36], nodes[ 37], nodes[ 41], nodes[ 42], nodes[ 43],  # 24        #  noqa: E501
+                     nodes[ 62], nodes[ 63], nodes[ 64], nodes[ 65], nodes[ 66], nodes[ 67], nodes[ 68], nodes[ 69], nodes[ 70],  # face1:33  #  noqa: E501
+                     nodes[ 99], nodes[101], nodes[105], nodes[103], nodes[122], nodes[117], nodes[123], nodes[115], nodes[124],  # face2:42  #  noqa: E501
+                     nodes[ 47], nodes[ 44], nodes[ 45], nodes[ 46], nodes[ 51], nodes[ 48], nodes[ 49], nodes[ 50], nodes[ 52],  # face3:51  #  noqa: E501
+                     nodes[ 89], nodes[ 93], nodes[ 96],                                                                          # face4 #60 #  noqa: E501
+                     nodes[ 80], nodes[ 87], nodes[ 84],                                                                          # face5 #63 #  noqa: E501
+                     nodes[ 98], nodes[106], nodes[109], nodes[114], nodes[120], nodes[118], nodes[102], nodes[110], nodes[113]]  # volume    #  noqa: E501
 
-            prism2 =[nodes[ 1], nodes[ 2], nodes[ 3], nodes[ 5], nodes[ 6], nodes[ 7],
-                     nodes[11], nodes[12], nodes[13], nodes[14], nodes[15], nodes[16], nodes[81], nodes[88], nodes[83],#6
-                     nodes[23], nodes[24], nodes[25], nodes[26], nodes[27], nodes[28], nodes[92], nodes[97], nodes[90],#15
-                     nodes[35], nodes[36], nodes[37], nodes[38], nodes[39], nodes[40], nodes[41], nodes[42], nodes[43],#24
-                     nodes[53], nodes[54], nodes[55], nodes[56], nodes[57], nodes[58], nodes[59], nodes[60], nodes[61],#face1
-                     nodes[71], nodes[72], nodes[73], nodes[74], nodes[75], nodes[76], nodes[77], nodes[78], nodes[79],#face3
-                    nodes[101], nodes[99],nodes[103],nodes[105],nodes[122],nodes[115],nodes[123],nodes[117], nodes[124],#face2
-                     nodes[94], nodes[91], nodes[95], #face4
-                     nodes[86], nodes[82], nodes[85], #face5
-                    nodes[107],nodes[100],nodes[108],nodes[119],nodes[116],nodes[121],nodes[111],nodes[104],nodes[112]] #volume
+            prism2 =[nodes[  1], nodes[  2], nodes[  3], nodes[  5], nodes[  6], nodes[  7],
+                     nodes[ 11], nodes[ 12], nodes[ 13], nodes[ 14], nodes[ 15], nodes[ 16], nodes[ 81], nodes[ 88], nodes[ 83],  # 6         #  noqa: E501
+                     nodes[ 23], nodes[ 24], nodes[ 25], nodes[ 26], nodes[ 27], nodes[ 28], nodes[ 92], nodes[ 97], nodes[ 90],  # 15        #  noqa: E501
+                     nodes[ 35], nodes[ 36], nodes[ 37], nodes[ 38], nodes[ 39], nodes[ 40], nodes[ 41], nodes[ 42], nodes[ 43],  # 24        #  noqa: E501
+                     nodes[ 53], nodes[ 54], nodes[ 55], nodes[ 56], nodes[ 57], nodes[ 58], nodes[ 59], nodes[ 60], nodes[ 61],  # face1     #  noqa: E501
+                     nodes[ 71], nodes[ 72], nodes[ 73], nodes[ 74], nodes[ 75], nodes[ 76], nodes[ 77], nodes[ 78], nodes[ 79],  # face3     #  noqa: E501
+                     nodes[101], nodes[ 99], nodes[103], nodes[105], nodes[122], nodes[115], nodes[123], nodes[117], nodes[124],  # face2     #  noqa: E501
+                     nodes[ 94], nodes[ 91], nodes[ 95],                                                                          # face4     #  noqa: E501
+                     nodes[ 86], nodes[ 82], nodes[ 85],                                                                          # face5     #  noqa: E501
+                     nodes[107], nodes[100], nodes[108], nodes[119], nodes[116], nodes[121], nodes[111], nodes[104], nodes[112]]  # volume    #  noqa: E501
 
-            return [prism1,prism2]
+            return [prism1, prism2]
 
         case _:
             print('Order {} not supported for element splitting'.format(order))
@@ -539,12 +539,12 @@ def prism_faces(order: int) -> list:
                     np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17], dtype=int)]
         case 4:
             return [# Triangular faces  # noqa: E261
-                    np.array([  0, 1, 2, *range(6,15) , *range(63,66)], dtype=int), # z-
-                    np.array([  3, 4, 5, *range(15,24), *range(60,63)], dtype=int), # z+
+                    np.array([  0, 1, 2, *range( 6, 15), *range(63, 66)], dtype=int),  # z-
+                    np.array([  3, 4, 5, *range(15, 24), *range(60, 63)], dtype=int),  # z+
                     # Quadrilateral faces
-                    np.array([  0, 1, 4, 3, *range(6,9)  , *range(27,30), 17, 16, 15, 26, 25, 24, *range(33,42)], dtype=int),
-                    np.array([  1, 2, 5, 4, *range(9,12) , *range(30,33), 20, 19, 18, 29, 28, 27, *range(42,51)], dtype=int),
-                    np.array([  2, 0, 3, 5, *range(12,15), *range(24,27), 23, 22, 21, 32, 31, 30, *range(51,60)], dtype=int)]
+                    np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), 17, 16, 15, 26, 25, 24, *range(33, 42)], dtype=int),
+                    np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), 20, 19, 18, 29, 28, 27, *range(42, 51)], dtype=int),
+                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), 23, 22, 21, 32, 31, 30, *range(51, 60)], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

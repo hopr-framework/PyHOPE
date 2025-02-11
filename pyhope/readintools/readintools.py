@@ -368,7 +368,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     import pyhope.output.output as hopout
     # ------------------------------------------------------
     value  = GetParam(name=name, default=default, number=number, calltype='int2str')
-    source = 'DEFAULT' if config.prms[name]['counter'] == 0 else 'CUSTOM'
+    source = 'DEFAULT' if config.prms[name]['counter'] == 0 else '*CUSTOM'
 
     # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']

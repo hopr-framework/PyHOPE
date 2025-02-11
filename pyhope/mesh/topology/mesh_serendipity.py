@@ -55,8 +55,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
     if not any(s for s in mesh.cells_dict.keys() if s in serendipityElems):
         return mesh
 
-    hopout.info('CONVERTING SERENDIPITY TO FULL LANGRANGE MESH...')
-    hopout.sep()
+    hopout.routine('Converting serendipity to full langrange mesh')
 
     # Copy original points
     points    = mesh.points.copy()

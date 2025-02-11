@@ -206,7 +206,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     # ------------------------------------------------------
 
     hopout.routine('Applying boundary conditions')
-    hopout.sep()
+    # hopout.sep()
 
     points  = mesh.points
     cells   = mesh.cells
