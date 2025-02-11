@@ -92,12 +92,12 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
 
-    n_total = points.shape[1]
+    n_total = points.shape[0]
     X_out = np.copy(points)
     h_max = 3.035
 
     for i in range(n_total):
-        x        = points[:, i]
+        x        = points[i, :]
         xout     = np.copy(x)
         x_left   = 4.5 - abs(x[0] - 4.5)
         h        = phill_h(x_left)
@@ -124,6 +124,6 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             g = 0.9 * g**3
             xout[:2] += g * length * (vec - np.array([0.0, 1.0]))
 
-        X_out[:, i] = xout
+        X_out[i, :] = xout
 
     return X_out

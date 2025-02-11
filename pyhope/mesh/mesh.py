@@ -107,7 +107,7 @@ def DefineMesh() -> None:
     CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
                                                                                                  'each spatial direction.')  # noqa: E127
     CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')  # noqa: E127
-    CreateRealArray( 'DxMaxToDxMin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
+    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
                                                                                                                'direction')  # noqa: E127
 
 

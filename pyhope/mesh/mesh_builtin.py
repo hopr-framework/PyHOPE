@@ -144,13 +144,12 @@ def MeshCartesian() -> meshio.Mesh:
                               'Factor or l0 is provided.'))
 
         # Progression factor stretching or double sided stretching
-        if 1 in stretchType or 3 in stretchType:
+        if 1 in stretchType:
             stretchFac = CalcStretching(nZones, zone, nElems, lEdges)
 
-        # Ration based stretching
-        if 2 in stretchType:
-            DXmaxToDXmin = GetRealArray('DxMax')
-            ratFac = DXmaxToDXmin ** (1. / (nElems - 1.))
+        # Ratio based stretching
+        if 2 in stretchType or 3 in stretchType:
+            DXmaxToDXmin = GetRealArray('DXmaxToDXmin', number=zone)
 
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
@@ -167,11 +166,13 @@ def MeshCartesian() -> meshio.Mesh:
             # Overwrite default values to consider streching in current zone
             if stretch_type == 3:
                 progType = 'Bump'
-            if stretch_type in {1, 3}:
+            if stretch_type == 1:
                 progFac = stretchFac[currDir[0]]
             elif stretch_type == 2:
-                progFac = ratFac[currDir[0]]
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, progType, currDir[1]*progFac)
+                progFac = -1./(DXmaxToDXmin[currDir[0]] ** (1. / (nElems[currDir[0]] - 1.)))
+            elif stretch_type == 3:
+                progFac = 1./DXmaxToDXmin[currDir[0]]
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, progType, currDir[1]* progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]
