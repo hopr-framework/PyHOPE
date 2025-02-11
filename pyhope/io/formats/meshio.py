@@ -179,31 +179,32 @@ def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
     """
     map = np.zeros((order, order, order), dtype=int)
 
-    if order == 1:
-        map[0, 0, 0] = 0
-        tensor       = map
-        return map, tensor
+    match order:
+        case 1:
+            map[0, 0, 0] = 0
+            tensor       = map
+            return map, tensor
 
-    if order == 2:
-        # Python indexing, 1 -> 0
-        map[0 , 0 , 0 ] = 1
-        map[1 , 0 , 0 ] = 2
-        map[1 , 1 , 0 ] = 3
-        map[0 , 1 , 0 ] = 4
-        map[0 , 0 , 1 ] = 5
-        map[1 , 0 , 1 ] = 6
-        map[1 , 1 , 1 ] = 7
-        map[0 , 1 , 1 ] = 8
-        map -= 1
+        case 2:
+            # Python indexing, 1 -> 0
+            map[0 , 0 , 0 ] = 1
+            map[1 , 0 , 0 ] = 2
+            map[1 , 1 , 0 ] = 3
+            map[0 , 1 , 0 ] = 4
+            map[0 , 0 , 1 ] = 5
+            map[1 , 0 , 1 ] = 6
+            map[1 , 1 , 1 ] = 7
+            map[0 , 1 , 1 ] = 8
+            map -= 1
 
-        # Reshape into 1D array, tensor-product style
-        tensor = []
-        for k in range(order):
-            for j in range(order):
-                for i in range(order):
-                    tensor.append(int(map[i, j, k]))
+            # Reshape into 1D array, tensor-product style
+            tensor = []
+            for k in range(order):
+                for j in range(order):
+                    for i in range(order):
+                        tensor.append(int(map[i, j, k]))
 
-        return map, np.asarray(tensor)
+            return map, np.asarray(tensor)
 
     count = 0
 
@@ -253,7 +254,7 @@ def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
             for i in range(order):
                 tensor.append(int(map[i, j, k]))
 
-    return map, np.asarray(tensor)
+    return map, np.asarray(tensor, dtype=np.int64)
 
 
 @cache
@@ -262,6 +263,9 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
     """
+    if order not in [1, 3, 5]:
+        raise ValueError("Only orders 1, 3, and 5 are supported")
+
     map = np.zeros((order, order, order), dtype=int)
 
     if order == 1:
@@ -270,7 +274,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         return map, tensor
 
     # Fill the prism recursively from the outside to the inside
-    count = 0
+    count  = 0
     iOrder = 0
     # Principal vertices
     map[iOrder         , iOrder         , iOrder        ] = count+1
@@ -283,7 +287,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
     if order == 3:
         # Loop over all edges
-        for i in [0,order-1]:
+        for i in [0, order-1]:
             map[1, 0, i ] = count+1
             map[1, 1, i ] = count+2
             map[0, 1, i ] = count+3
@@ -299,23 +303,23 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         map[0           , int(order/2), int(order/2)] = count+3
     elif order == 5:
         # Loop over all edges
-        for k in [0,order-1]:
-            for i in range(1,order-1):
-              map[i, 0, k ] = count+i
+        for k in [0, order-1]:
+            for i in range(1, order-1):
+                map[i, 0, k ] = count+i
             count += order-2
-            for i in range(1,order-1):
-              map[order-1-i, i, k ] = count+i
+            for i in range(1, order-1):
+                map[order-1-i, i, k ] = count+i
             count += order-2
-            for i in reversed(range(1,order-1)):
-              map[0, i, k ] = count+(order-2-i)+1
+            for i in reversed(range(1, order-1)):
+                map[0, i, k ] = count+(order-2-i)+1
             count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[0, 0, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[order-1, 0, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[0, order-1, i] = count+i
         count += order-2
 
@@ -364,7 +368,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         count += 3
 
         # Internal points of volume
-        for k in [1,2,3]:
+        for k in [1, 2, 3]:
             map[1, 1, k] = count+1
             map[2, 1, k] = count+2
             map[1, 2, k] = count+3
@@ -380,7 +384,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
             for i in range(order-j):
                 tensor.append(int(map[i, j, k]))
 
-    return map, np.asarray(tensor)
+    return map, np.asarray(tensor, dtype=np.int64)
 
 
 @cache
@@ -389,6 +393,9 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (3D mapping)
     """
+    if order not in [1, 3, 5]:
+        raise ValueError("Only orders 1, 3, and 5 are supported")
+
     map = np.zeros((order, order, order), dtype=int)
 
     if order == 1:
@@ -397,7 +404,7 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         return map, tensor
 
     # Fill the pyramid recursively from the outside to the inside
-    count = 0
+    count  = 0
     iOrder = 0
     # Principal vertices
     map[iOrder        , iOrder        , iOrder        ] = count+1
@@ -424,29 +431,29 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
     elif order == 5:
         # Loop over all edges
-        for i in range(1,order-1):
-          map[i, 0, 0 ] = count+i
+        for i in range(1, order-1):
+            map[i, 0, 0 ] = count+i
         count += order-2
-        for i in range(1,order-1):
-          map[order-1, i, 0 ] = count+i
+        for i in range(1, order-1):
+            map[order-1, i, 0 ] = count+i
         count += order-2
-        for i in range(1,order-1):
-          map[order-1-i, order-1, 0 ] = count+i
+        for i in range(1,  order-1):
+            map[order-1-i, order-1, 0 ] = count+i
         count += order-2
-        for i in range(1,order-1):
-          map[0, order-1-i, 0 ] = count+i
+        for i in range(1, order-1):
+            map[0, order-1-i, 0 ] = count+i
         count += order-2
 
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[0, 0, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[order-1-i, 0, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[order-1-i, order-1-i, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[0, order-1-i, i] = count+i
         count += order-2
 
@@ -504,7 +511,7 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
             for i in range(order-k):
                 tensor.append(int(map[i, j, k]))
 
-    return map, np.asarray(tensor)
+    return map, np.asarray(tensor, dtype=np.int64)
 
 
 @cache
@@ -513,6 +520,9 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)
     """
+    if order not in [1, 3, 5]:
+        raise ValueError("Only orders 1, 3, and 5 are supported")
+
     map = np.zeros((order, order, order), dtype=int)
 
     if order == 1:
@@ -521,7 +531,7 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         return map, tensor
 
     # Fill the tetrahedron recursively from the outside to the inside
-    count = 0
+    count  = 0
     iOrder = 0
     # Principal vertices
     map[iOrder        , iOrder        , iOrder        ] = count+1
@@ -541,22 +551,22 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         count += 6
     elif order == 5:
         # Loop over all edges
-        for i in range(1,order-1):
-          map[i, 0, 0 ] = count+i
+        for i in range(1, order-1):
+            map[i, 0, 0 ] = count+i
         count += order-2
-        for i in range(1,order-1):
-          map[order-1-i, i, 0 ] = count+i
+        for i in range(1, order-1):
+            map[order-1-i, i, 0 ] = count+i
         count += order-2
-        for i in range(1,order-1):
-          map[0, order-1-i, 0 ] = count+i
+        for i in range(1, order-1):
+            map[0, order-1-i, 0 ] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[0, 0, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[order-1-i, 0, i] = count+i
         count += order-2
-        for i in range(1,order-1):
+        for i in range(1, order-1):
             map[0, order-1-i, i] = count+i
         count += order-2
 
@@ -587,7 +597,6 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         # Internal point
         map[1, 1, 1] = count+1
 
-
     # Python indexing, 1 -> 0
     map -= 1
 
@@ -598,4 +607,4 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
             for i in range(order-k-j):
                 tensor.append(int(map[i, j, k]))
 
-    return map, np.asarray(tensor)
+    return map, np.asarray(tensor, dtype=np.int64)
