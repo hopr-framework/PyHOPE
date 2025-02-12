@@ -214,15 +214,6 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     # sides   = mesh_vars.sides
     # bcs     = mesh_vars.bcs
 
-    # cell_sets contain the face IDs [dim=2]
-    # > Offset is calculated with entities from [dim=0, dim=1]
-    offsetcs = 0
-    for key, value in mesh.cells_dict.items():
-        if 'vertex' in key:
-            offsetcs += value.shape[0]
-        elif 'line' in key:
-            offsetcs += value.shape[0]
-
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
     cells_lst = list(mesh.cells_dict)
@@ -321,12 +312,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 zonedata = cast(h5py.Dataset, zone[' data'])
                 match len(zonedata[0]):
                     case 1:  # Unstructured mesh, 1D arrays
-                        BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen,  # noqa: E501
+                        BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen,  # noqa: E501
                                             # Support for triangular elements
                                             cast(spatial.KDTree, ttree), tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
                         # Structured grid can only contain tensor-product elements
-                        BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, offsetcs, nConnNum, nConnLen)
+                        BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
                         hopout.warning('Unsupported number of dimensions')
@@ -347,7 +338,6 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
                  cellsets,
                  nConnLen: int,
                  nConnNum: int,
-                 offsetcs: int,
                  stree:    spatial.KDTree,
                  tol:      float,
                  BCName:   str) -> dict:
@@ -364,7 +354,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
         traceback.print_stack(file=sys.stdout)
         sys.exit(1)
 
-    sideID   = int(trSide[1]) + offsetcs
+    sideID   = int(trSide[1])
     # All BC are lower-case
     BCName = BCName.lower()
 
@@ -387,7 +377,6 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                           stree:    spatial.KDTree,
                           zone,     # CGNS zone
                           tol:      float,
-                          offsetcs: int,
                           nConnNum: int,
                           nConnLen: int,
                           # Triangular elements
@@ -427,7 +416,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                 # Map the unique quad sides to our non-unique elem sides
                 corners  = cgnsBC[count+1:count+int(elemType['Nodes'])+1]
                 BCpoints = np.sort(bpoints[corners - 1], axis=0).flatten()
-                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
 
                 # Move to the next element
                 count += int(elemType['Nodes']) + 1
@@ -473,7 +462,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                         if match:
                             zoneBC = match.group(1)
 
-                        cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                        cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
                         del BCpoints
 
                     count   += int(elemType['Nodes']) + 1
@@ -501,9 +490,9 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                         match len(BCpoints):
                             case 9:   # triangle
-                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, tConnLen, tConnNum, offsetcs, ttree, tol, zoneBC)
+                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, tConnLen, tConnNum, ttree, tol, zoneBC)
                             case 12:  # quad
-                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, zoneBC)
+                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
                             case _:
                                 hopout.warning('Unsupported number of corners for shell elements, exiting...')
                                 sys.exit(1)
@@ -526,7 +515,6 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
                       stree:    spatial.KDTree,
                       zone,     # CGNS zone
                       tol:      float,
-                      offsetcs: int,
                       nConnNum: int,
                       nConnLen: int) -> None:
     """ Set the CGNS boundary conditions for (un)curved (structured) grids
@@ -600,7 +588,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
 
             # Map the unique quad sides to our non-unique elem sides
             BCpoints = np.sort(quad, axis=0).flatten()
-            cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, offsetcs, stree, tol, cgnsName)
+            cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, cgnsName)
 
         mesh   = meshio.Mesh(points    = points,    # noqa: E251
                              cells     = cells,     # noqa: E251
