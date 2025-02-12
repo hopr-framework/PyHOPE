@@ -57,10 +57,10 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │                    BoundaryType │ (/2,0,0,0/)                     │ *CUSTOM │
 │                    BoundaryName │ BC_zplus                        │ *CUSTOM │
 │                    BoundaryType │ (/9,0,0,0/)                     │ *CUSTOM │
+├────
 │                              vv │ (/1., 0., 0./)                  │ *CUSTOM │
 │                              vv │ (/0., 1., 0./)                  │ *CUSTOM │
 │                              vv │ (/0., 0., 1./)                  │ *CUSTOM │
-├────
 ├────
 │                        ElemType │ 108 [hexahedron]                │ *CUSTOM │
 ├────
