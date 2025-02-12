@@ -231,13 +231,13 @@ def MeshCartesian() -> meshio.Mesh:
         bcs[iBC].type = GetIntArray('BoundaryType', number=iBC)            # noqa: E251
 
     nVVs = CountOption('vv')
+    if nVVs > 0:
+        hopout.sep()
     mesh_vars.vvs = [dict() for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     for iVV, _ in enumerate(vvs):
         vvs[iVV] = dict()
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
-    if len(vvs) > 0:
-        hopout.sep()
 
     # Flatten the BC array, the surface numbering follows from the 2-D ordering
     bcIndex = [item for row in bcZones for item in row]
