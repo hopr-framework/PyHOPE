@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2025-02-11
+
+### Added & Changed
+- Implement stretching and scaling [c07fa435]
+For this release there is a major feature merge [902b2b49] to the main branch which contains:
+- Add support for simplex elements
+- Add support for mixed meshes
+- Add support for serendipity element processing from CGNS
+- Further flexibility in element stretching
+- Implement mesh transformations using templates
+- Search for meshes and templates in multiple dirs including CWD
+- Implement periodic mortar sides
+
+### Fixed
+- Fix compatibility for Python 3.10 to 3.13 using the typing-extensions [3aaeacf4]
+- Fix offset calculation during Gmsh to meshio conversion [5270006]
+
 ## [0.0.5] - 2025-01-08
 
 ### Added
