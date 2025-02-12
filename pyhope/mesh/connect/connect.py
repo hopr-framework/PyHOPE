@@ -260,15 +260,6 @@ def ConnectMesh() -> None:
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
 
-    # cell_sets contain the face IDs [dim=2]
-    # > Offset is calculated with entities from [dim=0, dim=1]
-    offsetcs = 0
-    for key, value in mesh.cells_dict.items():
-        if 'vertex' in key:
-            offsetcs += value.shape[0]
-        elif 'line' in key:
-            offsetcs += value.shape[0]
-
     # Map sides to BC
     # > Create a dict containing only the face corners
     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
@@ -323,7 +314,7 @@ def ConnectMesh() -> None:
             if not any(s in list(mesh_vars.mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
                 continue
 
-            iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
+            iBCsides = np.array(cset[iMap]).astype(int)
             mapFaces = mesh.cells[iMap].data
             # Support for hybrid meshes
             nCorners = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
@@ -377,7 +368,7 @@ def ConnectMesh() -> None:
             # Get the list of sides
             nbFaceSet  =  np.array(nbCellSet[iMap]).astype(int)
             nbmapFaces = mesh.cells[iMap].data
-            nbCorners  = [np.array(nbmapFaces[s - offsetcs]) for s in nbFaceSet]
+            nbCorners  = [np.array(nbmapFaces[s]) for s in nbFaceSet]
             nbPoints   = np.sort(mesh.points[nbCorners], axis=1)
             nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
             del nbCorners
@@ -385,7 +376,7 @@ def ConnectMesh() -> None:
             # Build a k-dimensional tree of all points on the opposing side
             stree    = spatial.KDTree(nbPoints)
             # Get the list of sides on our side
-            iBCsides = np.array(cset[iMap]).astype(int) - offsetcs
+            iBCsides = np.array(cset[iMap]).astype(int)
 
             # Get the number of side cordners
             nSideIdx   = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
@@ -405,7 +396,7 @@ def ConnectMesh() -> None:
 
                 # Regular periodic side
                 if nbSideIdx >= 0:
-                    nbiSide   = nbFaceSet[nbSideIdx] - offsetcs
+                    nbiSide   = nbFaceSet[nbSideIdx]
 
                     # Get our and neighbor corner nodes
                     sideID    = get_side_id(nbmapFaces[iSide  ][0:nSideIdx], corner_side)

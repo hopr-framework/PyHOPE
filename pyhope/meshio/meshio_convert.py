@@ -75,6 +75,10 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
 
     cell_sets = {}
     for dim, tag in gmsh.model.getPhysicalGroups():
+        # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)
+        _, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
+        offset = min(elem_tags[0])
+        
         name = gmsh.model.getPhysicalName(dim, tag)
         cell_sets[name] = [[] for _ in range(len(cells))]
         for e in gmsh.model.getEntitiesForPhysicalGroup(dim, tag):
@@ -83,7 +87,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
             assert len(elem_types) == len(elem_tags)
             assert len(elem_types) == 1
             elem_type = elem_types[0]
-            elem_tags = elem_tags[0]
+            elem_tags = elem_tags[0] - offset
 
             meshio_cell_type = meshio.gmsh.gmsh_to_meshio_type[elem_type]
             # Make sure that the cell type appears only once in the cell list
@@ -93,7 +97,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
                     idx.append(k)
             assert len(idx) == 1
             idx = idx[0]
-            cell_sets[name][idx].append(elem_tags - 1)
+            cell_sets[name][idx].append(elem_tags)
 
         cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]
 
