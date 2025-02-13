@@ -148,12 +148,12 @@ python_313:
   stage: compatibility
   # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.2-bookworm-x86_64 # default version at the moment
   <<: *compatibility-script
-# Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
-python_314:
-  extends: .defaults
-  stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14-rc-bookworm-x86_64
-  <<: *compatibility-script
+# # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
+# python_314:
+#   extends: .defaults
+#   stage: compatibility
+#   image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14-rc-bookworm-x86_64
+#   <<: *compatibility-script
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Reggie
