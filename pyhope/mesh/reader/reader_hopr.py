@@ -29,7 +29,9 @@ import copy
 import gc
 import itertools
 import os
+import shutil
 import sys
+import tempfile
 from string import digits
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -38,6 +40,7 @@ from typing import cast
 import h5py
 import meshio
 import numpy as np
+from alive_progress import alive_bar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -73,9 +76,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
     from pyhope.mesh.mesh_common import LINTEN
-    from pyhope.mesh.mesh_common import faces, face_to_cgns
+    from pyhope.mesh.mesh_common import faces, face_to_nodes
     from pyhope.mesh.mesh_vars import ELEMTYPE
-    from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
 
     hopout.sep()
@@ -89,6 +91,11 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     offsetnNodes = nodeCoords.shape[0]
     nSides       = np.zeros(2, dtype=int)
 
+    # FIXME: ORDERING FOR HIGHER-ORDER QUADS, TRIANGLES
+    ordering     = {'quad':  [0, 1, 2, 3               ],
+                    'quad9': [0, 2, 8, 6, 1, 5, 7, 3, 4],
+                   }
+
     # Vandermonde for changeBasis
     VdmEqHdf5ToEqMesh = np.array([])
     mortarTypeToSkip  = {1: 4, 2: 2, 3: 2}
@@ -99,7 +106,13 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             hopout.warning('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
             sys.exit(1)
 
-        with h5py.File(fname, mode='r') as f:
+        # Create a temporary directory and keep it existing until manually cleaned
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tname = tfile.name
+        # Alternatively, load the file directly into tmpfs for faster access
+        shutil.copyfile(fname, tname)
+
+        with h5py.File(tname, mode='r') as f:
             # Check if file contains the Hopr version
             if 'HoprVersion' not in f.attrs:
                 hopout.warning('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
@@ -147,107 +160,125 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             sideInfo   = np.array(f['SideInfo'])
             BCNames    = [s.strip().decode('utf-8') for s in cast(h5py.Dataset, f['BCNames'])]
 
-            bar = ProgressBar(value=len(elemInfo), title='│             Processing Elements', length=33)
+            with alive_bar(len(elemInfo), title='│             Processing Elements', length=33) as bar:
+                # Construct the elements, meshio format
+                for elem in elemInfo:
+                    # Correct ElemType if NGeo is changed
+                    elemNum  = elem[0] % 100
+                    elemNum += 200 if mesh_vars.nGeo > 1 else 100
 
-            # Construct the elements, meshio format
-            for elem in elemInfo:
-                # Correct ElemType if NGeo is changed
-                elemNum  = elem[0] % 100
-                elemNum += 200 if mesh_vars.nGeo > 1 else 100
+                    # Obtain the element type
+                    elemType = ELEMTYPE.inam[elemNum]
+                    if len(elemType) > 1:
+                        elemType  = elemType[0].rstrip(digits)
+                        elemType += str(NDOFperElemType(elemType, mesh_vars.nGeo))
+                    else:
+                        elemType  = elemType[0]
 
-                # Obtain the element type
-                elemType = ELEMTYPE.inam[elemNum]
-                if len(elemType) > 1:
-                    elemType  = elemType[0].rstrip(digits)
-                    elemType += str(NDOFperElemType(elemType, mesh_vars.nGeo))
-                else:
-                    elemType  = elemType[0]
+                    # ChangeBasis currently only supported for hexahedrons
+                    _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
+                    mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
 
-                # ChangeBasis currently only supported for hexahedrons
-                _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
+                    if nGeo == mesh_vars.nGeo:
+                        elemIDs   = np.arange(elem[4], elem[5])
+                        elemNodes = elemIDs[mapLin[:len(elemIDs)]]
+                        elemNodes = np.expand_dims(nodeInfo[elemNodes] - 1 + offsetnNodes, axis=0)
+                    else:
+                        nElemNode = (mesh_vars.nGeo+1)**3
+                        elemIDs   = np.arange(points.shape[0], points.shape[0]+nElemNode, dtype=np.uint64)
+                        elemNodes = elemIDs[mapLin[:nElemNode]]
+                        # This needs no offset as we already accounted for the number of points in elemIDs
+                        elemNodes = np.expand_dims(         elemNodes                    , axis=0)
 
-                if nGeo == mesh_vars.nGeo:
-                    elemIDs   = np.arange(elem[4], elem[5])
-                    elemNodes = np.zeros(len(elemIDs), dtype=np.uint64)
-                    elemNodes = elemIDs[[mapLin[np.int64(i)] for i in range(len(elemIDs))]]
-                    elemNodes = np.expand_dims(nodeInfo[elemNodes]-1+offsetnNodes, axis=0)
-                else:
-                    elemIDs   = np.arange(points.shape[0], points.shape[0]+(mesh_vars.nGeo+1)**3., dtype=np.uint64)
-                    elemNodes = np.zeros(len(elemIDs), dtype=np.uint64)
-                    elemNodes = elemIDs[[mapLin[np.int64(i)] for i in range(len(elemIDs))]]
-                    # This needs no offset as we already accounted for the number of points in elemIDs
-                    elemNodes = np.expand_dims(         elemNodes                , axis=0)
+                        # This is still in tensor-product format
+                        meshNodes = nodeCoords[np.arange(elem[4], elem[5])].reshape((nGeo+1, nGeo+1, nGeo+1, 3))
+                        meshNodes = meshNodes.transpose(3, 0, 1, 2)
+                        try:
+                            meshNodes = change_basis_3D(VdmEqHdf5ToEqMesh, meshNodes)
+                            meshNodes = meshNodes.transpose(1, 2, 3, 0)
+                            meshNodes = meshNodes.reshape((int((mesh_vars.nGeo+1)**3.), 3))
+                            points    = np.append(points, meshNodes, axis=0)
+                        except UnboundLocalError:
+                            raise UnboundLocalError('Something went wrong with the change basis')
 
-                    # This is still in tensor-product format
-                    meshNodes = nodeCoords[np.arange(elem[4], elem[5])].reshape((nGeo+1, nGeo+1, nGeo+1, 3))
-                    meshNodes = meshNodes.transpose(3, 0, 1, 2)
-                    try:
-                        meshNodes = change_basis_3D(VdmEqHdf5ToEqMesh, meshNodes)
-                        meshNodes = meshNodes.transpose(1, 2, 3, 0)
-                        meshNodes = meshNodes.reshape((int((mesh_vars.nGeo+1)**3.), 3))
-                        points    = np.append(points, meshNodes, axis=0)
-                    except UnboundLocalError:
-                        raise UnboundLocalError('Something went wrong with the change basis')
+                    if elemType in cells:
+                        cells[elemType].append(elemNodes.astype(np.uint64))
+                    else:
+                        cells[elemType] = [elemNodes.astype(np.uint64)]
 
-                try:
-                    cells[elemType] = np.append(cells[elemType], elemNodes.astype(np.uint64), axis=0)
-                except KeyError:
-                    cells[elemType] = elemNodes.astype(np.uint64)
+                    # Attach the boundary sides
+                    sCounter = 0
+                    sideRange = iter(range(elem[2], elem[3]))  # Create an iterator for the loop
+                    for index in sideRange:
+                        # Obtain the side type
+                        sideType  = sideInfo[index, 0]
+                        nbElemID  = sideInfo[index, 2]
+                        sideBC    = sideInfo[index, 4]
 
-                # Attach the boundary sides
-                sCounter = 0
-                sideRange = iter(range(elem[2], elem[3]))  # Create an iterator for the loop
-                for index in sideRange:
-                    # Obtain the side type
-                    sideType  = sideInfo[index, 0]
-                    nbElemID  = sideInfo[index, 2]
-                    sideBC    = sideInfo[index, 4]
+                        BCName    = BCNames[sideBC-1].lower()
+                        face      = faces(elemType)[sCounter]
+                        # corners   = [elemNodes[0][s] for s in face_to_cgns(face, elemType)]
+                        # print(corners)
+                        # Get the number of corners
+                        nCorners  = abs(sideType) % 10
+                        sideNum   = 0      if nCorners == 4 else 1           # noqa: E272
+                        sideName  = 'quad' if nCorners == 4 else 'triangle'  # noqa: E272
 
-                    BCName    = BCNames[sideBC-1].lower()
-                    face      = faces(elemType)[sCounter]
-                    corners   = [elemNodes[0][s] for s in face_to_cgns(face, elemType)]
+                        if mesh_vars.nGeo > 1:
+                            sideName += str(NDOFperElemType(sideName, mesh_vars.nGeo))
 
-                    # Get the number of corners
-                    nCorners  = abs(sideType) % 10
-                    sideNum   = 0      if nCorners == 4 else 1           # noqa: E272
-                    sideName  = 'quad' if nCorners == 4 else 'triangle'  # noqa: E272
+                        corners   = elemNodes[0][face_to_nodes(face, elemType, mesh_vars.nGeo)]
+                        corners   = corners.flatten()[ordering[sideName]]
+                        sideNodes = np.expand_dims(corners, axis=0)
 
-                    if mesh_vars.nGeo > 1:
-                        sideName += str(NDOFperElemType(sideName, mesh_vars.nGeo))
-                    sideNodes = np.expand_dims(corners, axis=0)
+                        if sideName in cells:
+                            cells[sideName].append(sideNodes.astype(np.uint64))
+                        else:
+                            cells[sideName] = [sideNodes.astype(np.uint64)]
 
-                    try:
-                        cells[sideName] = np.append(cells[sideName], sideNodes.astype(np.uint64), axis=0)
-                    except KeyError:
-                        cells[sideName] = sideNodes.astype(np.uint64)
+                        # Increment the side counter
+                        sCounter        += 1
+                        nSides[sideNum] += 1
 
-                    # Increment the side counter
-                    sCounter        += 1
-                    nSides[sideNum] += 1
+                        # Account for mortar sides
+                        if nbElemID < 0:
+                            # Side is a big mortar side
+                            # > Skip the nVirtualSides small virtual sides
+                            nVirtualSides = mortarTypeToSkip[abs(nbElemID)]
+                            list(itertools.islice(sideRange, nVirtualSides))
 
-                    # Account for mortar sides
-                    if nbElemID < 0:
-                        # Side is a big mortar side
-                        # > Skip the nVirtualSides small virtual sides
-                        nVirtualSides = mortarTypeToSkip[abs(nbElemID)]
-                        list(itertools.islice(sideRange, nVirtualSides))
+                        if sideBC == 0:
+                            continue
 
-                    if sideBC == 0:
-                        continue
+                        # Add the side to the cellset
+                        # > CS1: We create a dictionary of the BC sides and types that we want
+                        if BCName not in cellsets:
+                            cellsets[BCName] = {}
+                        if sideName not in cellsets[BCName]:
+                            cellsets[BCName][sideName] = []
+                        cellsets[BCName][sideName].append(nSides[sideNum]-1)
 
-                    # Add the side to the cellset
-                    # > CS1: We create a dictionary of the BC sides and types that we want
-                    try:
-                        cellsets[BCName][sideName] = np.append(cellsets[BCName][sideName],
-                                                               np.array([nSides[sideNum]-1], dtype=np.uint64))
-                    except KeyError:
-                        cellsets[BCName] = { sideName: np.array([nSides[sideNum]-1], dtype=np.uint64)}
+                    # Update progress bar
+                    bar()
 
-                # Update progress bar
-                bar.step()
+                # Update the offset for the next file
+                offsetnNodes = points.shape[0]
 
-            # Update the offset for the next file
-            offsetnNodes = points.shape[0]
+        # Cleanup temporary file
+        if tfile is not None:
+            os.unlink(tfile.name)
+
+        hopout.sep()
+
+    # After processing all elements, convert each list of arrays to one array
+    # > Convert the list of cells to numpy arrays
+    for cell_type in cells:
+        cells[cell_type] = np.concatenate([a if a.ndim == 2 else a.reshape(1, -1) for a in cells[cell_type]], axis=0)
+
+    # Convert the list of cellsets to numpy arrays
+    for bc in cellsets:
+        for side in cellsets[bc]:
+            cellsets[bc][side] = np.array(cellsets[bc][side], dtype=np.uint64)
 
     # > CS2: We create a meshio.Mesh object without cell_sets
     mesh   = meshio.Mesh(points    = points,    # noqa: E251
