@@ -435,6 +435,10 @@ class ReadConfig():
 
     def __init__(self, parameter: str) -> None:
         self.parameter = parameter
+
+        # define allowed comments
+        self.sym_comm = ('#', ';', '!')
+
         return None
 
     def _read_file(self) -> list:
@@ -443,11 +447,15 @@ class ReadConfig():
         # ------------------------------------------------------
         processed_lines = []
         variables       = {}
-        defined_vars    = {}
 
         with open(self.parameter, 'r', encoding='utf-8') as stream:
             for line in stream:
                 line = line.strip()
+
+                # HOPR supported inline comments as prefix before "%"
+                # For legacy reasons also support such comment constructs
+                if "%" in line:
+                    line = line.split("%", 1)[1].strip()
 
                 # HOPR supported inline variable definitions with prefix "DEFVAR="
                 # For legacy reasons also support such variable definition constructs
@@ -459,6 +467,12 @@ class ReadConfig():
 
                     var_type_part = parts[0].replace("DEFVAR=", "").strip()
                     var_def_part = parts[1].strip()
+
+                    # Check if comment is in value part
+                    for symbol in self.sym_comm:
+                        if symbol in var_def_part:
+                            var_def_part = var_def_part.split(symbol, 1)[0].strip()  # Take the part before the symbol
+                            break  # Stop at the first symbol found
 
                     # Extract variable type and optional array size
                     if "~" in var_type_part:
@@ -475,29 +489,25 @@ class ReadConfig():
                     else:
                         hopout.warning(f"DEFVAR= syntax error while parsing '{var_def_part}'")
                         sys.exit(1)
-                    # Ensure unique variable names
-                    for existing_var in defined_vars:
-                        if existing_var in var_name or var_name in existing_var:
-                            hopout.warning(f"ERROR: Variable '{var_name}' is ambiguous (conflicts with '{existing_var}')")
-                            sys.exit(1)
 
                     # Convert values to proper types
                     if arr_size:  # Handle array
                         values = [float(v) if "." in v else int(v) for v in var_value.split(",")]
                         if len(values) != arr_size:
-                            hopout.warning(f"ERROR: Expected {arr_size} values for array '{var_name}', got {len(values)}")
+                            hopout.warning(f"Expected {arr_size} values for array '{var_name}', got {len(values)}")
                             sys.exit(1)
                         variables[var_name] = values
                     else:  # Single value
                         variables[var_name] = float(var_value) if "." in var_value else int(var_value)
 
-                    defined_vars[var_name] = var_value
+                    # We have to sort the variables according to the length of the keys in order to avoid
+                    # substring replacement in the parameter file. This way it can be assured that long strings
+                    # get replaced first.
+                    # variables = sorted(variables.items(), key=lambda item: len(item[0]), reverse=True)
+                    variables = dict(sorted(variables.items(), key=lambda item: len(item[0]), reverse=True))
+
                     continue  # Skip adding this line to config
 
-                # HOPR supported inline comments as prefix before "%"
-                # For legacy reasons also support such comment constructs
-                if "%" in line:
-                    line = line.split("%", 1)[1].strip()
 
                 # Replace variables in the parameter file
                 for var, value in variables.items():
@@ -525,8 +535,8 @@ class ReadConfig():
         # ------------------------------------------------------
 
         parser = ConfigParser(strict=False,
-                              comment_prefixes=('#', ';', '!'),
-                              inline_comment_prefixes=('#', ';', '!'),
+                              comment_prefixes=self.sym_comm,
+                              inline_comment_prefixes=self.sym_comm,
                               dict_type=MultiOrderedDict
                               )
 
