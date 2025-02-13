@@ -1,0 +1,23 @@
+# Load the base image
+FROM python:3.13.2-bookworm
+
+# Numerics research group
+LABEL maintainer="numerics@iag.uni-stuttgart.de"
+
+# Setup required packages
+RUN apt-get update && \
+    apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1 && \
+    apt-get clean
+
+# Setup uv package manager
+RUN mkdir -p /.local/bin && \
+    curl -L -o uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.5.13/uv-x86_64-unknown-linux-gnu.tar.gz && \
+    tar -xzf uv.tar.gz -C /.local/bin --strip-components=1 && \
+    rm uv.tar.gz
+
+# Setup uv environment variables
+ENV PATH="/.local/bin:$PATH"
+ENV UV_LINK_MODE=copy
+
+# Set architecture argument
+ARG ARCH

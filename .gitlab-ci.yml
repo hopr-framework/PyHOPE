@@ -24,7 +24,7 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
-image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python_3.13.1-bookworm-x86_64
+image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.2-bookworm-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
@@ -97,6 +97,7 @@ before_script: *global-before-script
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 stages:
   - lint
+  - compatibility
   - coverage
   - convergence
 
@@ -110,6 +111,49 @@ ruff:
     - uv pip install ruff
     - ruff --version
     - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope/
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Compatibility
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+.compatibility-script: &compatibility-script
+  script:
+    - cd tutorials
+    # Check internal meshing
+    - pyhope 1-04-cartbox_multiple_stretch/parameter.ini
+    # Check external meshing
+    - pyhope 2-02-external_mesh_CGNS_mixed/parameter.ini
+
+# Python 3.10 ----------------------------------------------------------------------------------------------------------------------------------------
+python:3.10:
+  extends: .defaults
+  stage: compatibility
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.10.16-bookworm-x86_64
+  <<: *compatibility-script
+# Python 3.11 ----------------------------------------------------------------------------------------------------------------------------------------
+python:3.11:
+  extends: .defaults
+  stage: compatibility
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.11.11-bookworm-x86_64
+  <<: *compatibility-script
+# Python 3.12 ----------------------------------------------------------------------------------------------------------------------------------------
+python:3.12:
+  extends: .defaults
+  stage: compatibility
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.12.9-bookworm-x86_64
+  <<: *compatibility-script
+# Python 3.13 ----------------------------------------------------------------------------------------------------------------------------------------
+python:3.13:
+  extends: .defaults
+  stage: compatibility
+  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.2-bookworm-x86_64 # default version at the moment
+  <<: *compatibility-script
+# # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
+# python_314:
+#   extends: .defaults
+#   stage: compatibility
+#   image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14-rc-bookworm-x86_64
+#   <<: *compatibility-script
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Reggie
@@ -220,7 +264,7 @@ coverage:
 convergence:
   extends: .defaults
   stage: convergence
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora_41-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:41-x86_64
   artifacts:
     paths:
       - convergence_artifacts.log
