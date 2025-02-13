@@ -29,6 +29,7 @@ import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
+import heapq
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -220,6 +221,48 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
 
         elemCounter[elem.type] += 1
 
+    # Set the global side ID
+    globalSideID     = 0
+    highestSideID    = 0
+    usedSideIDs      = set()  # Set to track used side IDs
+    availableSideIDs = []     # Min-heap for gap
+
+    for iSide, side in enumerate(sides):
+        # Already counted the side
+        if side.globalSideID is not None:
+            continue
+
+        # Get the smallest available globalSideID from the heap, if any
+        if availableSideIDs:
+            globalSideID = heapq.heappop(availableSideIDs)
+        else:
+            # Use the current maximum ID and increment
+            globalSideID = highestSideID + 1
+
+        # Mark the side ID as used
+        highestSideID = max(globalSideID, highestSideID)
+        usedSideIDs.add(globalSideID)
+        # side.update(globalSideID=globalSideID)
+        side.globalSideID = globalSideID
+
+        if side.connection is None:         # BC side
+            pass
+        elif side.connection < 0:           # Big mortar side
+            pass
+        elif side.MS == 1:                  # Internal / periodic side (master side)
+            # Get the connected slave side
+            nbSideID = side.connection
+
+            # Reclaim the ID of the slave side if already assigned
+            if sides[nbSideID].globalSideID is not None:
+                reclaimedID = sides[nbSideID].globalSideID
+                usedSideIDs.remove(reclaimedID)
+                heapq.heappush(availableSideIDs, reclaimedID)
+
+            # Set the negative globalSideID of the slave  side
+            # sides[nbSideID].update(globalSideID=-(globalSideID))
+            sides[nbSideID].globalSideID = -(globalSideID)
+
     # Fill the SideInfo
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
@@ -238,6 +281,9 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
         elif side.connection is not None and side.connection < 0:  # Big mortar side
             # WARNING: This is not a sideID, but the mortar type
             sideInfo[iSide, SIDE.NBELEMID      ] = side.connection
+            # Periodic mortar sisters have a BCID
+            if side.bcid is not None:
+                sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
         else:                                                      # Internal side
             nbSideID = side.connection
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index

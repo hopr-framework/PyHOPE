@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
 import gc
-import heapq
 import sys
 import traceback
 from collections import defaultdict
@@ -326,6 +325,9 @@ def ConnectMesh() -> None:
                 corners = hash(corners.tobytes())
 
                 # Boundary faces are unique
+                if len(corner_side[corners]) == 0:
+                    continue
+
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
                 # sides[sideID].update(bcid=bcID)
@@ -453,7 +455,18 @@ def ConnectMesh() -> None:
     if len(nMissSide) > 0:
         nPeriSide = [s for s in sides if s.bcid is not None and bcs[s.bcid].type[0] == 1]
         hopout.warning(f'Failed to connect {len(nMissSide)} / {len(nPeriSide)} periodic sides')
-        traceback.print_stack(file=sys.stdout)
+
+        for side in nMissSide:
+            print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
+            elem     = elems[side.elemID]
+            nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
+            nodes    = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
+            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
+            print()
+
         sys.exit(1)
 
     if passedTypes:
@@ -561,48 +574,6 @@ def ConnectMesh() -> None:
     if nInterZoneConnect > 0:
         hopout.sep()
         hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
-
-    # Set the global side ID
-    globalSideID     = 0
-    highestSideID    = 0
-    usedSideIDs      = set()  # Set to track used side IDs
-    availableSideIDs = []     # Min-heap for gap
-
-    for iSide, side in enumerate(sides):
-        # Already counted the side
-        if side.globalSideID is not None:
-            continue
-
-        # Get the smallest available globalSideID from the heap, if any
-        if availableSideIDs:
-            globalSideID = heapq.heappop(availableSideIDs)
-        else:
-            # Use the current maximum ID and increment
-            globalSideID = highestSideID + 1
-
-        # Mark the side ID as used
-        highestSideID = max(globalSideID, highestSideID)
-        usedSideIDs.add(globalSideID)
-        # side.update(globalSideID=globalSideID)
-        side.globalSideID = globalSideID
-
-        if side.connection is None:         # BC side
-            pass
-        elif side.connection < 0:           # Big mortar side
-            pass
-        elif side.MS == 1:                  # Internal / periodic side (master side)
-            # Get the connected slave side
-            nbSideID = side.connection
-
-            # Reclaim the ID of the slave side if already assigned
-            if sides[nbSideID].globalSideID is not None:
-                reclaimedID = sides[nbSideID].globalSideID
-                usedSideIDs.remove(reclaimedID)
-                heapq.heappush(availableSideIDs, reclaimedID)
-
-            # Set the negative globalSideID of the slave  side
-            # sides[nbSideID].update(globalSideID=-(globalSideID))
-            sides[nbSideID].globalSideID = -(globalSideID)
 
     # Count the sides
     nsides             = len(sides)

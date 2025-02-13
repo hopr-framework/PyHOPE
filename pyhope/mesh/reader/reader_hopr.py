@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
 import gc
+import itertools
 import os
 import sys
 from string import digits
@@ -74,6 +75,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.mesh.mesh_common import LINTEN
     from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEMTYPE
+    from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
 
     hopout.sep()
@@ -89,6 +91,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Vandermonde for changeBasis
     VdmEqHdf5ToEqMesh = np.array([])
+    mortarTypeToSkip  = {1: 4, 2: 2, 3: 2}
 
     for fname in fnames:
         # Check if the file is using HDF5 format internally
@@ -144,6 +147,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             sideInfo   = np.array(f['SideInfo'])
             BCNames    = [s.strip().decode('utf-8') for s in cast(h5py.Dataset, f['BCNames'])]
 
+            bar = ProgressBar(value=len(elemInfo), title='│             Processing Elements', length=33)
+
             # Construct the elements, meshio format
             for elem in elemInfo:
                 # Correct ElemType if NGeo is changed
@@ -191,12 +196,11 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                 # Attach the boundary sides
                 sCounter = 0
-                for index in range(elem[2], elem[3]):
-                    # Account for mortar sides
-                    # TODO: Add mortar sides
-
+                sideRange = iter(range(elem[2], elem[3]))  # Create an iterator for the loop
+                for index in sideRange:
                     # Obtain the side type
                     sideType  = sideInfo[index, 0]
+                    nbElemID  = sideInfo[index, 2]
                     sideBC    = sideInfo[index, 4]
 
                     BCName    = BCNames[sideBC-1].lower()
@@ -204,8 +208,10 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     corners   = [elemNodes[0][s] for s in face_to_cgns(face, elemType)]
 
                     # Get the number of corners
-                    nCorners  = abs(sideType % 10)
-                    sideName  = 'quad' if nCorners == 4 else 'triangle'
+                    nCorners  = abs(sideType) % 10
+                    sideNum   = 0      if nCorners == 4 else 1           # noqa: E272
+                    sideName  = 'quad' if nCorners == 4 else 'triangle'  # noqa: E272
+
                     if mesh_vars.nGeo > 1:
                         sideName += str(NDOFperElemType(sideName, mesh_vars.nGeo))
                     sideNodes = np.expand_dims(corners, axis=0)
@@ -216,9 +222,15 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         cells[sideName] = sideNodes.astype(np.uint64)
 
                     # Increment the side counter
-                    sCounter += 1
-                    sideType  = 0 if nCorners == 4 else 1
-                    nSides[sideType] += 1
+                    sCounter        += 1
+                    nSides[sideNum] += 1
+
+                    # Account for mortar sides
+                    if nbElemID < 0:
+                        # Side is a big mortar side
+                        # > Skip the nVirtualSides small virtual sides
+                        nVirtualSides = mortarTypeToSkip[abs(nbElemID)]
+                        list(itertools.islice(sideRange, nVirtualSides))
 
                     if sideBC == 0:
                         continue
@@ -227,9 +239,12 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     # > CS1: We create a dictionary of the BC sides and types that we want
                     try:
                         cellsets[BCName][sideName] = np.append(cellsets[BCName][sideName],
-                                                               np.array([nSides[sideType]-1], dtype=np.uint64))
+                                                               np.array([nSides[sideNum]-1], dtype=np.uint64))
                     except KeyError:
-                        cellsets[BCName] = { sideName: np.array([nSides[sideType]-1], dtype=np.uint64)}
+                        cellsets[BCName] = { sideName: np.array([nSides[sideNum]-1], dtype=np.uint64)}
+
+                # Update progress bar
+                bar.step()
 
             # Update the offset for the next file
             offsetnNodes = points.shape[0]
