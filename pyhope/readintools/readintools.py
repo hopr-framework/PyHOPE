@@ -461,7 +461,7 @@ class ReadConfig():
                 # For legacy reasons also support such variable definition constructs
                 if "DEFVAR=" in line:
                     if ":" not in line:
-                        hopout.warning(f"DEFVAR= syntax error while parsing parameter file. Missing ':'")
+                        hopout.warning("DEFVAR= syntax error while parsing parameter file. Missing ':'")
                         sys.exit(1)
                     parts = line.split(":")
 
