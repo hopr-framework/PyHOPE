@@ -299,12 +299,12 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
                         'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
                         'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
                    # Hexahedron
-                   8: { 'z-':              LINMAP(elemType, order=order)[:    , :    , 0    ],
-                        'y-': np.transpose(LINMAP(elemType, order=order)[:    , 0    , :    ]),
-                        'x+': np.transpose(LINMAP(elemType, order=order)[order, :    , :    ]),
-                        'y+':              LINMAP(elemType, order=order)[:    , order, :    ],
-                        'x-':              LINMAP(elemType, order=order)[0    , :    , :    ],
-                        'z+': np.transpose(LINMAP(elemType, order=order)[:    , :    , order])}
+                   8: { 'z-':              LINMAP(108 if order == 1 else 208, order=order)[:    , :    , 0    ] ,
+                        'y-': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , 0    , :    ]),
+                        'x+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[order, :    , :    ]),
+                        'y+':              LINMAP(108 if order == 1 else 208, order=order)[:    , order, :    ] ,
+                        'x-':              LINMAP(108 if order == 1 else 208, order=order)[0    , :    , :    ] ,
+                        'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}
 
                 }
     if elemType % 100 not in faces_map:
