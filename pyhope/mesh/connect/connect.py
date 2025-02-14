@@ -454,8 +454,6 @@ def ConnectMesh() -> None:
 
     if len(nMissSide) > 0:
         nPeriSide = [s for s in sides if s.bcid is not None and bcs[s.bcid].type[0] == 1]
-        hopout.warning(f'Failed to connect {len(nMissSide)} / {len(nPeriSide)} periodic sides')
-
         for side in nMissSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem     = elems[side.elemID]
@@ -467,6 +465,7 @@ def ConnectMesh() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
             print()
 
+        hopout.warning(f'Failed to connect {len(nMissSide)} / {len(nPeriSide)} periodic sides')
         sys.exit(1)
 
     if passedTypes:
@@ -536,7 +535,11 @@ def ConnectMesh() -> None:
             connect_sides(sideIDs, sides, flipID)
 
             # Update the list
-            nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+            for i, s in enumerate(nConnSide):
+                if s.sideID in sideIDs:
+                    del nConnSide[  i]
+                    del nConnCenter[i]
+                    break
 
             # Update the progress bar
             bar.step(2)
@@ -551,8 +554,6 @@ def ConnectMesh() -> None:
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
-        hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
-
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem     = elems[side.elemID]
@@ -563,6 +564,8 @@ def ConnectMesh() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
             print()
+
+        hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
         sys.exit(1)
 
     # Close the progress bar
