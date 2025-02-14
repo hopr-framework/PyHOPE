@@ -490,6 +490,12 @@ class ReadConfig():
                         hopout.warning(f"DEFVAR= syntax error while parsing '{var_def_part}'")
                         sys.exit(1)
 
+                    # Ensure unique variable names
+                    for existing_var in variables:
+                        if existing_var in var_name or var_name in existing_var:
+                            hopout.warning(f"Variable '{var_name}' is ambiguous")
+                            sys.exit(1)
+
                     # Convert values to proper types
                     if arr_size:  # Handle array
                         values = [float(v) if "." in v else int(v) for v in var_value.split(",")]
