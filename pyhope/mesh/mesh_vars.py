@@ -52,6 +52,9 @@ vvs    : list                                     # [list of dict] - Periodic ve
 elems  : list[type | None]                        # [list of list] - Element nodes
 sides  : list[type | None]                        # [list of list] - Side    nodes
 
+# Periodic nodes
+periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
+
 already_curved: bool                              # Flag if mesh is already curved
 
 doMortars: bool                                   # Flag if mortars are enabled

@@ -25,7 +25,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import copy
 import gc
+import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,8 +46,61 @@ def EliminateDuplicates() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.mesh.connect.connect import find_bc_index
     # ------------------------------------------------------
     hopout.routine('Removing duplicate points')
+
+    bcs    = mesh_vars.bcs
+    vvs    = mesh_vars.vvs
+    mesh   = mesh_vars.mesh
+
+    # Find the mapping to the (N-1)-dim elements
+    csetMap = {key: [s for s in range(len(cset)) if cset[s] is not None and np.size(cset[s]) > 0]
+                       for key, cset in mesh.cell_sets.items()}
+
+    # Create new periodic nodes per (original node, boundary) pair
+    # > Use a dictionary mapping (node, bc_key) --> new node index
+    node_bc_translation = {}
+
+    for bc_key, cset in mesh.cell_sets.items():
+        # Find the matching boundary condition
+        bcID = find_bc_index(bcs, bc_key)
+        if bcID is None:
+            hopout.warning(f'Could not find BC {bc_key} in list, exiting...')
+            sys.exit(1)
+
+        # Only process periodic boundaries in the positive direction
+        if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
+            continue
+
+        iVV = bcs[bcID].type[3]
+        VV  = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
+
+        for iMap in csetMap[bc_key]:
+            # Only process 2D faces (quad or triangle)
+            if not any(s in list(mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
+                continue
+
+            iBCsides = np.array(cset[iMap]).astype(int)
+            mapFaces = mesh.cells[iMap].data
+
+            for iSide in iBCsides:
+                for node in mapFaces[iSide]:
+                    # Create a unique key for (node, boundary) pair.
+                    key_pair = (node, bc_key)
+
+                    # Ignore nodes that have already been processed for this boundary
+                    if key_pair in node_bc_translation:
+                        continue
+
+                    # Create the new periodic node by applying the boundary's translation.
+                    new_node    = mesh.points[node] + VV
+                    mesh.points = np.vstack((mesh.points, new_node))
+                    node_bc_translation[key_pair] = len(mesh.points) - 1
+
+    # At this point, each (node, bc_key) pair has its own new node
+    # > Store these in a mapping (here, keys remain as tuples) for later reference
+    periNodes = node_bc_translation.copy()
 
     # Eliminate duplicate points
     mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)
@@ -56,6 +111,13 @@ def EliminateDuplicates() -> None:
         # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
         # Efficiently map all indices in one operation
         cell.data = inverseIndices[cell.data]
+
+    # Update periNodes accordingly
+    tmpPeriNodes = {}
+    for (node, bc_key), new_node in periNodes.items():
+        tmpPeriNodes[(inverseIndices[node], bc_key)] = inverseIndices[new_node]
+    periNodes = copy.copy(tmpPeriNodes)
+    del tmpPeriNodes
 
     # Also, remove near duplicate points
     # Create a KDTree for the mesh points
@@ -84,6 +146,12 @@ def EliminateDuplicates() -> None:
     # Update the mesh cells
     for cell in mesh_vars.mesh.cells:
         cell.data = inverseIndices[cell.data]
+
+    # Update the periodic nodes
+    tmpPeriNodes = {}
+    for (node, bc_key), new_node in periNodes.items():
+        tmpPeriNodes[(inverseIndices[node], bc_key)] = inverseIndices[new_node]
+    mesh_vars.periNodes = tmpPeriNodes
 
     del inverseIndices
 

@@ -30,7 +30,7 @@ import itertools
 import sys
 import traceback
 from collections import defaultdict
-# from collections import deque
+from collections import deque
 from functools import lru_cache
 # from functools import cache
 from itertools import combinations
@@ -80,17 +80,17 @@ def ConnectMortar( nConnSide  : list
     tol     = mesh_vars.tolMortar
 
     # Convert lists to deque for efficient pops from the left
-    # nConnSide   = deque(nConnSide)
-    # nConnCenter = deque(nConnCenter)
+    pConnSide   = deque(nConnSide)
+    pConnCenter = deque(nConnCenter)
 
-    while len(nConnSide) > 1 and iter <= maxIter:
+    while len(pConnSide) > 1 and iter <= maxIter:
         # Ensure the loop exits after checking every side
         iter += 1
 
         # Remove the first side from the list
         # > We need a safe backup of the original sides
-        origSide     = nConnSide  .pop(0)
-        origCenter   = nConnCenter.pop(0)
+        origSide     = pConnSide  .popleft()
+        origCenter   = pConnCenter.popleft()
         targetSide   = copy.copy(origSide)
         targetCenter = copy.copy(origCenter)
 
@@ -100,11 +100,12 @@ def ConnectMortar( nConnSide  : list
             iVV    = bcs[bcID].type[3]
             VV     = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
         else:
+            bcID   = None
             VV     = None
 
         # Build a k-dimensional tree of all points on the opposing side
         # (Convert to array for cKDTree)
-        ctree      = spatial.KDTree(np.array(nConnCenter))
+        ctree      = spatial.KDTree(np.array(pConnCenter))
 
         # Map the unique quad sides to our non-unique elem sides
         corners    = targetSide.corners
@@ -129,8 +130,8 @@ def ConnectMortar( nConnSide  : list
         # Mortar side
         # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar side which
         # > generates no match, we simply append the side again at the end and try again. As the loop exits after checking
-        # > len(nConnSide), we will check each side once.
-        targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if nConnSide[s].elemID != targetSide.elemID]  # noqa: E501
+        # > len(pConnSide), we will check each side once.
+        targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if pConnSide[s].elemID != targetSide.elemID]  # noqa: E501
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
         candidate_combinations = []
@@ -144,10 +145,10 @@ def ConnectMortar( nConnSide  : list
         comboSides = []
         for comboIDs in candidate_combinations:
             # Get the candidate sides
-            comboSides = [nConnSide[iSide] for iSide in comboIDs]
+            comboSides = [pConnSide[iSide] for iSide in comboIDs]
 
             # Found a valid match
-            if find_mortar_match(targetSide.corners, comboSides, mesh, tol, VV):
+            if find_mortar_match(targetSide.corners, comboSides, mesh, bcID):
                 matchFound = True
                 break
 
@@ -160,15 +161,15 @@ def ConnectMortar( nConnSide  : list
             sideIDs = [sideID, nbSideID]
 
             # Connect mortar sides and update the list
-            nConnSide, nConnCenter = connect_mortar_sides(sideIDs, elems, sides, nConnSide, nConnCenter, tol, VV)
+            pConnSide, pConnCenter = connect_mortar_sides(sideIDs, elems, sides, pConnSide, pConnCenter, tol, VV)
 
             # Update the progress bar
             bar.step(len(nbSideID) + 1)
 
         # No connection, attach the side at the end
         else:
-            nConnSide  .append(origSide)
-            nConnCenter.append(origCenter)
+            pConnSide  .append(origSide)
+            pConnCenter.append(origCenter)
 
     # Convert deques back to lists
     # nConnSide   = list(nConnSide)
@@ -361,37 +362,35 @@ def connect_mortar_sides( sideIDs    : list
 def find_mortar_match( targetCorners: np.ndarray
                      , comboSides   : list
                      , mesh         : meshio.Mesh
-                     , tol          : float
-                     , vv           : Optional[np.ndarray] = None) -> bool:
+                     , bcID         : Optional[int]        = None) -> bool:
     """ Check if the combined points of candidate sides match the target side within tolerance.
     """
-    targetPoints = mesh.points[targetCorners].copy()
-    if vv is not None:
-        # Shift the points in periodic direction
-        targetPoints += vv
-
-    ttree = spatial.KDTree(targetPoints)
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    # ------------------------------------------------------
+    # Passing a bcID means we are dealing with periodic boundaries
+    if bcID is not None:
+        bcName   = mesh_vars.bcs[bcID].name
+        tCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in targetCorners), dtype=int)
+    else:
+        tCorners = targetCorners
 
     comboCorners = [s.corners for s in comboSides]
-    comboPoints  = np.concatenate([mesh.points[c] for c in comboCorners], axis=0)
-    distances, indices = map(np.array, ttree.query(comboPoints))
 
     # At least one combo point must match each target point
-    matchedIndices = np.unique(indices[distances <= tol])
+    matchedIndices = np.unique(np.concatenate(comboCorners))
     if len(matchedIndices) < 4:
         return False
 
     # Check if exactly one combo point matches each target point
-    for point in targetPoints:
-        # if not np.allclose(comboPoints, point, atol=tol, rtol=0):
-        if np.sum(np.linalg.norm(comboPoints - point, axis=1) <= tol) != 1:
-            return False
+    if np.sum(np.isin(tCorners, matchedIndices)) < 4:
+        return False
 
     # Build the target edges
     # INFO: Uncached version
-    # targetEdges = build_edges(targetCorners, mesh.points[targetCorners])
+    # targetEdges = build_edges(tCorners, mesh.points[tCorners])
     # INFO: Cached version
-    targetEdges = build_edges(arrayToTuple(targetCorners), tuple(map(tuple, mesh.points[targetCorners])))
+    targetEdges = build_edges(arrayToTuple(tCorners), tuple(map(tuple, mesh.points[tCorners])))
     matches     = []
 
     # First, check for 2-1 matches
@@ -403,21 +402,19 @@ def find_mortar_match( targetCorners: np.ndarray
 
         # Look for 2-1 matches, we need exactly one common edge
         for edge in sideEdges[0]:
-            # targetP    = edge[:2]  # Start and end points (iX, jX)
-            targetP    = [mesh.points[s] for s in edge[:2]]
+            targetP    = edge[:2]  # Start and end points (iX, jX)
             targetDist = edge[2]   # Distance between points
 
             # Initialize a list to store the matching combo edges for the current target edge
             matchEdges = []
 
             for comboEdge in sideEdges[1]:
-                # comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboP    = [mesh.points[s] for s in comboEdge[:2]]
+                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
                 comboDist = comboEdge[2]   # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
-                if (np.allclose(np.stack(targetP), np.stack(comboP)      , rtol=tol, atol=tol)  or  # noqa: E272
-                    np.allclose(np.stack(targetP), np.stack(comboP[::-1]), rtol=tol, atol=tol)) and \
+                if ((targetP==comboP)        or  # noqa: E272
+                    (targetP==comboP[::-1])) and \
                     np.isclose(targetDist, comboDist):
                     matchEdges.append(comboEdge)
 
@@ -442,26 +439,20 @@ def find_mortar_match( targetCorners: np.ndarray
 
         # Iterate over each target edge
         for targetEdge in targetEdges:
-            # targetP    = targetEdge[:2]  # Start and end points (iX, jX)
-            targetP    = [mesh.points[s].copy() for s in targetEdge[:2]]
+            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
             targetDist = targetEdge[2]   # Distance between points
-
-            if vv is not None:
-                # Shift the points in periodic direction
-                targetP += vv
 
             # Initialize a list to store the matching combo edges for the current target edge
             matchEdges = []
 
             # Iterate over comboEdges to find matching edges
             for comboEdge in comboEdges:
-                # comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboP    = [mesh.points[s] for s in comboEdge[:2]]
+                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
                 comboDist = comboEdge[2]   # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
-                if (np.allclose(np.stack(targetP), np.stack(comboP)      , rtol=tol, atol=tol)  or  # noqa: E272
-                    np.allclose(np.stack(targetP), np.stack(comboP[::-1]), rtol=tol, atol=tol)) and \
+                if ((targetP==comboP)        or  # noqa: E272
+                    (targetP==comboP[::-1])) and \
                     np.isclose(targetDist, comboDist):
                     matchEdges.append(comboEdge)
 
@@ -478,18 +469,7 @@ def find_mortar_match( targetCorners: np.ndarray
     if len(comboSides) == 4:
         # Check if there is exactly one point that all 4 sides have in common.
         common_points = set(comboSides[0].corners)
-        matchFound = False
-        for p in common_points:
-            # Check if all 4 sides have the point
-            matchedPoints = 0
-            for side in comboSides[1:]:
-                for p1 in side.corners:
-                    if np.allclose(mesh.points[p], mesh.points[p1], rtol=tol, atol=tol):
-                        matchedPoints += 1
-
-            if matchedPoints == 3:
-                matchFound = True
-                break
+        matchFound    = any(sum(p in side.corners for side in comboSides[1:]) == 3 for p in common_points)
 
         if not matchFound:
             return False
@@ -506,26 +486,21 @@ def find_mortar_match( targetCorners: np.ndarray
 
         # Iterate over each target edge
         for targetEdge in targetEdges:
-            # targetP    = targetEdge[:2]  # Start and end points (iX, jX)
-            targetP    = [mesh.points[s].copy() for s in targetEdge[:2]]
+            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
             targetDist = targetEdge[2]   # Distance between points
-
-            if vv is not None:
-                # Shift the points in periodic direction
-                targetP += vv
 
             # Initialize a list to store the matching combo edges for the current target edge
             matchEdges = []
 
             # Iterate over comboEdges to find matching edges
             for comboEdge in comboEdges:
-                # comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboP    = [mesh.points[s] for s in comboEdge[:2]]
+                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
+                # comboP    = [mesh.points[s] for s in comboEdge[:2]]
                 comboDist = comboEdge[2]  # Distance between points
 
                 # Check if the points match and the distance is the same, taking into account the direction
-                if (np.allclose(np.stack(targetP), np.stack(comboP)      , rtol=tol, atol=tol)  or  # noqa: E272
-                    np.allclose(np.stack(targetP), np.stack(comboP[::-1]), rtol=tol, atol=tol)) and \
+                if ((targetP==comboP)        or  # noqa: E272
+                    (targetP==comboP[::-1])) and \
                     np.isclose(targetDist, comboDist):
                     matchEdges.append(comboEdge)
 
