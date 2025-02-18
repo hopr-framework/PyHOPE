@@ -30,7 +30,7 @@ import itertools
 import sys
 import traceback
 from collections import defaultdict
-from collections import deque
+# from collections import deque
 from functools import lru_cache
 # from functools import cache
 from itertools import combinations
@@ -80,17 +80,17 @@ def ConnectMortar( nConnSide  : list
     tol     = mesh_vars.tolMortar
 
     # Convert lists to deque for efficient pops from the left
-    pConnSide   = deque(nConnSide)
-    pConnCenter = deque(nConnCenter)
+    # nConnSide   = deque(nConnSide)
+    # nConnCenter = deque(nConnCenter)
 
-    while len(pConnSide) > 1 and iter <= maxIter:
+    while len(nConnSide) > 1 and iter <= maxIter:
         # Ensure the loop exits after checking every side
         iter += 1
 
         # Remove the first side from the list
         # > We need a safe backup of the original sides
-        origSide     = pConnSide  .popleft()
-        origCenter   = pConnCenter.popleft()
+        origSide     = nConnSide  .pop(0)
+        origCenter   = nConnCenter.pop(0)
         targetSide   = copy.copy(origSide)
         targetCenter = copy.copy(origCenter)
 
@@ -105,7 +105,7 @@ def ConnectMortar( nConnSide  : list
 
         # Build a k-dimensional tree of all points on the opposing side
         # (Convert to array for cKDTree)
-        ctree      = spatial.KDTree(np.array(pConnCenter))
+        ctree      = spatial.KDTree(np.array(nConnCenter))
 
         # Map the unique quad sides to our non-unique elem sides
         corners    = targetSide.corners
@@ -130,8 +130,8 @@ def ConnectMortar( nConnSide  : list
         # Mortar side
         # > Here, we can only attempt to connect big to small mortar sides. Thus, if we encounter a small mortar side which
         # > generates no match, we simply append the side again at the end and try again. As the loop exits after checking
-        # > len(pConnSide), we will check each side once.
-        targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if pConnSide[s].elemID != targetSide.elemID]  # noqa: E501
+        # > len(nConnSide), we will check each side once.
+        targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if nConnSide[s].elemID != targetSide.elemID]  # noqa: E501
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
         candidate_combinations = []
@@ -145,7 +145,7 @@ def ConnectMortar( nConnSide  : list
         comboSides = []
         for comboIDs in candidate_combinations:
             # Get the candidate sides
-            comboSides = [pConnSide[iSide] for iSide in comboIDs]
+            comboSides = [nConnSide[iSide] for iSide in comboIDs]
 
             # Found a valid match
             if find_mortar_match(targetSide.corners, comboSides, mesh, bcID):
@@ -161,15 +161,15 @@ def ConnectMortar( nConnSide  : list
             sideIDs = [sideID, nbSideID]
 
             # Connect mortar sides and update the list
-            pConnSide, pConnCenter = connect_mortar_sides(sideIDs, elems, sides, pConnSide, pConnCenter, tol, VV)
+            nConnSide, nConnCenter = connect_mortar_sides(sideIDs, elems, sides, nConnSide, nConnCenter, tol, VV)
 
             # Update the progress bar
             bar.step(len(nbSideID) + 1)
 
         # No connection, attach the side at the end
         else:
-            pConnSide  .append(origSide)
-            pConnCenter.append(origCenter)
+            nConnSide  .append(origSide)
+            nConnCenter.append(origCenter)
 
     # Convert deques back to lists
     # nConnSide   = list(nConnSide)
