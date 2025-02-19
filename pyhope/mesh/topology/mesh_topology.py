@@ -100,12 +100,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Convert the (quad) boundary cell set into a dictionary
     csets_old = {}
 
-    # Calculate the offset for the quad cells
-    offset    = 0
-    for elems in elems_old:
-        if any(sub in elems.type for sub in {'vertex', 'line'}):
-            offset += len(elems.data)
-
     for cname, cblock in cell_sets.items():
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
@@ -114,7 +108,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Sort them as a set for membership checks
             for face in block:
-                nodes = mesh.cells_dict[elems_old[blockID].type][face - offset]
+                nodes = mesh.cells_dict[elems_old[blockID].type][face]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     # Set up the element splitting function
