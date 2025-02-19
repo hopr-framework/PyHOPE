@@ -272,7 +272,8 @@ def connect_mortar_sides( sideIDs    : list
         corner   = mortarCorners[i]
         sCorners = slave.corners
         sideType = 100 + len(sCorners)
-        flipID   = flip_analytic(corner, sCorners)
+        # FIXME: WRONG FLIP
+        flipID   = flip_analytic(masterCorners[corner], sCorners)
         flipID   = flipMap.get(corner, {}).get(flipID, flipID)
         slave.flip = flipID  # update slave side's flip
 
