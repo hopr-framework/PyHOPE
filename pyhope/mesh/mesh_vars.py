@@ -148,11 +148,15 @@ class SIDE:
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
     #         setattr(self, key, value)
-    #
+
     # def dict(self):
     #     """Return a dictionary of the SIDE object
     #     """
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
+
+    # Comparison operator for bisect
+    def __lt__(self, other) -> bool:
+        return self.sideID < other.sideID
 
 
 @dataclass(init=True, repr=False, eq=False, slots=True)
@@ -178,11 +182,15 @@ class ELEM:
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
     #         setattr(self, key, value)
-    #
+
     # def dict(self):
     #     """Return a dictionary of the ELEM object
     #     """
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
+
+    # Comparison operator for bisect
+    def __lt__(self, other) -> bool:
+        return self.elemID < other.elemID
 
 
 @dataclass(init=True, repr=False, eq=False, slots=True)

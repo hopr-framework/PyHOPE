@@ -268,6 +268,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         tname = tfile.name
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
+            hopout.sep()
             hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
             tStart = time.time()
             _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)

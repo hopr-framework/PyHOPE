@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import time
+from sortedcontainers import SortedDict
 from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -76,3 +77,40 @@ def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> Tuple[d
         dict[key] = np.resize(dict[key],  (new_len, shape[1]))
 
     return dict, offset
+
+
+class IndexedLists:
+    def __init__(self) -> None:
+        # Create a SortedDict to keep the data sorted by index
+        self.data = SortedDict()
+
+    def add(self, index: int, values) -> None:
+        """ Add a sublist at a specific integer index
+        """
+        self.data[index] = set(values)  # Use set for fast removals
+
+    def remove_index(self, indices):
+        """ Remove the sublist at idx and remove the integer idx from all remaining sublists
+        """
+        if isinstance(indices, int):
+            # Convert to a set for fast operations
+            indices = {indices}
+        else:
+            # Convert list to set for O(1) lookups
+            indices = set(indices)
+
+        # Remove sublists at specified indices, O(log n)
+        for idx in indices:
+            self.data.pop(idx, None)
+
+        # Remove all values from remaining sublists
+        for value_set in self.data.values():
+            value_set.difference_update(indices)  # O(1) removal
+
+    def __getitem__(self, index):
+        """ Retrieve a sublist by index
+        """
+        return list(self.data[index])  # Convert set back to list when accessed
+
+    def __repr__(self):
+        return repr({k: list(v) for k, v in self.data.items()})  # Convert to list for cleaner output

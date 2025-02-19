@@ -124,8 +124,20 @@ def EliminateDuplicates() -> None:
     points = mesh_vars.mesh.points
     tree   = spatial.KDTree(points)
 
+    tol = mesh_vars.tolExternal
+    bb  = 0.
+    for cell in mesh_vars.mesh.cells:
+        # Only consider three-dimensional types
+        if not any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()):
+            continue
+
+        # Find the bounding box of the smallest element
+        bb = np.min([np.ptp(points[c], axis=0) for c in cell.data])
+    # Set the tolerance to 10% of the bounding box of the smallest element
+    tol = np.max([tol, bb / ((mesh_vars.nGeo+1)*10.) ])
+
     # Find all points within the tolerance
-    clusters = tree.query_ball_point(points, r=mesh_vars.tolExternal)
+    clusters = tree.query_ball_point(points, r=tol)
     del tree
 
     # Map each point to its cluster representative (first point in the cluster)
