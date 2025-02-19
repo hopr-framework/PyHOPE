@@ -84,7 +84,7 @@ def ConnectMortar( nConnSide  : list
     indexList  = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
-        targetSide   = copy.copy(side)
+        targetSide   = side
         targetCenter = copy.copy(center)
 
         # Get the opposite side
@@ -92,30 +92,17 @@ def ConnectMortar( nConnSide  : list
             bcID   = targetSide.bcid
             iVV    = bcs[bcID].type[3]
             VV     = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
-        else:
-            bcID   = None
-            VV     = None
-
-        # Map the unique quad sides to our non-unique elem sides
-        corners    = targetSide.corners
-
-        if doPeriodic:
-            # Shift the points in periodic direction
-            pts = points[corners]
-            pts += VV
-            pts = np.sort(pts, axis=0).flatten()
+            # Shift the center in periodic direction
             targetCenter += VV
-        else:
-            pts = np.sort(points[corners], axis=0).flatten()
 
         # Calculate the radius of the convex hull
-        targetPoints = points[corners].copy()
-        targetMinMax = (targetPoints.min(axis=0), targetPoints.max(axis=0))
-        targetRadius = np.linalg.norm(targetMinMax[1] - targetMinMax[0], ord=2) / 2.
+        targetRadius    = np.linalg.norm(np.ptp(points[targetSide.corners], axis=0)) / 2.
 
+        # Get all potential mortar neighbors within the radius
         targetNeighbors = [s for s in ctree.query_ball_point(targetCenter, targetRadius) if nConnSide[s].elemID != targetSide.elemID]  # noqa: E501
         indexList .add(nConnID, targetNeighbors)
 
+    # Obtain the target side IDs
     targetSides = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
 
     for targetID in targetSides:
@@ -134,13 +121,7 @@ def ConnectMortar( nConnSide  : list
         targetCenter = nConnCenter[targetID]
 
         # Get the opposite side
-        if doPeriodic:
-            bcID   = targetSide.bcid
-            iVV    = bcs[bcID].type[3]
-            VV     = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
-        else:
-            bcID   = None
-            VV     = None
+        bcID         = targetSide.bcid if doPeriodic else None
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
         candidate_combinations = []
@@ -150,20 +131,15 @@ def ConnectMortar( nConnSide  : list
             candidate_combinations += list(itertools.combinations(targetNeighbors, 4))
 
         # Attempt to match the target side with candidate combinations
-        matchFound   = False
         comboSides   = []
-        comboSideIDs = ()
         for comboIDs in candidate_combinations:
             # Get the candidate sides
             comboSides   = [nConnSide[iSide] for iSide in comboIDs]
-            comboSideIDs = comboIDs
 
-            # Found a valid match
-            if find_mortar_match(targetSide.corners, comboSides, mesh, bcID):
-                matchFound = True
-                break
+            # Check if we found a valid match
+            if not find_mortar_match(targetSide.corners, comboSides, mesh, bcID):
+                continue
 
-        if matchFound:
             # Get our and neighbor corner quad nodes
             sideID   = targetSide.sideID
             nbSideID = [side.sideID for side in comboSides]
@@ -175,17 +151,20 @@ def ConnectMortar( nConnSide  : list
             connect_mortar_sides(sideIDs, elems, sides, bcID)
 
             # Remove the target side from the list
-            removeSides = [targetID] + list(comboSideIDs)
+            removeSides = [targetID] + list(comboIDs)
             indexList.remove_index(removeSides)
 
             # Update the progress bar
             bar.step(len(nbSideID) + 1)
 
+            # Break out of the loop
+            break
 
-def points_exist_in_target(pts, slavePts) -> np.bool:
+
+def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
     """ Check if the combined points of candidate sides match the target side
     """
-    return np.all(np.isin(pts, slavePts).all())
+    return np.all(np.isin(pts, slavePts))
 
 
 def connect_mortar_sides( sideIDs    : list
