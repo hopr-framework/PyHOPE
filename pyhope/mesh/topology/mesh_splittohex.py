@@ -95,12 +95,6 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Convert the (triangle/quad) boundary cell set into a dictionary
     csets_old = {}
 
-    # Calculate the offset for the quad cells
-    offset    = 0
-    for elems in elems_old:
-        if any(sub in elems.type for sub in {'vertex', 'line'}):
-            offset += len(elems.data)
-
     for cname, cblock in cell_sets.items():
         if cblock is None:
             continue
@@ -115,7 +109,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Sort them as a set for membership checks
             for face in block:
-                nodes = mesh.cells_dict[elems_old[blockID].type][face - offset]
+                nodes = mesh.cells_dict[elems_old[blockID].type][face]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     nPoints  = len(points)
