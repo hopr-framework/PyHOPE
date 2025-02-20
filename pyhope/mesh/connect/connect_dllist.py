@@ -85,13 +85,19 @@ class LinkOffsetManager:
         for i in range(pos, len(self.breakpoints)):
             index, current_offset = self.breakpoints[i]
             self.breakpoints[i] = (index, current_offset + delta)
+        # Clear cached offsets as breakpoints have changed
+        self._get_offset.cache_clear()
 
-    def get_offset(self, index: int) -> int:
+    @lru_cache(maxsize=None)
+    def _get_offset(self, index: int) -> int:
         """
-        Return the cumulative offset for a given stored link
+        Return the cumulative offset for a given stored link (cached)
         """
         pos = bisect.bisect_right(self.breakpoints, (index, float('inf'))) - 1
         return self.breakpoints[pos][1]
+
+    def get_offset(self, index: int) -> int:
+        return self._get_offset(index)
 
 
 class ListNode:
@@ -131,11 +137,12 @@ class DoublyLinkedList:
         # Shared manager for batch updates
         self.offset_manager = offset_manager
         # Cache for node_at lookups using native lru_cache
-        self._node_at = lru_cache(maxsize=None)(self._node_at_impl)
+        self._node_at = self._node_at_impl
 
     def __len__(self) -> int:
         return self._size
 
+    @lru_cache(maxsize=None)
     def _node_at_impl(self, index: int) -> ListNode:
         """
         Internal implementation for retrieving the node at the given index (by traversing from head or tail)
