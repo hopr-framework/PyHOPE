@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import copy
+# import copy
 import gc
 import sys
 import traceback
@@ -60,23 +60,24 @@ def flip_analytic(side: int, nbside: list[int]) -> int:
     return find_index(nbside, side)
 
 
-def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: str) -> int:
-    """ Determines the flip of the side-to-side connection based on the physical positions
-        flip = 1 : 1st node of neighbor side = 1st node of side
-        flip = 2 : 2nd node of neighbor side = 1st node of side
-        flip = 3 : 3rd node of neighbor side = 1st node of side
-        flip = 4 : 4th node of neighbor side = 1st node of side
-    """
-    ptree     = spatial.KDTree(nbcorners)
-
-    trCorn    = ptree.query(corners)
-    if trCorn[0] > tol:
-        hopout.warning(f'Could not determine flip of {msg} side within tolerance {tol}, exiting...')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
-
-    flipID = cast(int, trCorn[1]) + 1
-    return flipID
+# INFO: FALLBACK IN CASE OF MISSING INNER/PERIODIC SIDES WITH HIGHER TOLERANCE
+# def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: str) -> int:
+#     """ Determines the flip of the side-to-side connection based on the physical positions
+#         flip = 1 : 1st node of neighbor side = 1st node of side
+#         flip = 2 : 2nd node of neighbor side = 1st node of side
+#         flip = 3 : 3rd node of neighbor side = 1st node of side
+#         flip = 4 : 4th node of neighbor side = 1st node of side
+#     """
+#     ptree     = spatial.KDTree(nbcorners)
+#
+#     trCorn    = ptree.query(corners)
+#     if trCorn[0] > tol:
+#         hopout.warning(f'Could not determine flip of {msg} side within tolerance {tol}, exiting...')
+#         traceback.print_stack(file=sys.stdout)
+#         sys.exit(1)
+#
+#     flipID = cast(int, trCorn[1]) + 1
+#     return flipID
 
 
 def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
@@ -531,69 +532,70 @@ def ConnectMesh() -> None:
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     nInterZoneConnect      = len(nConnSide)
 
+    # INFO: FALLBACK IN CASE OF MISSING INNER SIDES WITH HIGHER TOLERANCE
     # Loop over all sides and try to connect
     # > Only matching internal sides are considered here, mortars are handled afterwards
-    iter    = 0
-    maxIter = copy.copy(nInterZoneConnect)
-    tol     = mesh_vars.tolInternal
-
-    while len(nConnSide) > 1 and iter <= maxIter:
-        # Ensure the loop exits after checking every side
-        iter += 1
-
-        # Remove the first side from the list
-        targetSide = nConnSide.pop(0)
-
-        # Collapse all opposing corner nodes into an [:, 9/12] array
-        nbCorners = [s.corners for s in nConnSide if len(s.corners) == len(targetSide.corners)]
-        nbPoints  = np.sort(mesh.points[nbCorners], axis=1)
-        if nbPoints.shape[0] == 0:
-            hopout.warning(f'Could not find matching sides for {len(nConnSide)+1} sides, exiting...')
-            print(mesh.points[targetSide.corners])
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
-
-        nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
-        del nbCorners
-
-        # Build a k-dimensional tree of all points on the opposing side
-        stree      = spatial.KDTree(nbPoints)
-
-        # Map the unique quad sides to our non-unique elem sides
-        corners    = targetSide.corners
-        points     = np.sort(mesh.points[corners], axis=0).flatten()
-
-        # Query the tree for the opposing side
-        nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars)
-
-        # Regular internal side
-        # > Mortar sides return -1 and are handled afterwards
-        if nbSideIdx >= 0:
-            nbiSide   = nbSideIdx
-
-            # Get our and neighbor corner quad nodes
-            sideID    = get_side_id(targetSide.corners        , corner_side)
-            nbSideID  = get_side_id(nConnSide[nbiSide].corners, corner_side)
-
-            # Build the connection, including flip
-            sideIDs   = [sideID, nbSideID]
-            points    = mesh.points[sides[sideIDs[0]].corners]
-            # > Find the first neighbor point to determine the flip
-            nbcorners = mesh.points[sides[sideIDs[1]].corners]
-            flipID    = flip_physical(points[0], nbcorners, tol, 'internal')
-
-            # Connect the sides
-            connect_sides(sideIDs, sides, flipID)
-
-            # Update the list
-            for i, s in enumerate(nConnSide):
-                if s.sideID in sideIDs:
-                    del nConnSide[  i]
-                    del nConnCenter[i]
-                    break
-
-            # Update the progress bar
-            bar.step(2)
+    # iter    = 0
+    # maxIter = copy.copy(nInterZoneConnect)
+    # tol     = mesh_vars.tolInternal
+    #
+    # while len(nConnSide) > 1 and iter <= maxIter:
+    #     # Ensure the loop exits after checking every side
+    #     iter += 1
+    #
+    #     # Remove the first side from the list
+    #     targetSide = nConnSide.pop(0)
+    #
+    #     # Collapse all opposing corner nodes into an [:, 9/12] array
+    #     nbCorners = [s.corners for s in nConnSide if len(s.corners) == len(targetSide.corners)]
+    #     nbPoints  = np.sort(mesh.points[nbCorners], axis=1)
+    #     if nbPoints.shape[0] == 0:
+    #         hopout.warning(f'Could not find matching sides for {len(nConnSide)+1} sides, exiting...')
+    #         print(mesh.points[targetSide.corners])
+    #         traceback.print_stack(file=sys.stdout)
+    #         sys.exit(1)
+    #
+    #     nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+    #     del nbCorners
+    #
+    #     # Build a k-dimensional tree of all points on the opposing side
+    #     stree      = spatial.KDTree(nbPoints)
+    #
+    #     # Map the unique quad sides to our non-unique elem sides
+    #     corners    = targetSide.corners
+    #     points     = np.sort(mesh.points[corners], axis=0).flatten()
+    #
+    #     # Query the tree for the opposing side
+    #     nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars)
+    #
+    #     # Regular internal side
+    #     # > Mortar sides return -1 and are handled afterwards
+    #     if nbSideIdx >= 0:
+    #         nbiSide   = nbSideIdx
+    #
+    #         # Get our and neighbor corner quad nodes
+    #         sideID    = get_side_id(targetSide.corners        , corner_side)
+    #         nbSideID  = get_side_id(nConnSide[nbiSide].corners, corner_side)
+    #
+    #         # Build the connection, including flip
+    #         sideIDs   = [sideID, nbSideID]
+    #         points    = mesh.points[sides[sideIDs[0]].corners]
+    #         # > Find the first neighbor point to determine the flip
+    #         nbcorners = mesh.points[sides[sideIDs[1]].corners]
+    #         flipID    = flip_physical(points[0], nbcorners, tol, 'internal')
+    #
+    #         # Connect the sides
+    #         connect_sides(sideIDs, sides, flipID)
+    #
+    #         # Update the list
+    #         for i, s in enumerate(nConnSide):
+    #             if s.sideID in sideIDs:
+    #                 del nConnSide[  i]
+    #                 del nConnCenter[i]
+    #                 break
+    #
+    #         # Update the progress bar
+    #         bar.step(2)
 
     # Mortar sides
     if doMortars:
