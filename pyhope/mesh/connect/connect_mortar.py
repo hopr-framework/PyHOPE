@@ -56,8 +56,7 @@ def ConnectMortar( nConnSide  : list
                  , mesh       : meshio.Mesh
                  , elems      : list
                  , sides      : list
-                 , bar
-                 , doPeriodic : bool = False) -> tuple[list, list]:
+                 , bar) -> tuple[list, list]:
     """ Function to connect mortar sides
 
         Args:
@@ -88,8 +87,8 @@ def ConnectMortar( nConnSide  : list
         targetCenter = copy.copy(center)
 
         # Get the opposite side
-        if doPeriodic:
-            bcID   = targetSide.bcid
+        bcID = targetSide.bcid
+        if bcID is not None and bcs[bcID].type[0] == 1:
             iVV    = bcs[bcID].type[3]
             VV     = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
             # Shift the center in periodic direction
@@ -119,20 +118,18 @@ def ConnectMortar( nConnSide  : list
         # Get the target neighbors
         targetNeighbors = indexList.data[targetID]
 
-        # Skip elements with no neighbors
-        if len(targetNeighbors) == 0:
+        # Skip elements with zero or one neighbors
+        if len(targetNeighbors) < 2:
             continue
 
         targetSide   = nConnSide[  targetID]
         targetCenter = nConnCenter[targetID]
 
         # Get the opposite side
-        bcID         = targetSide.bcid if doPeriodic else None
+        bcID = targetSide.bcid if targetSide.bcid is not None and bcs[targetSide.bcid].type[0] == 1 else None
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
-        candidate_combinations = []
-        if len(targetNeighbors) >= 2:
-            candidate_combinations += list(itertools.combinations(targetNeighbors, 2))
+        candidate_combinations = list(itertools.combinations(targetNeighbors, 2))
         if len(targetNeighbors) >= 4:
             candidate_combinations += list(itertools.combinations(targetNeighbors, 4))
 
@@ -191,7 +188,6 @@ def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
 
 def connect_mortar_sides( sideIDs    : list
                         , elems      : list
-                        # , sides      : list
                         , dllsides
                         , offsetManager
                         , bcID         : Optional[int] = None) -> None:

@@ -46,18 +46,31 @@ class LinkOffsetManager:
     """
     Batch Update Manager for Connection Offsets
 
-    Instead of updating each node’s stored link on every insertion, this
-    manager maintains breakpoints for cumulative index shifts
+    Instead of updating each node’s stored link on every insertion, this manager maintains breakpoints for cumulative index shifts
     """
     __slots__ = ('breakpoints', '_offset_cache')
 
     def __init__(self) -> None:
-        self.breakpoints: List[Tuple[int, int]] = [(0, 0)]  # For all indices, initial offset is 0
+        # For all indices, initial offset is 0
+        self.breakpoints: List[Tuple[int, int]] = [(0, 0)]
+
+    def get_stored_index(self, effective_index: int) -> int:
+        """
+        Given an effective index (i.e. the logical index in the list), compute the corresponding stored index at which the
+        breakpoint update should occur. The effective index E is related to a stored index S by E = S + offset(S), where
+        offset(S) is constant between breakpoints.
+        """
+        for i in range(len(self.breakpoints)):
+            s, off = self.breakpoints[i]
+            next_s = self.breakpoints[i+1][0] if i+1 < len(self.breakpoints) else float('inf')
+            # In this segment, effective indices run from s + off up to next_s + off (non-inclusive)
+            if s + off <= effective_index < next_s + off:
+                return effective_index - off
+        return effective_index
 
     def update(self, insert_index: int, delta: int) -> None:
         """
-        Record that all stored links with value >= insert_index should be increased
-        by delta
+        Record that all stored links with value >= insert_index should be increased by delta
         """
         pos = bisect.bisect_left(self.breakpoints, (insert_index, -float('inf')))
         if pos < len(self.breakpoints) and self.breakpoints[pos][0] == insert_index:
@@ -164,9 +177,8 @@ class DoublyLinkedList:
         Insert new_node at the logical position that corresponds to the given
         effective_index (already offset-adjusted)
         """
-        logical_index = effective_index
 
-        if logical_index < 0 or logical_index > self._size:
+        if effective_index < 0 or effective_index > self._size:
             raise IndexError("Index out of range")
 
         # Invalidate the node_at cache since the list structure is about to change
@@ -175,27 +187,29 @@ class DoublyLinkedList:
         # Standard insertion logic in the doubly linked list at logical_index
         if self._size == 0:
             self.head = self.tail = new_node
-        elif logical_index == 0:
-            new_node.next = self.head
+        elif effective_index == 0:
+            new_node.next  = self.head
             self.head.prev = new_node
             self.head = new_node
-        elif logical_index == self._size:
-            new_node.prev = self.tail
+        elif effective_index == self._size:
+            new_node.prev  = self.tail
             self.tail.next = new_node
             self.tail = new_node
         else:
-            current = self.node_at(logical_index)
+            current = self.node_at(effective_index)
             prev_node = current.prev
             if prev_node:
                 prev_node.next = new_node
-                new_node.prev = prev_node
+                new_node.prev  = prev_node
             new_node.next = current
             current.prev = new_node
 
         self._size += 1
         if update_offset:
-            # Update the offset manager using the computed logical index
-            self.offset_manager.update(logical_index - self.offset_manager.get_offset(effective_index), 1)
+            # Update the offset manager using the computed stored index corresponding
+            # to the effective index.
+            stored_index = self.offset_manager.get_stored_index(effective_index)
+            self.offset_manager.update(stored_index, 1)
 
     def update(self, index: int, new_value: SIDE) -> None:
         """
