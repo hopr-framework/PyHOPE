@@ -390,7 +390,7 @@ def ConnectMesh() -> None:
             sys.exit(1)
 
         # Connect the mortar sides
-        ConnectMortar(nMissSide, nMissCenter, mesh, elems, sides, bar, doPeriodic=True)
+        elems, sides = ConnectMortar(nMissSide, nMissCenter, mesh, elems, sides, bar, doPeriodic=True)
 
     # INFO: FALLBACK IN CASE OF MISSING PERIODIC SIDES WITH HIGHER TOLERANCE
     # # Check if there are missing periodic sides
@@ -603,7 +603,7 @@ def ConnectMesh() -> None:
         nInterZoneConnect      = len(nConnSide)
 
         # Connect the mortar sides
-        ConnectMortar(nConnSide, nConnCenter, mesh, elems, sides, bar, doPeriodic=False)
+        elems, sides = ConnectMortar(nConnSide, nConnCenter, mesh, elems, sides, bar, doPeriodic=False)
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
@@ -653,6 +653,9 @@ def ConnectMesh() -> None:
     hopout.info(' Number of mortar sides (small) : {:12d}'.format(nmortarsmallsides))
     hopout.info(' Number of boundary sides       : {:12d}'.format(nbcsides))
     hopout.info(' Number of periodic sides       : {:12d}'.format(nperiodicsides))
+
+    mesh_vars.sides = sides
+    mesh_vars.elems = elems
 
     # hopout.sep()
     # hopout.info('CONNECT MESH DONE!')

@@ -31,7 +31,6 @@ import itertools
 import sys
 import traceback
 from collections import defaultdict
-# from collections import deque
 from functools import lru_cache
 # from functools import cache
 from itertools import combinations
@@ -58,7 +57,7 @@ def ConnectMortar( nConnSide  : list
                  , elems      : list
                  , sides      : list
                  , bar
-                 , doPeriodic : bool = False) -> None:
+                 , doPeriodic : bool = False) -> tuple[list, list]:
     """ Function to connect mortar sides
 
         Args:
@@ -66,11 +65,12 @@ def ConnectMortar( nConnSide  : list
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.connect.connect_dllist import LinkOffsetManager, list_to_dllist, dllist_to_list
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
 
     if len(nConnSide) == 0:
-        return None
+        return elems, sides
 
     # Cache mesh points for performance
     points = mesh.points
@@ -104,6 +104,12 @@ def ConnectMortar( nConnSide  : list
 
     # Obtain the target side IDs
     targetSides = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
+
+    # Create a global offset manager.
+    offsetManager = LinkOffsetManager()
+
+    # Convert the sides to a doubly linked list
+    dllsides = list_to_dllist(sides, offsetManager)
 
     for targetID in targetSides:
         # Skip already connected sides
@@ -148,7 +154,8 @@ def ConnectMortar( nConnSide  : list
             sideIDs = [sideID, nbSideID]
 
             # Connect mortar sides and update the list
-            connect_mortar_sides(sideIDs, elems, sides, bcID)
+            # connect_mortar_sides(sideIDs, elems, sides, dllsides, offsetManager, bcID)
+            connect_mortar_sides(sideIDs, elems, dllsides, offsetManager, bcID)
 
             # Remove the target side from the list
             removeSides = [targetID] + list(comboIDs)
@@ -160,6 +167,21 @@ def ConnectMortar( nConnSide  : list
             # Break out of the loop
             break
 
+    # Convert sides back to a list
+    sides = dllist_to_list(dllsides)
+
+    # Also update the elems with the new side IDs
+    # > First, build a dictionary mapping elemID to list of sideIDs
+    elem_to_side_ids = defaultdict(list)
+    for side in sides:
+        elem_to_side_ids[side.elemID].append(side.sideID)
+
+    # > Then update elems using the dictionary
+    for elem in elems:
+        elem.sides = elem_to_side_ids.get(elem.elemID, [])
+
+    return elems, sides
+
 
 def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
     """ Check if the combined points of candidate sides match the target side
@@ -169,13 +191,16 @@ def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
 
 def connect_mortar_sides( sideIDs    : list
                         , elems      : list
-                        , sides      : list
+                        # , sides      : list
+                        , dllsides
+                        , offsetManager
                         , bcID         : Optional[int] = None) -> None:
     """ Connect the master (big mortar) and the slave (small mortar) sides
         > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.connect.connect_dllist import ListNode
     from pyhope.mesh.connect.connect import flip_analytic
     from pyhope.mesh.mesh_vars import SIDE
     from pyhope.mesh.mesh_common import type_to_mortar_flip
@@ -187,7 +212,7 @@ def connect_mortar_sides( sideIDs    : list
                       }
 
     # Get the master and slave sides
-    masterSide    = sides[sideIDs[0]]
+    masterSide    = dllsides[sideIDs[0] + offsetManager.get_offset(sideIDs[0])].value
     masterElem    = elems[masterSide.elemID]
     masterCorners = masterSide.corners
 
@@ -196,11 +221,13 @@ def connect_mortar_sides( sideIDs    : list
         masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in masterCorners), dtype=int)
 
     # Build mortar type and orientation
-    nMortars = len(sideIDs[1])
+    nMortars   = len(sideIDs[1])
+    slaveSides = [dllsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1]]
+
     match nMortars:
         case 2:
             # Check which edges of big and small side are identical to determine the mortar type
-            slaveSide    = sides[sideIDs[1][0]]
+            slaveSide    = slaveSides[0]
             slaveCorners = slaveSide.corners
 
             # Check which edges match
@@ -219,14 +246,14 @@ def connect_mortar_sides( sideIDs    : list
             del slaveCorners
 
             # Sort the small sides
-            slaveSides = [sides[sideID] for i in [0, 2]
-                                        for sideID in sideIDs[1] if points_exist_in_target(masterCorners[i], sides[sideID].corners)]
+            slaveSides = [s for i in [0, 2]
+                            for s in slaveSides if points_exist_in_target(masterCorners[i], s.corners)]
 
         case 4:
             mortarType = 1
             # Sort the small sides
-            slaveSides = [sides[sideID] for i in [0, 1, 3, 2]
-                                        for sideID in sideIDs[1] if points_exist_in_target(masterCorners[i], sides[sideID].corners)]
+            slaveSides = [s for i in [0, 1, 3, 2]
+                            for s in slaveSides if points_exist_in_target(masterCorners[i], s.corners)]
 
         case _:
             hopout.warning('Found invalid number of sides for mortar side, exiting...')
@@ -240,21 +267,10 @@ def connect_mortar_sides( sideIDs    : list
         sys.exit(1)
 
     # Update the master side
-    sides[sideIDs[0]].MS          = 1            # noqa: E251
-    sides[sideIDs[0]].connection  = -mortarType  # noqa: E251
-    sides[sideIDs[0]].flip        = 0            # noqa: E251
-    sides[sideIDs[0]].nbLocSide   = 0            # noqa: E251
-
-    # Update the elems
-    for elem in elems:
-        for key, val in enumerate(elem.sides):
-            # Update the sideIDs
-            if val > masterSide.sideID:
-                sides[val].sideID += nMortars
-                elem.sides[key]   += nMortars
-            # Update the connections
-            if sides[val].connection is not None and sides[val].connection > masterSide.sideID:
-                sides[val].connection += nMortars
+    masterSide.MS          = 1            # noqa: E251
+    masterSide.connection  = -mortarType  # noqa: E251
+    masterSide.flip        = 0            # noqa: E251
+    masterSide.nbLocSide   = 0            # noqa: E251
 
     flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
 
@@ -263,7 +279,7 @@ def connect_mortar_sides( sideIDs    : list
 
     # Precompute mappings and indices.
     masterElemID  = masterElem.elemID
-    masterSideID  = masterSide.sideID
+    masterSideID  = masterSide.sideID + offsetManager.get_offset(masterSide.sideID)
 
     # Build lists of new SIDE objects and their sideIDs.
     new_sides    = []
@@ -291,22 +307,23 @@ def connect_mortar_sides( sideIDs    : list
         new_sides  .append(side)
         new_sideIDs.append(newID)
 
-        # Update the slave side: connect to the master.
+        # Update the slave side: connect to the master
         slave.connection = masterSideID
         slave.sideType   = -sideType
         slave.MS         = 0
         slave.flip       = flipID
+        # Update the link in the doubly linked list
+        dllsides[slave.sideID + offsetManager.get_offset(slave.sideID)].link = masterSide.sideID
 
-    # Batch-insert the new virtual sides into 'sides'.
-    # sides[master_sideID+1:master_sideID+1] = new_sides
-    for new_side in new_sides:
-        bisect.insort(sides, new_side)
+    # Insert the new sides into the doubly linked list
+    # Each insertion automatically notifies offsetManager to shift subsequent indices.
+    for i, new_side in enumerate(new_sides):
+        new_node = ListNode(value=new_side, link=new_side.connection)
+        insertion_index = masterSideID + 1 + i
+        dllsides.insert(insertion_index, new_node)
 
-    # Batch-insert their sideIDs into the element's side list.
-    # master_locSide = masterSide.locSide
-    # elems[master_elemID].sides[master_locSide:master_locSide] = new_sideIDs
-    for new_sideID in new_sideIDs:
-        bisect.insort(elems[masterElemID].sides, new_sideID)
+        # Insert the new sideID into the element's side list
+        bisect.insort(elems[masterElemID].sides, insertion_index)
 
 
 def find_mortar_match( targetCorners: np.ndarray
