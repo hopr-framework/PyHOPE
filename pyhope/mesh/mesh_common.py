@@ -41,6 +41,8 @@ import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Instantiate ELEMTYPE
+elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
 
@@ -59,7 +61,7 @@ def faces(elemType: Union[int, str]) -> list[str]:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
@@ -82,7 +84,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> Tuple[int, int]:
                }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in dir_map:
         raise ValueError(f'Error in edge_to_direction: elemType {elemType} is not supported')
@@ -115,7 +117,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarra
                }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in edge_map:
         raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
@@ -145,7 +147,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
@@ -173,7 +175,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
@@ -215,7 +217,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
@@ -267,7 +269,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in flipID_map:
         raise ValueError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
@@ -283,7 +285,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     order     = nGeo
     faces_map = {  # Tetrahedron
@@ -321,7 +323,7 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     # FIXME: check for non-hexahedral elements
     order     = nGeo
@@ -361,13 +363,10 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
 def count_elems(mesh: meshio.Mesh) -> int:
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
     nElems = 0
     for _, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in elemTypeClass.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)

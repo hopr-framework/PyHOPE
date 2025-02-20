@@ -186,6 +186,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     VdmEqHdf5ToEqMesh = np.array([])
     mortarTypeToSkip  = {1: 4, 2: 2, 3: 2}
 
+    # Instantiate ELEMTYPE
+    elemTypeClass = ELEMTYPE()
+
     for fname in fnames:
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
@@ -254,7 +257,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     elemNum += 200 if mesh_vars.nGeo > 1 else 100
 
                     # Obtain the element type
-                    elemType = ELEMTYPE.inam[elemNum]
+                    elemType = elemTypeClass.inam[elemNum]
                     if len(elemType) > 1:
                         elemType  = elemType[0].rstrip(digits)
                         elemType += str(NDOFperElemType(elemType, mesh_vars.nGeo))

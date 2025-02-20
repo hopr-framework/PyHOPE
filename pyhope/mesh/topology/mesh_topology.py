@@ -70,11 +70,14 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Get base key to distinguish between linear and high-order elements
     ho_key = 100 if nGeo == 1 else 200
 
+    # Instantiate ELEMTYPE
+    elemTypeInam = ELEMTYPE().inam
+
     # Prepare new cell blocks and new cell_sets
     elems_new = {}
     csets_new = {}
     if nGeo == 1:
-        elemName  = ELEMTYPE.inam[elemType][0]
+        elemName  = elemTypeInam[elemType][0]
     else:
         # check whether user entered correct high-order element type
         if elemType < 200:
@@ -85,14 +88,14 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         try:
             if elemType % 100 == 5:    # pyramids (skip 1)
                 # FIXME: meshio package doesnt know
-                # elemName = ELEMTYPE.inam[elemType][nGeo-1]
-                elemName = ELEMTYPE.inam[elemType][1]
+                # elemName = elemTypeInam[elemType][nGeo-1]
+                elemName = elemTypeInam[elemType][1]
             elif elemType % 100 == 6:  # prisms (skip 1)
-                elemName = ELEMTYPE.inam[elemType][nGeo-1]
+                elemName = elemTypeInam[elemType][nGeo-1]
             elif elemType % 100 == 8:  # hexahedra (skip 2)
-                elemName = ELEMTYPE.inam[elemType][nGeo]
+                elemName = elemTypeInam[elemType][nGeo]
             else:                      # tetrahedra
-                elemName = ELEMTYPE.inam[elemType][nGeo-2]
+                elemName = elemTypeInam[elemType][nGeo-2]
         except IndexError:
             hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemType, nGeo))
             sys.exit(1)
