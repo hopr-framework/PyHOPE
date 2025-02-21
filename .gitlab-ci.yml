@@ -110,7 +110,7 @@ ruff:
   script:
     - uv pip install ruff
     - ruff --version
-    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope/
+    - ruff check --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Compatibility

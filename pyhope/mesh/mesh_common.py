@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from functools import cache
-from typing import Union, Tuple
+from typing import Union, Tuple, Any
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,6 +41,8 @@ import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Instantiate ELEMTYPE
+elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
 
@@ -59,7 +61,7 @@ def faces(elemType: Union[int, str]) -> list[str]:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
@@ -82,7 +84,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> Tuple[int, int]:
                }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in dir_map:
         raise ValueError(f'Error in edge_to_direction: elemType {elemType} is not supported')
@@ -115,7 +117,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarra
                }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in edge_map:
         raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
@@ -145,7 +147,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
@@ -173,7 +175,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
@@ -215,7 +217,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
@@ -267,7 +269,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
                 }
 
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     if elemType % 100 not in flipID_map:
         raise ValueError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
@@ -283,7 +285,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     order     = nGeo
     faces_map = {  # Tetrahedron
@@ -299,12 +301,12 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
                         'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
                         'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
                    # Hexahedron
-                   8: { 'z-':              LINMAP(elemType, order=order)[:    , :    , 0    ],
-                        'y-': np.transpose(LINMAP(elemType, order=order)[:    , 0    , :    ]),
-                        'x+': np.transpose(LINMAP(elemType, order=order)[order, :    , :    ]),
-                        'y+':              LINMAP(elemType, order=order)[:    , order, :    ],
-                        'x-':              LINMAP(elemType, order=order)[0    , :    , :    ],
-                        'z+': np.transpose(LINMAP(elemType, order=order)[:    , :    , order])}
+                   8: { 'z-':              LINMAP(108 if order == 1 else 208, order=order)[:    , :    , 0    ] ,
+                        'y-': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , 0    , :    ]),
+                        'x+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[order, :    , :    ]),
+                        'y+':              LINMAP(108 if order == 1 else 208, order=order)[:    , order, :    ] ,
+                        'x-':              LINMAP(108 if order == 1 else 208, order=order)[0    , :    , :    ] ,
+                        'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}
 
                 }
     if elemType % 100 not in faces_map:
@@ -316,39 +318,39 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
-# > Not cacheable, we pass elemNode[np.ndarray]
-def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGeo: int) -> np.ndarray:
+@cache
+def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, bool]:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
-        elemType = mesh_vars.ELEMTYPE.name[elemType]
+        elemType = elemTypeClass.name[elemType]
 
     # FIXME: check for non-hexahedral elements
     order     = nGeo
     faces_map = {  # Tetrahedron
-                   4: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'x-':              elemNodes[0    , :    , :    ]},
+                   4: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False)},  #              elemNodes[0    , :    , :    ]}, # noqa: E262, E501
                    # Pyramid
-                   5: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'y+':              elemNodes[:    , order, :    ],
-                        'x-':              elemNodes[0    , :    , :    ]},
+                   5: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'y+': ((slice(None), order      , slice(None)), False),   #              elemNodes[:    , order, :    ],  # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False)},  #              elemNodes[0    , :    , :    ]}, # noqa: E262, E501
                    # Wedge / Prism
-                   6: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'x-':              elemNodes[0    , :    , :    ],
-                        'z+': np.transpose(elemNodes[:    , :    , order])},
+                   6: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
+                        'z+': ((slice(None), slice(None), order      ), True )},  # np.transpose(elemNodes[:    , :    , order])},# noqa: E262, E501
                    # Hexahedron
-                   8: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'y+':              elemNodes[:    , order, :    ],
-                        'x-':              elemNodes[0    , :    , :    ],
-                        'z+': np.transpose(elemNodes[:    , :    , order])}
+                   8: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'y+': ((slice(None), order      , slice(None)), False),   #              elemNodes[:    , order, :    ],  # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
+                        'z+': ((slice(None), slice(None), order      ), True )}   # np.transpose(elemNodes[:    , :    , order])} # noqa: E262, E501
                  }
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
@@ -361,13 +363,10 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
 def count_elems(mesh: meshio.Mesh) -> int:
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
     nElems = 0
     for _, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in elemTypeClass.type.keys()):
             continue
 
         ioelems = mesh.get_cells_type(elemType)

@@ -115,6 +115,7 @@ def InitMesh() -> None:
     """ Readin general option for mesh generation / readin
     """
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import GetInt, GetIntFromStr, CountOption
@@ -142,6 +143,13 @@ def InitMesh() -> None:
         if mesh_vars.nGeo < 1:
             hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
             sys.exit(1)
+
+    # Check if the requested output format can supported the requested polynomial order
+    match io_vars.outputformat:
+        case io_vars.MeshFormat.FORMAT_VTK:
+            if mesh_vars.nGeo > 2:
+                hopout.warning('Output format VTK does not support polynomial order > 2!')
+                sys.exit(1)
 
     # hopout.info('INIT MESH DONE!')
 

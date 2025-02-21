@@ -60,7 +60,10 @@ def check_orientation(ionodes : np.ndarray,
     sface   = None
     for face in faces(elemType):
         # Center of face
-        fnodes  = dir_to_nodes(face, elemType, nodes, mesh_vars.nGeo)
+        indices, doTransp = dir_to_nodes(face, elemType, mesh_vars.nGeo)
+        fnodes  = nodes[indices]
+        if doTransp:
+            fnodes = fnodes.transpose()
         fpoints = iopoints[fnodes]
         # cFace  = fpoints.mean(axis=tuple(range(fpoints.ndim - 1)))
         cFace  = np.mean(fpoints, axis=(0, 1))

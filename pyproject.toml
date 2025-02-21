@@ -19,6 +19,7 @@ dependencies = [
     'plotext',
     'scipy',
     'gmsh',
+    'sortedcontainers',
     'typing-extensions'
 ]
 keywords = ["PyHOPE", "mesh generator"]

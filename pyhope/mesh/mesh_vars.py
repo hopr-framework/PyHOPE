@@ -52,6 +52,9 @@ vvs    : list                                     # [list of dict] - Periodic ve
 elems  : list[type | None]                        # [list of list] - Element nodes
 sides  : list[type | None]                        # [list of list] - Side    nodes
 
+# Periodic nodes
+periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
+
 already_curved: bool                              # Flag if mesh is already curved
 
 doMortars: bool                                   # Flag if mortars are enabled
@@ -60,6 +63,7 @@ doPeriodicCorrect: bool                           # Flag if displacement between
 # Internal variables
 tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
 tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)
+tolMortar  : Final[float] = 1.E-8                 # Tolerance for mesh connect (mortar   sides)
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
@@ -144,11 +148,15 @@ class SIDE:
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
     #         setattr(self, key, value)
-    #
+
     # def dict(self):
     #     """Return a dictionary of the SIDE object
     #     """
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
+
+    # Comparison operator for bisect
+    def __lt__(self, other) -> bool:
+        return self.sideID < other.sideID
 
 
 @dataclass(init=True, repr=False, eq=False, slots=True)
@@ -174,11 +182,15 @@ class ELEM:
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
     #         setattr(self, key, value)
-    #
+
     # def dict(self):
     #     """Return a dictionary of the ELEM object
     #     """
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
+
+    # Comparison operator for bisect
+    def __lt__(self, other) -> bool:
+        return self.elemID < other.elemID
 
 
 @dataclass(init=True, repr=False, eq=False, slots=True)

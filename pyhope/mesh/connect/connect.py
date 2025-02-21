@@ -25,9 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import copy
+# import copy
 import gc
-import heapq
 import sys
 import traceback
 from collections import defaultdict
@@ -48,7 +47,7 @@ import pyhope.output.output as hopout
 # ==================================================================================================================================
 
 
-def flip_analytic(side: list[int], nbside: list[int]) -> int:
+def flip_analytic(side: int, nbside: list[int]) -> int:
     """ Determines the flip of the side-to-side connection based on the analytic side ID
         flip = 1 : 1st node of neighbor side = 1st node of side
         flip = 2 : 2nd node of neighbor side = 1st node of side
@@ -58,26 +57,7 @@ def flip_analytic(side: list[int], nbside: list[int]) -> int:
     # Local imports ----------------------------------------
     from pyhope.common.common import find_index
     # ------------------------------------------------------
-    return find_index(nbside, side[0])
-
-
-def flip_physical(corners: np.ndarray, nbcorners: np.ndarray, tol: float, msg: str) -> int:
-    """ Determines the flip of the side-to-side connection based on the physical positions
-        flip = 1 : 1st node of neighbor side = 1st node of side
-        flip = 2 : 2nd node of neighbor side = 1st node of side
-        flip = 3 : 3rd node of neighbor side = 1st node of side
-        flip = 4 : 4th node of neighbor side = 1st node of side
-    """
-    ptree     = spatial.KDTree(nbcorners)
-
-    trCorn    = ptree.query(corners)
-    if trCorn[0] > tol:
-        hopout.warning(f'Could not determine flip of {msg} side within tolerance {tol}, exiting...')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
-
-    flipID = cast(int, trCorn[1]) + 1
-    return flipID
+    return find_index(nbside, side)
 
 
 def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
@@ -141,22 +121,8 @@ def find_closest_side(points: np.ndarray, stree: spatial.KDTree, tol: float, msg
 def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
     """ Get sorted corners and hash them to get the side ID
     """
-    corners_sorted = np.sort(corners)
-    corners_hash = hash(corners_sorted.tobytes())
+    corners_hash = hash(np.sort(corners).tobytes())
     return side_dict[corners_hash][0]
-
-
-def get_nonconnperiod_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:
-    """ Get a list of internal sides that are not connected to any
-        other side together with a list of their centers
-    """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
-    # Update the list
-    nConnSide   = [s for s in sides if s.connection is None and s.bcid is not None and mesh_vars.bcs[s.bcid].type[0] == 1]
-    nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
-    return nConnSide, nConnCenter
 
 
 def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:
@@ -167,16 +133,14 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[n
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     # Update the list
-    nConnSide = [s for s in sides if s.connection is None and s.bcid is None]
-    # Append the inner BCs
-    for s in (s for s in sides if s.bcid is not None and s.connection is None):
-        if mesh_vars.bcs[s.bcid].type[0] == 0:
-            nConnSide.append(s)
+    nConnSide = [s for s in sides if   s.connection is None  # noqa: E271
+                                  and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1))]
+
     nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
     return nConnSide, nConnCenter
 
 
-def periodic_update(sides: list, elems: list, vv: dict) -> None:
+def periodic_update(sides: list, elems: list, vv: np.ndarray) -> None:
     """Update the mesh after connecting periodic sides
     """
     # Local imports ----------------------------------------
@@ -216,7 +180,7 @@ def periodic_update(sides: list, elems: list, vv: dict) -> None:
     nbNodes = nbNodes[indices[:, :, 0], indices[:, :, 1]]
 
     # Check if periodic vector matches using vectorized np.allclose
-    if not np.allclose(mesh_vars.mesh.points[nodes] + vv['Dir'], mesh_vars.mesh.points[nbNodes],
+    if not np.allclose(mesh_vars.mesh.points[nodes] + vv, mesh_vars.mesh.points[nbNodes],
                        rtol=mesh_vars.tolPeriodic, atol=mesh_vars.tolPeriodic):
         hopout.warning('Error in periodic update, periodic vector does not match!')
         sys.exit(1)
@@ -225,15 +189,14 @@ def periodic_update(sides: list, elems: list, vv: dict) -> None:
     centers = 0.5 * (mesh_vars.mesh.points[nodes] + mesh_vars.mesh.points[nbNodes])
 
     # Update the mesh points for both node and nbNode
-    mesh_vars.mesh.points[nodes]   = centers - 0.5*vv['Dir']
-    mesh_vars.mesh.points[nbNodes] = centers + 0.5*vv['Dir']
+    mesh_vars.mesh.points[nodes]   = centers - 0.5*vv
+    mesh_vars.mesh.points[nbNodes] = centers + 0.5*vv
 
 
 def ConnectMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.common.common import find_index
     from pyhope.common.common_progress import ProgressBar
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     from pyhope.readintools.readintools import GetLogical
@@ -260,38 +223,17 @@ def ConnectMesh() -> None:
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
 
+    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
+
     # Map sides to BC
     # > Create a dict containing only the face corners
     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
+    peri_corners = {}
 
     # Build the reverse dictionary
     corner_side = defaultdict(list)
     for side, corners in side_corners.items():
         corner_side[corners].append(side)
-
-    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
-
-    # Try to connect the inner sides
-    ninner = 0
-    for val in corner_side.values():
-        match len(val):
-            case 1:  # BC side
-                continue
-            case 2:  # Internal side
-                sideIDs   = val
-                corners   = sides[sideIDs[0]].corners
-                nbcorners = sides[sideIDs[1]].corners
-                flipID    = flip_analytic(corners, nbcorners) + 1
-                # Connect the sides
-                connect_sides(sideIDs, sides, flipID)
-                ninner += 1
-
-                # Update the progress bar
-                bar.step(2)
-            case _:  # Zero or more than 2 sides
-                hopout.warning('Found internal side with more than two adjacent elements, exiting...')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
 
     # Set BC and periodic sides
     bcs = mesh_vars.bcs
@@ -310,151 +252,95 @@ def ConnectMesh() -> None:
 
         # Get the list of sides
         for iMap in csetMap[key]:
+            # Cache cell types for this mapping to avoid repeated list creation
+            cell_types = list(mesh_vars.mesh.cells_dict)[iMap]
             # Only 2D faces
-            if not any(s in list(mesh_vars.mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
+            if not any(s in cell_types for s in ['quad', 'triangle']):
                 continue
 
             iBCsides = np.array(cset[iMap]).astype(int)
             mapFaces = mesh.cells[iMap].data
             # Support for hybrid meshes
-            nCorners = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
+            nCorners = 4 if 'quad' in cell_types else 3
 
             # Map the unique BC sides to our non-unique elem sides
             for iSide in iBCsides:
                 # Get the corner nodes
-                corners = np.sort(np.array(mapFaces[iSide][0:nCorners]))
-                corners = hash(corners.tobytes())
+                corners = np.sort(mapFaces[iSide][:nCorners])
+                corners= hash(corners.tobytes())
 
                 # Boundary faces are unique
+                if len(corner_side[corners]) == 0:
+                    continue
+
                 # sideID  = find_key(face_corners, corners)
                 sideID = corner_side[corners][0]
                 # sides[sideID].update(bcid=bcID)
                 sides[sideID].bcid = bcID
 
+                # Add the periodic nodes of the periodic sides to the side_corners
+                # > Only negative BC_alpha allowed here
+                if bcs[bcID].type[0] == 1 and bcs[bcID].type[3] > 0:
+                    pNodes = np.fromiter((mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners]), dtype=int)
+                    pNodes = hash(np.sort(pNodes).tobytes())
+                    peri_corners[sideID] = pNodes
+                    # Update the reverse dictionary immediately
+                    corner_side[pNodes].append(sideID)
+
                 if bcs[bcID].type[0] != 1:
                     bar.step()
 
-    # Try to connect the periodic sides
+    # Try to connect the inner / periodic sides
     passedTypes = {}
+    for val in corner_side.values():
+        match len(val):
+            case 1:  # BC side
+                continue
+            case 2:  # Internal side
+                sideIDs   = val
+                side0     = sides[sideIDs[0]]
+                side1     = sides[sideIDs[1]]
+                corners   = side0.corners
+                nbcorners = side1.corners
 
-    for key, cset in mesh.cell_sets.items():
-        # Check if the set is a BC
-        bcID = find_bc_index(bcs, key)
-        if bcID is None:
-            hopout.warning(f'Could not find BC {key} in list, exiting...')
-            sys.exit(1)
+                # Translate to periodic nodes if required
+                if side0.bcid is not None and side1.bcid is not None and bcs[side1.bcid].type[0] == 1:
+                    nbcorners = [mesh_vars.periNodes[(s, bcs[side1.bcid].name)] for s in side1.corners]
 
-        # Only periodic BCs and only try to connect in positive direction
-        if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
-            continue
+                flipID    = flip_analytic(corners[0], nbcorners) + 1
+                # Connect the sides
+                connect_sides(sideIDs, sides, flipID)
+                # Update the progress bar
+                bar.step(2)
 
-        # Get the opposite side
-        iVV        = bcs[bcID].type[3] - 1
-        nbType     = copy.copy(bcs[bcID].type)
-        nbType[3] *= -1
-        nbBCID     = find_index([s.type for s in bcs], nbType)
-        nbBCName   = bcs[nbBCID].name
+                # Use guard clauses to avoid unnecessary checks
+                if side0.bcid is None:
+                    continue     # No boundary condition on first side
+                if bcs[side0.bcid].type[0] != 1:
+                    continue     # Not a periodic BC on first side
+                if bcs[side1.bcid].type[0] != 1:
+                    hopout.warning('Found internal side with inconsistent BC types, exiting...')
+                    sys.exit(1)  # Inconsistent BC types
+                if not doPeriodicCorrect:
+                    continue     # Periodic correction not enabled
 
-        # Set the tolerance for periodic connections
-        tol        = np.linalg.norm(vvs[iVV]['Dir'], ord=2).astype(float) * mesh_vars.tolPeriodic
+                # At this point, we know both sides have periodic BCs.
+                iVV = bcs[side0.bcid].type[3]
+                VV  = vvs[np.abs(iVV) - 1]['Dir'] * np.sign(iVV)
+                locSides = [mesh_vars.sides[s] for s in sideIDs]  # noqa: E272
+                locElems = [mesh_vars.elems[s.elemID] for s in locSides]
 
-        # Collapse all opposing corner nodes into an [:, 12] array
-        nbCellSet  = mesh.cell_sets[nbBCName]
-        # Find the mapping to the (N-1)-dim elements
-        nbcsetMap  = [s for s in range(len(nbCellSet)) if nbCellSet[s] is not None
-                      and cast(np.ndarray, nbCellSet[s]).size > 0]
+                # Only update hexahedral elements
+                if any(e.type % 100 != 8 for e in locElems):
+                    for e in locElems:
+                        passedTypes[e.type] = passedTypes.get(e.type, 0) + 1
+                else:
+                    periodic_update(locSides, locElems, VV)
 
-        for iMap in nbcsetMap:
-            # Get the list of sides
-            nbFaceSet  =  np.array(nbCellSet[iMap]).astype(int)
-            nbmapFaces = mesh.cells[iMap].data
-            nbCorners  = [np.array(nbmapFaces[s]) for s in nbFaceSet]
-            nbPoints   = np.sort(mesh.points[nbCorners], axis=1)
-            nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
-            del nbCorners
-
-            # Build a k-dimensional tree of all points on the opposing side
-            stree    = spatial.KDTree(nbPoints)
-            # Get the list of sides on our side
-            iBCsides = np.array(cset[iMap]).astype(int)
-
-            # Get the number of side cordners
-            nSideIdx   = 4 if 'quad' in list(mesh_vars.mesh.cells_dict)[iMap] else 3
-
-            # Map the unique quad sides to our non-unique elem sides
-            for iSide in iBCsides:
-                # Get the quad corner nodes
-                corners   = np.array(nbmapFaces[iSide])
-                points    = mesh.points[corners].copy()
-
-                # Shift the points in periodic direction
-                points   += vvs[iVV]['Dir']
-                points    = np.sort(points, axis=0).flatten()
-
-                # Query the tree for the opposing side
-                nbSideIdx = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'periodic', doMortars)
-
-                # Regular periodic side
-                if nbSideIdx >= 0:
-                    nbiSide   = nbFaceSet[nbSideIdx]
-
-                    # Get our and neighbor corner nodes
-                    sideID    = get_side_id(nbmapFaces[iSide  ][0:nSideIdx], corner_side)
-                    nbSideID  = get_side_id(nbmapFaces[nbiSide][0:nSideIdx], corner_side)
-
-                    # Build the connection, including flip
-                    sideIDs   = [sideID, nbSideID]
-                    points    = mesh.points[sides[sideIDs[0]].corners]
-                    for iPoint in range(points.shape[0]):
-                        points[iPoint, :] += vvs[iVV]['Dir']
-
-                    # > Find the first neighbor point to determine the flip
-                    nbcorners = mesh.points[sides[sideIDs[1]].corners]
-                    flipID    = flip_physical(points[0], nbcorners, tol, 'periodic')
-
-                    # Connect the sides
-                    connect_sides(sideIDs, sides, flipID)
-
-                    # Update the sides
-                    if doPeriodicCorrect:
-                        locSides    = [mesh_vars.sides[s]        for s in sideIDs ]  # noqa: E272
-                        locElems    = [mesh_vars.elems[s.elemID] for s in locSides]
-
-                        # Only update hexahedral elements
-                        if any(e.type % 100 != 8 for e in locElems):
-                            for e in locElems:
-                                try:
-                                    # Increment the count for each type in passedTypes
-                                    passedTypes[e.type] += 1
-                                except KeyError:
-                                    # If the type is not in passedTypes, initialize it with 1
-                                    passedTypes[e.type] = 1
-                        else:
-                            periodic_update(locSides, locElems, vvs[iVV])
-
-                    # Update the progress bar
-                    bar.step(2)
-
-    # Check if there are missing periodic sides
-    nMissSide, nMissCenter = get_nonconnperiod_sides(sides, mesh)
-
-    # Periodic mortar sides
-    if doMortars:
-        # Periodic mortar sides are not supported for mixed element types
-        if any(len(s.corners) != len(nMissSide[0].corners) for s in nMissSide):
-            hopout.warning('Periodic mortar sides are not supported for mixed element types, exiting...')
-            sys.exit(1)
-
-        # Connect the mortar sides
-        ConnectMortar(nMissSide, nMissCenter, mesh, elems, sides, bar, doPeriodic=True)
-
-    nMissSide, _ = get_nonconnperiod_sides(sides, mesh)
-
-    if len(nMissSide) > 0:
-        nPeriSide = [s for s in sides if s.bcid is not None and bcs[s.bcid].type[0] == 1]
-        hopout.warning(f'Failed to connect {len(nMissSide)} / {len(nPeriSide)} periodic sides')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+            case _:  # Zero or more than 2 sides
+                hopout.warning('Found internal side with more than two adjacent elements, exiting...')
+                traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
 
     if passedTypes:
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
@@ -464,82 +350,20 @@ def ConnectMesh() -> None:
             if elemType in passedTypes and passedTypes[elemType] > 0:
                 print(hopout.warn( ELEMTYPE(elemType) + ': {:12d}'.format(passedTypes[elemType])))
 
-    # Non-connected sides without BCID are possible inner sides
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
-    nInterZoneConnect      = len(nConnSide)
-
-    # Loop over all sides and try to connect
-    # > Only matching internal sides are considered here, mortars are handled afterwards
-    iter    = 0
-    maxIter = copy.copy(nInterZoneConnect)
-    tol     = mesh_vars.tolInternal
-
-    while len(nConnSide) > 1 and iter <= maxIter:
-        # Ensure the loop exits after checking every side
-        iter += 1
-
-        # Remove the first side from the list
-        targetSide   = nConnSide.pop(0)
-
-        # Collapse all opposing corner nodes into an [:, 9/12] array
-        nbCorners = [s.corners for s in nConnSide if len(s.corners) == len(targetSide.corners)]
-        nbPoints  = np.sort(mesh.points[nbCorners], axis=1)
-        if nbPoints.shape[0] == 0:
-            hopout.warning(f'Could not find matching sides for {len(nConnSide)+1} sides, exiting...')
-            print(mesh.points[targetSide.corners])
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
-
-        nbPoints   = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
-        del nbCorners
-
-        # Build a k-dimensional tree of all points on the opposing side
-        stree      = spatial.KDTree(nbPoints)
-
-        # Map the unique quad sides to our non-unique elem sides
-        corners    = targetSide.corners
-        points     = np.sort(mesh.points[corners], axis=0).flatten()
-
-        # Query the tree for the opposing side
-        nbSideIdx  = find_closest_side(points, cast(spatial.KDTree, stree), tol, 'internal', doMortars)
-
-        # Regular internal side
-        # > Mortar sides return -1 and are handled afterwards
-        if nbSideIdx >= 0:
-            nbiSide   = nbSideIdx
-
-            # Get our and neighbor corner quad nodes
-            sideID    = get_side_id(targetSide.corners        , corner_side)
-            nbSideID  = get_side_id(nConnSide[nbiSide].corners, corner_side)
-
-            # Build the connection, including flip
-            sideIDs   = [sideID, nbSideID]
-            points    = mesh.points[sides[sideIDs[0]].corners]
-            # > Find the first neighbor point to determine the flip
-            nbcorners = mesh.points[sides[sideIDs[1]].corners]
-            flipID    = flip_physical(points[0], nbcorners, tol, 'internal')
-
-            # Connect the sides
-            connect_sides(sideIDs, sides, flipID)
-
-            # Update the list
-            nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
-
-            # Update the progress bar
-            bar.step(2)
 
     # Mortar sides
     if doMortars:
-        nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
-        nInterZoneConnect      = len(nConnSide)
+        # Mortar connections are not supported between mismatching side types
+        if any(len(s.corners) != len(nConnSide[0].corners) for s in nConnSide):
+            hopout.warning('Mortar connections are not supported between mixed side types, exiting...')
+            sys.exit(1)
 
         # Connect the mortar sides
-        ConnectMortar(nConnSide, nConnCenter, mesh, elems, sides, bar, doPeriodic=False)
+        elems, sides = ConnectMortar(nConnSide, nConnCenter, mesh, elems, sides, bar)
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
-        hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
-
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem     = elems[side.elemID]
@@ -550,6 +374,8 @@ def ConnectMesh() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
             print()
+
+        hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
         sys.exit(1)
 
     # Close the progress bar
@@ -557,52 +383,6 @@ def ConnectMesh() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
-
-    if nInterZoneConnect > 0:
-        hopout.sep()
-        hopout.routine('Connected {} inter-zone faces'.format(nInterZoneConnect))
-
-    # Set the global side ID
-    globalSideID     = 0
-    highestSideID    = 0
-    usedSideIDs      = set()  # Set to track used side IDs
-    availableSideIDs = []     # Min-heap for gap
-
-    for iSide, side in enumerate(sides):
-        # Already counted the side
-        if side.globalSideID is not None:
-            continue
-
-        # Get the smallest available globalSideID from the heap, if any
-        if availableSideIDs:
-            globalSideID = heapq.heappop(availableSideIDs)
-        else:
-            # Use the current maximum ID and increment
-            globalSideID = highestSideID + 1
-
-        # Mark the side ID as used
-        highestSideID = max(globalSideID, highestSideID)
-        usedSideIDs.add(globalSideID)
-        # side.update(globalSideID=globalSideID)
-        side.globalSideID = globalSideID
-
-        if side.connection is None:         # BC side
-            pass
-        elif side.connection < 0:           # Big mortar side
-            pass
-        elif side.MS == 1:                  # Internal / periodic side (master side)
-            # Get the connected slave side
-            nbSideID = side.connection
-
-            # Reclaim the ID of the slave side if already assigned
-            if sides[nbSideID].globalSideID is not None:
-                reclaimedID = sides[nbSideID].globalSideID
-                usedSideIDs.remove(reclaimedID)
-                heapq.heappush(availableSideIDs, reclaimedID)
-
-            # Set the negative globalSideID of the slave  side
-            # sides[nbSideID].update(globalSideID=-(globalSideID))
-            sides[nbSideID].globalSideID = -(globalSideID)
 
     # Count the sides
     nsides             = len(sides)
@@ -626,6 +406,9 @@ def ConnectMesh() -> None:
     hopout.info(' Number of mortar sides (small) : {:12d}'.format(nmortarsmallsides))
     hopout.info(' Number of boundary sides       : {:12d}'.format(nbcsides))
     hopout.info(' Number of periodic sides       : {:12d}'.format(nperiodicsides))
+
+    mesh_vars.sides = sides
+    mesh_vars.elems = elems
 
     # hopout.sep()
     # hopout.info('CONNECT MESH DONE!')
