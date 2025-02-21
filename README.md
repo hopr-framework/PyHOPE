@@ -2,9 +2,9 @@ PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python fr
 
 PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
 
-PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [HOPR documentation](https://hopr.readthedocs.io).
+PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [HOPR documentation](https://hopr.readthedocs.io). Furthermore, PyHOPE utilizes [Gmsh](https://gmsh.info) for the initial mesh generation and conversion before converting it to its internal representation.
 
-This is a scientific project. If you use pyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
+This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
 
 # Installation
 PyHOPE is built using standard Python packages. It is recommended to use a virtual environment for installation. The following commands create a virtual environment, here called `venv`, and install all required packages.
