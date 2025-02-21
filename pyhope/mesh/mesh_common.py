@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from functools import cache
-from typing import Union, Tuple
+from typing import Union, Tuple, Any
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -318,8 +318,8 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
-# > Not cacheable, we pass elemNode[np.ndarray]
-def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGeo: int) -> np.ndarray:
+@cache
+def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, bool]:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
@@ -328,29 +328,29 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], elemNodes: np.ndarray, nGe
     # FIXME: check for non-hexahedral elements
     order     = nGeo
     faces_map = {  # Tetrahedron
-                   4: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'x-':              elemNodes[0    , :    , :    ]},
+                   4: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False)},  #              elemNodes[0    , :    , :    ]}, # noqa: E262, E501
                    # Pyramid
-                   5: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'y+':              elemNodes[:    , order, :    ],
-                        'x-':              elemNodes[0    , :    , :    ]},
+                   5: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'y+': ((slice(None), order      , slice(None)), False),   #              elemNodes[:    , order, :    ],  # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False)},  #              elemNodes[0    , :    , :    ]}, # noqa: E262, E501
                    # Wedge / Prism
-                   6: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'x-':              elemNodes[0    , :    , :    ],
-                        'z+': np.transpose(elemNodes[:    , :    , order])},
+                   6: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
+                        'z+': ((slice(None), slice(None), order      ), True )},  # np.transpose(elemNodes[:    , :    , order])},# noqa: E262, E501
                    # Hexahedron
-                   8: { 'z-':              elemNodes[:    , :    , 0    ],
-                        'y-': np.transpose(elemNodes[:    , 0    , :    ]),
-                        'x+': np.transpose(elemNodes[order, :    , :    ]),
-                        'y+':              elemNodes[:    , order, :    ],
-                        'x-':              elemNodes[0    , :    , :    ],
-                        'z+': np.transpose(elemNodes[:    , :    , order])}
+                   8: { 'z-': ((slice(None), slice(None), 0          ), False),   #              elemNodes[:    , :    , 0    ],  # noqa: E262, E501
+                        'y-': ((slice(None), 0          , slice(None)), True ),   # np.transpose(elemNodes[:    , 0    , :    ]), # noqa: E262, E501
+                        'x+': ((order      , slice(None), slice(None)), True ),   # np.transpose(elemNodes[order, :    , :    ]), # noqa: E262, E501
+                        'y+': ((slice(None), order      , slice(None)), False),   #              elemNodes[:    , order, :    ],  # noqa: E262, E501
+                        'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
+                        'z+': ((slice(None), slice(None), order      ), True )}   # np.transpose(elemNodes[:    , :    , order])} # noqa: E262, E501
                  }
     if elemType % 100 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')

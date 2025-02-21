@@ -40,7 +40,7 @@ from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
 
 
-def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, wGP: np.ndarray) -> np.ndarray:
+def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """ Evaluate the surface integral for normals over a side of an element
     """
     # Change basis to Gauss points
@@ -48,20 +48,23 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, wGP: np.ndarr
 
     # Compute derivatives at all Gauss points
     dXdxiGP  = np.tensordot(DGP, xGP, axes=(1, 1)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
+    # dXdxiGP  = np.moveaxis(dXdxiGP , 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
+    dXdxiGP  = dXdxiGP .reshape(3, -1)                                 # Flatten for cross computation
+
     dXdetaGP = np.tensordot(DGP, xGP, axes=(1, 2)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
+    # dXdetaGP = np.moveaxis(dXdetaGP, 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
+    dXdetaGP = dXdetaGP.reshape(3, -1)                                 # Flatten for cross computation
 
     # Compute the cross product at each Gauss point
-    dXdxiGP  = dXdxiGP .reshape(3, -1)              # Flatten for cross computation
-    dXdetaGP = dXdetaGP.reshape(3, -1)
+    VDMSize  = Vdm.shape[-1]
     nVec     = np.cross(dXdxiGP, dXdetaGP, axis=0)  # Shape: (3, N_GP*N_GP)
-    nVec     = nVec.reshape(3, wGP.size, wGP.size)  # Reshape to (3, N_GP+1, N_GP+1)
+    nVec     = nVec.reshape(3, VDMSize, VDMSize)    # Reshape to (3, N_GP+1, N_GP+1)
 
     # Compute the weighted normals
-    weights  = np.outer(wGP, wGP)                   # Shape: (N_GP+1, N_GP+1)
     nVecW    = nVec * weights                       # Broadcast weights to shape (3, N_GP+1, N_GP+1)
 
     # Integrate over the Gauss points
-    NSurf    = - np.sum(nVecW, axis=(1, 2))         # Sum over the last two axes
+    NSurf    = -np.sum(nVecW, axis=(1, 2))          # Sum over the last two axes
     return NSurf
 
 
@@ -69,7 +72,7 @@ def check_sides(elem,
                 # points   : np.ndarray,
                 VdmEqToGP: np.ndarray,
                 DGP      : np.ndarray,
-                wGP      : np.ndarray,
+                weights  : np.ndarray,
                 # sides    : list
                 ) -> list[bool | int | np.ndarray]:
     # Local imports ----------------------------------------
@@ -81,6 +84,10 @@ def check_sides(elem,
     nGeo    = mesh_vars.nGeo
 
     elemType   = elem.type
+
+    # Define helper lambdas to reduce code duplication
+    transform      = lambda idx                 : np.transpose(points[idx], axes=(2, 0, 1))                               # noqa: E731
+    get_face_nodes = lambda element, face, eType: np.array([element.nodes[s] for s in face_to_nodes(face, eType, nGeo)])  # noqa: E731
 
     for SideID in elem.sides:
         # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
@@ -97,11 +104,11 @@ def check_sides(elem,
         # Big mortar side
         elif side.connection < 0:
             mortarType = abs(side.connection)
-            nodes   = np.array([elem.nodes[s] for s in face_to_nodes(side.face, elemType, nGeo)])
+            nodes   = get_face_nodes(elem, side.face, elemType)
             # INFO: This should be faster but I could not confirm the speedup in practice
-            # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, wGP)
-            # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
-            nSurf   = eval_nsurf(np.transpose(points[  nodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+            # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
+            # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
+            nSurf   = eval_nsurf(transform(nodes), VdmEqToGP, DGP, weights)
             tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
             # checked[SideID] = True
 
@@ -112,10 +119,10 @@ def check_sides(elem,
                 # Get the matching side
                 nbside   = sides[sides[SideID + mortarSide + 1].connection]
                 nbelem   = elems[nbside.elemID]
-                nbnodes  = np.array([nbelem.nodes[s] for s in face_to_nodes(nbside.face, nbelem.type, nGeo)])
+                nbnodes  = get_face_nodes(nbelem, nbside.face, nbelem.type)
                 # INFO: This should be faster but I could not confirm the speedup in practice
-                # nnbSurf += eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, wGP)
-                nnbSurf += eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+                # nnbSurf += eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, weights)
+                nnbSurf += eval_nsurf(transform(nbnodes), VdmEqToGP, DGP, weights)
                 # checked[nbside] = True
 
             # Check if side normals are within tolerance
@@ -128,20 +135,20 @@ def check_sides(elem,
             if side.locMortar is not None:
                 continue
 
-            nodes   = np.array([elem.nodes[s] for s in face_to_nodes(  side.face,   elemType, nGeo)])
+            nodes   = get_face_nodes(  elem,   side.face, elemType)
             # INFO: This should be faster but I could not confirm the speedup in practice
-            # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, wGP)
-            nSurf   = eval_nsurf(np.transpose(points[  nodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+            # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
+            nSurf   = eval_nsurf(transform(nodes), VdmEqToGP, DGP, weights)
             tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
             # checked[SideID] = True
 
             # Connected side
             nbside  = sides[side.connection]
             nbelem  = elems[nbside.elemID]
-            nbnodes = np.array([nbelem.nodes[s] for s in face_to_nodes(nbside.face, nbelem.type, nGeo)])
+            nbnodes = get_face_nodes(nbelem, nbside.face, nbelem.type)
             # INFO: This should be faster but I could not confirm the speedup in practice
-            # nnbSurf = eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, wGP)
-            nnbSurf = eval_nsurf(np.transpose(points[nbnodes], axes=(2, 0, 1)), VdmEqToGP, DGP, wGP)
+            # nnbSurf = eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, weights)
+            nnbSurf = eval_nsurf(transform(nbnodes), VdmEqToGP, DGP, weights)
             # checked[nbside] = True
 
             # Check if side normals are within tolerance
@@ -159,7 +166,7 @@ def process_chunk(chunk) -> np.ndarray:
     """Process a chunk of elements by checking surface normal orientation
     """
     chunk_results    = np.empty(len(chunk), dtype=object)
-    # elem, VdmEqToGP, DGP, wGP = elem_data
+    # elem, VdmEqToGP, DGP, weights = elem_data
     chunk_results[:] = [check_sides(*elem_data) for elem_data in chunk]
     return chunk_results
 
@@ -197,11 +204,14 @@ def CheckWatertight() -> None:
     DGP       = polynomial_derivative_matrix(nGeo, xGP)
     VdmEqToGP = calc_vandermonde(nGeo, nGeo, wBaryEq, xEq, xGP)
 
+    # Compute the weights
+    weights  = np.outer(wGP, wGP)                   # Shape: (N_GP+1, N_GP+1)
+
     # Check all sides
     elems     = mesh_vars.elems
     sides     = mesh_vars.sides
-    points    = mesh_vars.mesh.points
-    # checked = np.zeros((len(sides)), dtype=bool)
+    # points    = mesh_vars.mesh.points
+    # checked   = np.zeros((len(sides)), dtype=bool)
 
     # Only consider hexahedrons
     if any(e.type % 100 != 8 for e in elems):
@@ -213,14 +223,18 @@ def CheckWatertight() -> None:
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks  = [(elem, VdmEqToGP, DGP, wGP)
+        tasks  = [(elem, VdmEqToGP, DGP, weights)
                   for elem in elems]
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
         res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
     else:
         res    = np.empty(len(elems), dtype=object)
-        res[:] = [check_sides(elem, VdmEqToGP, DGP, wGP) for elem in elems]
+        res[:] = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]
+
+    # Helper for transforming face nodes
+    transform = lambda n      : np.transpose(n, axes=(2, 0, 1))                                                         # noqa: E731
+    get_face  = lambda e, face: transform(np.array([e.nodes[s] for s in face_to_nodes(face, e.type, mesh_vars.nGeo)]))  # noqa: E731
 
     for r in res:
         for result in r:
@@ -230,33 +244,27 @@ def CheckWatertight() -> None:
                 elem     = elems[side.elemID]
                 nbside   = side.connection
 
-                nSurf    = result[2]
-                nnbSurf  = result[3]
+                nSurf, nbnSurf, nSurfErr, tol = result[2], result[3], result[4], result[5]
 
-                nSurfErr = result[4]
-                tol      = result[5]
-
-                nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
-                nodes    = np.transpose(points[nodes]         , axes=(2, 0, 1))
-                nbelem   = elems[sides[nbside].elemID]
-                nbnodes  = np.transpose(np.array([nbelem.nodes[s] for s in face_to_nodes(side.face, nbelem.type, mesh_vars.nGeo)]))
-                nnbodes  = np.transpose(points[nbnodes], axes=(2, 0, 1))
+                nodes   = get_face(  elem, side.face)
+                nbelem  = elems[sides[nbside].elemID]
+                nbnodes = get_face(nbelem, side.face)
 
                 strLen = max(len(str(side.sideID+1)), len(str(nbside)))
                 hopout.warning('Watertightness check failed!')
                 print(hopout.warn(f'> Element {elem.elemID+1:>{strLen}}, Side {side.face}, Side {side.sideID+1:>{strLen}}'))  # noqa: E501
-                print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nSurf) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
+                print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in   nSurf) + ']'))              # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in   nodes[:,  0,  0]) + ']'))   # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in   nodes[:,  0, -1]) + ']'))   # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in   nodes[:, -1,  0]) + ']'))   # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in   nodes[:, -1, -1]) + ']'))   # noqa: E271
                 print()
                 print(hopout.warn(f'> Element {sides[nbside].elemID+1:>{strLen}}, Side {sides[nbside].face}, Side {nbside+1:>{strLen}}'))  # noqa: E501
-                print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nnbSurf) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:,  0,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:,  0, -1]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:, -1,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nnbodes[:, -1, -1]) + ']'))
+                print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nbnSurf) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:,  0,  0]) + ']'))   # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:,  0, -1]) + ']'))   # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:, -1,  0]) + ']'))   # noqa: E271
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nbnodes[:, -1, -1]) + ']'))   # noqa: E271
 
                 # Check if side is oriented inwards
                 if nSurfErr < 0:

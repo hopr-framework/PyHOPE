@@ -27,7 +27,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from typing import Optional, List, Tuple
-from functools import lru_cache
+# from functools import lru_cache
+from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -88,7 +89,8 @@ class LinkOffsetManager:
         # Clear cached offsets as breakpoints have changed
         self._get_offset.cache_clear()
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)
+    @cache
     def _get_offset(self, index: int) -> int:
         """
         Return the cumulative offset for a given stored link (cached)
@@ -142,7 +144,8 @@ class DoublyLinkedList:
     def __len__(self) -> int:
         return self._size
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)
+    @cache
     def _node_at_impl(self, index: int) -> ListNode:
         """
         Internal implementation for retrieving the node at the given index (by traversing from head or tail)
