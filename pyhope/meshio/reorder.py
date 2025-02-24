@@ -26,8 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from functools import cache
-from typing import List
-import sys
+from typing import List, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import numpy as np
@@ -41,23 +40,21 @@ import numpy as np
 # ==================================================================================================================================
 
 @cache
-def HEXREORDER(order: int):
+def HEXREORDER(order: int, incomplete: Optional[bool] = False):
     """ Converts node ordering from gmsh to meshio format
     """
     EDGEMAP = [ 0, 3, 5, 1, 8, 10, 11, 9, 2, 4, 6, 7]
-    FACEMAP = [2, 3, 1, 4, 0, 5]
-    
-    map: List[int] = [None]*order**3
-   
-    # Vertices
-    match order:
-        case 1:
-            map = [0]
-            return map
-        case 2:
-            map = [0, 1, 2, 3, 4, 5, 6, 7]
-            return map
-    
+    FACEMAP = [ 2, 3, 1, 4, 0, 5]
+
+    order += 1
+
+    if incomplete:
+        nNodes = 8 + 12*(order - 2)
+    else:
+        nNodes = order**3
+
+    map: List[int] = [None]*nNodes
+
     count = 0
     for iOrder in range(np.floor(order/2).astype(int)):
         for iNode in range(8):
@@ -69,7 +66,12 @@ def HEXREORDER(order: int):
             iSlice = slice(count+(order-2*(iOrder+1))   *iEdge, count+(order-2*(iOrder+1))   *(iEdge+1))
             map[iSlice] = [count+(order-2*(iOrder+1))   *(EDGEMAP[iEdge])+iNode for iNode in range(order-2*(iOrder+1))]
         count += (order-2*(iOrder+1))*12
-        
+
+        # Only vertices and edges of the outermost shell required for incomplete
+        if incomplete:
+            return map
+
+        # Faces
         for iFace in range(6):
             iSlice = slice(count+(order-2*(iOrder+1))**2*iFace, count+(order-2*(iOrder+1))**2*(iFace+1))
             map[iSlice] = [count+(order-2*(iOrder+1))**2*(FACEMAP[iFace])+iNode for iNode in range((order-2*(iOrder+1))**2)]
@@ -78,4 +80,4 @@ def HEXREORDER(order: int):
     if order % 2 != 0:
         map[count] = count
    
-    return map 
+    return map
