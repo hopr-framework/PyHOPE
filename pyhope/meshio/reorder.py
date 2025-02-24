@@ -63,9 +63,6 @@ def HEXREORDER(order: int):
         for iNode in range(8):
             map[count] = count
             count += 1
-        
-        if iOrder == 2:
-            break
 
         # Edges 
         for iEdge in range(12):
