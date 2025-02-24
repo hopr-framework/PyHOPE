@@ -56,7 +56,6 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # ------------------------------------------------------
 
     if CountOption('doSplitToHex') == 0:
-        hopout.sep()
         return mesh
 
     hopout.separator()

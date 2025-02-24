@@ -143,6 +143,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         case 2:
             faceType = ['triangle6' , 'quad9' ]
             faceNum  = [          6 ,       9 ]
+        # case 3:
+        #     faceType = ['triangle10', 'quad16']
+        #     faceNum  = [         10 ,      16 ]
         case 4:
             faceType = ['triangle15', 'quad25']
             faceNum  = [         15 ,      25 ]
@@ -591,24 +594,33 @@ def hex_faces(order: int) -> list:
     # ------------------------------------------------------
     match order:
         case 1:
-            return [np.array([  0,  3,  2,  1], dtype=int),
+            return [np.array([  0,  1,  2,  3], dtype=int),
                     np.array([  0,  1,  5,  4], dtype=int),
                     np.array([  1,  2,  6,  5], dtype=int),
-                    np.array([  2,  3,  7,  6], dtype=int),
+                    np.array([  2,  6,  7,  3], dtype=int),
                     np.array([  0,  4,  7,  3], dtype=int),
                     np.array([  4,  5,  6,  7], dtype=int)]
         case 2:
-            return [np.array([  0,  3,  2,  1, 11, 10,  9,  8, 24], dtype=int),
+            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 24], dtype=int),
                     np.array([  0,  1,  5,  4,  8, 17, 12, 16, 22], dtype=int),
                     np.array([  1,  2,  6,  5,  9, 18, 13, 17, 21], dtype=int),
-                    np.array([  2,  3,  7,  6, 10, 19, 14, 18, 23], dtype=int),
+                    np.array([  2,  6,  7,  3, 18, 14, 19, 10, 23], dtype=int),
                     np.array([  0,  4,  7,  3, 16, 15, 19, 11, 20], dtype=int),
                     np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int)]
-        # FIXME: Implement NGeo=4 case
+        case 3:
+            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 12, 13, 14, 15, 48, 51, 50, 49], dtype=int),
+                    np.array([  0,  1,  5,  4,  8,  9, 26, 27, 17, 16, 25, 24, 40, 41, 42, 43], dtype=int),
+                    np.array([  1,  2,  6,  5, 10, 11, 28, 29, 19, 18, 27, 26, 36, 37, 38, 39], dtype=int),
+                    np.array([  2,  6,  7,  3, 28, 29, 20, 21, 31, 30, 13, 12, 44, 47, 46, 45], dtype=int),
+                    np.array([  0,  4,  7,  3, 24, 25, 23, 22, 31, 30, 14, 15, 32, 33, 34, 35], dtype=int),
+                    np.array([  4,  5,  6,  7, 16, 17, 18, 19, 20, 21, 22, 23, 52, 53, 54, 55], dtype=int)]
         case 4:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 12, 13, 14, 15, 16, 19, 18, 17, 80, 83, 82, 81, 87, 86, 85, 84, 88], dtype=int),   # noqa: E501
+                    np.array([  0,  1,  5,  4,  8,  9, 10, 35, 36, 37, 22, 21, 20, 34, 33, 32, 62, 63, 64, 65, 66, 67, 68, 69, 70], dtype=int),   # noqa: E501
+                    np.array([  1,  2,  6,  5, 11, 12, 13, 38, 39, 40, 25, 24, 23, 37, 36, 35, 53, 54, 55, 56, 57, 58, 59, 60, 61], dtype=int),   # noqa: E501
+                    np.array([  2,  6,  7,  3, 38, 39, 40, 26, 27, 28, 43, 42, 41, 16, 15, 14, 71, 74, 73, 72, 78, 77, 76, 75, 79], dtype=int),   # noqa: E501
+                    np.array([  0,  4,  7,  3, 32, 33, 34, 29, 30, 31, 43, 42, 41, 19, 18, 17, 44, 45, 46, 47, 48, 49, 50, 51, 52], dtype=int),   # noqa: E501
+                    np.array([  4,  5,  6,  7, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 30, 29, 89, 90, 91, 92, 93, 94, 95, 96, 97], dtype=int)]   # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
