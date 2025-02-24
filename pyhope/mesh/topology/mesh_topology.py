@@ -45,6 +45,7 @@ import numpy as np
 
 def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
+    from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_vars import ELEMTYPE, nGeo
@@ -53,7 +54,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Split hexahedral elements if requested
     nZones    = mesh_vars.nZones
     elemTypes = mesh_vars.elemTypes
-    elemNames = [None for _ in range(nZones)]  # noqa: E271
+    elemNames = ['' for _ in range(nZones)]  # noqa: E271
 
     # No element types given
     if len(elemTypes) == 0:
@@ -68,6 +69,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         if mesh_vars.nGeo > 4:
             hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
             sys.exit(1)
+
+    hopout.info('Converting hexahedral elements to simplex elements')
 
     # Instantiate ELEMTYPE
     elemTypeInam = ELEMTYPE().inam
@@ -96,7 +99,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 sys.exit(1)
 
     # Copy original points
-    points    = mesh.points.copy()
+    pointl    = cast(list, mesh.points.tolist())
     elems_old = mesh.cells.copy()
     cell_sets = getattr(mesh, 'cell_sets', {})
 
@@ -134,7 +137,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 nodes = mesh.cells_dict[elems_old[blockID].type][face]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
-    nPoints  = len(points)
+    nPoints  = len(pointl)
     nFaces   = np.zeros(2, dtype=int)
     match nGeo:
         case 1:
@@ -154,11 +157,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             sys.exit(1)
 
     # Prepare new cell blocks and new cell_sets
-    elems_new = {}
-    csets_new = {}
-
-    for ftype, fnum in zip(faceType, faceNum):
-        elems_new[ftype] = np.empty((0, fnum), dtype=int)
+    elems_lst = {ftype: [] for ftype in faceType}
+    csets_lst = {}
 
     # Create the element sets
     meshcells = [(k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys())]
@@ -167,6 +167,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     if len(meshcells) == 0:
         meshcells = [('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
                                                                               if k.startswith('hexahedron')]
+
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
+
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
         mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
@@ -184,21 +188,22 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
+        elemSplit = split(nGeo)
+
         # Hex block: Iterate over each element
         for elem in cdata:
             # Pyramids need a center node
             if elemType % 100 == 5:
                 match nGeo:
                     case 1:
-                        center   = np.mean(  points[elem]  , axis=0)
-                        center   = np.expand_dims(center   , axis=0)
-                        points   = np.append(points, center, axis=0)
+                        center = np.mean(np.array([pointl[i] for i in elem]), axis=0)
+                        pointl.append(center.tolist())
                         elem     = np.array(list(elem) + [nPoints])
                         nPoints += 1
                     case 2:
                         edges = []
-                        center   = np.mean(points[elem], axis=0)
-                        minext   = np.min( points[elem], axis=0)
+                        center   = np.mean(np.array([pointl[i] for i in elem]), axis=0)
+                        minext   = np.min( np.array([pointl[i] for i in elem]), axis=0)
                         edges    = np.zeros((8, 3))
                         signarr  = [-0.5, 0.5]
                         count = 0
@@ -209,13 +214,14 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                                                        center[1]+j*abs(center[1]-minext[1]),
                                                        center[2]+k*abs(center[2]-minext[2])]
                                     count+=1
-                        points   = np.append(points, edges, axis=0)
+                        for edge in edges:
+                            pointl.append(edge.tolist())
                         elem     = np.array(list(elem) + list(range(nPoints, nPoints+8)))
                         nPoints += count
                     case 4:
                         edges = []
-                        center   = np.mean(points[elem], axis=0)
-                        minext   = np.min( points[elem], axis=0)
+                        center   = np.mean(pointl[elem], axis=0)
+                        minext   = np.min( pointl[elem], axis=0)
                         edges    = np.zeros((64, 3))
                         signarr  = [-3./4., -1./4., 1./4., 3./4.]
                         count = 0
@@ -226,19 +232,20 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                                                        center[1]+j*abs(center[1]-minext[1]),
                                                        center[2]+k*abs(center[2]-minext[2])]
                                     count+=1
-                        points   = np.append(points, edges, axis=0)
+                        for edge in edges:
+                            pointl.append(edge.tolist())
                         elem     = np.array(list(elem) + list(range(nPoints, nPoints+count)))
                         nPoints += count
 
             # Split each element into sub-elements
-            subElems = elem[split(nGeo)]
+            subElems = elem[elemSplit]
 
             for subElem in subElems:
                 subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
 
                 for subFace in subFaces:
                     nFace   = (nGeo+1)*(nGeo+2)/2
-                    faceNum = faceMap(0) if len(subFace) == nFace else faceMap(1)
+                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
 
                     for cnodes, cname in csets_old.items():
@@ -247,30 +254,46 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                             continue
 
                         # For the first side on the BC, the dict does not exist
-                        try:
-                            prevSides          = csets_new[cname[0]]
-                            prevSides[faceNum] = np.append(prevSides[faceNum], nFaces[faceNum])
-                        except KeyError:
-                            # We only create the 2D and 3D elements
-                            prevSides          = [np.array([], dtype=int) for _ in range(2)]
-                            prevSides[faceNum] = np.asarray([nFaces[faceNum]]).astype(int)
-                            csets_new.update({cname[0]: prevSides})
+                        if cname[0] not in csets_lst:
+                            csets_lst[cname[0]] = [[], []]
+                        csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
 
-                    try:
-                        elems_new[faceType[faceNum]] = np.append(elems_new[faceType[faceNum]], np.array([subFace]).astype(int), axis=0)  # noqa: E501
-                    except KeyError:
-                        elems_new[faceType[faceNum]] = np.array([subFace]).astype(int)
+                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    nFaces[faceVal] += 1
 
-                    nFaces[faceNum] += 1
+            if elemName not in elems_lst:
+                elems_lst[elemName] = []
+            # Append all rows from subElems
+            elems_lst[elemName].extend(np.array(subElems, dtype=int).tolist())
 
-            try:
-                elems_new[elemName] = np.append(elems_new[elemName], np.array(subElems).astype(int), axis=0)
-            except KeyError:
-                elems_new[elemName] = np.array(subElems).astype(int)
+            bar.step()
+
+    # Close the progress bar
+    bar.close()
+
+    # Convert lists to NumPy arrays for elems_new and csets_new
+    elems_new = {}
+    csets_new = {}
+
+    for key in elems_lst:
+        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+            # Convert the list of accumulated arrays/lists into a single NumPy array
+            elems_new[key] = np.array(elems_lst[key], dtype=int)
+        elif isinstance(elems_lst[key], list) and not elems_lst[key]:
+            # Determine the expected number of columns
+            elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
+
+    for key in csets_lst:
+        csets_new[key] = [np.array(lst, dtype=int) for lst in csets_lst[key]]
+
+    # Convert points_list back to a NumPy array
+    points = np.array(pointl)
 
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
+
+    hopout.sep()
 
     return mesh
 
@@ -558,7 +581,9 @@ def prism_faces(order: int) -> list[np.ndarray]:
 
 
 # Dummy function for hexahedral elements
-def split_hex_to_hex(nodes: list, _: int) -> list[tuple[int, ...]]:
+@cache
+def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
+    nodes = np.arange((order + 1) ** 3)
     return [tuple(nodes)]
 
 
