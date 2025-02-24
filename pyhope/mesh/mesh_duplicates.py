@@ -65,6 +65,11 @@ def EliminateDuplicates() -> None:
     for bc_key, cset in mesh.cell_sets.items():
         # Find the matching boundary condition
         bcID = find_bc_index(bcs, bc_key)
+
+        # Ignore the volume zones
+        if 'Zone' in bc_key:
+            continue
+
         if bcID is None:
             hopout.warning(f'Could not find BC {bc_key} in list, exiting...')
             sys.exit(1)

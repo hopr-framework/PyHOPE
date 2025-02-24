@@ -41,16 +41,18 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-mode   : int                                      # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
-mesh   : meshio.Mesh                              # MeshIO object holding the mesh
-nGeo   : int                                      # Order of spline-reconstruction for curved surfaces
-sortIJK: bool                                     # Flag if mesh should be I,J,K sorted
+mode     : int                                    # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
+mesh     : meshio.Mesh                            # MeshIO object holding the mesh
+nGeo     : int                                    # Order of spline-reconstruction for curved surfaces
+sortIJK  : bool                                   # Flag if mesh should be I,J,K sorted
 
-bcs    : list[type | None]                        # [list of dict] - Boundary conditions
-vvs    : list                                     # [list of dict] - Periodic vectors
+bcs      : list[type | None]                      # [list of dict] - Boundary conditions
+vvs      : list                                   # [list of dict] - Periodic vectors
 
-elems  : list[type | None]                        # [list of list] - Element nodes
-sides  : list[type | None]                        # [list of list] - Side    nodes
+nZones   : int       = 1                          # Number of zones
+elemTypes: list[int] = []                         # Element types per zone
+elems    : list[type | None]                      # [list of list] - Element nodes
+sides    : list[type | None]                      # [list of list] - Side    nodes
 
 # Periodic nodes
 periNodes: dict                                   # Mapping from the periodic nodes to the master nodes

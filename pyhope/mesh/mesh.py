@@ -61,7 +61,7 @@ def DefineMesh() -> None:
     CreateRealArray('DX',              3,   multiple=True, help='Extension of the zone in each spatial direction ' +
                                                                  'starting from the origin X0 corner node')
     CreateIntArray( 'nElems',          3,   multiple=True, help='Number of elements in each direction')
-    CreateIntFromString('ElemType'      ,   default='hexahedron', help='Element type')
+    CreateIntFromString('ElemType'      ,   multiple=True, default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
         # Only consider uncurved element types
         if val > 200:

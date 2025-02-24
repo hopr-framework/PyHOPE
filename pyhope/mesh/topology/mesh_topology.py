@@ -28,6 +28,7 @@
 import sys
 import traceback
 from functools import cache
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -47,19 +48,51 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_vars import ELEMTYPE, nGeo
-    from pyhope.readintools.readintools import GetIntFromStr
     # ------------------------------------------------------
 
     # Split hexahedral elements if requested
-    elemType = GetIntFromStr('ElemType')
+    nZones    = mesh_vars.nZones
+    elemTypes = mesh_vars.elemTypes
+    elemNames = [None for _ in range(nZones)]  # noqa: E271
 
-    match elemType % 100:
-        case 8:
-            return mesh
-        case _:
-            # Simplex elements requested
-            if mesh_vars.nGeo > 4:
-                hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+    # No element types given
+    if len(elemTypes) == 0:
+        return mesh
+
+    # Fully hexahedral mesh
+    if all(elemType % 100 == 8 for elemType in elemTypes):
+        return mesh
+
+    # Simplex elements requested
+    if any(elemType % 100 != 8 for elemType in elemTypes):
+        if mesh_vars.nGeo > 4:
+            hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+            sys.exit(1)
+
+    # Instantiate ELEMTYPE
+    elemTypeInam = ELEMTYPE().inam
+
+    for i in range(nZones):
+        if nGeo == 1:
+            elemNames[i] = elemTypeInam[elemTypes[i]][0]
+        else:
+            # check whether user entered correct high-order element type
+            if elemTypes[i] < 200:
+                # Adapt to high-order element type
+                elemTypes[i] += 100
+
+            # Get the element name and skip the entries for incomplete 2nd order elements
+            try:
+                if elemTypes[i] % 100 == 5:    # pyramids (skip 1)
+                    elemNames[i] = elemTypeInam[elemTypes[i]][1]
+                elif elemTypes[i] % 100 == 6:  # prisms (skip 1)
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
+                elif elemTypes[i] % 100 == 8:  # hexahedra (skip 2)
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
+                else:                          # tetrahedra
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
+            except IndexError:
+                hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
                 sys.exit(1)
 
     # Copy original points
@@ -70,35 +103,18 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Get base key to distinguish between linear and high-order elements
     ho_key = 100 if nGeo == 1 else 200
 
-    # Instantiate ELEMTYPE
-    elemTypeInam = ELEMTYPE().inam
+    # Set up the element splitting function
+    elemSplitter = {ho_key + 4: (split_hex_to_tets , tetra_faces),
+                    ho_key + 5: (split_hex_to_pyram, pyram_faces),
+                    ho_key + 6: (split_hex_to_prism, prism_faces),
+                    # Keep hexahedral elements as they are
+                    ho_key + 8: (split_hex_to_hex  , hex_faces  )}
 
-    # Prepare new cell blocks and new cell_sets
-    elems_new = {}
-    csets_new = {}
-    if nGeo == 1:
-        elemName  = elemTypeInam[elemType][0]
-    else:
-        # check whether user entered correct high-order element type
-        if elemType < 200:
-            # Adapt to high-order element type
-            elemType += 100
-
-        # Get the element name and skip the entries for incomplete 2nd order elements
-        try:
-            if elemType % 100 == 5:    # pyramids (skip 1)
-                # FIXME: meshio package doesnt know
-                # elemName = elemTypeInam[elemType][nGeo-1]
-                elemName = elemTypeInam[elemType][1]
-            elif elemType % 100 == 6:  # prisms (skip 1)
-                elemName = elemTypeInam[elemType][nGeo-1]
-            elif elemType % 100 == 8:  # hexahedra (skip 2)
-                elemName = elemTypeInam[elemType][nGeo]
-            else:                      # tetrahedra
-                elemName = elemTypeInam[elemType][nGeo-2]
-        except IndexError:
-            hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemType, nGeo))
-            sys.exit(1)
+    faceMaper = { ho_key + 4: lambda x: 0,
+                  ho_key + 5: lambda x: 0 if x == 0 else 1,
+                  ho_key + 6: lambda x: 0 if x == 0 else 1,
+                  # Keep hexahedral elements as they are
+                  ho_key + 8: lambda x: 1}
 
     # Convert the (quad) boundary cell set into a dictionary
     csets_old = {}
@@ -109,46 +125,61 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             if elems_old[blockID].type[:4] != 'quad':
                 continue
 
+            # Ignore the volume zones
+            if block is None:
+                continue
+
             # Sort them as a set for membership checks
             for face in block:
                 nodes = mesh.cells_dict[elems_old[blockID].type][face]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
-    # Set up the element splitting function
-    elemSplitter = {ho_key + 4: (split_hex_to_tets , tetra_faces),
-                    ho_key + 5: (split_hex_to_pyram, pyram_faces),
-                    ho_key + 6: (split_hex_to_prism, prism_faces)}
-    split, faces = elemSplitter.get(elemType, (None, None))
-
-    if split is None or faces is None:
-        hopout.warning('Element type {} not supported for splitting'.format(elemType))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
-
     nPoints  = len(points)
-    nFaces   = np.zeros(2)
+    nFaces   = np.zeros(2, dtype=int)
     match nGeo:
         case 1:
-            faceType = ['triangle' , 'quad']
+            faceType = ['triangle'  , 'quad'  ]
+            faceNum  = [          3 ,       4 ]
         case 2:
-            faceType = ['triangle6', 'quad9']
+            faceType = ['triangle6' , 'quad9' ]
+            faceNum  = [          6 ,       9 ]
         case 4:
             faceType = ['triangle15', 'quad25']
+            faceNum  = [         15 ,      25 ]
         case _:
             hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
             sys.exit(1)
 
-    faceMaper = { ho_key + 4: lambda x: 0,
-                  ho_key + 5: lambda x: 0 if x == 0 else 1,
-                  ho_key + 6: lambda x: 0 if x == 0 else 1}
-    faceMap   = faceMaper.get(elemType, None)
+    # Prepare new cell blocks and new cell_sets
+    elems_new = {}
+    csets_new = {}
 
-    for cell in mesh.cells:
-        ctype, cdata = cell.type, cell.data
+    for ftype, fnum in zip(faceType, faceNum):
+        elems_new[ftype] = np.empty((0, fnum), dtype=int)
 
-        if ctype[:10] != 'hexahedron':
-            # Fill the cube recursively from the outside to the inside
-            continue
+    # Create the element sets
+    meshcells = [(k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys())]
+
+    # If meshcells is empty, we fake it assign it to Zone1
+    if len(meshcells) == 0:
+        meshcells = [('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
+                                                                              if k.startswith('hexahedron')]
+    for iElem, meshcell in enumerate(meshcells):
+        _    , mdict = meshcell
+        mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
+
+        elemType     = elemTypes[iElem]
+        elemName     = elemNames[iElem]
+
+        split, faces = elemSplitter.get(elemType, (None, None))
+        faceMap      = faceMaper.get(elemType, None)
+
+        cdata = mesh.get_cells_type(mtype)[mcell]
+
+        if split is None or faces is None:
+            hopout.warning('Element type {} not supported for splitting'.format(elemTypes[iElem]))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
 
         # Hex block: Split each element
         for elem in cdata:
@@ -542,6 +573,42 @@ def prism_faces(order: int) -> list:
                     np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), 17, 16, 15, 26, 25, 24, *range(33, 42)], dtype=int),
                     np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), 20, 19, 18, 29, 28, 27, *range(42, 51)], dtype=int),
                     np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), 23, 22, 21, 32, 31, 30, *range(51, 60)], dtype=int)]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+
+# Dummy function for hexahedral elements
+def split_hex_to_hex(nodes: list, _: int) -> list:
+    return [nodes]
+
+
+# Dummy function for hexahedral elements
+@cache
+def hex_faces(order: int) -> list:
+    # Local imports ----------------------------------------
+    # ------------------------------------------------------
+    match order:
+        case 1:
+            return [np.array([  0,  3,  2,  1], dtype=int),
+                    np.array([  0,  1,  5,  4], dtype=int),
+                    np.array([  1,  2,  6,  5], dtype=int),
+                    np.array([  2,  3,  7,  6], dtype=int),
+                    np.array([  0,  4,  7,  3], dtype=int),
+                    np.array([  4,  5,  6,  7], dtype=int)]
+        case 2:
+            return [np.array([  0,  3,  2,  1, 11, 10,  9,  8, 24], dtype=int),
+                    np.array([  0,  1,  5,  4,  8, 17, 12, 16, 22], dtype=int),
+                    np.array([  1,  2,  6,  5,  9, 18, 13, 17, 21], dtype=int),
+                    np.array([  2,  3,  7,  6, 10, 19, 14, 18, 23], dtype=int),
+                    np.array([  0,  4,  7,  3, 16, 15, 19, 11, 20], dtype=int),
+                    np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int)]
+        # FIXME: Implement NGeo=4 case
+        case 4:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

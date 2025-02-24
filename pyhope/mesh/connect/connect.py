@@ -246,6 +246,11 @@ def ConnectMesh() -> None:
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
         bcID = find_bc_index(bcs, key)
+
+        # Ignore the volume zones
+        if 'Zone' in key:
+            continue
+
         if bcID is None:
             hopout.warning(f'Could not find BC {key} in list, exiting...')
             sys.exit(1)
