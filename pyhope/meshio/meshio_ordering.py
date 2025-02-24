@@ -35,6 +35,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.meshio.reorder import HEXREORDER
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -94,10 +95,7 @@ class NodeOrdering:
                                        # > Pyramid
                                        'pyramid'     : [ 0, 1, 2, 3, 4],
                                        'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],
-                                       # > Hexahedron
-                                       'hexahedron'  : [ 0, 1, 2, 3, 4, 5, 6, 7],
-                                       'hexahedron20': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 ],
-                                       # For hexahedron27, hexahedron64, etc., we now use analytics
+                                       # > Hexahedron: for all hexahedron, we now use analytics
                                     }
     )
 
@@ -134,9 +132,22 @@ class NodeOrdering:
             raise ValueError(f'Unknown element type {elemType}')
 
         # For hexahedrons with analytic ordering
-        nNodes   = int(''.join(filter(str.isdigit, elemType)))
-        pGeo     = round(nNodes ** (1/3)) - 1
-        ordering = self._compute_hexahedron_meshio_order(pGeo)
+        nNodes = elemType.partition('hexahedron')[2]
+        if nNodes == '':
+            nNodes = 8
+        else:
+            nNodes = int(nNodes)
+
+        def deviation(x):
+            return abs(x - round(x))
+        if deviation(nNodes ** (1/3) - 1) < deviation((nNodes-8)/12 + 1):
+            nGeo = round(nNodes ** (1/3) - 1)
+            incomplete = False
+        else:
+            nGeo = round((nNodes-8)/12 + 1)
+            incomplete = True
+
+        ordering = HEXREORDER(nGeo,incomplete=incomplete)
         return idx[:, ordering]
 
     def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:
