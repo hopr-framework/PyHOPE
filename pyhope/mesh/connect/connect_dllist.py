@@ -61,13 +61,10 @@ class LinkOffsetManager:
         breakpoint update should occur. The effective index E is related to a stored index S by E = S + offset(S), where
         offset(S) is constant between breakpoints.
         """
-        for i in range(len(self.breakpoints)):
-            s, off = self.breakpoints[i]
-            next_s = self.breakpoints[i+1][0] if i+1 < len(self.breakpoints) else float('inf')
-            # In this segment, effective indices run from s + off up to next_s + off (non-inclusive)
-            if s + off <= effective_index < next_s + off:
-                return effective_index - off
-        return effective_index
+        # Precompute effective boundaries for each breakpoint.
+        effective_boundaries = [s + off for s, off in self.breakpoints]
+        pos = bisect.bisect_right(effective_boundaries, effective_index) - 1
+        return effective_index - self.breakpoints[pos][1]
 
     def update(self, insert_index: int, delta: int) -> None:
         """

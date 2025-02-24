@@ -360,7 +360,7 @@ def ConnectMesh() -> None:
             sys.exit(1)
 
         # Connect the mortar sides
-        elems, sides = ConnectMortar(nConnSide, nConnCenter, mesh, elems, sides, bar)
+        elems, sides = ConnectMortar(nConnSide, nConnCenter, elems, sides, bar)
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
