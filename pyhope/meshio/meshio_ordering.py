@@ -35,7 +35,6 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
-from pyhope.meshio.reorder import HEXREORDER
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -132,82 +131,120 @@ class NodeOrdering:
             raise ValueError(f'Unknown element type {elemType}')
 
         # For hexahedrons with analytic ordering
-        nNodes = elemType.partition('hexahedron')[2]
-        if nNodes == '':
-            nNodes = 8
-        else:
-            nNodes = int(nNodes)
+        nNodes = 8 if elemType.partition('hexahedron')[2] == '' else int(elemType.partition('hexahedron')[2])
 
-        def deviation(x):
-            return abs(x - round(x))
-        if deviation(nNodes ** (1/3) - 1) < deviation((nNodes-8)/12 + 1):
+        if self.deviation(nNodes ** (1/3) - 1) < self.deviation((nNodes-8)/12 + 1):
             nGeo = round(nNodes ** (1/3) - 1)
             incomplete = False
         else:
             nGeo = round((nNodes-8)/12 + 1)
             incomplete = True
 
-        ordering = HEXREORDER(nGeo,incomplete=incomplete)
+        ordering = self.HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
-    def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:
-        # 1) Corner nodes
-        mapping = list(range(8))
-        if p == 1:
-            return mapping
+    def deviation(self, x: float) -> float:
+        return abs(x - round(x))
 
-        # Permutation for the 12 edge blocks in meshio ordering.
-        GmshToMeshioEdgePerm = [0, 3, 5, 1, 8, 10, 11, 9, 2, 4, 6, 7]
-        # Permutation for the 6 face blocks.
-        GmshToMeshioFacePerm = [2, 3, 1, 4, 0, 5]
+    def HEXREORDER(self, order: int, incomplete: Optional[bool] = False) -> list[int]:
+        """ Converts node ordering from gmsh to meshio format
+        """
+        EDGEMAP   = tuple([  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7])
+        FACEMAP   = tuple([  2,  3,  1,  4,  0,  5])
 
-        # 2) Edge nodes.
-        nNodeEdgeEdge   = p - 1
-        nNodeEdgeTotal  = 12 * nNodeEdgeEdge
-        gmshEdgeNodes   = list(range(8, 8 + nNodeEdgeTotal))
-        # Partition edge nodes into 12 blocks.
-        blockEdge       = [gmshEdgeNodes[i * nNodeEdgeEdge : (i + 1) * nNodeEdgeEdge] for i in range(12)]
-        # Permute edge blocks to align with meshio order
-        blockEdgeOrient = [blockEdge[i] for i in GmshToMeshioEdgePerm]
-        blockEdgeOrient = [node for block in blockEdgeOrient for node in block]
-        mapping.extend(blockEdgeOrient)
+        order    += 1
+        nNodes    = 8 + 12*(order - 2) if incomplete else order**3
+        map: List = [None for _ in range(nNodes)]
 
-        # 3) Face nodes.
-        nNodeFaceFace   = (p - 1) ** 2
-        nNodeFaceTotal  = 6 * nNodeFaceFace
-        startFaceNode   = 8 + nNodeEdgeTotal
-        gmshFaceNodes   = list(range(startFaceNode, startFaceNode + nNodeFaceTotal))
-        # Partition face nodes into 6 blocks.
-        blockFace       = [gmshFaceNodes[i * nNodeFaceFace : (i + 1) * nNodeFaceFace] for i in range(6)]
-        # Permuted face blocks to align with meshio order
-        blockFaceOrient = [blockFace[i] for i in GmshToMeshioFacePerm]
-        blockFaceOrient = [node for block in blockFaceOrient for node in block]
-        mapping.extend(blockFaceOrient)
+        count = 0
+        # Recursively build the mapping
+        for iOrder in range(np.floor(order/2).astype(int)):
+            # Vertices
+            map[count:count+8] = list(range(count, count+8))
+            count += 8
 
-        # 4) Interior nodes.
-        # -- Interior nodes (recursive approach for p >= 4) --
-        nNodeInterior = (p - 1) ** 3
-        start_interior = startFaceNode + nNodeFaceTotal
+            pNodes = (order-2*(iOrder+1))
 
-        if p <= 3:
-            # For p <= 3, just append in natural order
-            interior_nodes = list(range(start_interior, start_interior + nNodeInterior))
-            mapping.extend(interior_nodes)
-        # If we are the outermost call, we need to handle the recursive case
-        elif not recursive:
-            # General chunk-based approach for p >= 4
-            remainder      = p - 2
-            subcubeIndices = []
-            currentOffset  = start_interior
+            # Edges
+            for iEdge in range(12):
+                iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
+                map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes   )]
+            count += pNodes*12
 
-            # Repeatedly carve out sub-cubes (of order=3) until remainder used up
-            while remainder >= 2:
-                currenMap = self._compute_hexahedron_meshio_order(remainder, recursive=True)
-                offsetMap = [currentOffset + node for node in currenMap]
-                subcubeIndices.extend(offsetMap)
-                currentOffset += len(currenMap)
-                remainder     -= 2
+            # Only vertices and edges of the outermost shell required for incomplete elements
+            if incomplete:
+                return map
 
-            mapping.extend(subcubeIndices)
+            # Faces
+            for iFace in range(6):
+                iSlice = slice(count + pNodes**2*iFace                , count + pNodes**2*(iFace+1))
+                map[iSlice] = [count + pNodes**2*(FACEMAP[iFace])+iNode for iNode in range(pNodes**2)]
+            count += pNodes**2*6
 
-        return mapping
+        if order % 2 != 0:
+            map[count] = count
+
+        return map
+
+    # INFO: Alternative implementation
+    # def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:
+    #     # 1) Corner nodes
+    #     mapping = list(range(8))
+    #     if p == 1:
+    #         return mapping
+    #
+    #     # Permutation for the 12 edge blocks in meshio ordering.
+    #     GmshToMeshioEdgePerm = [0, 3, 5, 1, 8, 10, 11, 9, 2, 4, 6, 7]
+    #     # Permutation for the 6 face blocks.
+    #     GmshToMeshioFacePerm = [2, 3, 1, 4, 0, 5]
+    #
+    #     # 2) Edge nodes
+    #     nNodeEdgeEdge   = p - 1
+    #     nNodeEdgeTotal  = 12 * nNodeEdgeEdge
+    #     gmshEdgeNodes   = list(range(8, 8 + nNodeEdgeTotal))
+    #     # Partition edge nodes into 12 blocks.
+    #     blockEdge       = [gmshEdgeNodes[i * nNodeEdgeEdge : (i + 1) * nNodeEdgeEdge] for i in range(12)]
+    #     # Permute edge blocks to align with meshio order
+    #     blockEdgeOrient = [blockEdge[i] for i in GmshToMeshioEdgePerm]
+    #     blockEdgeOrient = [node for block in blockEdgeOrient for node in block]
+    #     mapping.extend(blockEdgeOrient)
+    #
+    #     # 3) Face nodes
+    #     nNodeFaceFace   = (p - 1) ** 2
+    #     nNodeFaceTotal  = 6 * nNodeFaceFace
+    #     startFaceNode   = 8 + nNodeEdgeTotal
+    #     gmshFaceNodes   = list(range(startFaceNode, startFaceNode + nNodeFaceTotal))
+    #     # Partition face nodes into 6 blocks.
+    #     blockFace       = [gmshFaceNodes[i * nNodeFaceFace : (i + 1) * nNodeFaceFace] for i in range(6)]
+    #     # Permuted face blocks to align with meshio order
+    #     blockFaceOrient = [blockFace[i] for i in GmshToMeshioFacePerm]
+    #     blockFaceOrient = [node for block in blockFaceOrient for node in block]
+    #     mapping.extend(blockFaceOrient)
+    #
+    #     # 4) Interior nodes.
+    #     # -- Interior nodes (recursive approach for p >= 4) --
+    #     nNodeInterior = (p - 1) ** 3
+    #     start_interior = startFaceNode + nNodeFaceTotal
+    #
+    #     if p <= 3:
+    #         # For p <= 3, just append in natural order
+    #         interior_nodes = list(range(start_interior, start_interior + nNodeInterior))
+    #         mapping.extend(interior_nodes)
+    #     # If we are the outermost call, we need to handle the recursive case
+    #     elif not recursive:
+    #         # General chunk-based approach for p >= 4
+    #         remainder      = p - 2
+    #         subcubeIndices = []
+    #         currentOffset  = start_interior
+    #
+    #         # Repeatedly carve out sub-cubes (of order=3) until remainder used up
+    #         while remainder >= 2:
+    #             currenMap = self._compute_hexahedron_meshio_order(remainder, recursive=True)
+    #             offsetMap = [currentOffset + node for node in currenMap]
+    #             subcubeIndices.extend(offsetMap)
+    #             currentOffset += len(currenMap)
+    #             remainder     -= 2
+    #
+    #         mapping.extend(subcubeIndices)
+    #
+    #     return mapping
