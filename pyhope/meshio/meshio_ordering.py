@@ -27,7 +27,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, cast
+from typing import Dict, List, Union, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -72,69 +72,29 @@ class NodeOrdering:
     # Dictionary for conversion Gmsh to meshIO
     # > TODO: IMPLEMENT RECURSIVE MAPPING USING IO_MESHIO/IO_GMSH
     _meshio_ordering: Dict[str, List[int]] = field(
-            default_factory=lambda: { 'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
-                                      'hexahedron20': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 ],
-                                      'hexahedron27': [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, 22,
-                                                        23, 21, 24, 20, 25, 26 ],
-                                      'hexahedron64': [ 0, 1, 2, 3, 4, 5, 6, 7,  # Vertices
-
-                                                         8,  9,                  # Edge  1, x-, z- from (y-,y+)
-                                                        14, 15,                  # Edge  2, y+, z- from (x-,x+)
-                                                        18, 19,                  # Edge  3, x+, z+ from (y+,y-)
-                                                        10, 11,                  # Edge  4, y-, z+ from (x+,x-)
-
-                                                        24, 25,                  # Edge  5, x-, z+ from (y-,y+)
-                                                        28, 29,                  # Edge  6, y+, z+ from (x-,x+)
-                                                        30, 31,                  # Edge  7, x+, z- from (y+,y-)
-                                                        26, 27,                  # Edge  8, y-, z- from (x+,x-)
-
-                                                        12, 13,                  # Edge  9, x-, y- from (z-,z+)
-                                                        16, 17,                  # Edge 10, x+, y+ from (z-,z+)
-                                                        20, 21,                  # Edge 11, y-, z- from (x-,x+)
-                                                        22, 23,                  # Edge 12, y+, z+ from (x-,x+)
-
-                                                        40, 41, 42, 43,          # Face at x+
-                                                        44, 45, 46, 47,          # Face at y+
-                                                        36, 37, 38, 39,          # Face at y-
-                                                        48, 49, 50, 51,          # Face at x-
-                                                        32, 33, 34, 35,          # Face at z-
-                                                        52, 53, 54, 55,          # Face at z+
-
-                                                        # Interior nodes
-                                                        56, 57, 58, 59, 60, 61, 62, 63
-                                                    ],
-                                      'hexahedron125': [ 0, 1, 2, 3, 4, 5, 6, 7,  # Vertices
-
-                                                         8,  9, 10,               # Edge  1, x-, z- from (y-,y+)
-                                                        17, 18, 19,               # Edge  2, y+, z- from (x-,x+)
-                                                        23, 24, 25,               # Edge  3, x+, z+ from (y+,y-)
-                                                        11, 12, 13,               # Edge  4, y-, z+ from (x+,x-)
-
-                                                        32, 33, 34,               # Edge  5, x-, z+ from (y-,y+)
-                                                        38, 39, 40,               # Edge  6, y+, z+ from (x-,x+)
-                                                        41, 42, 43,               # Edge  7, x+, z- from (y+,y-)
-                                                        35, 36, 37,               # Edge  8, y-, z- from (x+,x-)
-
-                                                        14, 15, 16,               # Edge  9, x-, y- from (z-,z+)
-                                                        20, 21, 22,               # Edge 10, x+, y+ from (z-,z+)
-                                                        26, 27, 28,               # Edge 11, y-, z- from (x-,x+)
-                                                        29, 30, 31,               # Edge 12, y+, z+ from (x-,x+)
-
-                                                        62, 63, 64, 65, 66, 67, 68, 69, 70,  # Face at x+
-                                                        71, 72, 73, 74, 75, 76, 77, 78, 79,  # Face at y+
-                                                        53, 54, 55, 56, 57, 58, 59, 60, 61,  # Face at z+
-                                                        80, 81, 82, 83, 84, 85, 86, 87, 88,  # Face at x-
-                                                        44, 45, 46, 47, 48, 49, 50, 51, 52,  # Face at y-
-                                                        89, 90, 91, 92, 93, 94, 95, 96, 97,  # Face at z-
-
-                                                        # Interior nodes
-                                                        98,  99, 100, 101, 102, 103, 104, 105,                       # 1st,  8 corner nodes  # noqa: E501
-                                                        106, 109, 111, 107, 114, 116, 117, 115, 108, 110, 112, 113,  # 2nd, 12 edge   nodes  # noqa: E501
-                                                        120, 121, 119, 122, 118, 123, 124                            # 3rd,  6 face   nodes  # noqa: E501
-                                                    ],
-                                      'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
-                                      'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 16, 17 ],
-                                      'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],
+            default_factory=lambda: {  # 0D elements
+                                       # > Vertex
+                                       # 'vertex'      : [ 0 ],
+                                       # 1D elements
+                                       # > Line
+                                       # 'line'        : [ 0, 1 ],
+                                       # 2D elements
+                                       # > Triangle
+                                       # 'triangle'    : [ 0, 1, 2 ],
+                                       # > Quadrilateral
+                                       # 'quad'        : [ 0, 1, 2, 3 ],
+                                       # 3D elements
+                                       # > Tetrahedron
+                                       'tetra'       : [ 0, 1, 2, 3 ],
+                                       'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
+                                       # > Wedge
+                                       'wedge'       : [ 0, 1, 2, 3, 4, 5],
+                                       'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
+                                       'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 16, 17 ],
+                                       # > Pyramid
+                                       'pyramid'     : [ 0, 1, 2, 3, 4],
+                                       'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],
+                                       # > Hexahedron: for all hexahedron, we now use analytics
                                     }
     )
 
@@ -154,9 +114,137 @@ class NodeOrdering:
         """
         Return the meshIO node ordering for a given element type.
         """
+
         if isinstance(elemType, (int, np.integer)):
             elemType = self._gmsh_typing[int(elemType)]
 
-        if elemType not in self._meshio_ordering:
+        # 0D/1D/2D elements
+        if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
             return cast(np.ndarray, idx)
-        return idx[:, self._meshio_ordering[elemType]]
+
+        # Check if we have a fixed ordering
+        if elemType in self._meshio_ordering:
+            return cast(np.ndarray, idx[:, self._meshio_ordering[elemType]])
+
+        # Check if we are requesting higher-order simplices than currently implemented
+        if not elemType.startswith('hexahedron'):
+            raise ValueError(f'Unknown element type {elemType}')
+
+        # For hexahedrons with analytic ordering
+        nNodes = 8 if elemType.partition('hexahedron')[2] == '' else int(elemType.partition('hexahedron')[2])
+
+        if self.deviation(nNodes ** (1/3) - 1) < self.deviation((nNodes-8)/12 + 1):
+            nGeo = round(nNodes ** (1/3) - 1)
+            incomplete = False
+        else:
+            nGeo = round((nNodes-8)/12 + 1)
+            incomplete = True
+
+        ordering = self.HEXREORDER(nGeo, incomplete=incomplete)
+        return idx[:, ordering]
+
+    def deviation(self, x: float) -> float:
+        return abs(x - round(x))
+
+    def HEXREORDER(self, order: int, incomplete: Optional[bool] = False) -> list[int]:
+        """ Converts node ordering from gmsh to meshio format
+        """
+        EDGEMAP   = tuple([  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7])
+        FACEMAP   = tuple([  2,  3,  1,  4,  0,  5])
+
+        order    += 1
+        nNodes    = 8 + 12*(order - 2) if incomplete else order**3
+        map: List = [None for _ in range(nNodes)]
+
+        count = 0
+        # Recursively build the mapping
+        for iOrder in range(np.floor(order/2).astype(int)):
+            # Vertices
+            map[count:count+8] = list(range(count, count+8))
+            count += 8
+
+            pNodes = (order-2*(iOrder+1))
+
+            # Edges
+            for iEdge in range(12):
+                iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
+                map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes   )]
+            count += pNodes*12
+
+            # Only vertices and edges of the outermost shell required for incomplete elements
+            if incomplete:
+                return map
+
+            # Faces
+            for iFace in range(6):
+                iSlice = slice(count + pNodes**2*iFace                , count + pNodes**2*(iFace+1))
+                map[iSlice] = [count + pNodes**2*(FACEMAP[iFace])+iNode for iNode in range(pNodes**2)]
+            count += pNodes**2*6
+
+        if order % 2 != 0:
+            map[count] = count
+
+        return map
+
+    # INFO: Alternative implementation
+    # def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:
+    #     # 1) Corner nodes
+    #     mapping = list(range(8))
+    #     if p == 1:
+    #         return mapping
+    #
+    #     # Permutation for the 12 edge blocks in meshio ordering.
+    #     GmshToMeshioEdgePerm = [0, 3, 5, 1, 8, 10, 11, 9, 2, 4, 6, 7]
+    #     # Permutation for the 6 face blocks.
+    #     GmshToMeshioFacePerm = [2, 3, 1, 4, 0, 5]
+    #
+    #     # 2) Edge nodes
+    #     nNodeEdgeEdge   = p - 1
+    #     nNodeEdgeTotal  = 12 * nNodeEdgeEdge
+    #     gmshEdgeNodes   = list(range(8, 8 + nNodeEdgeTotal))
+    #     # Partition edge nodes into 12 blocks.
+    #     blockEdge       = [gmshEdgeNodes[i * nNodeEdgeEdge : (i + 1) * nNodeEdgeEdge] for i in range(12)]
+    #     # Permute edge blocks to align with meshio order
+    #     blockEdgeOrient = [blockEdge[i] for i in GmshToMeshioEdgePerm]
+    #     blockEdgeOrient = [node for block in blockEdgeOrient for node in block]
+    #     mapping.extend(blockEdgeOrient)
+    #
+    #     # 3) Face nodes
+    #     nNodeFaceFace   = (p - 1) ** 2
+    #     nNodeFaceTotal  = 6 * nNodeFaceFace
+    #     startFaceNode   = 8 + nNodeEdgeTotal
+    #     gmshFaceNodes   = list(range(startFaceNode, startFaceNode + nNodeFaceTotal))
+    #     # Partition face nodes into 6 blocks.
+    #     blockFace       = [gmshFaceNodes[i * nNodeFaceFace : (i + 1) * nNodeFaceFace] for i in range(6)]
+    #     # Permuted face blocks to align with meshio order
+    #     blockFaceOrient = [blockFace[i] for i in GmshToMeshioFacePerm]
+    #     blockFaceOrient = [node for block in blockFaceOrient for node in block]
+    #     mapping.extend(blockFaceOrient)
+    #
+    #     # 4) Interior nodes.
+    #     # -- Interior nodes (recursive approach for p >= 4) --
+    #     nNodeInterior = (p - 1) ** 3
+    #     start_interior = startFaceNode + nNodeFaceTotal
+    #
+    #     if p <= 3:
+    #         # For p <= 3, just append in natural order
+    #         interior_nodes = list(range(start_interior, start_interior + nNodeInterior))
+    #         mapping.extend(interior_nodes)
+    #     # If we are the outermost call, we need to handle the recursive case
+    #     elif not recursive:
+    #         # General chunk-based approach for p >= 4
+    #         remainder      = p - 2
+    #         subcubeIndices = []
+    #         currentOffset  = start_interior
+    #
+    #         # Repeatedly carve out sub-cubes (of order=3) until remainder used up
+    #         while remainder >= 2:
+    #             currenMap = self._compute_hexahedron_meshio_order(remainder, recursive=True)
+    #             offsetMap = [currentOffset + node for node in currenMap]
+    #             subcubeIndices.extend(offsetMap)
+    #             currentOffset += len(currenMap)
+    #             remainder     -= 2
+    #
+    #         mapping.extend(subcubeIndices)
+    #
+    #     return mapping

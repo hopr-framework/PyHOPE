@@ -375,7 +375,11 @@ convergence:
           success &= process_results(current_degree, current_data)
 
       # Final status
-      sys.exit(0 if success else print("Some EOCs are out of range.") or 1)
+      if not success:
+        print("Some EOCs are out of range.", flush=True)
+        sys.exit(1)
+      else:
+        sys.exit(0)
       EOF
 
         # Clean-up the log file

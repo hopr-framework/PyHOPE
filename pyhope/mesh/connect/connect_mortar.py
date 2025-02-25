@@ -38,13 +38,14 @@ from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import meshio
+# import meshio
 import numpy as np
 from scipy import spatial
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.output.output as hopout
+import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -53,7 +54,7 @@ import pyhope.output.output as hopout
 
 def ConnectMortar( nConnSide  : list
                  , nConnCenter: list
-                 , mesh       : meshio.Mesh
+                 # , mesh       : meshio.Mesh
                  , elems      : list
                  , sides      : list
                  , bar) -> tuple[list, list]:
@@ -63,7 +64,6 @@ def ConnectMortar( nConnSide  : list
             doPeriodic: Flag to enable periodic connections
     """
     # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.connect.connect_dllist import LinkOffsetManager, list_to_dllist, dllist_to_list
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
@@ -72,7 +72,7 @@ def ConnectMortar( nConnSide  : list
         return elems, sides
 
     # Cache mesh points for performance
-    points = mesh.points
+    points = mesh_vars.mesh.points
 
     # Set BC and periodic sides
     bcs = mesh_vars.bcs
@@ -140,7 +140,7 @@ def ConnectMortar( nConnSide  : list
             comboSides   = [nConnSide[iSide] for iSide in comboIDs]
 
             # Check if we found a valid match
-            if not find_mortar_match(targetSide.corners, comboSides, mesh, bcID):
+            if not find_mortar_match(targetSide.corners, comboSides, bcID):
                 continue
 
             # Get our and neighbor corner quad nodes
@@ -180,12 +180,6 @@ def ConnectMortar( nConnSide  : list
     return elems, sides
 
 
-def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
-    """ Check if the combined points of candidate sides match the target side
-    """
-    return np.all(np.isin(pts, slavePts))
-
-
 def connect_mortar_sides( sideIDs    : list
                         , elems      : list
                         , dllsides
@@ -195,10 +189,8 @@ def connect_mortar_sides( sideIDs    : list
         > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.connect.connect_dllist import ListNode
     from pyhope.mesh.connect.connect import flip_analytic
-    from pyhope.mesh.mesh_vars import SIDE
     from pyhope.mesh.mesh_common import type_to_mortar_flip
     # ------------------------------------------------------
 
@@ -216,6 +208,9 @@ def connect_mortar_sides( sideIDs    : list
         bcName        = mesh_vars.bcs[bcID].name
         masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in masterCorners), dtype=int)
 
+    # Convert to hashable tuple
+    masterCorners = tuple(masterCorners)
+
     # Build mortar type and orientation
     nMortars   = len(sideIDs[1])
     slaveSides = [dllsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1]]
@@ -224,14 +219,15 @@ def connect_mortar_sides( sideIDs    : list
         case 2:
             # Check which edges of big and small side are identical to determine the mortar type
             slaveSide    = slaveSides[0]
-            slaveCorners = slaveSide.corners
+            slaveCorners = tuple(slaveSide.corners)
 
             # Check which edges match
-            if   points_exist_in_target([masterCorners[0], masterCorners[1]], slaveCorners) or \
-                 points_exist_in_target([masterCorners[2], masterCorners[3]], slaveCorners):  # noqa: E271
+            # INFO: Uncached version
+            if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
+                 points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):  # noqa: E271
                 mortarType = 2
-            elif points_exist_in_target([masterCorners[1], masterCorners[2]], slaveCorners) or \
-                 points_exist_in_target([masterCorners[0], masterCorners[3]], slaveCorners):
+            elif points_exist_in_target((masterCorners[1], masterCorners[2]), slaveCorners) or \
+                 points_exist_in_target((masterCorners[0], masterCorners[3]), slaveCorners):
                 mortarType = 3
             else:
                 hopout.warning('Could not determine mortar type, exiting...')
@@ -243,13 +239,13 @@ def connect_mortar_sides( sideIDs    : list
 
             # Sort the small sides
             slaveSides = [s for i in [0, 2]
-                            for s in slaveSides if points_exist_in_target(masterCorners[i], s.corners)]
+                            for s in slaveSides if points_exist_in_target(masterCorners[i], tuple(s.corners))]
 
         case 4:
             mortarType = 1
             # Sort the small sides
             slaveSides = [s for i in [0, 1, 3, 2]
-                            for s in slaveSides if points_exist_in_target(masterCorners[i], s.corners)]
+                            for s in slaveSides if points_exist_in_target(masterCorners[i], tuple(s.corners))]
 
         case _:
             hopout.warning('Found invalid number of sides for mortar side, exiting...')
@@ -280,6 +276,9 @@ def connect_mortar_sides( sideIDs    : list
     # Build lists of new SIDE objects and their sideIDs.
     new_sides    = []
     new_sideIDs  = []
+
+    SIDE = mesh_vars.SIDE
+
     for i, slave in enumerate(slaveSides):
         corner   = mortarCorners[i]
         sCorners = slave.corners
@@ -324,13 +323,13 @@ def connect_mortar_sides( sideIDs    : list
 
 def find_mortar_match( targetCorners: np.ndarray
                      , comboSides   : list
-                     , mesh         : meshio.Mesh
+                     # , mesh         : meshio.Mesh
                      , bcID         : Optional[int] = None) -> bool:
     """ Check if the combined points of candidate sides match the target side within tolerance.
     """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
+
+    points = mesh_vars.mesh.points
+
     # Passing a bcID means we are dealing with periodic boundaries
     if bcID is not None:
         bcName        = mesh_vars.bcs[bcID].name
@@ -349,75 +348,34 @@ def find_mortar_match( targetCorners: np.ndarray
 
     # Build the target edges
     # INFO: Uncached version
-    # targetEdges = build_edges(targetCorners, mesh.points[targetCorners])
+    targetEdges = build_edges(targetCorners, points[targetCorners])
     # INFO: Cached version
-    targetEdges = build_edges(arrayToTuple(targetCorners), tuple(map(tuple, mesh.points[targetCorners])))
+    # targetEdges = build_edges(arrayToTuple(targetCorners), tuple(map(tuple, points[targetCorners])))
     matches     = []
 
     # First, check for 2-1 matches
     if len(comboSides) == 2:
-        # INFO: Uncached version
-        # sideEdges = [build_edges(side.corners, mesh.points[side.corners]) for side in comboSides]
-        # INFO: Cached version
-        sideEdges = [build_edges(arrayToTuple(side.corners), tuple(map(tuple, mesh.points[side.corners]))) for side in comboSides]
-
         # Look for 2-1 matches, we need exactly one common edge
-        for edge in sideEdges[0]:
-            targetP    = edge[:2]  # Start and end points (iX, jX)
-            targetDist = edge[2]   # Distance between points
-
-            # Initialize a list to store the matching combo edges for the current target edge
-            matchEdges = []
-
-            for comboEdge in sideEdges[1]:
-                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboDist = comboEdge[2]   # Distance between points
-
-                # Check if the points match and the distance is the same, taking into account the direction
-                if ((targetP==comboP)        or  # noqa: E272
-                    (targetP==comboP[::-1])) and \
-                    np.isclose(targetDist, comboDist):
-                    matchEdges.append(comboEdge)
-
-            # This should result in exactly 1 match
-            if len(matchEdges) == 1:
-                matches.append((edge, matchEdges.pop()))
-
-        # We only allow 2-1 matches, so in the end we should have exactly 1 match
-        if len(matches) != 1:
-            return False
-
-        # Here, we only allow 2-1 matches
         # INFO: Uncached version
-        # comboEdges  = (e for s in comboSides for e in build_edges(s.corners, mesh.points[s.corners]))
+        comboEdges  = (e for s in comboSides for e in build_edges(s.corners, points[s.corners]))
         # INFO: Cached version
-        comboEdges = (e for s in comboSides
-                        for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, mesh.points[s.corners]))))
+        # comboEdges = (e for s in comboSides
+        #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
         comboEdges = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
         matches     = []  # List to store matching edges
 
         # Iterate over each target edge
-        for targetEdge in targetEdges:
-            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
-            targetDist = targetEdge[2]   # Distance between points
+        # > Start and end points (iX, jX), distance between points
+        for *targetEdge, targetDist in targetEdges:
+            # Convert the star-unpacked targetEdge [list] into a tuple
+            targetEdge = tuple(targetEdge)
+            # Find the matching combo edges for the current target edge
+            matchEdges = [e for e in comboEdges if (targetEdge[:2] == e[:2] or targetEdge[:2] == e[1::-1]) and
+                                                   np.isclose(targetDist, e[2])]
 
-            # Initialize a list to store the matching combo edges for the current target edge
-            matchEdges = []
-
-            # Iterate over comboEdges to find matching edges
-            for comboEdge in comboEdges:
-                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                comboDist = comboEdge[2]   # Distance between points
-
-                # Check if the points match and the distance is the same, taking into account the direction
-                if ((targetP==comboP)        or  # noqa: E272
-                    (targetP==comboP[::-1])) and \
-                    np.isclose(targetDist, comboDist):
-                    matchEdges.append(comboEdge)
-
-            # This should result in exactly 1 match
+            # We only allow 2-1 matches, so in the end we should have exactly 1 match
             if len(matchEdges) > 1:
                 return False
             elif len(matchEdges) == 1:
@@ -436,34 +394,23 @@ def find_mortar_match( targetCorners: np.ndarray
             return False
 
         # INFO: Uncached version
-        # comboEdges  = (e for s in comboSides for e in build_edges(s.corners, mesh.points[s.corners]))
+        comboEdges  = (e for s in comboSides for e in build_edges(s.corners, points[s.corners]))
         # INFO: Cached version
-        comboEdges = (e for s in comboSides
-                        for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, mesh.points[s.corners]))))
+        # comboEdges = (e for s in comboSides
+        #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
         comboEdges = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
         matches     = []  # List to store matching edges
 
         # Iterate over each target edge
-        for targetEdge in targetEdges:
-            targetP    = targetEdge[:2]  # Start and end points (iX, jX)
-            targetDist = targetEdge[2]   # Distance between points
-
-            # Initialize a list to store the matching combo edges for the current target edge
-            matchEdges = []
-
-            # Iterate over comboEdges to find matching edges
-            for comboEdge in comboEdges:
-                comboP    = comboEdge[:2]  # Start and end points (iX, jX)
-                # comboP    = [mesh.points[s] for s in comboEdge[:2]]
-                comboDist = comboEdge[2]  # Distance between points
-
-                # Check if the points match and the distance is the same, taking into account the direction
-                if ((targetP==comboP)        or  # noqa: E272
-                    (targetP==comboP[::-1])) and \
-                    np.isclose(targetDist, comboDist):
-                    matchEdges.append(comboEdge)
+        # > Start and end points (iX, jX), distance between points
+        for *targetEdge, targetDist in targetEdges:
+            # Convert the star-unpacked targetEdge [list] into a tuple
+            targetEdge = tuple(targetEdge)
+            # Find the matching combo edges for the current target edge
+            matchEdges = [e for e in comboEdges if (targetEdge[:2] == e[:2] or targetEdge[:2] == e[1::-1]) and
+                                                   np.isclose(targetDist, e[2])]
 
             # This should result in exactly 1 match
             if len(matchEdges) > 1:
@@ -479,27 +426,24 @@ def find_mortar_match( targetCorners: np.ndarray
 
 
 # INFO: Uncached version
-# def build_edges(corners: np.ndarray, points: np.ndarray) -> list[tuple]:
-#     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
+# def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
+#     """ Check if the combined points of candidate sides match the target side
 #     """
-#     edges = [
-#         (corners[0], corners[1], np.linalg.norm(points[0] - points[1])),  # Edge between points 0 and 1
-#         (corners[1], corners[2], np.linalg.norm(points[1] - points[2])),  # Edge between points 1 and 2
-#         (corners[2], corners[3], np.linalg.norm(points[2] - points[3])),  # Edge between points 2 and 3
-#         (corners[3], corners[0], np.linalg.norm(points[3] - points[0])),  # Edge between points 3 and 0
-#     ]
-#     return edges
+#     return np.all(np.isin(pts, slavePts))
 
 
 # INFO: Cached version
-def arrayToTuple(array: np.ndarray) -> tuple:
-    return tuple(array.tolist())
-
-
-# @cache
 @lru_cache(maxsize=65536)
-def build_edges(corners: tuple, points: tuple) -> list:
-    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering"""
+def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
+    """ Check if the combined points of candidate sides match the target side
+    """
+    return np.all(np.isin(pts, slavePts))
+
+
+# INFO: Uncached version
+def build_edges(corners: np.ndarray, points: np.ndarray) -> list[tuple]:
+    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
+    """
     edges = [
         (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
         (corners[1], corners[2], np.linalg.norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
@@ -509,14 +453,31 @@ def build_edges(corners: tuple, points: tuple) -> list:
     return edges
 
 
+# INFO: Cached version
+# def arrayToTuple(array: np.ndarray) -> tuple:
+#     return tuple(array.tolist())
+#
+#
+# # @cache
+# @lru_cache(maxsize=65536)
+# def build_edges(corners: tuple, points: np.ndarray) -> list[tuple]:
+#     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
+#     """
+#     edges = [
+#         (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
+#         (corners[1], corners[2], np.linalg.norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
+#         (corners[2], corners[3], np.linalg.norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
+#         (corners[3], corners[0], np.linalg.norm(np.array(points[3]) - np.array(points[0]))),  # Edge between points 3 and 0
+#     ]
+#     return edges
+
+
 # @cache
 @lru_cache(maxsize=65536)
-def find_edge_combinations(comboEdges) -> list:
+def find_edge_combinations(comboEdges) -> list[tuple]:
     """Build combinations of edges that share exactly one point and form a line
     """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    # ------------------------------------------------------
+    points = mesh_vars.mesh.points
 
     # Create a dictionary to store edges by their shared points
     pointToEdges = defaultdict(list)
@@ -558,8 +519,8 @@ def find_edge_combinations(comboEdges) -> list:
                 point1, point2 = edgePoints
 
                 # Get the coordinates of the points
-                p1, p2 = mesh_vars.mesh.points[point1], mesh_vars.mesh.points[point2]
-                c1 = mesh_vars.mesh.points[commonPoint]
+                p1, p2 = points[point1], points[point2]
+                c1 = points[commonPoint]
 
                 # Calculate the bounding box of the two edge points
                 bbox_min = np.minimum(p1, p2)
