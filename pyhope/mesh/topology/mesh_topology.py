@@ -194,46 +194,97 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         for elem in cdata:
             # Pyramids need a center node
             if elemType % 100 == 5:
+                # Find the element orientation
+                # > The first 8 points (indices) in elem are the CGNS-ordered vertices
+                vertices = np.array([pointl[i] for i in elem[:8]])
+
+                # v[0] is origin, v[1] is local x-direction, v[2] is local y-direction, v[3] is local z-direction
+                v        = [vertices[0], vertices[1], vertices[3], vertices[4]]
+
+                # For each edge, find the Cartesian direction it is aligned with
+                # > This works if the element's edges are aligned with the global axes (possibly permuted)
+                a, b, c  = [np.argmax(np.abs(v[i] - v[0])) for i in range(1, 4)]
+                axes     = [a, b, c]
+
+                # Verify that the axes are distinct
+                if len(set(axes)) != 3:
+                    hopout.warning('Computed axes are not a proper permutation, exiting...')
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit(1)
+
+                # Verify that the axes are aligned with the global axes
+                for vec, dom in zip([v[1] - v[0], v[2] - v[0], v[3] - v[0]], [a, b, c]):
+                    if not np.all(np.abs(np.delete(vec, dom)) <= mesh_vars.tolInternal * abs(vec[dom])):
+                        # raise ValueError('Computed axes are not aligned with Cartesian axes, exiting...')
+                        hopout.warning('Computed axes are not aligned with Cartesian axes, exiting...')
+                        traceback.print_stack(file=sys.stdout)
+                        sys.exit(1)
+
+                # Determine the orientation (sign) of each local axis
+                sign = [np.sign((v[i] - v[0])[j]) for i, j in zip([1, 2, 3], [a, b, c])]
+
+                # Now, compute minext as the vertex that lies in the local negative direction.
+                # > Here, if the local axis is reversed (sign negative) we take the global maximum.
+                minext       = np.zeros(3)
+                minext[axes] = [np.min(vertices[:, j]) if sign[i] > 0 else np.max(vertices[:, j]) for i, j in enumerate(axes)]
+
+                # Compute the element center
+                center = np.mean(np.array([pointl[i] for i in elem]), axis=0)
+
                 match nGeo:
                     case 1:
-                        center = np.mean(np.array([pointl[i] for i in elem]), axis=0)
+                        # Append the new point to the point list
                         pointl.append(center.tolist())
+
+                        # Overwrite the element with the new indices
                         elem     = np.array(list(elem) + [nPoints])
                         nPoints += 1
                     case 2:
-                        edges = []
-                        center   = np.mean(np.array([pointl[i] for i in elem]), axis=0)
-                        minext   = np.min( np.array([pointl[i] for i in elem]), axis=0)
+                        # Generate the grid of new points
                         edges    = np.zeros((8, 3))
                         signarr  = [-0.5, 0.5]
-                        count = 0
+                        count    = 0
+
                         for k in signarr:
                             for j in signarr:
                                 for i in signarr:
-                                    edges[count, :] = [center[0]+i*abs(center[0]-minext[0]),
-                                                       center[1]+j*abs(center[1]-minext[1]),
-                                                       center[2]+k*abs(center[2]-minext[2])]
-                                    count+=1
+                                    new_point = [0, 0, 0]
+                                    # For each local axis, include the sign so that the offset goes in the local negative direction
+                                    new_point[axes[0]] = center[axes[0]] + i * sign[0] * abs(center[axes[0]] - minext[axes[0]])
+                                    new_point[axes[1]] = center[axes[1]] + j * sign[1] * abs(center[axes[1]] - minext[axes[1]])
+                                    new_point[axes[2]] = center[axes[2]] + k * sign[2] * abs(center[axes[2]] - minext[axes[2]])
+                                    edges[count, :] = new_point
+                                    count += 1
+
+                        # Append the new points to the point list
                         for edge in edges:
                             pointl.append(edge.tolist())
+
+                        # Overwrite the element with the new indices
                         elem     = np.array(list(elem) + list(range(nPoints, nPoints+8)))
                         nPoints += count
                     case 4:
-                        edges = []
-                        center   = np.mean(pointl[elem], axis=0)
-                        minext   = np.min( pointl[elem], axis=0)
-                        edges    = np.zeros((64, 3))
-                        signarr  = [-3./4., -1./4., 1./4., 3./4.]
-                        count = 0
+                        # Generate the grid of new points
+                        edges   = np.zeros((64, 3))
+                        signarr = [-3./4., -1./4., 1./4., 3./4.]
+                        count   = 0
+
                         for k in signarr:
                             for j in signarr:
                                 for i in signarr:
-                                    edges[count, :] = [center[0]+i*abs(center[0]-minext[0]),
-                                                       center[1]+j*abs(center[1]-minext[1]),
-                                                       center[2]+k*abs(center[2]-minext[2])]
-                                    count+=1
+                                    new_point = [0, 0, 0]
+                                    # For each local axis, include the sign so that the offset goes in the local negative direction
+                                    new_point[axes[0]] = center[axes[0]] + i * sign[0] * abs(center[axes[0]] - minext[axes[0]])
+                                    new_point[axes[1]] = center[axes[1]] + j * sign[1] * abs(center[axes[1]] - minext[axes[1]])
+                                    new_point[axes[2]] = center[axes[2]] + k * sign[2] * abs(center[axes[2]] - minext[axes[2]])
+                                    edges[count, :] = new_point
+                                    count += 1
+
+                        # Append the new points to the point list
                         for edge in edges:
                             pointl.append(edge.tolist())
+
+                        # Overwrite the element with the new indices
                         elem     = np.array(list(elem) + list(range(nPoints, nPoints+count)))
                         nPoints += count
 
@@ -514,28 +565,43 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
             return [(  0,  1,  3,  4,  5,  7,  8, 24, 11, 12, 25, 15, 16, 17, 19, 22, 26, 20),
                     (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
         case 4:
-            prism1 = (   0,   1,   3,   4,   5,   7,
-                         8,   9,  10,  83,  88,  81,  19,  18,  17,  # 6         #  noqa: E501
-                        20,  21,  22,  90,  97,  92,  31,  30,  29,  # 15        #  noqa: E501
-                        32,  33,  34,  35,  36,  37,  41,  42,  43,  # 24        #  noqa: E501
-                        62,  63,  64,  65,  66,  67,  68,  69,  70,  # face1:33  #  noqa: E501
-                        99, 101, 105, 103, 122, 117, 123, 115, 124,  # face2:42  #  noqa: E501
-                        47,  44,  45,  46,  51,  48,  49,  50,  52,  # face3:51  #  noqa: E501
-                        89,  93,  96,                                # face4 #60 #  noqa: E501
-                        80,  87,  84,                                # face5 #63 #  noqa: E501
-                        98, 106, 109, 114, 120, 118, 102, 110, 113)  # volume    #  noqa: E501
-
-            prism2 = (   1,   2,   3,   5,   6,   7,
-                        11,  12,  13,  14,  15,  16,  81,  88,  83,  # 6         #  noqa: E501
-                        23,  24,  25,  26,  27,  28,  92,  97,  90,  # 15        #  noqa: E501
-                        35,  36,  37,  38,  39,  40,  41,  42,  43,  # 24        #  noqa: E501
-                        53,  54,  55,  56,  57,  58,  59,  60,  61,  # face1     #  noqa: E501
-                        71,  72,  73,  74,  75,  76,  77,  78,  79,  # face3     #  noqa: E501
-                       101,  99, 103, 105, 122, 115, 123, 117, 124,  # face2     #  noqa: E501
-                        94,  91,  95,                                # face4     #  noqa: E501
-                        86,  82,  85,                                # face5     #  noqa: E501
-                       107, 100, 108, 119, 116, 121, 111, 104, 112)  # volume    #  noqa: E501
-
+            # prism1 = (   0,   1,   3,   4,   5,   7,
+            #              8,   9,  10,  83,  88,  81,  19,  18,  17,            # 6 vertices
+            #             20,  21,  22,  90,  97,  92,  31,  30,  29,            # Edge
+            #             32,  33,  34,  35,  36,  37,  41,  42,  43,            # Edge
+            #             62,  63,  64,  65,  66,  67,  68,  69,  70,            # Face 1
+            #             99, 101, 105, 103, 122, 117, 123, 115, 124,            # Face 2
+            #             47,  44,  45,  46,  51,  48,  49,  50,  52,            # Face 3
+            #             89,  93,  96,                                          # Face 4
+            #             80,  87,  84,                                          # Face 5
+            #             98, 106, 109, 114, 120, 118, 102, 110, 113)            # Volume
+            prism1 = (   0,   1,   3,   4,   5,   7,                           # 6 vertices
+                        *range( 8, 11), 83, 88, 81, *reversed(range(17, 20)),  # Edges
+                        *range(20, 23), 90, 97, 92, *reversed(range(29, 32)),  # Edges
+                        *range(32, 35), 35, 36, 37, *reversed(range(41, 44)),  # Face 1
+                        *range(62, 65), 65, 66, 67,          *range(68, 71) ,  # Face 2
+                         99,  101, 105, 103, 122,  117, 123, 115, 124,         # Face 3
+                         47, *range(44, 47),  51, *range(48, 51),  52,         # Face 4
+                         89,  93,  96, 80,  87,  84,                           # Face 5
+                         98, 106, 109, 114, 120, 118, 102, 110, 113)           # Volume
+            # prism2 = (   1,   2,   3,   5,   6,   7,                           # 6 vertices
+            #             11,  12,  13,  14,  15,  16,  81,  88,  83,            # Edges
+            #             23,  24,  25,  26,  27,  28,  92,  97,  90,            # Edges
+            #             35,  36,  37,  38,  39,  40,  41,  42,  43,            # Face 1
+            #             53,  54,  55,  56,  57,  58,  59,  60,  61,            # Face 2
+            #             71,  72,  73,  74,  75,  76,  77,  78,  79,            # Face 3
+            #            101,  99, 103, 105, 122, 115, 123, 117, 124,            # Face 4
+            #             94,  91,  95, 86,  82,  85,                            # Face 5
+            #            107, 100, 108, 119, 116, 121, 111, 104, 112)            # Volume
+            prism2 = (   1,   2,   3,   5,   6,   7,                           # 6 vertices
+                        *range(11, 14), *range(14, 17), 81, 88, 83,            # Edges
+                        *range(23, 26), *range(26, 29), 92, 97, 90,            # Edges
+                        *range(35, 38), *range(38, 41), 41, 42, 43,            # Face 1
+                        *range(53, 56), *range(56, 59), 59, 60, 61,            # Face 2
+                        *range(71, 74), *range(74, 77), 77, 78, 79,            # Face 3
+                        101,  99, 103, 105, 122, 115, 123, 117, 124,           # Face 4
+                         94,  91,  95,  86,  82,  85,                          # Face 5
+                        107, 100, 108, 119, 116, 121, 111, 104, 112)           # Volume
             return [prism1, prism2]
 
         case _:
@@ -571,9 +637,9 @@ def prism_faces(order: int) -> list[np.ndarray]:
                     np.array([  0, 1, 2, *range( 6, 15), *range(63, 66)], dtype=int),  # z-
                     np.array([  3, 4, 5, *range(15, 24), *range(60, 63)], dtype=int),  # z+
                     # Quadrilateral faces
-                    np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), 17, 16, 15, 26, 25, 24, *range(33, 42)], dtype=int),
-                    np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), 20, 19, 18, 29, 28, 27, *range(42, 51)], dtype=int),
-                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), 23, 22, 21, 32, 31, 30, *range(51, 60)], dtype=int)]
+                    np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), *reversed(range(15, 18)), *reversed(range(24, 27)), *range(33, 42)], dtype=int),  # noqa: E501
+                    np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), *reversed(range(18, 21)), *reversed(range(27, 30)), *range(42, 51)], dtype=int),  # noqa: E501
+                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)], dtype=int)]  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -608,19 +674,20 @@ def hex_faces(order: int) -> list[np.ndarray]:
                     np.array([  0,  4,  7,  3, 16, 15, 19, 11, 20], dtype=int),
                     np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int)]
         case 3:
-            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 12, 13, 14, 15, 48, 51, 50, 49], dtype=int),
-                    np.array([  0,  1,  5,  4,  8,  9, 26, 27, 17, 16, 25, 24, 40, 41, 42, 43], dtype=int),
-                    np.array([  1,  2,  6,  5, 10, 11, 28, 29, 19, 18, 27, 26, 36, 37, 38, 39], dtype=int),
-                    np.array([  2,  6,  7,  3, 28, 29, 20, 21, 31, 30, 13, 12, 44, 47, 46, 45], dtype=int),
-                    np.array([  0,  4,  7,  3, 24, 25, 23, 22, 31, 30, 14, 15, 32, 33, 34, 35], dtype=int),
-                    np.array([  4,  5,  6,  7, 16, 17, 18, 19, 20, 21, 22, 23, 52, 53, 54, 55], dtype=int)]
+            return [np.array([  0,  1,  2,  3, *range( 8, 10), *range(10, 12),          *range(12, 14),  *reversed(range(14, 16)), 48, *reversed(range(50, 52)), 49], dtype=int),  # noqa: E501
+                    np.array([  0,  1,  5,  4, *range( 8, 10), *range(26, 28), *reversed(range(16, 18)), *reversed(range(24, 26)), 40,          *range(41, 43) , 43], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  6,  5, *range(10, 12), *range(28, 30), *reversed(range(18, 20)), *reversed(range(26, 28)), 36,          *range(37, 39) , 39], dtype=int),  # noqa: E501
+                    np.array([  2,  6,  7,  3, *range(28, 30), *range(20, 22), *reversed(range(30, 32)), *reversed(range(12, 14)), 44, *reversed(range(46, 48)), 45], dtype=int),  # noqa: E501
+                    np.array([  0,  4,  7,  3, *range(24, 26), *range(22, 24), *reversed(range(32, 34)), *reversed(range(14, 16)), 32,          *range(33, 35) , 35], dtype=int),  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(16, 18), *range(18, 20),          *range(20, 22) , *reversed(range(22, 24)), 52,          *range(53, 55) , 54], dtype=int)]  # noqa: E501
         case 4:
-            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 12, 13, 14, 15, 16, 19, 18, 17, 80, 83, 82, 81, 87, 86, 85, 84, 88], dtype=int),   # noqa: E501
-                    np.array([  0,  1,  5,  4,  8,  9, 10, 35, 36, 37, 22, 21, 20, 34, 33, 32, 62, 63, 64, 65, 66, 67, 68, 69, 70], dtype=int),   # noqa: E501
-                    np.array([  1,  2,  6,  5, 11, 12, 13, 38, 39, 40, 25, 24, 23, 37, 36, 35, 53, 54, 55, 56, 57, 58, 59, 60, 61], dtype=int),   # noqa: E501
-                    np.array([  2,  6,  7,  3, 38, 39, 40, 26, 27, 28, 43, 42, 41, 16, 15, 14, 71, 74, 73, 72, 78, 77, 76, 75, 79], dtype=int),   # noqa: E501
-                    np.array([  0,  4,  7,  3, 32, 33, 34, 29, 30, 31, 43, 42, 41, 19, 18, 17, 44, 45, 46, 47, 48, 49, 50, 51, 52], dtype=int),   # noqa: E501
-                    np.array([  4,  5,  6,  7, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 30, 29, 89, 90, 91, 92, 93, 94, 95, 96, 97], dtype=int)]   # noqa: E501
+            return [np.array([  0,  1,  2,  3, *range( 8, 11), *range(11, 14),          *range(14, 17) , *reversed(range(17, 20)), 80, *reversed(range(81, 84)), 87, *reversed(range(84, 87)), 88], dtype=int),  # noqa: E501
+                    np.array([  0,  1,  5,  4, *range( 8, 11), *range(35, 38), *reversed(range(20, 23)), *reversed(range(32, 35)), 62,          *range(63, 66) , 66,          *range(67, 70) , 70], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  6,  5, *range(11, 14), *range(38, 41), *reversed(range(23, 26)), *reversed(range(35, 38)), 53,          *range(54, 57) , 57,          *range(58, 61) , 61], dtype=int),  # noqa: E501
+                    np.array([  2,  6,  7,  3, *range(38, 41), *range(26, 29), *reversed(range(41, 44)), *reversed(range(14, 17)), 71, *reversed(range(72, 75)), 78, *reversed(range(75, 78)), 79], dtype=int),  # noqa: E501
+                    np.array([  0,  4,  7,  3, *range(32, 35), *range(29, 32), *reversed(range(41, 44)), *reversed(range(17, 20)), 44,          *range(45, 48) , 48,          *range(49, 52) , 52], dtype=int),  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97], dtype=int)]  # noqa: E501
+
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

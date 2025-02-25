@@ -310,7 +310,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
 
                 }
     if elemType % 100 not in faces_map:
-        raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
+        raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
 
     try:
         return faces_map[elemType % 100][face]
