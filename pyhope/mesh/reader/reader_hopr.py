@@ -175,6 +175,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Create an empty meshio object
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
+    pointl   = cast(list, points.tolist())
     cells    = mesh.cells_dict
     cellsets = {}
 
@@ -220,7 +221,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # only retain the unique nodes
                 indices    = np.unique(nodeInfo, return_index=True)[1]
                 nodeCoords = nodeCoords[indices]
-                points     = np.append(points, nodeCoords, axis=0)
+                # points     = np.append(points, nodeCoords, axis=0)
+                # IMPORTANT: We need to extend the list of points, not append to it
+                pointl.extend(nodeCoords.tolist())
             else:
                 # ChangeBasis on the non-unique nodes
                 # > Currently only supported for hexahedrons
@@ -274,7 +277,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         elemNodes = np.expand_dims(nodeInfo[elemNodes] - 1 + offsetnNodes, axis=0)
                     else:
                         nElemNode = (mesh_vars.nGeo+1)**3
-                        elemIDs   = np.arange(points.shape[0], points.shape[0]+nElemNode, dtype=np.uint64)
+                        # elemIDs   = np.arange(points.shape[0], points.shape[0]+nElemNode, dtype=np.uint64)
+                        elemIDs   = np.arange(len(pointl), len(pointl)+nElemNode, dtype=np.uint64)
                         elemNodes = elemIDs[mapLin[:nElemNode]]
                         # This needs no offset as we already accounted for the number of points in elemIDs
                         elemNodes = np.expand_dims(         elemNodes                    , axis=0)
@@ -286,7 +290,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                             meshNodes = change_basis_3D(VdmEqHdf5ToEqMesh, meshNodes)
                             meshNodes = meshNodes.transpose(1, 2, 3, 0)
                             meshNodes = meshNodes.reshape((int((mesh_vars.nGeo+1)**3.), 3))
-                            points    = np.append(points, meshNodes, axis=0)
+                            # points    = np.append(points, meshNodes, axis=0)
+                            # IMPORTANT: We need to extend the list of points, not append to it
+                            pointl.extend(meshNodes.tolist())
                         except UnboundLocalError:
                             raise UnboundLocalError('Something went wrong with the change basis')
 
@@ -354,7 +360,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     bar()
 
                 # Update the offset for the next file
-                offsetnNodes = points.shape[0]
+                # offsetnNodes = points.shape[0]
+                offsetnNodes = len(pointl)
 
         # Cleanup temporary file
         if tfile is not None:
@@ -371,6 +378,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     for bc in cellsets:
         for side in cellsets[bc]:
             cellsets[bc][side] = np.array(cellsets[bc][side], dtype=np.uint64)
+
+    # Convert points_list back to a NumPy array
+    points = np.array(pointl)
 
     # > CS2: We create a meshio.Mesh object without cell_sets
     mesh   = meshio.Mesh(points    = points,    # noqa: E251

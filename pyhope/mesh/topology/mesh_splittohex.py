@@ -29,7 +29,7 @@ import sys
 import traceback
 from functools import cache
 from itertools import chain
-from typing import Tuple
+from typing import Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -51,6 +51,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
+    from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
     from pyhope.readintools.readintools import GetLogical, GetIntFromStr, CountOption
     # ------------------------------------------------------
@@ -83,13 +84,13 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         sys.exit(1)
 
     # Copy original points
-    points    = mesh.points.copy()
+    # points    = mesh.points.copy()
+    pointl    = cast(list, mesh.points.tolist())
     elems_old = mesh.cells.copy()
     cell_sets = getattr(mesh, 'cell_sets', {})
 
-    # Prepare new cell blocks and new cell_sets
-    elems_new = {}
-    csets_new = {}
+    faceType = ['triangle'  , 'quad'  ]
+    faceNum  = [          3 ,       4 ]
 
     # Convert the (triangle/quad) boundary cell set into a dictionary
     csets_old = {}
@@ -111,11 +112,23 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
                 nodes = mesh.cells_dict[elems_old[blockID].type][face]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
-    nPoints  = len(points)
+    # nPoints  = len(points)
+    nPoints  = len(pointl)
     nFaces   = np.zeros(2)
-    faceNum  = 0  # We only build quad faces
-    faceType = ['quad', 'hexahedron']
+
+    # Prepare new cell blocks and new cell_sets
+    elems_lst = {ftype: [] for ftype in faceType}
+    csets_lst = {}
+
+    # Hardcode quad element faces
+    faceVal  = 1
     subNodes = hexa_faces()
+
+    # Create the element sets
+    ignElems    = ['vertex', 'line', 'quad', 'triangle', 'pyramid', 'hexahedron']
+    meshcells   = [(k, v) for k, v in mesh.cells_dict.items() if not any(x in k for x in ignElems)]
+    nTotalElems = sum(zdata.shape[0] for _, zdata in meshcells)
+    bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
@@ -138,7 +151,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         # Split each element
         for elem in cdata:
             # Create array for new nodes
-            points, newNodes, nPoints = splitPoints(elem, points, nPoints)
+            # points, newNodes, nPoints = splitPoints(elem, points, nPoints)
+            pointl, newNodes, nPoints = splitPoints(elem, pointl, nPoints)
 
             # Reconstruct the cell sets for the boundary conditions
             # > They already exists for the triangular faces, but we create new quad faces with the edge and face centers
@@ -171,30 +185,47 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
                             continue
 
                         # For the first side on the BC, the dict does not exist
-                        try:
-                            prevSides          = csets_new[cname[0]]
-                            prevSides[faceNum] = np.append(prevSides[faceNum], nFaces[faceNum]).astype(int)
-                        except KeyError:
-                            # We only create the 2D and 3D elements
-                            prevSides          = [np.array([], dtype=int) for _ in range(2)]
-                            prevSides[faceNum] = np.asarray([nFaces[faceNum]]).astype(int)
-                            csets_new.update({cname[0]: prevSides})
+                        if cname[0] not in csets_lst:
+                            csets_lst[cname[0]] = [[], []]
+                        csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
 
-                    try:
-                        elems_new[faceType[faceNum]] = np.append(elems_new[faceType[faceNum]], np.array([subFace]).astype(int), axis=0)  # noqa: E501
-                    except KeyError:
-                        elems_new[faceType[faceNum]] = np.array([subFace]).astype(int)
+                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    nFaces[faceVal] += 1
 
-                    nFaces[faceNum] += 1
+            # Hardcode hexahedron elements
+            if 'hexahedron' not in elems_lst:
+                elems_lst['hexahedron'] = []
+            # Append all rows from subElems
+            # elems_lst['hexahedron'].extend(np.array(subElems, dtype=int).tolist())
+            elems_lst['hexahedron'].extend(subElems)
 
-            try:
-                elems_new['hexahedron'] = np.append(elems_new['hexahedron'], np.array(subElems).astype(int), axis=0)  # noqa: E501
-            except KeyError:
-                elems_new['hexahedron'] = np.array(subElems).astype(int)
+            # Update the progress bar
+            bar.step()
+
+    # Close the progress bar
+    bar.close()
+
+    # Convert lists to NumPy arrays for elems_new and csets_new
+    elems_new = {}
+    csets_new = {}
+
+    for key in elems_lst:
+        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+            # Convert the list of accumulated arrays/lists into a single NumPy array
+            elems_new[key] = np.array(elems_lst[key], dtype=int)
+        elif isinstance(elems_lst[key], list) and not elems_lst[key]:
+            # Determine the expected number of columns
+            elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
+
+    for key in csets_lst:
+        csets_new[key] = [np.array(lst, dtype=int) for lst in csets_lst[key]]
+
+    # Convert points_list back to a NumPy array
+    points = np.array(pointl)
 
     mesh = meshio.Mesh(points    = points,     # noqa: E251
-                         cells     = elems_new,  # noqa: E251
-                         cell_sets = csets_new)  # noqa: E251
+                       cells     = elems_new,  # noqa: E251
+                       cell_sets = csets_new)  # noqa: E251
     hopout.separator()
 
     return mesh
@@ -214,33 +245,36 @@ def hexa_faces() -> list[np.ndarray]:
            ]
 
 
-def tet_to_hex_points(elem: np.ndarray, points: np.ndarray, nPoints: int) -> Tuple[np.ndarray, np.ndarray, int]:
+# Helper function to compute the coordinate-wise average of points at given indices
+def compute_mean(points: list, indices: list[int]) -> list[float]:
+    pts = [points[int(idx)] for idx in indices]
+    # Zip the coordinates together and compute the average for each coordinate
+    return [sum(coords) / len(coords) for coords in zip(*pts)]
+
+
+def tet_to_hex_points(elem: np.ndarray, pointl: list, nPoints: int) -> Tuple[list, np.ndarray, int]:
     # Create an array for the new nodes
-    newPoints = np.zeros((11, 3), dtype=np.float64)
-    # Corner nodes
-    # newPoints[:4] = points[elem]
-    # Nodes on edges
-    newPoints[ 0] = np.mean(points[elem[[0, 1   ]]], axis=0)  # index 4
-    newPoints[ 1] = np.mean(points[elem[[1, 2   ]]], axis=0)  # index 5
-    newPoints[ 2] = np.mean(points[elem[[0, 2   ]]], axis=0)  # index 6
-    newPoints[ 3] = np.mean(points[elem[[0, 3   ]]], axis=0)  # index 7
-    newPoints[ 4] = np.mean(points[elem[[1, 3   ]]], axis=0)  # index 8
-    newPoints[ 5] = np.mean(points[elem[[2, 3   ]]], axis=0)  # index 9
-    # Nodes on faces
-    newPoints[ 6] = np.mean(points[elem[[0, 1, 2]]], axis=0)  # index 10
-    newPoints[ 7] = np.mean(points[elem[[0, 1, 3]]], axis=0)  # index 11
-    newPoints[ 8] = np.mean(points[elem[[1, 2, 3]]], axis=0)  # index 12
-    newPoints[ 9] = np.mean(points[elem[[0, 2, 3]]], axis=0)  # index 13
-    # Node inside
-    newPoints[10] = np.mean(points[elem[:        ]], axis=0)  # index 14
-    points = np.append(points, newPoints, axis=0)
+    newPoints = [  # Nodes on edges
+                   compute_mean(pointl, [elem[0], elem[1]]),           # index 4
+                   compute_mean(pointl, [elem[1], elem[2]]),           # index 5
+                   compute_mean(pointl, [elem[0], elem[2]]),           # index 6
+                   compute_mean(pointl, [elem[0], elem[3]]),           # index 7
+                   compute_mean(pointl, [elem[1], elem[3]]),           # index 8
+                   compute_mean(pointl, [elem[2], elem[3]]),           # index 9
+                   # Nodes on faces
+                   compute_mean(pointl, [elem[0], elem[1], elem[2]]),  # index 10
+                   compute_mean(pointl, [elem[0], elem[1], elem[3]]),  # index 11
+                   compute_mean(pointl, [elem[1], elem[2], elem[3]]),  # index 12
+                   compute_mean(pointl, [elem[0], elem[2], elem[3]]),  # index 13
+                   compute_mean(pointl, cast(list, elem.tolist()))     # Inside node
+                 ]
+    pointl.extend(newPoints)
 
     # Assemble list of all the nodes
-    # newNodes = list(elem) + np.arange(nPoints, nPoints + 11).tolist()
     newNodes = np.concatenate((elem, np.arange(nPoints, nPoints + 11)))
     nPoints += 11
 
-    return points, newNodes, nPoints
+    return pointl, newNodes, nPoints
 
 
 @cache
@@ -289,28 +323,52 @@ def tet_to_hex_split() -> list[np.ndarray]:
            ]
 
 
-def prism_to_hex_points(elem: np.ndarray, points: np.ndarray, nPoints: int) -> Tuple[np.ndarray, np.ndarray, int]:
+# def prism_to_hex_points(elem: np.ndarray, points: np.ndarray, nPoints: int) -> Tuple[np.ndarray, np.ndarray, int]:
+# def prism_to_hex_points(elem: np.ndarray, pointl: list, nPoints: int) -> Tuple[list, np.ndarray, int]:
+#     # Create an array for the new nodes
+#     newPoints = np.zeros((8, 3), dtype=np.float64)
+#     points    = np.array(pointl)
+#
+#     # Corner nodes
+#     # newPoints[:4] = points[elem]
+#     # Nodes on edges
+#     newPoints[ 0] = np.mean(points[elem[[0, 1   ]]], axis=0)  # index 6
+#     newPoints[ 1] = np.mean(points[elem[[1, 2   ]]], axis=0)  # index 7
+#     newPoints[ 2] = np.mean(points[elem[[0, 2   ]]], axis=0)  # index 8
+#     newPoints[ 3] = np.mean(points[elem[[3, 4   ]]], axis=0)  # index 9
+#     newPoints[ 4] = np.mean(points[elem[[4, 5   ]]], axis=0)  # index 10
+#     newPoints[ 5] = np.mean(points[elem[[3, 5   ]]], axis=0)  # index 11
+#     # Nodes on faces
+#     newPoints[ 6] = np.mean(points[elem[[0, 1, 2]]], axis=0)  # index 12
+#     newPoints[ 7] = np.mean(points[elem[[3, 4, 5]]], axis=0)  # index 13
+#     # points = np.append(points, newPoints, axis=0)
+#     pointl.extend(newPoints.tolist())
+#
+#     # Assemble list of all the nodes
+#     newNodes = np.array(list(elem) + np.arange(nPoints, nPoints + 8).tolist())
+#     nPoints += 8
+#
+#     # return points, newNodes, nPoints
+#     return pointl, newNodes, nPoints
+def prism_to_hex_points(elem: np.ndarray, pointl: list, nPoints: int) -> Tuple[list, np.ndarray, int]:
     # Create an array for the new nodes
-    newPoints = np.zeros((8, 3), dtype=np.float64)
-    # Corner nodes
-    # newPoints[:4] = points[elem]
-    # Nodes on edges
-    newPoints[ 0] = np.mean(points[elem[[0, 1   ]]], axis=0)  # index 6
-    newPoints[ 1] = np.mean(points[elem[[1, 2   ]]], axis=0)  # index 7
-    newPoints[ 2] = np.mean(points[elem[[0, 2   ]]], axis=0)  # index 8
-    newPoints[ 3] = np.mean(points[elem[[3, 4   ]]], axis=0)  # index 9
-    newPoints[ 4] = np.mean(points[elem[[4, 5   ]]], axis=0)  # index 10
-    newPoints[ 5] = np.mean(points[elem[[3, 5   ]]], axis=0)  # index 11
-    # Nodes on faces
-    newPoints[ 6] = np.mean(points[elem[[0, 1, 2]]], axis=0)  # index 12
-    newPoints[ 7] = np.mean(points[elem[[3, 4, 5]]], axis=0)  # index 13
-    points = np.append(points, newPoints, axis=0)
+    newPoints = [  # Nodes on edges
+                   compute_mean(pointl, [elem[0], elem[1]]),           # index 6
+                   compute_mean(pointl, [elem[1], elem[2]]),           # index 7
+                   compute_mean(pointl, [elem[0], elem[2]]),           # index 8
+                   compute_mean(pointl, [elem[3], elem[4]]),           # index 9
+                   compute_mean(pointl, [elem[4], elem[5]]),           # index 10
+                   compute_mean(pointl, [elem[3], elem[5]]),           # index 11
+                   # Nodes on faces
+                   compute_mean(pointl, [elem[0], elem[1], elem[2]]),  # index 12
+                   compute_mean(pointl, [elem[3], elem[4], elem[5]]),  # index 13
+                 ]
+    pointl.extend(newPoints)
 
     # Assemble list of all the nodes
     newNodes = np.array(list(elem) + np.arange(nPoints, nPoints + 8).tolist())
     nPoints += 8
-
-    return points, newNodes, nPoints
+    return pointl, newNodes, nPoints
 
 
 @cache

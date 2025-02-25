@@ -45,9 +45,9 @@ import numpy as np
 
 def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
-    from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import ELEMTYPE, nGeo
     # ------------------------------------------------------
 
@@ -118,6 +118,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                   ho_key + 6: lambda x: 0 if x == 0 else 1,
                   # Keep hexahedral elements as they are
                   ho_key + 8: lambda x: 1}
+    nFace   = (nGeo+1)*(nGeo+2)/2
 
     # Convert the (quad) boundary cell set into a dictionary
     csets_old = {}
@@ -295,7 +296,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
 
                 for subFace in subFaces:
-                    nFace   = (nGeo+1)*(nGeo+2)/2
                     faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
 
@@ -315,8 +315,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             if elemName not in elems_lst:
                 elems_lst[elemName] = []
             # Append all rows from subElems
-            elems_lst[elemName].extend(np.array(subElems, dtype=int).tolist())
+            # elems_lst[elemName].extend(np.array(subElems, dtype=int).tolist())
+            elems_lst[elemName].extend(subElems)
 
+            # Update the progress bar
             bar.step()
 
     # Close the progress bar
