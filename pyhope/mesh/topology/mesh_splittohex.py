@@ -152,7 +152,13 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         for elem in cdata:
             # Create array for new nodes
             # points, newNodes, nPoints = splitPoints(elem, points, nPoints)
-            pointl, newNodes, nPoints = splitPoints(elem, pointl, nPoints)
+            newPoints = splitPoints(elem, pointl)
+
+            # Assemble the new nodes
+            # newNodes   = np.concatenate((elem, np.arange(nPoints, nPoints + len(newPoints))))
+            newNodes   = np.array(elem.tolist() + list(range(nPoints, nPoints + len(newPoints))), dtype=int)
+            nPoints   += len(newPoints)
+            pointl.extend(newPoints)
 
             # Reconstruct the cell sets for the boundary conditions
             # > They already exists for the triangular faces, but we create new quad faces with the edge and face centers
@@ -252,29 +258,22 @@ def compute_mean(points: list, indices: list[int]) -> list[float]:
     return [sum(coords) / len(coords) for coords in zip(*pts)]
 
 
-def tet_to_hex_points(elem: np.ndarray, pointl: list, nPoints: int) -> Tuple[list, np.ndarray, int]:
+def tet_to_hex_points(elem: np.ndarray, pointl: list) -> list[list[float]]:
     # Create an array for the new nodes
-    newPoints = [  # Nodes on edges
-                   compute_mean(pointl, [elem[0], elem[1]]),           # index 4
-                   compute_mean(pointl, [elem[1], elem[2]]),           # index 5
-                   compute_mean(pointl, [elem[0], elem[2]]),           # index 6
-                   compute_mean(pointl, [elem[0], elem[3]]),           # index 7
-                   compute_mean(pointl, [elem[1], elem[3]]),           # index 8
-                   compute_mean(pointl, [elem[2], elem[3]]),           # index 9
-                   # Nodes on faces
-                   compute_mean(pointl, [elem[0], elem[1], elem[2]]),  # index 10
-                   compute_mean(pointl, [elem[0], elem[1], elem[3]]),  # index 11
-                   compute_mean(pointl, [elem[1], elem[2], elem[3]]),  # index 12
-                   compute_mean(pointl, [elem[0], elem[2], elem[3]]),  # index 13
-                   compute_mean(pointl, cast(list, elem.tolist()))     # Inside node
-                 ]
-    pointl.extend(newPoints)
-
-    # Assemble list of all the nodes
-    newNodes = np.concatenate((elem, np.arange(nPoints, nPoints + 11)))
-    nPoints += 11
-
-    return pointl, newNodes, nPoints
+    return [  # Nodes on edges
+              compute_mean(pointl, [elem[0], elem[1]]),           # index 4
+              compute_mean(pointl, [elem[1], elem[2]]),           # index 5
+              compute_mean(pointl, [elem[0], elem[2]]),           # index 6
+              compute_mean(pointl, [elem[0], elem[3]]),           # index 7
+              compute_mean(pointl, [elem[1], elem[3]]),           # index 8
+              compute_mean(pointl, [elem[2], elem[3]]),           # index 9
+              # Nodes on faces
+              compute_mean(pointl, [elem[0], elem[1], elem[2]]),  # index 10
+              compute_mean(pointl, [elem[0], elem[1], elem[3]]),  # index 11
+              compute_mean(pointl, [elem[1], elem[2], elem[3]]),  # index 12
+              compute_mean(pointl, [elem[0], elem[2], elem[3]]),  # index 13
+              compute_mean(pointl, cast(list, elem.tolist()))     # Inside node
+            ]
 
 
 @cache
@@ -350,25 +349,19 @@ def tet_to_hex_split() -> list[np.ndarray]:
 #
 #     # return points, newNodes, nPoints
 #     return pointl, newNodes, nPoints
-def prism_to_hex_points(elem: np.ndarray, pointl: list, nPoints: int) -> Tuple[list, np.ndarray, int]:
+def prism_to_hex_points(elem: np.ndarray, pointl: list) -> list[list[float]]:
     # Create an array for the new nodes
-    newPoints = [  # Nodes on edges
-                   compute_mean(pointl, [elem[0], elem[1]]),           # index 6
-                   compute_mean(pointl, [elem[1], elem[2]]),           # index 7
-                   compute_mean(pointl, [elem[0], elem[2]]),           # index 8
-                   compute_mean(pointl, [elem[3], elem[4]]),           # index 9
-                   compute_mean(pointl, [elem[4], elem[5]]),           # index 10
-                   compute_mean(pointl, [elem[3], elem[5]]),           # index 11
-                   # Nodes on faces
-                   compute_mean(pointl, [elem[0], elem[1], elem[2]]),  # index 12
-                   compute_mean(pointl, [elem[3], elem[4], elem[5]]),  # index 13
-                 ]
-    pointl.extend(newPoints)
-
-    # Assemble list of all the nodes
-    newNodes = np.array(list(elem) + np.arange(nPoints, nPoints + 8).tolist())
-    nPoints += 8
-    return pointl, newNodes, nPoints
+    return [  # Nodes on edges
+              compute_mean(pointl, [elem[0], elem[1]]),           # index 6
+              compute_mean(pointl, [elem[1], elem[2]]),           # index 7
+              compute_mean(pointl, [elem[0], elem[2]]),           # index 8
+              compute_mean(pointl, [elem[3], elem[4]]),           # index 9
+              compute_mean(pointl, [elem[4], elem[5]]),           # index 10
+              compute_mean(pointl, [elem[3], elem[5]]),           # index 11
+              # Nodes on faces
+              compute_mean(pointl, [elem[0], elem[1], elem[2]]),  # index 12
+              compute_mean(pointl, [elem[3], elem[4], elem[5]]),  # index 13
+            ]
 
 
 @cache
