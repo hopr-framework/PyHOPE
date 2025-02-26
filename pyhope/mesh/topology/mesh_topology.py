@@ -318,12 +318,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 @cache
 def split_hex_to_tets(order: int) -> list[tuple]:
     """
-    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-    return a list of new tetra element connectivity lists.
+    Given the indices of a single hexahedral element, return a list of new tetra element connectivity lists
 
-    The node numbering convention assumed here:
-      (c0, c1, c2, c3, c4, c5, c6, c7)
-    is the usual:
+    The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
           7-------6
          /|      /|
         4-------5 |
@@ -393,8 +390,7 @@ def split_hex_to_tets(order: int) -> list[tuple]:
 @cache
 def tetra_faces(order: int) -> list[np.ndarray]:
     """
-    Given 4 tet corner indices, return the 4 triangular faces as tuples.
-    Each face is a triple (n0, n1, n2)
+    Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
     match order:
         case 1:
@@ -421,8 +417,7 @@ def tetra_faces(order: int) -> list[np.ndarray]:
 @cache
 def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
     """
-    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-    return a list of new pyramid element connectivity lists.
+    Given the indices of a single hexahedral element, return a list of new pyramid element connectivity lists
     """
     match order:
         case 1:
@@ -483,7 +478,7 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
 @cache
 def pyram_faces(order: int) -> list[np.ndarray]:
     """
-    Given the 5 pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples.
+    Given the pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples
     """
     match order:
         case 1:
@@ -519,8 +514,7 @@ def pyram_faces(order: int) -> list[np.ndarray]:
 @cache
 def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
     """
-    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-    return a list of new prism element connectivity lists.
+    Given the indices of a single hexahedral element, return a list of new prism element connectivity lists
     """
     match order:
         case 1:
@@ -622,8 +616,8 @@ def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
 # Dummy function for hexahedral elements
 @cache
 def hex_faces(order: int) -> list[np.ndarray]:
-    # Local imports ----------------------------------------
-    # ------------------------------------------------------
+    """ Given the indices of a hexahedral element, return the 6 faces as tuples
+    """
     match order:
         case 1:
             return [np.array([  0,  1,  2,  3], dtype=int),
@@ -653,7 +647,6 @@ def hex_faces(order: int) -> list[np.ndarray]:
                     np.array([  2,  6,  7,  3, *range(38, 41), *range(26, 29), *reversed(range(41, 44)), *reversed(range(14, 17)), 71, *reversed(range(72, 75)), 78, *reversed(range(75, 78)), 79], dtype=int),  # noqa: E501
                     np.array([  0,  4,  7,  3, *range(32, 35), *range(29, 32), *reversed(range(41, 44)), *reversed(range(17, 20)), 44,          *range(45, 48) , 48,          *range(49, 52) , 52], dtype=int),  # noqa: E501
                     np.array([  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97], dtype=int)]  # noqa: E501
-
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
