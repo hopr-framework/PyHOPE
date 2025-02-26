@@ -200,37 +200,11 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 vertices = np.array([pointl[i] for i in elem[:8]])
 
                 # v[0] is origin, v[1] is local x-direction, v[2] is local y-direction, v[3] is local z-direction
-                v        = [vertices[0], vertices[1], vertices[3], vertices[4]]
-
-                # For each edge, find the Cartesian direction it is aligned with
-                # > This works if the element's edges are aligned with the global axes (possibly permuted)
-                a, b, c  = [np.argmax(np.abs(v[i] - v[0])) for i in range(1, 4)]
-                axes     = [a, b, c]
-
-                # Verify that the axes are distinct
-                if len(set(axes)) != 3:
-                    hopout.warning('Computed axes are not a proper permutation, exiting...')
-                    traceback.print_stack(file=sys.stdout)
-                    sys.exit(1)
-
-                # Verify that the axes are aligned with the global axes
-                for vec, dom in zip([v[1] - v[0], v[2] - v[0], v[3] - v[0]], [a, b, c]):
-                    if not np.all(np.abs(np.delete(vec, dom)) <= mesh_vars.tolInternal * abs(vec[dom])):
-                        # raise ValueError('Computed axes are not aligned with Cartesian axes, exiting...')
-                        hopout.warning('Computed axes are not aligned with Cartesian axes, exiting...')
-                        traceback.print_stack(file=sys.stdout)
-                        sys.exit(1)
-
-                # Determine the orientation (sign) of each local axis
-                sign = [np.sign((v[i] - v[0])[j]) for i, j in zip([1, 2, 3], [a, b, c])]
-
-                # Now, compute minext as the vertex that lies in the local negative direction.
-                # > Here, if the local axis is reversed (sign negative) we take the global maximum.
-                minext       = np.zeros(3)
-                minext[axes] = [np.min(vertices[:, j]) if sign[i] > 0 else np.max(vertices[:, j]) for i, j in enumerate(axes)]
+                # > This only works for trapezoidal elements
+                v        = [vertices[0], vertices[1]-vertices[0], vertices[3]-vertices[0], vertices[4]-vertices[0]]
 
                 # Compute the element center
-                center = np.mean(np.array([pointl[i] for i in elem]), axis=0)
+                center   = np.mean(np.array([pointl[i] for i in elem]), axis=0)
 
                 match nGeo:
                     case 1:
@@ -249,12 +223,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         for k in signarr:
                             for j in signarr:
                                 for i in signarr:
-                                    new_point = [0, 0, 0]
-                                    # For each local axis, include the sign so that the offset goes in the local negative direction
-                                    new_point[axes[0]] = center[axes[0]] + i * sign[0] * abs(center[axes[0]] - minext[axes[0]])
-                                    new_point[axes[1]] = center[axes[1]] + j * sign[1] * abs(center[axes[1]] - minext[axes[1]])
-                                    new_point[axes[2]] = center[axes[2]] + k * sign[2] * abs(center[axes[2]] - minext[axes[2]])
-                                    edges[count, :] = new_point
+                                    edges[count, :] = center + 0.5*i*v[1] + 0.5*j*v[2] + 0.5*k*v[3]
                                     count += 1
 
                         # Append the new points to the point list
@@ -273,12 +242,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         for k in signarr:
                             for j in signarr:
                                 for i in signarr:
-                                    new_point = [0, 0, 0]
-                                    # For each local axis, include the sign so that the offset goes in the local negative direction
-                                    new_point[axes[0]] = center[axes[0]] + i * sign[0] * abs(center[axes[0]] - minext[axes[0]])
-                                    new_point[axes[1]] = center[axes[1]] + j * sign[1] * abs(center[axes[1]] - minext[axes[1]])
-                                    new_point[axes[2]] = center[axes[2]] + k * sign[2] * abs(center[axes[2]] - minext[axes[2]])
-                                    edges[count, :] = new_point
+                                    edges[count, :] = center + 0.5*i*v[1] + 0.5*j*v[2] + 0.5*k*v[3]
                                     count += 1
 
                         # Append the new points to the point list
