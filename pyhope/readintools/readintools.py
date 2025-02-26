@@ -492,7 +492,7 @@ class ReadConfig():
 
                     # Ensure unique variable names
                     for existing_var in variables:
-                        if existing_var in var_name or var_name in existing_var:
+                        if var_name in set(existing_var):
                             hopout.warning(f"Variable '{var_name}' is ambiguous")
                             sys.exit(1)
 
