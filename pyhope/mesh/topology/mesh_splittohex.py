@@ -28,8 +28,8 @@
 import sys
 import traceback
 from functools import cache
-from itertools import chain
-from typing import Tuple
+from collections import defaultdict
+from typing import Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -51,12 +51,12 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
+    from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
     from pyhope.readintools.readintools import GetLogical, GetIntFromStr, CountOption
     # ------------------------------------------------------
 
     if CountOption('doSplitToHex') == 0:
-        hopout.sep()
         return mesh
 
     hopout.separator()
@@ -84,16 +84,17 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         sys.exit(1)
 
     # Copy original points
-    points    = mesh.points.copy()
+    # points    = mesh.points.copy()
+    points    = mesh.points
+    pointl    = cast(list, mesh.points.tolist())
     elems_old = mesh.cells.copy()
     cell_sets = getattr(mesh, 'cell_sets', {})
 
-    # Prepare new cell blocks and new cell_sets
-    elems_new = {}
-    csets_new = {}
+    faceType = ['triangle'  , 'quad'  ]
+    faceNum  = [          3 ,       4 ]
 
     # Convert the (triangle/quad) boundary cell set into a dictionary
-    csets_old = {}
+    csets_old = defaultdict(list)
 
     for cname, cblock in cell_sets.items():
         if cblock is None:
@@ -110,13 +111,36 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             # Sort them as a set for membership checks
             for face in block:
                 nodes = mesh.cells_dict[elems_old[blockID].type][face]
-                csets_old.setdefault(frozenset(nodes), []).append(cname)
+                csets_old[frozenset(nodes)].append(cname)
 
-    nPoints  = len(points)
+    # nPoints  = len(points)
+    nPoints  = len(pointl)
     nFaces   = np.zeros(2)
-    faceNum  = 0  # We only build quad faces
-    faceType = ['quad', 'hexahedron']
+
+    # Prepare new cell blocks and new cell_sets
+    elems_lst = {ftype: [] for ftype in faceType}
+    csets_lst = {}
+
+    # Hardcode quad element faces
+    faceVal  = 1
     subNodes = hexa_faces()
+
+    # Check if the mesh contains any pyramids
+    if 'pyramid' in mesh.cells_dict:
+        hopout.warning('Pyramids are not supported for splitting, exiting...')
+        sys.exit(1)
+
+    # Create the element sets
+    ignElems    = ['vertex', 'line', 'quad', 'triangle', 'pyramid', 'hexahedron']
+    meshcells   = [(k, v) for k, v in mesh.cells_dict.items() if not any(x in k for x in ignElems)]
+    nTotalElems = sum(zdata.shape[0] for _, zdata in meshcells)
+    bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
+
+    # Build an inverted index to map each node to all face keys (from csets_old) that contain it
+    nodeToFace = defaultdict(set)
+    for subFace in csets_old:
+        for node in subFace:
+            nodeToFace[node].add(subFace)
 
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
@@ -135,11 +159,18 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         # Setup split functions
         subIdxs            = splitElems()
         oldFIdxs, subFIdxs = splitFaces()
+        subPts             = splitPoints(order=1)
 
-        # Split each element
+        # Iterate over element types
         for elem in cdata:
             # Create array for new nodes
-            points, newNodes, nPoints = splitPoints(elem, points, nPoints)
+            newPoints = [np.mean(points[elem[i]], axis=0) for i in subPts]
+
+            # Assemble the new nodes
+            # newNodes   = np.concatenate((elem, np.arange(nPoints, nPoints + len(newPoints))))
+            newNodes   = np.array(elem.tolist() + list(range(nPoints, nPoints + len(newPoints))), dtype=int)
+            nPoints   += len(newPoints)
+            pointl.extend(newPoints)
 
             # Reconstruct the cell sets for the boundary conditions
             # > They already exists for the triangular faces, but we create new quad faces with the edge and face centers
@@ -147,55 +178,83 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             oldFaces = [frozenset(newNodes[oldFIdx]) for oldFIdx in oldFIdxs]
             newFaces = [          newNodes[subFIdx]  for subFIdx in subFIdxs]  # noqa: E272
 
+            # Deferr update for new boundary faces
+            # > Instead of updating csets_old repeatedly, we collect deferred updates
+            newBCFaces = []  # List of tuples: (new_face_key, combined_name)
             for oldFace, subFaces in zip(oldFaces, newFaces):
-                # Check if the triangular faces is a boundary face
-                for cnodes, cname in csets_old.items():
-                    cname = ''.join(list(chain.from_iterable(cname)))
-                    if oldFace.issubset(cnodes):
-                        # Create the new quadrilateral boundary faces
-                        for subFace in subFaces:
-                            csets_old.setdefault(frozenset(subFace), []).append(cname)
-                        # Done with this triangular face, break the (inner) loop
+                # Use the inverted index to get candidate face keys that might contain oldFace
+                candidate_sets = [nodeToFace[node] for node in oldFace if node in nodeToFace]
+                if not candidate_sets:
+                    continue
+
+                # Intersection of candidate sets reduces the number of checks
+                common_candidates = set.intersection(*candidate_sets)
+                for candidate in common_candidates:
+                    if oldFace.issubset(candidate):
+                        # Combine the associated names into one string
+                        combined_name = ''.join(csets_old[candidate])
+                        # Create the new quadrilateral boundary faces by precomputing the frozensets
+                        faceSet = [frozenset(face) for face in subFaces]
+                        # This cannot be a tuple, we need to iterate over all the candidate sets
+                        for key in faceSet:
+                            newBCFaces.append((key, combined_name))
+                        # Done with this triangular face, break out of the (inner) candidate loop
                         break
 
+            # Process sub-elements and record new face keys with their indices
             subElems = [newNodes[subIdx] for subIdx in subIdxs]
-
+            subFaces = []  # List of tuples: (new_face_key, face_index)
             for subElem in subElems:
                 # Assemble the 6 hexahedral faces
                 for subNode in subNodes:
                     subFace = subElem[subNode]
                     faceSet = frozenset(subFace)
+                    subFaces.append((faceSet, nFaces[faceVal]))
+                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    nFaces[faceVal] += 1
 
-                    for cnodes, cname in csets_old.items():
-                        # Face is not a subset of an existing boundary face
-                        if not faceSet.issubset(cnodes):
-                            continue
+            # Merge deferred updates with new face indices
+            for newFace, faceName in newBCFaces:
+                for subFace, faceIndex in subFaces:
+                    if subFace == newFace:
+                        if faceName not in csets_lst:
+                            csets_lst[faceName] = [[], []]
+                        csets_lst[faceName][faceVal].append(faceIndex)
 
-                        # For the first side on the BC, the dict does not exist
-                        try:
-                            prevSides          = csets_new[cname[0]]
-                            prevSides[faceNum] = np.append(prevSides[faceNum], nFaces[faceNum]).astype(int)
-                        except KeyError:
-                            # We only create the 2D and 3D elements
-                            prevSides          = [np.array([], dtype=int) for _ in range(2)]
-                            prevSides[faceNum] = np.asarray([nFaces[faceNum]]).astype(int)
-                            csets_new.update({cname[0]: prevSides})
+            # Hardcode hexahedron elements
+            if 'hexahedron' not in elems_lst:
+                elems_lst['hexahedron'] = []
+            # Append all rows from subElems
+            # elems_lst['hexahedron'].extend(np.array(subElems, dtype=int).tolist())
+            elems_lst['hexahedron'].extend(subElems)
 
-                    try:
-                        elems_new[faceType[faceNum]] = np.append(elems_new[faceType[faceNum]], np.array([subFace]).astype(int), axis=0)  # noqa: E501
-                    except KeyError:
-                        elems_new[faceType[faceNum]] = np.array([subFace]).astype(int)
+            # Update the progress bar
+            bar.step()
 
-                    nFaces[faceNum] += 1
+    # Close the progress bar
+    bar.close()
 
-            try:
-                elems_new['hexahedron'] = np.append(elems_new['hexahedron'], np.array(subElems).astype(int), axis=0)  # noqa: E501
-            except KeyError:
-                elems_new['hexahedron'] = np.array(subElems).astype(int)
+    # Convert lists to NumPy arrays for elems_new and csets_new
+    elems_new = {}
+    csets_new = {}
+
+    for key in elems_lst:
+        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+            # Convert the list of accumulated arrays/lists into a single NumPy array
+            elems_new[key] = np.array(elems_lst[key], dtype=int)
+        elif isinstance(elems_lst[key], list) and not elems_lst[key]:
+            # Determine the expected number of columns
+            elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
+
+    for key in csets_lst:
+        csets_new[key] = [np.array(lst, dtype=int) for lst in csets_lst[key]]
+
+    # Convert points_list back to a NumPy array
+    points = np.array(pointl)
 
     mesh = meshio.Mesh(points    = points,     # noqa: E251
-                         cells     = elems_new,  # noqa: E251
-                         cell_sets = csets_new)  # noqa: E251
+                       cells     = elems_new,  # noqa: E251
+                       cell_sets = csets_new)  # noqa: E251
     hopout.separator()
 
     return mesh
@@ -215,33 +274,31 @@ def hexa_faces() -> list[np.ndarray]:
            ]
 
 
-def tet_to_hex_points(elem: np.ndarray, points: np.ndarray, nPoints: int) -> Tuple[np.ndarray, np.ndarray, int]:
-    # Create an array for the new nodes
-    newPoints = np.zeros((11, 3), dtype=np.float64)
-    # Corner nodes
-    # newPoints[:4] = points[elem]
-    # Nodes on edges
-    newPoints[ 0] = np.mean(points[elem[[0, 1   ]]], axis=0)  # index 4
-    newPoints[ 1] = np.mean(points[elem[[1, 2   ]]], axis=0)  # index 5
-    newPoints[ 2] = np.mean(points[elem[[0, 2   ]]], axis=0)  # index 6
-    newPoints[ 3] = np.mean(points[elem[[0, 3   ]]], axis=0)  # index 7
-    newPoints[ 4] = np.mean(points[elem[[1, 3   ]]], axis=0)  # index 8
-    newPoints[ 5] = np.mean(points[elem[[2, 3   ]]], axis=0)  # index 9
-    # Nodes on faces
-    newPoints[ 6] = np.mean(points[elem[[0, 1, 2]]], axis=0)  # index 10
-    newPoints[ 7] = np.mean(points[elem[[0, 1, 3]]], axis=0)  # index 11
-    newPoints[ 8] = np.mean(points[elem[[1, 2, 3]]], axis=0)  # index 12
-    newPoints[ 9] = np.mean(points[elem[[0, 2, 3]]], axis=0)  # index 13
-    # Node inside
-    newPoints[10] = np.mean(points[elem[:        ]], axis=0)  # index 14
-    points = np.append(points, newPoints, axis=0)
-
-    # Assemble list of all the nodes
-    # newNodes = list(elem) + np.arange(nPoints, nPoints + 11).tolist()
-    newNodes = np.concatenate((elem, np.arange(nPoints, nPoints + 11)))
-    nPoints += 11
-
-    return points, newNodes, nPoints
+@cache
+def tet_to_hex_points(order: int) -> list[np.ndarray]:
+    """
+    """
+    match order:
+        case 1:
+            return [  # Nodes on edges
+                      np.array([  0,  1], dtype=int),               # index 4
+                      np.array([  1,  2], dtype=int),               # index 5
+                      np.array([  0,  2], dtype=int),               # index 6
+                      np.array([  0,  3], dtype=int),               # index 7
+                      np.array([  1,  3], dtype=int),               # index 8
+                      np.array([  2,  3], dtype=int),               # index 9
+                      # Nodes on faces
+                      np.array([  0,  1,  2], dtype=int),           # index 10
+                      np.array([  0,  1,  3], dtype=int),           # index 11
+                      np.array([  1,  2,  3], dtype=int),           # index 12
+                      np.array([  0,  2,  3], dtype=int),           # index 13
+                      # Inside node
+                      np.arange(  0,  4, dtype=int)                # index 14
+                    ]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
 
 
 @cache
@@ -290,28 +347,27 @@ def tet_to_hex_split() -> list[np.ndarray]:
            ]
 
 
-def prism_to_hex_points(elem: np.ndarray, points: np.ndarray, nPoints: int) -> Tuple[np.ndarray, np.ndarray, int]:
-    # Create an array for the new nodes
-    newPoints = np.zeros((8, 3), dtype=np.float64)
-    # Corner nodes
-    # newPoints[:4] = points[elem]
-    # Nodes on edges
-    newPoints[ 0] = np.mean(points[elem[[0, 1   ]]], axis=0)  # index 6
-    newPoints[ 1] = np.mean(points[elem[[1, 2   ]]], axis=0)  # index 7
-    newPoints[ 2] = np.mean(points[elem[[0, 2   ]]], axis=0)  # index 8
-    newPoints[ 3] = np.mean(points[elem[[3, 4   ]]], axis=0)  # index 9
-    newPoints[ 4] = np.mean(points[elem[[4, 5   ]]], axis=0)  # index 10
-    newPoints[ 5] = np.mean(points[elem[[3, 5   ]]], axis=0)  # index 11
-    # Nodes on faces
-    newPoints[ 6] = np.mean(points[elem[[0, 1, 2]]], axis=0)  # index 12
-    newPoints[ 7] = np.mean(points[elem[[3, 4, 5]]], axis=0)  # index 13
-    points = np.append(points, newPoints, axis=0)
-
-    # Assemble list of all the nodes
-    newNodes = np.array(list(elem) + np.arange(nPoints, nPoints + 8).tolist())
-    nPoints += 8
-
-    return points, newNodes, nPoints
+@cache
+def prism_to_hex_points(order: int) -> list[np.ndarray]:
+    """
+    """
+    match order:
+        case 1:
+            return [  # Nodes on edges
+                      np.array([  0,  1], dtype=int),               # index 6
+                      np.array([  1,  2], dtype=int),               # index 7
+                      np.array([  0,  2], dtype=int),               # index 8
+                      np.array([  3,  4], dtype=int),               # index 9
+                      np.array([  4,  5], dtype=int),               # index 10
+                      np.array([  3,  5], dtype=int),               # index 11
+                      # Nodes on faces
+                      np.array([  0,  1,  2], dtype=int),           # index 12
+                      np.array([  3,  4,  5], dtype=int),           # index 13
+                    ]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
 
 
 @cache

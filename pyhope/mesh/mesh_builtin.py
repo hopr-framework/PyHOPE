@@ -56,7 +56,7 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.transform.mesh_transform import CalcStretching
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
-    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetRealArray, GetStr
+    from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetIntFromStr, GetRealArray, GetStr
     # ------------------------------------------------------
 
     gmsh.initialize()
@@ -68,10 +68,11 @@ def MeshCartesian() -> meshio.Mesh:
 
     hopout.sep()
 
-    nZones = GetInt('nZones')
+    nZones    = GetInt('nZones')
+    elemTypes = [-1 for _ in range(nZones)]
 
-    offsetp  = 0
-    offsets  = 0
+    offsetp   = 0
+    offsets   = 0
 
     # GMSH only supports mesh elements within a single model
     # > https://gitlab.onelab.info/gmsh/gmsh/-/issues/2836
@@ -105,8 +106,11 @@ def MeshCartesian() -> meshio.Mesh:
             hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
             sys.exit(1)
 
-        nElems   = GetIntArray(  'nElems'  , number=zone)
-        elemType = 108  # GMSH always builds hexahedral elements
+        nElems          = GetIntArray(  'nElems'  , number=zone)
+        # Store the requested element types
+        elemTypes[zone] = GetIntFromStr('ElemType', number=zone)
+        # ... but GMSH always builds hexahedral elements
+        elemType = 108
 
         # Create all the corner points
         p = [None for _ in range(len(corners))]
@@ -210,6 +214,9 @@ def MeshCartesian() -> meshio.Mesh:
         # Read the BCs for the zone
         # > Need to wait with defining physical boundaries until all zones are created
         bcZones[zone] = [int(s) for s in GetIntArray('BCIndex')]
+
+        # Assign the volume to a physical zone
+        _ = gmsh.model.addPhysicalGroup(3, [zone+1], name='Zone{}'.format(zone+1))
 
     # At this point, we can create a "Physical Group" corresponding
     # to the boundaries. This requires a synchronize call!
@@ -326,5 +333,9 @@ def MeshCartesian() -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+
+    # Store the element types
+    mesh_vars.nZones    = nZones
+    mesh_vars.elemTypes = elemTypes
 
     return mesh

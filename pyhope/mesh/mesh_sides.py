@@ -136,6 +136,9 @@ def GenerateSides() -> None:
         # Add to nElems
         nElems += nIOElems
 
+    # Close the progress bar
+    bar.close()
+
     # Append sides to elem
     for side in sides:
         elemID = side.elemID

@@ -28,6 +28,7 @@
 import sys
 import traceback
 from functools import cache
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,59 +47,78 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import ELEMTYPE, nGeo
-    from pyhope.readintools.readintools import GetIntFromStr
     # ------------------------------------------------------
 
     # Split hexahedral elements if requested
-    elemType = GetIntFromStr('ElemType')
+    nZones    = mesh_vars.nZones
+    elemTypes = mesh_vars.elemTypes
+    elemNames = ['' for _ in range(nZones)]  # noqa: E271
 
-    match elemType % 100:
-        case 8:
-            return mesh
-        case _:
-            # Simplex elements requested
-            if mesh_vars.nGeo > 4:
-                hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+    # No element types given
+    if len(elemTypes) == 0:
+        return mesh
+
+    # Fully hexahedral mesh
+    if all(elemType % 100 == 8 for elemType in elemTypes):
+        return mesh
+
+    # Simplex elements requested
+    if any(elemType % 100 != 8 for elemType in elemTypes):
+        if mesh_vars.nGeo > 4:
+            hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+            sys.exit(1)
+
+    hopout.info('Converting hexahedral elements to simplex elements')
+
+    # Instantiate ELEMTYPE
+    elemTypeInam = ELEMTYPE().inam
+
+    for i in range(nZones):
+        if nGeo == 1:
+            elemNames[i] = elemTypeInam[elemTypes[i]][0]
+        else:
+            # check whether user entered correct high-order element type
+            if elemTypes[i] < 200:
+                # Adapt to high-order element type
+                elemTypes[i] += 100
+
+            # Get the element name and skip the entries for incomplete 2nd order elements
+            try:
+                if elemTypes[i] % 100 == 5:    # pyramids (skip 1)
+                    elemNames[i] = elemTypeInam[elemTypes[i]][1]
+                elif elemTypes[i] % 100 == 6:  # prisms (skip 1)
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
+                elif elemTypes[i] % 100 == 8:  # hexahedra (skip 2)
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
+                else:                          # tetrahedra
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
+            except IndexError:
+                hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
                 sys.exit(1)
 
     # Copy original points
-    points    = mesh.points.copy()
+    pointl    = cast(list, mesh.points.tolist())
     elems_old = mesh.cells.copy()
     cell_sets = getattr(mesh, 'cell_sets', {})
 
     # Get base key to distinguish between linear and high-order elements
     ho_key = 100 if nGeo == 1 else 200
 
-    # Instantiate ELEMTYPE
-    elemTypeInam = ELEMTYPE().inam
+    # Set up the element splitting function
+    elemSplitter = {ho_key + 4: (split_hex_to_tets , tetra_faces),
+                    ho_key + 5: (split_hex_to_pyram, pyram_faces),
+                    ho_key + 6: (split_hex_to_prism, prism_faces),
+                    # Keep hexahedral elements as they are
+                    ho_key + 8: (split_hex_to_hex  , hex_faces  )}
 
-    # Prepare new cell blocks and new cell_sets
-    elems_new = {}
-    csets_new = {}
-    if nGeo == 1:
-        elemName  = elemTypeInam[elemType][0]
-    else:
-        # check whether user entered correct high-order element type
-        if elemType < 200:
-            # Adapt to high-order element type
-            elemType += 100
-
-        # Get the element name and skip the entries for incomplete 2nd order elements
-        try:
-            if elemType % 100 == 5:    # pyramids (skip 1)
-                # FIXME: meshio package doesnt know
-                # elemName = elemTypeInam[elemType][nGeo-1]
-                elemName = elemTypeInam[elemType][1]
-            elif elemType % 100 == 6:  # prisms (skip 1)
-                elemName = elemTypeInam[elemType][nGeo-1]
-            elif elemType % 100 == 8:  # hexahedra (skip 2)
-                elemName = elemTypeInam[elemType][nGeo]
-            else:                      # tetrahedra
-                elemName = elemTypeInam[elemType][nGeo-2]
-        except IndexError:
-            hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemType, nGeo))
-            sys.exit(1)
+    faceMaper = { ho_key + 4: lambda x: 0,
+                  ho_key + 5: lambda x: 0 if x == 0 else 1,
+                  ho_key + 6: lambda x: 0 if x == 0 else 1,
+                  # Keep hexahedral elements as they are
+                  ho_key + 8: lambda x: 1}
+    nFace   = (nGeo+1)*(nGeo+2)/2
 
     # Convert the (quad) boundary cell set into a dictionary
     csets_old = {}
@@ -109,105 +129,138 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             if elems_old[blockID].type[:4] != 'quad':
                 continue
 
+            # Ignore the volume zones
+            if block is None:
+                continue
+
             # Sort them as a set for membership checks
             for face in block:
                 nodes = mesh.cells_dict[elems_old[blockID].type][face]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
-    # Set up the element splitting function
-    elemSplitter = {ho_key + 4: (split_hex_to_tets , tetra_faces),
-                    ho_key + 5: (split_hex_to_pyram, pyram_faces),
-                    ho_key + 6: (split_hex_to_prism, prism_faces)}
-    split, faces = elemSplitter.get(elemType, (None, None))
-
-    if split is None or faces is None:
-        hopout.warning('Element type {} not supported for splitting'.format(elemType))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
-
-    nPoints  = len(points)
-    nFaces   = np.zeros(2)
+    nPoints  = len(pointl)
+    nFaces   = np.zeros(2, dtype=int)
     match nGeo:
         case 1:
-            faceType = ['triangle' , 'quad']
+            faceType = ['triangle'  , 'quad'  ]
+            faceNum  = [          3 ,       4 ]
         case 2:
-            faceType = ['triangle6', 'quad9']
+            faceType = ['triangle6' , 'quad9' ]
+            faceNum  = [          6 ,       9 ]
+        # case 3:
+        #     faceType = ['triangle10', 'quad16']
+        #     faceNum  = [         10 ,      16 ]
         case 4:
             faceType = ['triangle15', 'quad25']
+            faceNum  = [         15 ,      25 ]
         case _:
             hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
             sys.exit(1)
 
-    faceMaper = { ho_key + 4: lambda x: 0,
-                  ho_key + 5: lambda x: 0 if x == 0 else 1,
-                  ho_key + 6: lambda x: 0 if x == 0 else 1}
-    faceMap   = faceMaper.get(elemType, None)
+    # Prepare new cell blocks and new cell_sets
+    elems_lst = {ftype: [] for ftype in faceType}
+    csets_lst = {}
 
-    for cell in mesh.cells:
-        ctype, cdata = cell.type, cell.data
+    # Create the element sets
+    meshcells = [(k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys())]
 
-        if ctype[:10] != 'hexahedron':
-            # Fill the cube recursively from the outside to the inside
-            continue
+    # If meshcells is empty, we fake it assign it to Zone1
+    if len(meshcells) == 0:
+        meshcells = [('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
+                                                                              if k.startswith('hexahedron')]
 
-        # Hex block: Split each element
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
+
+    for iElem, meshcell in enumerate(meshcells):
+        _    , mdict = meshcell
+        mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
+
+        elemType     = elemTypes[iElem]
+        elemName     = elemNames[iElem]
+
+        split, faces = elemSplitter.get(elemType, (None, None))
+        faceMap      = faceMaper.get(elemType, None)
+
+        cdata = mesh.get_cells_type(mtype)[mcell]
+
+        if split is None or faces is None:
+            hopout.warning('Element type {} not supported for splitting'.format(elemTypes[iElem]))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+        elemSplit = split(nGeo)
+
+        # Hex block: Iterate over each element
         for elem in cdata:
             # Pyramids need a center node
             if elemType % 100 == 5:
+                # Find the element orientation
+                # > The first 8 points (indices) in elem are the CGNS-ordered vertices
+                vertices = np.array([pointl[i] for i in elem[:8]])
+
+                # v[0] is origin, v[1] is local x-direction, v[2] is local y-direction, v[3] is local z-direction
+                # > This only works for trapezoidal elements
+                v        = [vertices[0], vertices[1]-vertices[0], vertices[3]-vertices[0], vertices[4]-vertices[0]]
+
+                # Compute the element center
+                center   = np.mean(np.array([pointl[i] for i in elem]), axis=0)
+
                 match nGeo:
                     case 1:
-                        center   = np.mean(  points[elem]  , axis=0)
-                        center   = np.expand_dims(center   , axis=0)
-                        points   = np.append(points, center, axis=0)
-                        subElems = split(elem, nPoints, [], nGeo)
+                        # Append the new point to the point list
+                        pointl.append(center.tolist())
+
+                        # Overwrite the element with the new indices
+                        elem     = np.array(list(elem) + [nPoints])
                         nPoints += 1
                     case 2:
-                        edges = []
-                        center   = np.mean(points[elem], axis=0)
-                        minext   = np.min( points[elem], axis=0)
+                        # Generate the grid of new points
                         edges    = np.zeros((8, 3))
                         signarr  = [-0.5, 0.5]
-                        count = 0
+                        count    = 0
+
                         for k in signarr:
                             for j in signarr:
                                 for i in signarr:
-                                    edges[count, :] = [center[0]+i*abs(center[0]-minext[0]),
-                                                       center[1]+j*abs(center[1]-minext[1]),
-                                                       center[2]+k*abs(center[2]-minext[2])]
-                                    count+=1
-                        points   = np.append(points, edges, axis=0)
-                        subElems = split(elem, nPoints, np.arange(nPoints, nPoints+8), nGeo)
+                                    edges[count, :] = center + 0.5*i*v[1] + 0.5*j*v[2] + 0.5*k*v[3]
+                                    count += 1
+
+                        # Append the new points to the point list
+                        for edge in edges:
+                            pointl.append(edge.tolist())
+
+                        # Overwrite the element with the new indices
+                        elem     = np.array(list(elem) + list(range(nPoints, nPoints+8)))
                         nPoints += count
                     case 4:
-                        edges = []
-                        center   = np.mean(points[elem], axis=0)
-                        minext   = np.min( points[elem], axis=0)
-                        edges    = np.zeros((64, 3))
-                        signarr  = [-3./4., -1./4., 1./4., 3./4.]
-                        count = 0
+                        # Generate the grid of new points
+                        edges   = np.zeros((64, 3))
+                        signarr = [-3./4., -1./4., 1./4., 3./4.]
+                        count   = 0
+
                         for k in signarr:
                             for j in signarr:
                                 for i in signarr:
-                                    edges[count, :] = [center[0]+i*abs(center[0]-minext[0]),
-                                                       center[1]+j*abs(center[1]-minext[1]),
-                                                       center[2]+k*abs(center[2]-minext[2])]
-                                    count+=1
-                        points   = np.append(points, edges, axis=0)
-                        subElems = split(elem, nPoints, np.arange(nPoints, nPoints+count), nGeo)
+                                    edges[count, :] = center + 0.5*i*v[1] + 0.5*j*v[2] + 0.5*k*v[3]
+                                    count += 1
+
+                        # Append the new points to the point list
+                        for edge in edges:
+                            pointl.append(edge.tolist())
+
+                        # Overwrite the element with the new indices
+                        elem     = np.array(list(elem) + list(range(nPoints, nPoints+count)))
                         nPoints += count
-                    case _:
-                        hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
-                        traceback.print_stack(file=sys.stdout)
-                        sys.exit(1)
-            else:
-                subElems = split(elem, nGeo)
+
+            # Split each element into sub-elements
+            subElems = elem[elemSplit]
 
             for subElem in subElems:
                 subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
 
                 for subFace in subFaces:
-                    nFace   = (nGeo+1)*(nGeo+2)/2
-                    faceNum = faceMap(0) if len(subFace) == nFace else faceMap(1)
+                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
 
                     for cnodes, cname in csets_old.items():
@@ -216,43 +269,58 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                             continue
 
                         # For the first side on the BC, the dict does not exist
-                        try:
-                            prevSides          = csets_new[cname[0]]
-                            prevSides[faceNum] = np.append(prevSides[faceNum], nFaces[faceNum])
-                        except KeyError:
-                            # We only create the 2D and 3D elements
-                            prevSides          = [np.array([], dtype=int) for _ in range(2)]
-                            prevSides[faceNum] = np.asarray([nFaces[faceNum]]).astype(int)
-                            csets_new.update({cname[0]: prevSides})
+                        if cname[0] not in csets_lst:
+                            csets_lst[cname[0]] = [[], []]
+                        csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
 
-                    try:
-                        elems_new[faceType[faceNum]] = np.append(elems_new[faceType[faceNum]], np.array([subFace]).astype(int), axis=0)  # noqa: E501
-                    except KeyError:
-                        elems_new[faceType[faceNum]] = np.array([subFace]).astype(int)
+                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    nFaces[faceVal] += 1
 
-                    nFaces[faceNum] += 1
+            if elemName not in elems_lst:
+                elems_lst[elemName] = []
+            # Append all rows from subElems
+            # elems_lst[elemName].extend(np.array(subElems, dtype=int).tolist())
+            elems_lst[elemName].extend(subElems)
 
-            try:
-                elems_new[elemName] = np.append(elems_new[elemName], np.array(subElems).astype(int), axis=0)
-            except KeyError:
-                elems_new[elemName] = np.array(subElems).astype(int)
+            # Update the progress bar
+            bar.step()
+
+    # Close the progress bar
+    bar.close()
+
+    # Convert lists to NumPy arrays for elems_new and csets_new
+    elems_new = {}
+    csets_new = {}
+
+    for key in elems_lst:
+        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+            # Convert the list of accumulated arrays/lists into a single NumPy array
+            elems_new[key] = np.array(elems_lst[key], dtype=int)
+        elif isinstance(elems_lst[key], list) and not elems_lst[key]:
+            # Determine the expected number of columns
+            elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
+
+    for key in csets_lst:
+        csets_new[key] = [np.array(lst, dtype=int) for lst in csets_lst[key]]
+
+    # Convert points_list back to a NumPy array
+    points = np.array(pointl)
 
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
 
+    hopout.sep()
+
     return mesh
 
 
-# TODO: FASTER IMPLEMENTATION WOULD ONLY RETURN THE INDICES
-def split_hex_to_tets(nodes: list, order: int) -> list:
+@cache
+def split_hex_to_tets(order: int) -> list[tuple]:
     """
-    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-    return a list of new tetra element connectivity lists.
+    Given the indices of a single hexahedral element, return a list of new tetra element connectivity lists
 
-    The node numbering convention assumed here:
-      (c0, c1, c2, c3, c4, c5, c6, c7)
-    is the usual:
+    The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
           7-------6
          /|      /|
         4-------5 |
@@ -265,12 +333,12 @@ def split_hex_to_tets(nodes: list, order: int) -> list:
     match order:
         case 1:
             # 1. strategy: 6 tets per box, all tets have same volume and angle, not periodic but isotropic
-            return [[nodes[0], nodes[2], nodes[3], nodes[4]],
-                    [nodes[0], nodes[1], nodes[2], nodes[4]],
-                    [nodes[2], nodes[4], nodes[6], nodes[7]],
-                    [nodes[2], nodes[4], nodes[5], nodes[6]],
-                    [nodes[1], nodes[2], nodes[4], nodes[5]],
-                    [nodes[2], nodes[3], nodes[4], nodes[7]]]
+            return [( 0, 2, 3, 4),
+                    ( 0, 1, 2, 4),
+                    ( 2, 4, 6, 7),
+                    ( 2, 4, 5, 6),
+                    ( 1, 2, 4, 5),
+                    ( 2, 3, 4, 7)]
             # ! 2. strategy: 6 tets per box, split hex into two prisms and each prism into 3 tets, periodic but strongly anisotropic
             # c0, c1, c2, c3, c4, c5, c6, c7 = nodes
             # return [[c0, c1, c3, c4],
@@ -280,37 +348,37 @@ def split_hex_to_tets(nodes: list, order: int) -> list:
             #         [c1, c2, c3, c7],
             #         [c2, c5, c6, c7]]
         case 2:
-            return [[nodes[0], nodes[2], nodes[3], nodes[4], nodes[24], nodes[10], nodes[11], nodes[16], nodes[26], nodes[20]],
-                    [nodes[0], nodes[1], nodes[2], nodes[4], nodes[8] , nodes[9] , nodes[24], nodes[16], nodes[22], nodes[26]],
-                    [nodes[2], nodes[4], nodes[6], nodes[7], nodes[26], nodes[25], nodes[18], nodes[23], nodes[15], nodes[14]],
-                    [nodes[2], nodes[4], nodes[5], nodes[6], nodes[26], nodes[12], nodes[21], nodes[18], nodes[25], nodes[13]],
-                    [nodes[1], nodes[2], nodes[4], nodes[5], nodes[9] , nodes[26], nodes[22], nodes[17], nodes[21], nodes[12]],
-                    [nodes[2], nodes[3], nodes[4], nodes[7], nodes[10], nodes[20], nodes[26], nodes[23], nodes[19], nodes[15]]]
+            return [( 0,  2,  3,  4,  24,  10,  11,  16,  26,  20),
+                    ( 0,  1,  2,  4,   8,   9,  24,  16,  22,  26),
+                    ( 2,  4,  6,  7,  26,  25,  18,  23,  15,  14),
+                    ( 2,  4,  5,  6,  26,  12,  21,  18,  25,  13),
+                    ( 1,  2,  4,  5,   9,  26,  22,  17,  21,  12),
+                    ( 2,  3,  4,  7,  10,  20,  26,  23,  19,  15)]
         case 4:
-            tetra1 = [nodes[  0], nodes[  2], nodes[  3], nodes[  4], nodes[ 80], nodes[ 88], nodes[ 82], nodes[ 14], nodes[ 15], nodes[ 16],  # noqa: E501
-                      nodes[ 19], nodes[ 18], nodes[ 17], nodes[ 32], nodes[ 33], nodes[ 34], nodes[100], nodes[124], nodes[102],
-                      nodes[ 47], nodes[ 52], nodes[ 45], nodes[ 98], nodes[122], nodes[114], nodes[108], nodes[101], nodes[118],
-                      nodes[ 44], nodes[ 51], nodes[ 48], nodes[ 84], nodes[ 85], nodes[ 81], nodes[109]]
-            tetra2 = [nodes[  0], nodes[  1], nodes[  2], nodes[  4], nodes[  8], nodes[  9], nodes[ 10], nodes[ 11], nodes[ 12], nodes[ 13],  # noqa: E501
-                      nodes[ 82], nodes[ 88], nodes[ 80], nodes[ 32], nodes[ 33], nodes[ 34], nodes[ 63], nodes[ 70], nodes[ 65],
-                      nodes[100], nodes[124], nodes[102], nodes[ 62], nodes[ 66], nodes[ 69], nodes[ 99], nodes[107], nodes[120],
-                      nodes[ 98], nodes[122], nodes[114], nodes[ 87], nodes[ 83], nodes[ 86], nodes[106]]
-            tetra3 = [nodes[  2], nodes[  4], nodes[  6], nodes[  7], nodes[100], nodes[124], nodes[102], nodes[ 89], nodes[ 97], nodes[ 91],  # noqa: E501
-                      nodes[ 40], nodes[ 39], nodes[ 38], nodes[ 71], nodes[ 79], nodes[ 73], nodes[ 29], nodes[ 30], nodes[ 31],
-                      nodes[ 26], nodes[ 27], nodes[ 28], nodes[121], nodes[113], nodes[105], nodes[ 96], nodes[ 95], nodes[ 92],
-                      nodes[ 78], nodes[ 74], nodes[ 77], nodes[116], nodes[123], nodes[104], nodes[112]]
-            tetra4 = [nodes[  2], nodes[  4], nodes[  5], nodes[  6], nodes[100], nodes[124], nodes[102], nodes[ 20], nodes[ 21], nodes[ 22],  # noqa: E501
-                      nodes[ 56], nodes[ 61], nodes[ 54], nodes[ 38], nodes[ 39], nodes[ 40], nodes[ 89], nodes[ 97], nodes[ 91],
-                      nodes[ 23], nodes[ 24], nodes[ 25], nodes[116], nodes[123], nodes[104], nodes[ 93], nodes[ 90], nodes[ 94],
-                      nodes[ 58], nodes[ 59], nodes[ 55], nodes[119], nodes[110], nodes[103], nodes[111]]
-            tetra5 = [nodes[  1], nodes[  2], nodes[  4], nodes[  5], nodes[ 11], nodes[ 12], nodes[ 13], nodes[100], nodes[124], nodes[102],  # noqa: E501
-                      nodes[ 65], nodes[ 70], nodes[ 63], nodes[ 35], nodes[ 36], nodes[ 37], nodes[ 54], nodes[ 61], nodes[ 56],
-                      nodes[ 20], nodes[ 21], nodes[ 22], nodes[ 53], nodes[ 57], nodes[ 60], nodes[119], nodes[110], nodes[103],
-                      nodes[ 67], nodes[ 68], nodes[ 64], nodes[ 99], nodes[107], nodes[120], nodes[115]]
-            tetra6 = [nodes[  2], nodes[  3], nodes[  4], nodes[  7], nodes[ 14], nodes[ 15], nodes[ 16], nodes[ 47], nodes[ 52], nodes[ 45],  # noqa: E501
-                      nodes[102], nodes[124], nodes[100], nodes[ 71], nodes[ 79], nodes[ 73], nodes[ 41], nodes[ 42], nodes[ 43],
-                      nodes[ 29], nodes[ 30], nodes[ 31], nodes[ 75], nodes[ 72], nodes[ 76], nodes[ 50], nodes[ 49], nodes[ 46],
-                      nodes[121], nodes[113], nodes[105], nodes[108], nodes[101], nodes[118], nodes[117]]
+            tetra1 = (  0,   2,   3,   4,  80,  88,  82,  14,  15,  16,  # noqa: E501
+                       19,  18,  17,  32,  33,  34, 100, 124, 102,
+                       47,  52,  45,  98, 122, 114, 108, 101, 118,
+                       44,  51,  48,  84,  85,  81, 109)
+            tetra2 = (  0,   1,   2,   4,   8,   9,  10,  11,  12,  13,  # noqa: E501
+                       82,  88,  80,  32,  33,  34,  63,  70,  65,
+                      100, 124, 102,  62,  66,  69,  99, 107, 120,
+                       98, 122, 114,  87,  83,  86, 106)
+            tetra3 = (  2,   4,   6,   7, 100, 124, 102,  89,  97,  91,  # noqa: E501
+                       40,  39,  38,  71,  79,  73,  29,  30,  31,
+                       26,  27,  28, 121, 113, 105,  96,  95,  92,
+                       78,  74,  77, 116, 123, 104, 112)
+            tetra4 = (  2,   4,   5,   6, 100, 124, 102,  20,  21,  22,  # noqa: E501
+                       56,  61,  54,  38,  39,  40,  89,  97,  91,
+                       23,  24,  25, 116, 123, 104,  93,  90,  94,
+                       58,  59,  55, 119, 110, 103, 111)
+            tetra5 = (  1,   2,   4,   5,  11,  12,  13, 100, 124, 102,  # noqa: E501
+                       65,  70,  63,  35,  36,  37,  54,  61,  56,
+                       20,  21,  22,  53,  57,  60, 119, 110, 103,
+                       67,  68,  64,  99, 107, 120, 115)
+            tetra6 = (  2,   3,   4,   7,  14,  15,  16,  47,  52,  45,  # noqa: E501
+                      102, 124, 100,  71,  79,  73,  41,  42,  43,
+                       29,  30,  31,  75,  72,  76,  50,  49,  46,
+                      121, 113, 105, 108, 101, 118, 117)
 
             return [tetra1, tetra2, tetra3, tetra4, tetra5, tetra6]
         case _:
@@ -320,10 +388,9 @@ def split_hex_to_tets(nodes: list, order: int) -> list:
 
 
 @cache
-def tetra_faces(order: int) -> list:
+def tetra_faces(order: int) -> list[np.ndarray]:
     """
-    Given 4 tet corner indices, return the 4 triangular faces as tuples.
-    Each face is a triple (n0, n1, n2)
+    Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
     match order:
         case 1:
@@ -347,82 +414,61 @@ def tetra_faces(order: int) -> list:
             sys.exit(1)
 
 
-# TODO: FASTER IMPLEMENTATION WOULD ONLY RETURN THE INDICES
-def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> list:
+@cache
+def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
     """
-    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-    return a list of new pyramid element connectivity lists.
+    Given the indices of a single hexahedral element, return a list of new pyramid element connectivity lists
     """
     match order:
         case 1:
             # Perform the 6-pyramid split of the cube-like cell
-            return [tuple((nodes[0], nodes[1], nodes[2], nodes[3], center)),
-                    tuple((nodes[0], nodes[4], nodes[5], nodes[1], center)),
-                    tuple((nodes[1], nodes[5], nodes[6], nodes[2], center)),
-                    tuple((nodes[0], nodes[3], nodes[7], nodes[4], center)),
-                    tuple((nodes[4], nodes[7], nodes[6], nodes[5], center)),
-                    tuple((nodes[6], nodes[7], nodes[3], nodes[2], center))]
+            return [( 0,  1,  2,  3,  8),
+                    ( 0,  4,  5,  1,  8),
+                    ( 1,  5,  6,  2,  8),
+                    ( 0,  3,  7,  4,  8),
+                    ( 4,  7,  6,  5,  8),
+                    ( 6,  7,  3,  2,  8)]
             # 3-pyramid split
-            #  return [tuple((nodes[0], nodes[1], nodes[2], nodes[3], nodes[4])),
-            #          tuple((nodes[1], nodes[5], nodes[6], nodes[2], nodes[4])),
-            #          tuple((nodes[6], nodes[7], nodes[3], nodes[2], nodes[4]))]
+            # return [( 0, 1, 2, 3, 4),
+            #         ( 1, 5, 6, 2, 4),
+            #         ( 6, 7, 3, 2, 4)]
         case 2:
             # Perform the 6-pyramid split of the cube-like cell
-            return [tuple((nodes[ 0] , nodes[ 1] , nodes[ 2] , nodes[ 3] , nodes[26], nodes[ 8], nodes[ 9], nodes[10], nodes[11],
-                           edges[ 0] , edges[ 1] , edges[ 3] , edges[ 2] , nodes[24])),
-                    tuple((nodes[ 0] , nodes[ 4] , nodes[ 5] , nodes[ 1] , nodes[26], nodes[16], nodes[12], nodes[17], nodes[ 8],
-                           edges[ 0] , edges[ 4] , edges[ 5] , edges[ 1] , nodes[22])),
-                    tuple((nodes[ 1] , nodes[ 5] , nodes[ 6] , nodes[ 2] , nodes[26], nodes[17], nodes[13], nodes[18], nodes[ 9],
-                           edges[ 1] , edges[ 5] , edges[ 7] , edges[ 3] , nodes[21])),
-                    tuple((nodes[ 0] , nodes[ 3] , nodes[ 7] , nodes[ 4] , nodes[26], nodes[11], nodes[19], nodes[15], nodes[16],
-                           edges[ 0] , edges[ 2] , edges[ 6] , edges[ 4] , nodes[20])),
-                    tuple((nodes[ 4] , nodes[ 7] , nodes[ 6] , nodes[ 5] , nodes[26], nodes[15], nodes[14], nodes[13], nodes[12],
-                           edges[ 4] , edges[ 6] , edges[ 7] , edges[ 5] , nodes[25])),
-                    tuple((nodes[ 6] , nodes[ 7] , nodes[ 3] , nodes[ 2] , nodes[26], nodes[14], nodes[19], nodes[10], nodes[18],
-                           edges[ 7] , edges[ 6] , edges[ 2] , edges[ 3] , nodes[23]))]
+            return [(  0,  1,  2,  3, 26,  8,  9, 10, 11, 27, 28, 30, 29, 24),
+                    (  0,  4,  5,  1, 26, 16, 12, 17,  8, 27, 31, 32, 28, 22),
+                    (  1,  5,  6,  2, 26, 17, 13, 18,  9, 28, 32, 34, 30, 21),
+                    (  0,  3,  7,  4, 26, 11, 19, 15, 16, 27, 29, 33, 31, 20),
+                    (  4,  7,  6,  5, 26, 15, 14, 13, 12, 31, 33, 34, 32, 25),
+                    (  6,  7,  3,  2, 26, 14, 19, 10, 18, 34, 33, 29, 30, 23)]
             # 3-pyramid split
-            #  return [tuple((nodes[0] , nodes[1] , nodes[2] , nodes[3] , nodes[4], nodes[8] , nodes[9] , nodes[10], nodes[11],
-            #                 nodes[16], nodes[22], nodes[26], nodes[20], nodes[24])),
-            #          tuple((nodes[1] , nodes[5] , nodes[6] , nodes[2] , nodes[4], nodes[17], nodes[13], nodes[18], nodes[9] ,
-            #                 nodes[22], nodes[12], nodes[25], nodes[26], nodes[21])),
-            #          tuple((nodes[6] , nodes[7] , nodes[3] , nodes[2] , nodes[4], nodes[14], nodes[19], nodes[10], nodes[18],
-            #                 nodes[25], nodes[15], nodes[20], nodes[26], nodes[23]))]
+            # return [(  0,  1,  2,  3,  4,  8,  9, 10, 11, 16, 22, 26, 20, 24),
+            #         (  1,  5,  6,  2,  4, 17, 13, 18,  9, 22, 12, 25, 26, 21),
+            #         (  6,  7,  3,  2,  4, 14, 19, 10, 18, 25, 15, 20, 26, 23)]
         case 4:
-            return [tuple((nodes[  0], nodes[  1], nodes[  2], nodes[  3], nodes[124], *nodes[8:17], *reversed(nodes[17:20]),
-                           edges[  0], nodes[ 98], edges[ 21], edges[  3], nodes[ 99], edges[  22], edges[ 15], nodes[100], edges[ 26], edges[ 12], nodes[101], edges[ 25],  # noqa: E501
-                           edges[  1], edges[  2], nodes[106], edges[  7], edges[ 11], nodes[ 107], edges[ 13], edges[ 14], nodes[108], edges[  4], edges[  8], nodes[109],  # noqa: E501
-                           nodes[ 80], nodes[ 83], nodes[ 82], nodes[ 81], nodes[ 87], nodes[  86], nodes[ 85], nodes[ 84], nodes[ 88],                                      # noqa: E501
-                           edges[  5], edges[  6], edges[ 10], edges[  9], nodes[122])),
-                    tuple((nodes[  0], nodes[  4], nodes[  5], nodes[  1], nodes[124],
-                           *nodes[32:35], *nodes[20:23], nodes[ 37], nodes[ 36], nodes[ 35], nodes[ 10], nodes[  9], nodes[  8],
-                           edges[  0], nodes[ 98], edges[ 21], edges[ 48], nodes[102], edges[ 37], edges[ 51], nodes[103], edges[ 38], edges[  3], nodes[ 99], edges[ 22],  # noqa: E501
-                           edges[ 16], edges[ 32], nodes[114], edges[ 49], edges[ 50], nodes[110], edges[ 19], edges[ 35], nodes[115], edges[  1], edges[  2], nodes[106],  # noqa: E501
-                           nodes[ 62], nodes[ 65], nodes[ 64], nodes[ 63], nodes[ 69], nodes[ 68], nodes[ 67], nodes[ 66], nodes[ 70],                                      # noqa: E501
-                           edges[ 17], edges[ 33], edges[ 34], edges[ 18], nodes[120])),
-                    tuple((nodes[  1], nodes[  5], nodes[  6], nodes[  2], nodes[124],
-                           *nodes[35:38], *nodes[23:26], nodes[ 40], nodes[ 39], nodes[ 38], nodes[ 13], nodes[ 12], nodes[ 11],
-                           edges[  3], nodes[ 99], edges[ 22], edges[ 51], nodes[103], edges[ 38], edges[ 63], nodes[104], edges[ 42], edges[ 15], nodes[100], edges[ 26],  # noqa: E501
-                           edges[ 19], edges[ 35], nodes[115], edges[ 55], edges[ 59], nodes[111], edges[ 31], edges[ 47], nodes[116], edges[  7], edges[ 11], nodes[107],  # noqa: E501
-                           nodes[ 53], nodes[ 56], nodes[ 55], nodes[ 54], nodes[ 60], nodes[ 59], nodes[ 58], nodes[ 57], nodes[ 61],                                      # noqa: E501
-                           edges[ 23], edges[ 39], edges[ 43], edges[ 27], nodes[119])),
-                    tuple((nodes[  0], nodes[  3], nodes[  7], nodes[  4] , nodes[124],
-                           nodes[ 17], nodes[ 18], nodes[ 19], *nodes[41:44], *reversed(nodes[29:32]), nodes[ 34], nodes[ 33], nodes[ 32],                                  # noqa: E501
-                           edges[  0], nodes[ 98], edges[ 21], edges[ 12], nodes[101], edges[ 25], edges[ 60], nodes[105], edges[ 41], edges[ 48], nodes[102], edges[ 37],  # noqa: E501
-                           edges[  4], edges[  8], nodes[109], edges[ 28], edges[ 44], nodes[117], edges[ 52], edges[ 56], nodes[113], edges[ 16], edges[ 32], nodes[114],  # noqa: E501
-                           nodes[ 44], nodes[ 47], nodes[ 46], nodes[ 45], nodes[ 51], nodes[ 50], nodes[ 49], nodes[ 48], nodes[ 52],  # noqa: E501
-                           edges[ 20], edges[ 24], edges[ 40], edges[ 36], nodes[118])),
-                    tuple((nodes[  4], nodes[  7], nodes[  6], nodes[  5], nodes[124],
-                           nodes[ 29], nodes[ 30], nodes[ 31], nodes[ 28], nodes[ 27], nodes[ 26], nodes[ 25], nodes[ 24], nodes[ 23], nodes[ 22], nodes[ 21], nodes[ 20],  # noqa: E501
-                           edges[ 48], nodes[102], edges[ 37], edges[ 60], nodes[105], edges[ 41], edges[ 63], nodes[104], edges[ 42], edges[ 51], nodes[103], edges[ 38],  # noqa: E501
-                           edges[ 52], edges[ 56], nodes[113], edges[ 61], edges[ 62], nodes[112], edges[ 55], edges[ 59], nodes[111], edges[ 49], edges[ 50], nodes[110],  # noqa: E501
-                           nodes[ 89], nodes[ 92], nodes[ 91], nodes[ 90], nodes[ 96], nodes[ 95], nodes[ 94], nodes[ 93], nodes[ 97],                                      # noqa: E501
-                           edges[ 53], edges[ 57], edges[ 58], edges[ 54], nodes[123])),
-                    tuple((nodes[  6], nodes[  7], nodes[  3], nodes[  2], nodes[124],
-                           *nodes[26:29], nodes[ 43], nodes[ 42], nodes[ 41], nodes[ 16], nodes[ 15], nodes[ 14], *nodes[38:41],
-                           edges[ 63], nodes[104], edges[ 42], edges[ 60], nodes[105], edges[ 41], edges[ 12], nodes[101], edges[ 25], edges[ 15], nodes[100], edges[ 26],  # noqa: E501
-                           edges[ 62], edges[ 61], nodes[112], edges[ 44], edges[ 28], nodes[117], edges[ 14], edges[ 13], nodes[108], edges[ 47], edges[ 31], nodes[116],  # noqa: E501
-                           nodes[ 74], nodes[ 73], nodes[ 72], nodes[ 71], nodes[ 77], nodes[ 76], nodes[ 75], nodes[ 78], nodes[ 79],                                      # noqa: E501
-                           edges[ 46], edges[ 45], edges[ 29], edges[ 30], nodes[121]))]
+            return [(  0,   1,   2,   3, 124, *range( 8,  17), *reversed(range(17, 20)),
+                     125,  98, 146, 128,  99, 147, 140, 100, 151, 137, 101, 150, 126,
+                     127, 106, 132, 136, 107, 138, 139, 108, 129, 133, 109,  80,  83,
+                      82,  81,  87,  86,  85,  84,  88, 130, 131, 135, 134, 122),
+                    (  0,   4,   5,   1, 124, *range(32,  35),          *range(20,  23),
+                      37,  36,  35,  10,   9,   8, 125,  98, 146, 173, 102, 162, 176,
+                     103, 163, 128,  99, 147, 141, 157, 114, 174, 175, 110, 144, 160,
+                     115, 126, 127, 106,  62,  65,  64,  63,  69,  68,  67,  66,  70, 142, 158, 159, 143, 120),
+                    (  1,   5,   6,   2, 124, *range(35,  38),          *range(23,  26),
+                      40,  39,  38,  13,  12,  11, 128,  99, 147, 176, 103, 163, 188,
+                     104, 167, 140, 100, 151, 144, 160, 115, 180, 184, 111, 156, 172,
+                     116, 132, 136, 107,  53,  56,  55,  54,  60,  59,  58,  57,  61, 148, 164, 168, 152, 119),
+                    (  0,   3,   7,   4, 124,  17,  18,  19, *range(41,  44), *reversed(range(29, 32)),
+                      34,  33,  32, 125,  98, 146, 137, 101, 150, 185, 105, 166, 173,
+                     102, 162, 129, 133, 109, 153, 169, 117, 177, 181, 113, 141, 157,
+                     114,  44,  47,  46,  45,  51,  50,  49,  48,  52, 145, 149, 165, 161, 118),
+                    (  4,   7,   6,   5, 124, *range(29,  32), *reversed(range(26, 29)),
+                      25,  24,  23,  22,  21,  20, 173, 102, 162, 185, 105, 166, 188,
+                     104, 167, 176, 103, 163, 177, 181, 113, 186, 187, 112, 180, 184,
+                     111, 174, 175, 110,  89,  92,  91,  90,  96,  95,  94,  93,  97, 178, 182, 183, 179, 123),
+                    (  6,   7,   3,   2, 124, *range(26,  29), *reversed(range(41, 44)),
+                      16,  15,  14,  38,  39,  40, 188, 104, 167, 185, 105, 166, 137,
+                     101, 150, 140, 100, 151, 187, 186, 112, 169, 153, 117, 139, 138,
+                     108, 172, 156, 116,  74,  73,  72,  71,  77,  76,  75,  78,  79, 171, 170, 154, 155, 121)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -430,9 +476,9 @@ def split_hex_to_pyram(nodes: list, center: int, edges: list, order: int) -> lis
 
 
 @cache
-def pyram_faces(order: int) -> list:
+def pyram_faces(order: int) -> list[np.ndarray]:
     """
-    Given the 5 pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples.
+    Given the pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples
     """
     match order:
         case 1:
@@ -465,45 +511,57 @@ def pyram_faces(order: int) -> list:
             sys.exit(1)
 
 
-# TODO: FASTER IMPLEMENTATION WOULD ONLY RETURN THE INDICES
-def split_hex_to_prism(nodes: list, order: int) -> list:
+@cache
+def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
     """
-    Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
-    return a list of new prism element connectivity lists.
+    Given the indices of a single hexahedral element, return a list of new prism element connectivity lists
     """
     match order:
         case 1:
-            return [[nodes[0], nodes[1], nodes[3], nodes[4], nodes[5], nodes[7]],
-                    [nodes[1], nodes[2], nodes[3], nodes[5], nodes[6], nodes[7]]]
+            return [( 0,  1,  3,  4,  5,  7),
+                    ( 1,  2,  3,  5,  6,  7)]
         case 2:
             #  HEXA: [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 24 22 21 23 20 25 26]
-            return [[nodes[ 0], nodes[ 1], nodes[ 3], nodes[ 4], nodes[ 5], nodes[ 7], nodes[ 8], nodes[24], nodes[11], nodes[12],
-                     nodes[25], nodes[15], nodes[16], nodes[17], nodes[19], nodes[22], nodes[26], nodes[20]],
-                    [nodes[ 1], nodes[ 2], nodes[ 3], nodes[ 5], nodes[ 6], nodes[ 7], nodes[ 9], nodes[10], nodes[24],
-                     nodes[13], nodes[14], nodes[25], nodes[17], nodes[18], nodes[19], nodes[21], nodes[23], nodes[26]]]
+            return [(  0,  1,  3,  4,  5,  7,  8, 24, 11, 12, 25, 15, 16, 17, 19, 22, 26, 20),
+                    (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
         case 4:
-            prism1 =[nodes[  0], nodes[  1], nodes[  3], nodes[  4], nodes[  5], nodes[  7],
-                     nodes[  8], nodes[  9], nodes[ 10], nodes[ 83], nodes[ 88], nodes[ 81], nodes[ 19], nodes[ 18], nodes[ 17],  # 6         #  noqa: E501
-                     nodes[ 20], nodes[ 21], nodes[ 22], nodes[ 90], nodes[ 97], nodes[ 92], nodes[ 31], nodes[ 30], nodes[ 29],  # 15        #  noqa: E501
-                     nodes[ 32], nodes[ 33], nodes[ 34], nodes[ 35], nodes[ 36], nodes[ 37], nodes[ 41], nodes[ 42], nodes[ 43],  # 24        #  noqa: E501
-                     nodes[ 62], nodes[ 63], nodes[ 64], nodes[ 65], nodes[ 66], nodes[ 67], nodes[ 68], nodes[ 69], nodes[ 70],  # face1:33  #  noqa: E501
-                     nodes[ 99], nodes[101], nodes[105], nodes[103], nodes[122], nodes[117], nodes[123], nodes[115], nodes[124],  # face2:42  #  noqa: E501
-                     nodes[ 47], nodes[ 44], nodes[ 45], nodes[ 46], nodes[ 51], nodes[ 48], nodes[ 49], nodes[ 50], nodes[ 52],  # face3:51  #  noqa: E501
-                     nodes[ 89], nodes[ 93], nodes[ 96],                                                                          # face4 #60 #  noqa: E501
-                     nodes[ 80], nodes[ 87], nodes[ 84],                                                                          # face5 #63 #  noqa: E501
-                     nodes[ 98], nodes[106], nodes[109], nodes[114], nodes[120], nodes[118], nodes[102], nodes[110], nodes[113]]  # volume    #  noqa: E501
-
-            prism2 =[nodes[  1], nodes[  2], nodes[  3], nodes[  5], nodes[  6], nodes[  7],
-                     nodes[ 11], nodes[ 12], nodes[ 13], nodes[ 14], nodes[ 15], nodes[ 16], nodes[ 81], nodes[ 88], nodes[ 83],  # 6         #  noqa: E501
-                     nodes[ 23], nodes[ 24], nodes[ 25], nodes[ 26], nodes[ 27], nodes[ 28], nodes[ 92], nodes[ 97], nodes[ 90],  # 15        #  noqa: E501
-                     nodes[ 35], nodes[ 36], nodes[ 37], nodes[ 38], nodes[ 39], nodes[ 40], nodes[ 41], nodes[ 42], nodes[ 43],  # 24        #  noqa: E501
-                     nodes[ 53], nodes[ 54], nodes[ 55], nodes[ 56], nodes[ 57], nodes[ 58], nodes[ 59], nodes[ 60], nodes[ 61],  # face1     #  noqa: E501
-                     nodes[ 71], nodes[ 72], nodes[ 73], nodes[ 74], nodes[ 75], nodes[ 76], nodes[ 77], nodes[ 78], nodes[ 79],  # face3     #  noqa: E501
-                     nodes[101], nodes[ 99], nodes[103], nodes[105], nodes[122], nodes[115], nodes[123], nodes[117], nodes[124],  # face2     #  noqa: E501
-                     nodes[ 94], nodes[ 91], nodes[ 95],                                                                          # face4     #  noqa: E501
-                     nodes[ 86], nodes[ 82], nodes[ 85],                                                                          # face5     #  noqa: E501
-                     nodes[107], nodes[100], nodes[108], nodes[119], nodes[116], nodes[121], nodes[111], nodes[104], nodes[112]]  # volume    #  noqa: E501
-
+            # prism1 = (   0,   1,   3,   4,   5,   7,
+            #              8,   9,  10,  83,  88,  81,  19,  18,  17,            # 6 vertices
+            #             20,  21,  22,  90,  97,  92,  31,  30,  29,            # Edge
+            #             32,  33,  34,  35,  36,  37,  41,  42,  43,            # Edge
+            #             62,  63,  64,  65,  66,  67,  68,  69,  70,            # Face 1
+            #             99, 101, 105, 103, 122, 117, 123, 115, 124,            # Face 2
+            #             47,  44,  45,  46,  51,  48,  49,  50,  52,            # Face 3
+            #             89,  93,  96,                                          # Face 4
+            #             80,  87,  84,                                          # Face 5
+            #             98, 106, 109, 114, 120, 118, 102, 110, 113)            # Volume
+            prism1 = (   0,   1,   3,   4,   5,   7,                           # 6 vertices
+                        *range( 8, 11), 83, 88, 81, *reversed(range(17, 20)),  # Edges
+                        *range(20, 23), 90, 97, 92, *reversed(range(29, 32)),  # Edges
+                        *range(32, 35), 35, 36, 37, *reversed(range(41, 44)),  # Face 1
+                        *range(62, 65), 65, 66, 67,          *range(68, 71) ,  # Face 2
+                         99,  101, 105, 103, 122,  117, 123, 115, 124,         # Face 3
+                         47, *range(44, 47),  51, *range(48, 51),  52,         # Face 4
+                         89,  93,  96, 80,  87,  84,                           # Face 5
+                         98, 106, 109, 114, 120, 118, 102, 110, 113)           # Volume
+            # prism2 = (   1,   2,   3,   5,   6,   7,                           # 6 vertices
+            #             11,  12,  13,  14,  15,  16,  81,  88,  83,            # Edges
+            #             23,  24,  25,  26,  27,  28,  92,  97,  90,            # Edges
+            #             35,  36,  37,  38,  39,  40,  41,  42,  43,            # Face 1
+            #             53,  54,  55,  56,  57,  58,  59,  60,  61,            # Face 2
+            #             71,  72,  73,  74,  75,  76,  77,  78,  79,            # Face 3
+            #            101,  99, 103, 105, 122, 115, 123, 117, 124,            # Face 4
+            #             94,  91,  95, 86,  82,  85,                            # Face 5
+            #            107, 100, 108, 119, 116, 121, 111, 104, 112)            # Volume
+            prism2 = (   1,   2,   3,   5,   6,   7,                           # 6 vertices
+                        *range(11, 14), *range(14, 17), 81, 88, 83,            # Edges
+                        *range(23, 26), *range(26, 29), 92, 97, 90,            # Edges
+                        *range(35, 38), *range(38, 41), 41, 42, 43,            # Face 1
+                        *range(53, 56), *range(56, 59), 59, 60, 61,            # Face 2
+                        *range(71, 74), *range(74, 77), 77, 78, 79,            # Face 3
+                        101,  99, 103, 105, 122, 115, 123, 117, 124,           # Face 4
+                         94,  91,  95,  86,  82,  85,                          # Face 5
+                        107, 100, 108, 119, 116, 121, 111, 104, 112)           # Volume
             return [prism1, prism2]
 
         case _:
@@ -513,7 +571,7 @@ def split_hex_to_prism(nodes: list, order: int) -> list:
 
 
 @cache
-def prism_faces(order: int) -> list:
+def prism_faces(order: int) -> list[np.ndarray]:
     """
     Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
     """
@@ -539,9 +597,56 @@ def prism_faces(order: int) -> list:
                     np.array([  0, 1, 2, *range( 6, 15), *range(63, 66)], dtype=int),  # z-
                     np.array([  3, 4, 5, *range(15, 24), *range(60, 63)], dtype=int),  # z+
                     # Quadrilateral faces
-                    np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), 17, 16, 15, 26, 25, 24, *range(33, 42)], dtype=int),
-                    np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), 20, 19, 18, 29, 28, 27, *range(42, 51)], dtype=int),
-                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), 23, 22, 21, 32, 31, 30, *range(51, 60)], dtype=int)]
+                    np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), *reversed(range(15, 18)), *reversed(range(24, 27)), *range(33, 42)], dtype=int),  # noqa: E501
+                    np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), *reversed(range(18, 21)), *reversed(range(27, 30)), *range(42, 51)], dtype=int),  # noqa: E501
+                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)], dtype=int)]  # noqa: E501
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+
+# Dummy function for hexahedral elements
+@cache
+def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
+    nodes = np.arange((order + 1) ** 3)
+    return [tuple(nodes)]
+
+
+# Dummy function for hexahedral elements
+@cache
+def hex_faces(order: int) -> list[np.ndarray]:
+    """ Given the indices of a hexahedral element, return the 6 faces as tuples
+    """
+    match order:
+        case 1:
+            return [np.array([  0,  1,  2,  3], dtype=int),
+                    np.array([  0,  1,  5,  4], dtype=int),
+                    np.array([  1,  2,  6,  5], dtype=int),
+                    np.array([  2,  6,  7,  3], dtype=int),
+                    np.array([  0,  4,  7,  3], dtype=int),
+                    np.array([  4,  5,  6,  7], dtype=int)]
+        case 2:
+            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 24], dtype=int),
+                    np.array([  0,  1,  5,  4,  8, 17, 12, 16, 22], dtype=int),
+                    np.array([  1,  2,  6,  5,  9, 18, 13, 17, 21], dtype=int),
+                    np.array([  2,  6,  7,  3, 18, 14, 19, 10, 23], dtype=int),
+                    np.array([  0,  4,  7,  3, 16, 15, 19, 11, 20], dtype=int),
+                    np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int)]
+        case 3:
+            return [np.array([  0,  1,  2,  3, *range( 8, 10), *range(10, 12),          *range(12, 14),  *reversed(range(14, 16)), 48, *reversed(range(50, 52)), 49], dtype=int),  # noqa: E501
+                    np.array([  0,  1,  5,  4, *range( 8, 10), *range(26, 28), *reversed(range(16, 18)), *reversed(range(24, 26)), 40,          *range(41, 43) , 43], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  6,  5, *range(10, 12), *range(28, 30), *reversed(range(18, 20)), *reversed(range(26, 28)), 36,          *range(37, 39) , 39], dtype=int),  # noqa: E501
+                    np.array([  2,  6,  7,  3, *range(28, 30), *range(20, 22), *reversed(range(30, 32)), *reversed(range(12, 14)), 44, *reversed(range(46, 48)), 45], dtype=int),  # noqa: E501
+                    np.array([  0,  4,  7,  3, *range(24, 26), *range(22, 24), *reversed(range(32, 34)), *reversed(range(14, 16)), 32,          *range(33, 35) , 35], dtype=int),  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(16, 18), *range(18, 20),          *range(20, 22) , *reversed(range(22, 24)), 52,          *range(53, 55) , 54], dtype=int)]  # noqa: E501
+        case 4:
+            return [np.array([  0,  1,  2,  3, *range( 8, 11), *range(11, 14),          *range(14, 17) , *reversed(range(17, 20)), 80, *reversed(range(81, 84)), 87, *reversed(range(84, 87)), 88], dtype=int),  # noqa: E501
+                    np.array([  0,  1,  5,  4, *range( 8, 11), *range(35, 38), *reversed(range(20, 23)), *reversed(range(32, 35)), 62,          *range(63, 66) , 66,          *range(67, 70) , 70], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  6,  5, *range(11, 14), *range(38, 41), *reversed(range(23, 26)), *reversed(range(35, 38)), 53,          *range(54, 57) , 57,          *range(58, 61) , 61], dtype=int),  # noqa: E501
+                    np.array([  2,  6,  7,  3, *range(38, 41), *range(26, 29), *reversed(range(41, 44)), *reversed(range(14, 17)), 71, *reversed(range(72, 75)), 78, *reversed(range(75, 78)), 79], dtype=int),  # noqa: E501
+                    np.array([  0,  4,  7,  3, *range(32, 35), *range(29, 32), *reversed(range(41, 44)), *reversed(range(17, 20)), 44,          *range(45, 48) , 48,          *range(49, 52) , 52], dtype=int),  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97], dtype=int)]  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
