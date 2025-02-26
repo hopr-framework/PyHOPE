@@ -28,12 +28,13 @@ import os
 import subprocess
 import sys
 import traceback
-from typing import Optional, Union, final
+from typing import Optional, Union, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import h5py
 import numpy as np
 from collections import OrderedDict
 from configparser import ConfigParser
@@ -433,15 +434,18 @@ class ReadConfig():
         format, so we need some hacks around the INI file format
     """
 
-    def __init__(self, parameter: str) -> None:
-        self.parameter = parameter
+    def __init__(self, input: str) -> None:
+        self.input     = input
+        self.parameter = ''
+        self.mesh      = ''
 
         # define allowed comments
         self.sym_comm = ('#', ';', '!')
-
         return None
 
     def _read_file(self) -> list:
+        """ Read the parameter file and replace DEFVAR variables
+        """
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
@@ -452,20 +456,20 @@ class ReadConfig():
             for line in stream:
                 line = line.strip()
 
-                # HOPR supported inline comments as prefix before "%"
+                # HOPR supported inline comments as prefix before '%'
                 # For legacy reasons also support such comment constructs
-                if "%" in line:
-                    line = line.split("%", 1)[1].strip()
+                if '%' in line:
+                    line = line.split('%', 1)[1].strip()
 
-                # HOPR supported inline variable definitions with prefix "DEFVAR="
+                # HOPR supported inline variable definitions with prefix 'DEFVAR='
                 # For legacy reasons also support such variable definition constructs
-                if "DEFVAR=" in line:
-                    if ":" not in line:
-                        hopout.warning("DEFVAR= syntax error while parsing parameter file. Missing ':'")
+                if 'DEFVAR=' in line:
+                    if ':' not in line:
+                        hopout.warning('DEFVAR= syntax error while parsing parameter file. Missing ":"')
                         sys.exit(1)
-                    parts = line.split(":")
+                    parts = line.split(':')
 
-                    var_type_part = parts[0].replace("DEFVAR=", "").strip()
+                    var_type_part = parts[0].replace('DEFVAR=', '').strip()
                     var_def_part = parts[1].strip()
 
                     # Check if comment is in value part
@@ -475,36 +479,36 @@ class ReadConfig():
                             break  # Stop at the first symbol found
 
                     # Extract variable type and optional array size
-                    if "~" in var_type_part:
+                    if '~' in var_type_part:
                         # Vector
-                        _, size_part = var_type_part.split("~")
-                        arr_size = int(size_part.strip(")"))  # Convert size to int
+                        _, size_part = var_type_part.split('~')
+                        arr_size = int(size_part.strip(')'))  # Convert size to int
                     else:
                         # Scalar
                         arr_size = None
 
                     # Extract variable name and value (handling spaces around `=`)
-                    if "=" in var_def_part:
-                        var_name, var_value = [s.strip() for s in var_def_part.split("=", 1)]
+                    if '=' in var_def_part:
+                        var_name, var_value = [s.strip() for s in var_def_part.split('=', 1)]
                     else:
-                        hopout.warning(f"DEFVAR= syntax error while parsing '{var_def_part}'")
+                        hopout.warning(f'DEFVAR= syntax error while parsing "{var_def_part}"')
                         sys.exit(1)
 
                     # Ensure unique variable names
                     for existing_var in variables:
                         if var_name in set(existing_var):
-                            hopout.warning(f"Variable '{var_name}' is ambiguous")
+                            hopout.warning(f'Variable "{var_name}" is ambiguous')
                             sys.exit(1)
 
                     # Convert values to proper types
                     if arr_size:  # Handle array
-                        values = [float(v) if "." in v else int(v) for v in var_value.split(",")]
+                        values = [float(v) if '.' in v else int(v) for v in var_value.split(',')]
                         if len(values) != arr_size:
-                            hopout.warning(f"Expected {arr_size} values for array '{var_name}', got {len(values)}")
+                            hopout.warning(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
                             sys.exit(1)
                         variables[var_name] = values
                     else:  # Single value
-                        variables[var_name] = float(var_value) if "." in var_value else int(var_value)
+                        variables[var_name] = float(var_value) if '.' in var_value else int(var_value)
 
                     # We have to sort the variables according to the length of the keys in order to avoid
                     # substring replacement in the parameter file. This way it can be assured that long strings
@@ -514,20 +518,19 @@ class ReadConfig():
 
                     continue  # Skip adding this line to config
 
-
                 # Replace variables in the parameter file
                 for var, value in variables.items():
                     if isinstance(value, list):  # Convert arrays to string format
-                        replacement = f"(/{','.join(map(str, value))}/)"
+                        replacement = f'(/{",".join(map(str, value))}/)'
                     else:
                         replacement = str(value)
 
                     # Ensure exact match replacement (avoiding substring issues)
-                    if "=" in line:
-                        tmp = line.split("=")
+                    if '=' in line:
+                        tmp = line.split('=')
                         if var in tmp[1]:
-                            tmp[1] = tmp[1].replace(var,replacement)
-                        line = "=".join(tmp)
+                            tmp[1] = tmp[1].replace(var, replacement)
+                        line = '='.join(tmp)
 
                 processed_lines.append(line)
 
@@ -546,8 +549,8 @@ class ReadConfig():
                               dict_type=MultiOrderedDict
                               )
 
-        # Check if the file exists
-        if not self.parameter:
+        # Check if the file exists in argv
+        if not self.input:
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
             common  = Common()
             program = common.program
@@ -555,13 +558,11 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.warning('No parameter file given')
+            hopout.warning('No parameter or mesh file given')
             sys.exit(1)
 
-        # Sore full path of the parameter file
-        config.prmfile = os.path.abspath(self.parameter)
-
-        if not os.path.isfile(config.prmfile):
+        # Check if file exists on drive
+        if not os.path.isfile(self.input):
             process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
             common  = Common()
             program = common.program
@@ -569,14 +570,71 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.warning('Parameter file [󰇘]/{} does not exist'.format(os.path.basename(self.parameter)))
+            hopout.warning('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
             sys.exit(1)
 
-        # HOPR does not use conventional sections, so prepend a fake section header
-        processed_content = '[general]\n' + '\n'.join(self._read_file())
+        # Check if input is mesh or parameter file
+        parameter_mode = False
+        mesh_mode      = False
+        if h5py.is_hdf5(self.input):
+            mesh_mode = True
+        else:
+            try:
+                with open(self.input, 'r', encoding='utf-8') as f:
+                    f.read()
+                parameter_mode = True
+            except UnicodeDecodeError:
+                hopout.warning('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
+                sys.exit(1)
 
-        # Read the modified content into ConfigParser
-        parser.read_string(processed_content)
+        # Handle parameter data
+        if parameter_mode:
+            self.parameter = self.input
+
+            # Sore full path of the parameter file
+            config.prmfile = os.path.abspath(self.parameter)
+
+            # HOPR does not use conventional sections, so prepend a fake section header
+            parser.read_string('[general]\n' + '\n'.join(self._read_file()))
+
+        # Handle mesh data
+        if mesh_mode:
+            # Set the prmfile to an empty string as it is required for searching for the mesh later in script.
+            # As the mesh is however explicitly givenb, this is not required in mesh_mode
+            config.prmfile = ''
+
+            # In this mode we need to create a dummy parameter file for processing the mesh.
+            # For basic processing as calculating the jacobians and performing the checks only
+            # little parameters have to be defined and extracted from the file
+            mesh_params = [
+                '[general]',
+                f'ProjectName = {os.path.splitext(os.path.basename(self.input))[0]}',
+                f'Filename    = {os.path.abspath(self.input)}',
+                'OutputFormat = HDF5',
+                'DebugVisu    = F',
+                'Mode         = external',
+            ]
+
+            # Get geometric order and boundary conditions
+            with h5py.File(self.input, 'r') as f:
+                NGeo    = cast(int, f.attrs['Ngeo'])
+                BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
+                BCType  = cast(h5py.Dataset, f['BCType'])[:]
+
+            # Write geometric order info to file
+            mesh_params.append(f'NGeo = {NGeo}')
+            mesh_params.append(f'MeshIsAlreadyCurved = {"T" if NGeo > 1 else "F"}')
+
+            # Setup boundary conditions
+            for iBC, BC in enumerate(BCNames):
+                mesh_params.append(f'BoundaryName = {BC}')
+                mesh_params.append(f'BoundaryType = (/{", ".join(map(str, BCType[iBC]))}/)')
+
+            # Join lines into a single string
+            mesh_param = '\n'.join(mesh_params)
+
+            # Parse dummy parameters
+            parser.read_string(mesh_param)
 
         config.std_length = max(len(s) for s in config.prms.keys())
         config.std_length = max(32, config.std_length+1)
