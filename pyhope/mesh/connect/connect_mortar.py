@@ -64,7 +64,7 @@ def ConnectMortar( nConnSide  : list
             doPeriodic: Flag to enable periodic connections
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.connect.connect_dllist import LinkOffsetManager, list_to_dllist, dllist_to_list
+    from pyhope.mesh.connect.connect_treap import LinkOffsetManager, list_to_treap, treap_to_list
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
 
@@ -108,7 +108,7 @@ def ConnectMortar( nConnSide  : list
     offsetManager = LinkOffsetManager()
 
     # Convert the sides to a doubly linked list
-    dllsides = list_to_dllist(sides, offsetManager)
+    dllsides = list_to_treap(sides, offsetManager)
 
     for targetID in targetSides:
         # Skip already connected sides
@@ -165,7 +165,7 @@ def ConnectMortar( nConnSide  : list
             break
 
     # Convert sides back to a list
-    sides = dllist_to_list(dllsides)
+    sides = treap_to_list(dllsides)
 
     # Also update the elems with the new side IDs
     # > First, build a dictionary mapping elemID to list of sideIDs
@@ -189,7 +189,7 @@ def connect_mortar_sides( sideIDs    : list
         > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.connect.connect_dllist import ListNode
+    from pyhope.mesh.connect.connect_treap import SideNode
     from pyhope.mesh.connect.connect import flip_analytic
     from pyhope.mesh.mesh_common import type_to_mortar_flip
     # ------------------------------------------------------
@@ -313,7 +313,7 @@ def connect_mortar_sides( sideIDs    : list
     # Insert the new sides into the doubly linked list
     # Each insertion automatically notifies offsetManager to shift subsequent indices.
     for i, new_side in enumerate(new_sides):
-        new_node = ListNode(value=new_side, link=new_side.connection)
+        new_node = SideNode(value=new_side, link=new_side.connection)
         insertion_index = masterSideID + 1 + i
         dllsides.insert(insertion_index, new_node)
 

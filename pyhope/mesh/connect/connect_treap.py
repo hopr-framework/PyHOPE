@@ -26,13 +26,13 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+import bisect
+import random
 from typing import Optional, List, Tuple
-# from functools import lru_cache
 from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import bisect
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ class LinkOffsetManager:
         # Update all subsequent breakpoints.
         for i in range(pos, len(self.breakpoints)):
             index, current_offset = self.breakpoints[i]
-            self.breakpoints[i] = (index, current_offset + delta)
+            self.breakpoints[i]   = (index, current_offset + delta)
         # Clear cached offsets as breakpoints have changed
         self._get_offset.cache_clear()
 
@@ -99,22 +99,18 @@ class LinkOffsetManager:
         return self._get_offset(index)
 
 
-class ListNode:
-    __slots__ = ('value', 'link', 'prev', 'next')
+class SideNode:
+    __slots__ = ('value', 'link')
 
     def __init__(self,
                  value: SIDE,
-                 link: Optional[int],
-                 next: Optional[ListNode] = None,
-                 prev: Optional[ListNode] = None) -> None:
+                 link: Optional[int]) -> None:
         """
         value: a SIDE object
         link : the stored connection (an int) from the SIDE (side.connection)
         """
         self.value = value
         self.link  = link   # This is the base (stored) connection value
-        self.prev  = prev
-        self.next  = next
 
     def effective_link(self, offset_manager: LinkOffsetManager) -> Optional[int]:
         """
@@ -126,13 +122,75 @@ class ListNode:
         return self.link + offset_manager.get_offset(self.link)
 
 
-class DoublyLinkedList:
-    __slots__ = ('head', 'tail', '_size', 'offset_manager', '_node_at')
+# ----- Treap Helpers ---------------------------------------------------------------------------
+class _TreapNode:
+    __slots__ = ('data', 'priority', 'left', 'right', 'size')
+
+    def __init__(self, data: SideNode) -> None:
+        self.data    : SideNode = data
+        self.size    : int      = 1
+        self.priority: float    = random.random()  # random priority for balancing
+        self.left    : Optional[_TreapNode] = None
+        self.right   : Optional[_TreapNode] = None
+
+
+def _update_size(node: Optional[_TreapNode]) -> None:
+    if node is not None:
+        node.size = 1
+        if node.left is not None:
+            node.size += node.left.size
+        if node.right is not None:
+            node.size += node.right.size
+
+
+def _split(root: Optional[_TreapNode], index: int) -> Tuple[Optional[_TreapNode], Optional[_TreapNode]]:
+    """
+    Splits the treap into two treaps:
+      - left : first 'index' elements
+      - right: the remaining elements
+    """
+    if root is None:
+        return (None, None)
+    left_size = root.left.size if root.left else 0
+    if index <= left_size:
+        left, new_left = _split(root.left, index)
+        root.left = new_left
+        _update_size(root)
+        return (left, root)
+    else:
+        new_index  = index - left_size - 1
+        new_right, right = _split(root.right, new_index)
+        root.right = new_right
+        _update_size(root)
+        return (root, right)
+
+
+def _merge(left: Optional[_TreapNode], right: Optional[_TreapNode]) -> Optional[_TreapNode]:
+    """
+    Merges two treaps where all keys in left come before keys in right.
+    """
+    if left is None or right is None:
+        return left or right
+    if left.priority < right.priority:
+        left.right = _merge(left.right, right)
+        _update_size(left)
+        return left
+    else:
+        right.left = _merge(left, right.left)
+        _update_size(right)
+        return right
+
+
+class Treap:
+    """
+    This class provides randomized balanced BST known as a Treap to reduce the O(n) cost of arbitrary insertions and random access
+    inherent in a doubly linked list.
+    """
+    __slots__ = ('_root', '_size', 'offset_manager', '_node_at')
 
     def __init__(self, offset_manager: LinkOffsetManager) -> None:
-        self.head : Optional[ListNode] = None
-        self.tail : Optional[ListNode] = None
-        self._size: int                = 0
+        self._root: Optional[_TreapNode] = None
+        self._size: int = 0
         # Shared manager for batch updates
         self.offset_manager = offset_manager
         # Cache for node_at lookups using native lru_cache
@@ -143,75 +201,53 @@ class DoublyLinkedList:
 
     # @lru_cache(maxsize=None)
     @cache
-    def _node_at_impl(self, index: int) -> ListNode:
+    def _node_at_impl(self, index: int) -> SideNode:
         """
-        Internal implementation for retrieving the node at the given index (by traversing from head or tail)
-        > This method is cached via lru_cache
+        Retrieve the ListNode at the given index using treap search. This method is cached; the cache is cleared on structural
+        modifications.
         """
-        if index < 0 or index >= self._size:
+        if not 0 <= index < self._size:
             raise IndexError('Index out of range')
 
-        # Decide traverse direction: from head or tail.
-        if index < self._size // 2:
-            current = self.head
-            cur_index = 0
-            while cur_index < index:
-                current    = current.next
-                cur_index += 1
-        else:
-            current = self.tail
-            cur_index = self._size - 1
-            while cur_index > index:
-                current    = current.prev
-                cur_index -= 1
+        # Traverse the treap to find the node at the given index
+        node = self._root
+        while node is not None:
+            left_size = node.left.size if node.left else 0
+            if index < left_size:
+                node = node.left
+            elif index == left_size:
+                return node.data
+            else:
+                index -= left_size + 1
+                node = node.right
+        raise IndexError("Index not found")
 
-        if current is None:
-            raise IndexError("Node not found")
-
-        return current
-
-    def node_at(self, index: int) -> ListNode:
+    def node_at(self, index: int) -> SideNode:
         """
-        Retrieve the node at the given index (by using a cached lookup)
+        Retrieve the node at the given index (via cached lookup)
         """
         return self._node_at(index)
 
-    def __getitem__(self, index: int) -> ListNode:
+    def __getitem__(self, index: int) -> SideNode:
         return self.node_at(index)
 
-    def insert(self, effective_index: int, new_node: ListNode, update_offset: bool = True) -> None:
+    def insert(self, effective_index: int, new_node: SideNode, update_offset: bool = True) -> None:
         """
-        Insert new_node at the logical position that corresponds to the given
-        effective_index (already offset-adjusted)
+        Insert new_node at the logical position corresponding to the effective_index
         """
-
-        if effective_index < 0 or effective_index > self._size:
-            raise IndexError("Index out of range")
+        if not 0 <= effective_index <= self._size:
+            raise IndexError('Index out of range')
 
         # Invalidate the node_at cache since the list structure is about to change
         self._node_at.cache_clear()
 
-        # Standard insertion logic in the doubly linked list at logical_index
-        if self._size == 0:
-            self.head = self.tail = new_node
-        elif effective_index == 0:
-            new_node.next  = self.head
-            self.head.prev = new_node
-            self.head = new_node
-        elif effective_index == self._size:
-            new_node.prev  = self.tail
-            self.tail.next = new_node
-            self.tail = new_node
-        else:
-            current = self.node_at(effective_index)
-            prev_node = current.prev
-            if prev_node:
-                prev_node.next = new_node
-                new_node.prev  = prev_node
-            new_node.next = current
-            current.prev = new_node
-
+        # Insert the new node into the treap at logical index
+        new_treap   = _TreapNode(new_node)
+        left, right = _split(self._root, effective_index)
+        merged      = _merge(left, new_treap)
+        self._root  = _merge(merged, right)
         self._size += 1
+
         if update_offset:
             # Update the offset manager using the computed stored index corresponding
             # to the effective index.
@@ -226,52 +262,59 @@ class DoublyLinkedList:
         node = self.node_at(index)
         node.value = new_value
 
-    def to_list(self) -> List[ListNode]:
-        """ Return a Python list of the nodes (in order)
+    def inorder(self, t: Optional[_TreapNode], result: List[SideNode]) -> None:
         """
-        result: List[ListNode] = []
-        current = self.head
-        while current:
-            result.append(current)
-            current = current.next
+        Recursively traverse the treap in order and append node data to the result list
+        """
+        if t is None:
+            return
+
+        self.inorder( t.left, result)
+        result.append(t.data)
+        self.inorder( t.right, result)
+
+    def to_list(self) -> List[SideNode]:
+        """
+        Return a Python list of the nodes (in order) via an in-order traversal of the treap
+        """
+        result: List[SideNode] = []
+        self.inorder(self._root, result)
         return result
 
     def __iter__(self):
         """
-        Iterate over the nodes in the list
+        Iterate over the nodes in order
         """
-        current = self.head
-        while current:
-            yield current
-            current = current.next
+        return iter(self.to_list())
 
 
-def list_to_dllist(sides: List[SIDE], offset_manager: LinkOffsetManager) -> DoublyLinkedList:
+def list_to_treap(sides: List[SIDE], offset_manager: LinkOffsetManager) -> Treap:
     """
-    Convert a list of SIDE objects into a DoublyLinkedList
+    Convert a list of SIDE objects into a Treap (balanced BST) for efficient insertion and random access
 
     When building from an existing list, we do not update offsets because the
     stored connection (side.connection) is already valid
     """
-    dll = DoublyLinkedList(offset_manager)
+    dll = Treap(offset_manager)
     for side in sides:
-        node = ListNode(value=side, link=side.connection)
-        # Do not update the offset manager during this bulk conversion.
+        node = SideNode(value=side, link=side.connection)
+        # Do not update the offset manager during this bulk conversion
         dll.insert(len(dll), node, update_offset=False)
     return dll
 
 
-def dllist_to_list(dll: DoublyLinkedList) -> List[SIDE]:
+def treap_to_list(dll: Treap) -> List[SIDE]:
     """
-    Convert the DoublyLinkedList back to a list of SIDE objects
+    Convert the Treap (balanced BST) back into a list of SIDE objects
 
     For each node, update its SIDE object's connection field using the effective link,
-    and update sideID to reflect the node's new position in the list
+    and update sideID to reflect the node's new position in the Treap.
     """
     nodes = dll.to_list()
     for idx, node in enumerate(nodes):
+        # Get the new (effective) connection
         if node.value.connection is not None and node.value.connection >= 0:
             node.value.connection = node.effective_link(dll.offset_manager) if node.link is not None else None
-        # Update sideID with the node's new index.
+        # Update sideID with the node's new index
         node.value.sideID = idx
     return [node.value for node in nodes]
