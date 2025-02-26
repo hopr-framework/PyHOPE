@@ -435,7 +435,103 @@ class ReadConfig():
 
     def __init__(self, parameter: str) -> None:
         self.parameter = parameter
+
+        # define allowed comments
+        self.sym_comm = ('#', ';', '!')
+
         return None
+
+    def _read_file(self) -> list:
+        # Local imports ----------------------------------------
+        import pyhope.output.output as hopout
+        # ------------------------------------------------------
+        processed_lines = []
+        variables       = {}
+
+        with open(self.parameter, 'r', encoding='utf-8') as stream:
+            for line in stream:
+                line = line.strip()
+
+                # HOPR supported inline comments as prefix before "%"
+                # For legacy reasons also support such comment constructs
+                if "%" in line:
+                    line = line.split("%", 1)[1].strip()
+
+                # HOPR supported inline variable definitions with prefix "DEFVAR="
+                # For legacy reasons also support such variable definition constructs
+                if "DEFVAR=" in line:
+                    if ":" not in line:
+                        hopout.warning("DEFVAR= syntax error while parsing parameter file. Missing ':'")
+                        sys.exit(1)
+                    parts = line.split(":")
+
+                    var_type_part = parts[0].replace("DEFVAR=", "").strip()
+                    var_def_part = parts[1].strip()
+
+                    # Check if comment is in value part
+                    for symbol in self.sym_comm:
+                        if symbol in var_def_part:
+                            var_def_part = var_def_part.split(symbol, 1)[0].strip()  # Take the part before the symbol
+                            break  # Stop at the first symbol found
+
+                    # Extract variable type and optional array size
+                    if "~" in var_type_part:
+                        # Vector
+                        _, size_part = var_type_part.split("~")
+                        arr_size = int(size_part.strip(")"))  # Convert size to int
+                    else:
+                        # Scalar
+                        arr_size = None
+
+                    # Extract variable name and value (handling spaces around `=`)
+                    if "=" in var_def_part:
+                        var_name, var_value = [s.strip() for s in var_def_part.split("=", 1)]
+                    else:
+                        hopout.warning(f"DEFVAR= syntax error while parsing '{var_def_part}'")
+                        sys.exit(1)
+
+                    # Ensure unique variable names
+                    for existing_var in variables:
+                        if var_name in set(existing_var):
+                            hopout.warning(f"Variable '{var_name}' is ambiguous")
+                            sys.exit(1)
+
+                    # Convert values to proper types
+                    if arr_size:  # Handle array
+                        values = [float(v) if "." in v else int(v) for v in var_value.split(",")]
+                        if len(values) != arr_size:
+                            hopout.warning(f"Expected {arr_size} values for array '{var_name}', got {len(values)}")
+                            sys.exit(1)
+                        variables[var_name] = values
+                    else:  # Single value
+                        variables[var_name] = float(var_value) if "." in var_value else int(var_value)
+
+                    # We have to sort the variables according to the length of the keys in order to avoid
+                    # substring replacement in the parameter file. This way it can be assured that long strings
+                    # get replaced first.
+                    # variables = sorted(variables.items(), key=lambda item: len(item[0]), reverse=True)
+                    variables = dict(sorted(variables.items(), key=lambda item: len(item[0]), reverse=True))
+
+                    continue  # Skip adding this line to config
+
+
+                # Replace variables in the parameter file
+                for var, value in variables.items():
+                    if isinstance(value, list):  # Convert arrays to string format
+                        replacement = f"(/{','.join(map(str, value))}/)"
+                    else:
+                        replacement = str(value)
+
+                    # Ensure exact match replacement (avoiding substring issues)
+                    if "=" in line:
+                        tmp = line.split("=")
+                        if var in tmp[1]:
+                            tmp[1] = tmp[1].replace(var,replacement)
+                        line = "=".join(tmp)
+
+                processed_lines.append(line)
+
+        return processed_lines
 
     def __enter__(self) -> ConfigParser:
         # Local imports ----------------------------------------
@@ -445,8 +541,8 @@ class ReadConfig():
         # ------------------------------------------------------
 
         parser = ConfigParser(strict=False,
-                              comment_prefixes=('#', ';', '!'),
-                              inline_comment_prefixes=('#', ';', '!'),
+                              comment_prefixes=self.sym_comm,
+                              inline_comment_prefixes=self.sym_comm,
                               dict_type=MultiOrderedDict
                               )
 
@@ -477,8 +573,10 @@ class ReadConfig():
             sys.exit(1)
 
         # HOPR does not use conventional sections, so prepend a fake section header
-        with open(self.parameter) as stream:
-            parser.read_string('[general]\n' + stream.read())
+        processed_content = '[general]\n' + '\n'.join(self._read_file())
+
+        # Read the modified content into ConfigParser
+        parser.read_string(processed_content)
 
         config.std_length = max(len(s) for s in config.prms.keys())
         config.std_length = max(32, config.std_length+1)
