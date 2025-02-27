@@ -166,6 +166,7 @@ def GenerateMesh() -> None:
     from pyhope.mesh.mesh_external import MeshExternal
     from pyhope.mesh.mesh_vars import MeshMode
     from pyhope.mesh.topology.mesh_splittohex import MeshSplitToHex
+    from pyhope.mesh.topology.mesh_splittotet import MeshSplitToTet
     from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
     # ------------------------------------------------------
 
@@ -186,6 +187,7 @@ def GenerateMesh() -> None:
     mesh = MeshChangeElemType(mesh)
     # Split simplex elements if requested
     mesh = MeshSplitToHex(mesh)
+    mesh = MeshSplitToTet(mesh)
     mesh_vars.mesh = mesh
 
     # Final count

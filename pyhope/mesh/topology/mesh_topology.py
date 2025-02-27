@@ -257,7 +257,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             subElems = elem[elemSplit]
 
             for subElem in subElems:
-                subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
+                subFaces = [subElem[face] for face in faces(nGeo)]
 
                 for subFace in subFaces:
                     faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)

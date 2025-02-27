@@ -1,0 +1,413 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of PyHOPE
+#
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+#
+# PyHOPE is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Mesh generation library
+# ==================================================================================================================================
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Standard libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import sys
+import traceback
+from functools import cache
+from collections import defaultdict
+from typing import Tuple, cast
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Third-party libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import meshio
+import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local imports
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Local definitions
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ==================================================================================================================================
+
+
+def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
+    """ Split simplex elements into hexahedral elements
+
+        > This routine is mostly identical to MeshChangeElemType
+    """
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from pyhope.common.common_progress import ProgressBar
+    from pyhope.mesh.mesh_vars import nGeo
+    from pyhope.readintools.readintools import GetLogical, GetIntFromStr, CountOption
+    # ------------------------------------------------------
+
+    if nGeo > 1:
+        return mesh
+
+    if 'pyramid' not in mesh.cells_dict:
+        return mesh
+
+    hopout.separator()
+    hopout.info('SPLITTING PYRAMIDS TO TETRAHEDRALS...')
+    hopout.sep()
+
+    # Sanity check
+    # > Check if all requested element types are pyramids
+    #  nElemTypes = CountOption('ElemType')
+    #  for iElemType in range(nElemTypes):
+    #      elemType = GetIntFromStr('ElemType', number=iElemType)
+    #
+    #      if elemType % 100 != 5:
+    #          # Simplex elements requested
+    #          hopout.warning('Only supported pyramids, exiting...')
+
+    # Copy original points
+    # points    = mesh.points.copy()
+    points    = mesh.points
+    pointl    = cast(list, mesh.points.tolist())
+    elems_old = mesh.cells.copy()
+    cell_sets = getattr(mesh, 'cell_sets', {})
+
+    faceType = ['triangle'  , 'quad'  ]
+    faceNum  = [          3 ,       4 ]
+
+    # Convert the (triangle/quad) boundary cell set into a dictionary
+    csets_old = defaultdict(list)
+
+    for cname, cblock in cell_sets.items():
+        if cblock is None:
+            continue
+
+        # Each set_blocks is a list of arrays, one entry per cell block
+        for blockID, block in enumerate(cblock):
+            if elems_old[blockID].type[:4] != 'quad' and elems_old[blockID].type[:8] != 'triangle':
+                continue
+
+            if block is None:
+                continue
+
+            # Sort them as a set for membership checks
+            for face in block:
+                nodes = mesh.cells_dict[elems_old[blockID].type][face]
+                csets_old[frozenset(nodes)].append(cname)
+
+    nFaces    = np.zeros(2)
+
+    # Get base key to distinguish between linear and high-order elements
+    faceMaper = {5: lambda x: 0 if x == 0 else 1}
+    nFace     = (nGeo+1)*(nGeo+2)/2
+    faceMap   = faceMaper.get(5, None)
+
+    # Prepare new cell blocks and new cell_sets
+    elems_lst = {ftype: [] for ftype in faceType}
+    csets_lst = {}
+
+    elemType               = {'tetra':4,'wedge':6,'pyramid':5,'hexahedron':8}
+    oldFIdxs               = {ftype: [] for ftype in elemType.keys()}
+    oldFIdxs['hexahedron'] = hexa_faces(order=nGeo)
+    oldFIdxs['wedge']      = prism_faces(order=nGeo)
+    oldFIdxs['pyramid']    = pyram_faces(order=nGeo)
+    oldFIdxs['tetra']      = tetra_faces(order=nGeo)
+
+    # Sort out all pyramids
+    for cell in mesh.cells:
+        ctype, cdata = cell.type, cell.data
+
+        if ctype == 'triangle' or ctype == 'quad': continue
+
+        if ctype == 'pyramid': continue
+
+        # Iterate over element types
+        for elem in cdata:
+            nodes    = np.array(elem.tolist(), dtype=int)
+
+            if ctype not in elems_lst:
+                elems_lst[ctype] = []
+            elems_lst[ctype].append(elem)
+
+            oldFaces = [nodes[oldFIdx] for oldFIdx in oldFIdxs[ctype]]
+
+            for subFace in oldFaces:
+                faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+                faceSet = frozenset(subFace)
+
+                for cnodes, cname in csets_old.items():
+                    # Face is not a subset of an existing boundary face
+                    if not faceSet.issubset(cnodes):
+                        continue
+
+                    # For the first side on the BC, the dict does not exist
+                    if cname[0] not in csets_lst:
+                        csets_lst[cname[0]] = [[], []]
+                    csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
+
+                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                nFaces[faceVal] += 1
+
+    # Create the element sets
+    meshcells   = [(k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('pyramid') for key in v.keys())]
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
+
+    for cell in mesh.cells:
+        ctype, cdata = cell.type, cell.data
+
+        if ctype[:7] != 'pyramid':
+            continue
+
+        elemSplitter = {'pyramid': (pyram_to_tet_split, pyram_to_tet_faces)}
+        splitElems, splitFaces = elemSplitter.get(ctype, (None, None))
+
+        # Only process valid splits
+        if splitElems is None or splitFaces is None:
+            continue
+
+        # Setup split functions
+        subIdxs            = splitElems(order=nGeo)
+        oldFIdxs, subFIdxs = splitFaces(order=nGeo)
+
+        # Iterate over element types
+        for elem in cdata:
+            # Split each element into sub-elements
+            subElems = elem[subIdxs]
+
+            for subElem in subElems:
+                newFaces = [subElem[face] for face in subFIdxs]
+
+                for subFace in newFaces:
+                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+                    faceSet = frozenset(subFace)
+
+                    for cnodes, cname in csets_old.items():
+                        # Face is not a subset of an existing boundary face
+                        if not faceSet.issubset(cnodes):
+                            continue
+
+                        # For the first side on the BC, the dict does not exist
+                        if cname[0] not in csets_lst:
+                            csets_lst[cname[0]] = [[], []]
+                        csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
+
+                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    nFaces[faceVal] += 1
+
+            if 'tetra' not in elems_lst:
+                elems_lst['tetra'] = []
+            # Append all rows from subElems
+            elems_lst['tetra'].extend(subElems)
+
+            # Update the progress bar
+            bar.step()
+
+    # Close the progress bar
+    bar.close()
+
+    # Convert lists to NumPy arrays for elems_new and csets_new
+    elems_new = {}
+    csets_new = {}
+
+    for key in elems_lst:
+        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+            # Convert the list of accumulated arrays/lists into a single NumPy array
+            elems_new[key] = np.array(elems_lst[key], dtype=int)
+        elif isinstance(elems_lst[key], list) and not elems_lst[key]:
+            # Determine the expected number of columns
+            elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
+
+    for key in csets_lst:
+        csets_new[key] = [np.array(lst, dtype=int) for lst in csets_lst[key]]
+
+    # Convert points_list back to a NumPy array
+    points = np.array(pointl)
+
+    mesh   = meshio.Mesh(points    = points,     # noqa: E251
+                         cells     = elems_new,  # noqa: E251
+                         cell_sets = csets_new)  # noqa: E251
+
+    hopout.sep()
+
+    return mesh
+
+@cache
+def hexa_faces(order: int) -> list[np.ndarray]:
+    """ Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
+        return a list of new hexahedral face connectivity lists.
+    """
+    match order:
+        case 1:
+            return [np.array([0, 1, 2, 3], dtype=int),
+                    np.array([4, 5, 6, 7], dtype=int),
+                    np.array([0, 1, 5, 4], dtype=int),
+                    np.array([2, 3, 7, 6], dtype=int),
+                    np.array([0, 3, 7, 4], dtype=int),
+                    np.array([1, 2, 6, 5], dtype=int),
+                   ]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+@cache
+def tetra_faces(order: int) -> list[np.ndarray]:
+    """
+    Given the tetrahedral indices, return the 4 triangular faces as tuples
+    """
+    match order:
+        case 1:
+            return [np.array([  0,  1,  2], dtype=int),
+                    np.array([  0,  1,  3], dtype=int),
+                    np.array([  0,  2,  3], dtype=int),
+                    np.array([  1,  2,  3], dtype=int)]
+        case 2:
+            return [np.array([  0,  1,  2,  4,  5,  6], dtype=int),
+                    np.array([  0,  1,  3,  4,  8,  7], dtype=int),
+                    np.array([  0,  2,  3,  6,  9,  7], dtype=int),
+                    np.array([  1,  2,  3,  5,  9,  8], dtype=int)]
+        case 4:
+            return [np.array([  0,  1,  2,  *range( 4, 13)          , *range(31, 34)], dtype=int),
+                    np.array([  0,  1,  3,  *range( 4,  7)          , *range(16, 19), *reversed(range(13, 16)), *range(22, 25)], dtype=int),  # noqa: E501
+                    np.array([  0,  2,  3,  *reversed(range(10, 13)), *range(19, 22), *reversed(range(13, 16)), *range(28, 31)], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)], dtype=int)]  # noqa: E501
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+@cache
+def pyram_faces(order: int) -> list[np.ndarray]:
+    """
+    Given the pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples
+    """
+    match order:
+        case 1:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  4], dtype=int),
+                    np.array([  1,  2,  4], dtype=int),
+                    np.array([  2,  3,  4], dtype=int),
+                    np.array([  3,  0,  4], dtype=int),
+                    # Quadrilateral face
+                    np.array([  0,  1,  2,  3], dtype=int)]
+        case 2:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  4,  5, 10,  9], dtype=int),  # 8, 22,16
+                    np.array([  1,  2,  4,  6, 11, 10], dtype=int),  # 9, 26,22
+                    np.array([  2,  3,  4,  7, 12, 11], dtype=int),  # 10,20,26
+                    np.array([  3,  0,  4,  8,  9, 12], dtype=int),  # 11,16,20
+                    # Quadrilateral face
+                    np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
+        case 4:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  4,  *range( 4,  7), *range(19, 22), *reversed(range(16, 19)), *range(28, 31)], dtype=int),
+                    np.array([  1,  2,  4,  *range( 7, 10), *range(22, 25), *reversed(range(19, 22)), *range(31, 34)], dtype=int),
+                    np.array([  2,  3,  4,  *range(10, 13), *range(25, 28), *reversed(range(22, 25)), *range(34, 37)], dtype=int),
+                    np.array([  3,  0,  4,  *range(13, 16), *range(16, 19), *reversed(range(25, 28)), *range(37, 40)], dtype=int),
+                    # Quadrilateral face
+                    np.array([ 0,  1,  2,  3, *range(5, 17), *range(41, 50)], dtype=int)]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+@cache
+def prism_faces(order: int) -> list[np.ndarray]:
+    """
+    Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
+    """
+    match order:
+        case 1:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  2], dtype=int),
+                    np.array([  3,  4,  5], dtype=int),
+                    # Quadrilateral faces
+                    np.array([  0,  1,  4,  3], dtype=int),
+                    np.array([  1,  2,  5,  4], dtype=int),
+                    np.array([  2,  0,  3,  5], dtype=int)]
+        case 2:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  2,  6,  7,  8], dtype=int),
+                    np.array([  3,  4,  5,  9, 10, 11], dtype=int),
+                    # Quadrilateral faces
+                    np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15], dtype=int),
+                    np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16], dtype=int),
+                    np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17], dtype=int)]
+        case 4:
+            return [# Triangular faces  # noqa: E261
+                    np.array([  0, 1, 2, *range( 6, 15), *range(63, 66)], dtype=int),  # z-
+                    np.array([  3, 4, 5, *range(15, 24), *range(60, 63)], dtype=int),  # z+
+                    # Quadrilateral faces
+                    np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), *reversed(range(15, 18)), *reversed(range(24, 27)), *range(33, 42)], dtype=int),  # noqa: E501
+                    np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), *reversed(range(18, 21)), *reversed(range(27, 30)), *range(42, 51)], dtype=int),  # noqa: E501
+                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)], dtype=int)]  # noqa: E501
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+
+@cache
+def pyram_to_tet_faces(order: int) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+    """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
+        return the 4 triangular faces and the 12 quadrilateral faces.
+    """
+    match order:
+        case 1:
+            oldFaces = [np.array([  0,  1,  4], dtype=int),
+                        np.array([  1,  2,  4], dtype=int),
+                        np.array([  2,  3,  4], dtype=int),
+                        np.array([  3,  0,  4], dtype=int),
+                        np.array([  0,  1,  2,  3], dtype=int)]
+            newFaces = [np.array([  0,  1,  3], dtype=int),
+                        np.array([  1,  2,  3], dtype=int),
+                        np.array([  2,  0,  3], dtype=int),
+                        np.array([  0,  1,  2], dtype=int)]
+        case 2:
+            oldFaces = [np.array([  0,  1,  4,  5, 10,  9], dtype=int),
+                        np.array([  1,  2,  4,  6, 11, 10], dtype=int),
+                        np.array([  2,  3,  4,  7, 12, 11], dtype=int),
+                        np.array([  3,  0,  4,  8,  9, 12], dtype=int),
+                        np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
+            newFaces = [np.array([  0,  1,  3,  4,  5,  9,  7], dtype=int),
+                        np.array([  1,  2,  3,  4, -1, -1], dtype=int),
+                        np.array([  2,  0,  3,  4, -1, -1], dtype=int),
+                        np.array([  0,  1,  2,  4, -1, -1], dtype=int)]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
+
+    return [oldFaces, newFaces]
+
+
+@cache
+def pyram_to_tet_split(order: int) -> list[tuple]:
+    """ Given the 4 corner node indices of a single pyramid element (indexed 0..3),
+        return a list of new tetrahedron element connectivity lists.
+    """
+    match order:
+        case 1:
+            return [(0,  1,  3,  4),
+                    (2,  3,  1,  4),
+                   ]
+        case 2:
+            return [(0,  1,  3,  4,  5, 13,  6,  7,  9, 12),
+                    (2,  3,  1,  4, 10, 13,  8, 11, 12,  9),
+                   ]
+        case _:
+            print('Order {} not supported for element splitting'.format(order))
+            traceback.print_stack(file=sys.stdout)
+            sys.exit(1)
