@@ -178,8 +178,8 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
             continue
 
         # Setup split functions
-        subIdxs            = splitElems(order=nGeo)
-        oldFIdxs, subFIdxs = splitFaces(order=nGeo)
+        subIdxs  = splitElems(order=nGeo)
+        subFIdxs = splitFaces(order=nGeo)
 
         # Iterate over element types
         for elem in cdata:
@@ -360,27 +360,17 @@ def prism_faces(order: int) -> list[np.ndarray]:
 
 
 @cache
-def pyram_to_tet_faces(order: int) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+def pyram_to_tet_faces(order: int) -> list[np.ndarray]:
     """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
         return the 4 triangular faces and the 12 quadrilateral faces.
     """
     match order:
         case 1:
-            oldFaces = [np.array([  0,  1,  4], dtype=int),
-                        np.array([  1,  2,  4], dtype=int),
-                        np.array([  2,  3,  4], dtype=int),
-                        np.array([  3,  0,  4], dtype=int),
-                        np.array([  0,  1,  2,  3], dtype=int)]
             newFaces = [np.array([  0,  1,  3], dtype=int),
                         np.array([  1,  2,  3], dtype=int),
                         np.array([  2,  0,  3], dtype=int),
                         np.array([  0,  1,  2], dtype=int)]
         case 2:
-            oldFaces = [np.array([  0,  1,  4,  5, 10,  9], dtype=int),
-                        np.array([  1,  2,  4,  6, 11, 10], dtype=int),
-                        np.array([  2,  3,  4,  7, 12, 11], dtype=int),
-                        np.array([  3,  0,  4,  8,  9, 12], dtype=int),
-                        np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
             newFaces = [np.array([  0,  1,  3,  4,  5,  9,  7], dtype=int),
                         np.array([  1,  2,  3,  4, -1, -1], dtype=int),
                         np.array([  2,  0,  3,  4, -1, -1], dtype=int),
@@ -390,7 +380,7 @@ def pyram_to_tet_faces(order: int) -> Tuple[list[np.ndarray], list[list[np.ndarr
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
-    return [oldFaces, newFaces]
+    return newFaces
 
 
 @cache
