@@ -228,7 +228,7 @@ def connect_mortar_sides( sideIDs    : list
 
             # Check which edges match
             # INFO: Uncached version
-            if mesh_vars.elems[slaveSide.elemID].type != 8:
+            if mesh_vars.elems[slaveSide.elemID].type % 100 != 8:
                 slaveSideType = 103
                 if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
                      points_exist_in_target((masterCorners[1], masterCorners[3]), slaveCorners):  # noqa: E271

@@ -83,6 +83,7 @@ def DefineMesh() -> None:
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
     # Mortars
     CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
+    CreateLogical(  'doSplitToTet',         default=False, help='Split pyramid elements into tetrahedral elements')
     # Boundaries
     CreateSection('Boundaries')
     CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')

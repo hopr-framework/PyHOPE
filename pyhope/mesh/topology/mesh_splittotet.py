@@ -35,6 +35,8 @@ from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+
+from pyhope.readintools.readintools import GetLogical
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -55,7 +57,7 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.mesh.mesh_vars import nGeo
     # ------------------------------------------------------
 
-    if nGeo > 1:
+    if not GetLogical('doSplitToTet') and nGeo == 1:
         return mesh
 
     if 'pyramid' not in mesh.cells_dict:
