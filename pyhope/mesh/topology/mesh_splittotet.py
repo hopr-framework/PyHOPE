@@ -53,7 +53,6 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
-    from pyhope.readintools.readintools import GetLogical, GetIntFromStr, CountOption
     # ------------------------------------------------------
 
     if nGeo > 1:
@@ -128,9 +127,11 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
 
-        if ctype == 'triangle' or ctype == 'quad': continue
+        if ctype == 'triangle' or ctype == 'quad':
+            continue
 
-        if ctype == 'pyramid': continue
+        if ctype == 'pyramid':
+            continue
 
         # Iterate over element types
         for elem in cdata:

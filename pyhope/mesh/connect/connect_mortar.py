@@ -194,9 +194,13 @@ def connect_mortar_sides( sideIDs    : list
     from pyhope.mesh.mesh_common import type_to_mortar_flip
     # ------------------------------------------------------
 
-    mortarToCorners = { 1: [0, 1, 3, 2],  # 4-1 mortar
-                        2: [0, 3],        # 2-1 mortar, split in eta
-                        3: [0, 2]         # 2-1 mortar, split in xi
+    mortarToCorners = {
+                        3: {1: [0, 1, 3, 2],  # 4-1 mortar
+                            2: [1, 3],        # 2-1 mortar, split in eta
+                            3: [0, 2]      }, # 2-1 mortar, split in xi
+                        4: {1: [0, 1, 3, 2],  # 4-1 mortar
+                            2: [0, 3],        # 2-1 mortar, split in eta
+                            3: [0, 2]      }  # 2-1 mortar, split in xi
                       }
 
     # Get the master and slave sides
@@ -212,8 +216,9 @@ def connect_mortar_sides( sideIDs    : list
     masterCorners = tuple(masterCorners)
 
     # Build mortar type and orientation
-    nMortars   = len(sideIDs[1])
-    slaveSides = [dllsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1]]
+    nMortars      = len(sideIDs[1])
+    slaveSides    = [dllsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1]]
+    slaveSideType = 104
 
     match nMortars:
         case 2:
@@ -221,18 +226,22 @@ def connect_mortar_sides( sideIDs    : list
             slaveSide    = slaveSides[0]
             slaveCorners = tuple(slaveSide.corners)
 
-            checkTria    = len(slaveCorners) % 3 == 0
-
             # Check which edges match
             # INFO: Uncached version
-            if checkTria:
-                if points_exist_in_target(slaveCorners,masterCorners):
+            if mesh_vars.elems[slaveSide.elemID].type != 8:
+                slaveSideType = 103
+                if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
+                     points_exist_in_target((masterCorners[1], masterCorners[3]), slaveCorners):  # noqa: E271
                     mortarType = 2
+                elif points_exist_in_target((masterCorners[0], masterCorners[2]), slaveCorners) or \
+                     points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):
+                    mortarType = 3
                 else:
                     hopout.warning('Could not determine mortar type, exiting...')
                     traceback.print_stack(file=sys.stdout)
                     sys.exit(1)
             else:
+                slaveSideType = 104
                 if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
                      points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):  # noqa: E271
                     mortarType = 2
@@ -279,7 +288,7 @@ def connect_mortar_sides( sideIDs    : list
     flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
 
     # Map mortar types to their corresponding corner lists.
-    mortarCorners = mortarToCorners[mortarType]
+    mortarCorners = mortarToCorners[slaveSideType%100][mortarType]
 
     # Precompute mappings and indices.
     masterElemID  = masterElem.elemID
