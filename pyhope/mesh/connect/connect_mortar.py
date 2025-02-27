@@ -71,6 +71,9 @@ def ConnectMortar( nConnSide  : list
     if len(nConnSide) == 0:
         return elems, sides
 
+    # Change the title of the progress bar
+    bar.title('│               Preparing Mortars')
+
     # Cache mesh points for performance
     points = mesh_vars.mesh.points
 
@@ -109,6 +112,9 @@ def ConnectMortar( nConnSide  : list
 
     # Convert the sides to a doubly linked list
     dllsides = list_to_treap(sides, offsetManager)
+
+    # Change the title of the progress bar
+    bar.title('│              Processing Mortars')
 
     for targetID in targetSides:
         # Skip already connected sides
@@ -164,6 +170,9 @@ def ConnectMortar( nConnSide  : list
             # Break out of the loop
             break
 
+    # Change the title of the progress bar
+    bar.title('│              Finalizing Mortars')
+
     # Convert sides back to a list
     sides = treap_to_list(dllsides)
 
@@ -176,6 +185,9 @@ def ConnectMortar( nConnSide  : list
     # > Then update elems using the dictionary
     for elem in elems:
         elem.sides = elem_to_side_ids.get(elem.elemID, [])
+
+    # Change the title of the progress bar
+    bar.title('│                Processing Sides')
 
     return elems, sides
 

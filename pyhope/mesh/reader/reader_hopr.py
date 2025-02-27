@@ -52,6 +52,7 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
+@cache
 def NDOFperElemType(elemType: str, nGeo: int) -> int:
     """ Calculate the number of degrees of freedom for a given element type
     """
