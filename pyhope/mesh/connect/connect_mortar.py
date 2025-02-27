@@ -34,7 +34,7 @@ from collections import defaultdict
 from functools import lru_cache
 # from functools import cache
 from itertools import combinations
-from typing import Optional
+from typing import Optional,Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -221,18 +221,28 @@ def connect_mortar_sides( sideIDs    : list
             slaveSide    = slaveSides[0]
             slaveCorners = tuple(slaveSide.corners)
 
+            checkTria    = len(slaveCorners) % 3 == 0
+
             # Check which edges match
             # INFO: Uncached version
-            if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
-                 points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):  # noqa: E271
-                mortarType = 2
-            elif points_exist_in_target((masterCorners[1], masterCorners[2]), slaveCorners) or \
-                 points_exist_in_target((masterCorners[0], masterCorners[3]), slaveCorners):
-                mortarType = 3
+            if checkTria:
+                if points_exist_in_target(slaveCorners,masterCorners):
+                    mortarType = 2
+                else:
+                    hopout.warning('Could not determine mortar type, exiting...')
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit(1)
             else:
-                hopout.warning('Could not determine mortar type, exiting...')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
+                     points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):  # noqa: E271
+                    mortarType = 2
+                elif points_exist_in_target((masterCorners[1], masterCorners[2]), slaveCorners) or \
+                     points_exist_in_target((masterCorners[0], masterCorners[3]), slaveCorners):
+                    mortarType = 3
+                else:
+                    hopout.warning('Could not determine mortar type, exiting...')
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit(1)
 
             del slaveSide
             del slaveCorners
@@ -240,6 +250,8 @@ def connect_mortar_sides( sideIDs    : list
             # Sort the small sides
             slaveSides = [s for i in [0, 2]
                             for s in slaveSides if points_exist_in_target(masterCorners[i], tuple(s.corners))]
+            # Sort out duplicates
+            slaveSides = np.unique(slaveSides)
 
         case 4:
             mortarType = 1
@@ -361,7 +373,7 @@ def find_mortar_match( targetCorners: np.ndarray
         # INFO: Cached version
         # comboEdges = (e for s in comboSides
         #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
-        comboEdges = find_edge_combinations(comboEdges)
+        comboEdges, checkTria = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
         matches     = []  # List to store matching edges
@@ -374,14 +386,16 @@ def find_mortar_match( targetCorners: np.ndarray
             # Find the matching combo edges for the current target edge
             matchEdges = [e for e in comboEdges if (targetEdge[:2] == e[:2] or targetEdge[:2] == e[1::-1]) and
                                                    np.isclose(targetDist, e[2])]
-
             # We only allow 2-1 matches, so in the end we should have exactly 1 match
             if len(matchEdges) > 1:
                 return False
             elif len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
-        if len(matches) != 2:
+        if len(matches) != 2 and not checkTria:
+            return False
+
+        if len(matches) != 4 and checkTria:
             return False
 
     # Next, check for 4-1 matches
@@ -398,7 +412,7 @@ def find_mortar_match( targetCorners: np.ndarray
         # INFO: Cached version
         # comboEdges = (e for s in comboSides
         #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
-        comboEdges = find_edge_combinations(comboEdges)
+        comboEdges, _ = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
         matches     = []  # List to store matching edges
@@ -444,12 +458,19 @@ def points_exist_in_target(pts: list, slavePts: list) -> np.bool:
 def build_edges(corners: np.ndarray, points: np.ndarray) -> list[tuple]:
     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
     """
-    edges = [
-        (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
-        (corners[1], corners[2], np.linalg.norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
-        (corners[2], corners[3], np.linalg.norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
-        (corners[3], corners[0], np.linalg.norm(np.array(points[3]) - np.array(points[0]))),  # Edge between points 3 and 0
-    ]
+    if len(corners) == 4:
+        edges = [
+            (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
+            (corners[1], corners[2], np.linalg.norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
+            (corners[2], corners[3], np.linalg.norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
+            (corners[3], corners[0], np.linalg.norm(np.array(points[3]) - np.array(points[0]))),  # Edge between points 3 and 0
+        ]
+    else:
+        edges = [
+            (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
+            (corners[1], corners[2], np.linalg.norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
+            (corners[2], corners[0], np.linalg.norm(np.array(points[2]) - np.array(points[0]))),  # Edge between points 3 and 0
+        ]
     return edges
 
 
@@ -474,7 +495,7 @@ def build_edges(corners: np.ndarray, points: np.ndarray) -> list[tuple]:
 
 # @cache
 @lru_cache(maxsize=65536)
-def find_edge_combinations(comboEdges) -> list[tuple]:
+def find_edge_combinations(comboEdges) -> Tuple[list[tuple], bool]:
     """Build combinations of edges that share exactly one point and form a line
     """
     points = mesh_vars.mesh.points
@@ -483,9 +504,13 @@ def find_edge_combinations(comboEdges) -> list[tuple]:
     pointToEdges = defaultdict(list)
 
     # Fill the dictionary with edges indexed by their points
+    checkTriaFace = 0
     for i, j, dist in comboEdges:
         pointToEdges[i].append((i, j, dist))
         pointToEdges[j].append((i, j, dist))
+        checkTriaFace += 1
+
+    checkTriaFace = checkTriaFace % 3 == 0
 
     # Initialize an empty list to store the valid combinations of edges
     validCombo = []
@@ -522,17 +547,48 @@ def find_edge_combinations(comboEdges) -> list[tuple]:
                 p1, p2 = points[point1], points[point2]
                 c1 = points[commonPoint]
 
-                # Calculate the bounding box of the two edge points
-                bbox_min = np.minimum(p1, p2)
-                bbox_max = np.maximum(p1, p2)
+                if not checkTriaFace:
 
-                # Check if the common point is within the bounding box of p1 and p2
-                if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
-                   np.allclose(bbox_max, np.maximum(bbox_max, c1)):
-                    # Calculate the distance between the start and end points
-                    lineDist = np.linalg.norm(p1 - p2)
+                    # Calculate the bounding box of the two edge points
+                    bbox_min = np.minimum(p1, p2)
+                    bbox_max = np.maximum(p1, p2)
 
-                    # Append the indices and the line distance
-                    validCombo.append((point1, point2, lineDist))
+                    # Check if the common point is within the bounding box of p1 and p2
+                    if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
+                       np.allclose(bbox_max, np.maximum(bbox_max, c1)):
+                        # Calculate the distance between the start and end points
+                        lineDist = np.linalg.norm(p1 - p2)
 
-    return validCombo
+                        # Append the indices and the line distance
+                        if (point1, point2, lineDist) not in validCombo:
+                            validCombo.append((point1, point2, lineDist))
+
+                else:
+
+                    bbox_min = np.minimum(p1, c1)
+                    bbox_max = np.maximum(p1, c1)
+
+                    # Check if the common point is within the bounding box of p1 and p2
+                    if np.allclose(bbox_min, np.minimum(bbox_min, p2)) and \
+                       np.allclose(bbox_max, np.maximum(bbox_max, p2)):
+                        # Calculate the distance between the start and end points
+                        lineDist = np.linalg.norm(p1 - p2)
+
+                        # Append the indices and the line distance
+                        if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
+                            validCombo.append((point1, point2, lineDist))
+
+                    bbox_min = np.minimum(p2, c1)
+                    bbox_max = np.maximum(p2, c1)
+
+                    # Check if the common point is within the bounding box of p1 and p2
+                    if np.allclose(bbox_min, np.minimum(bbox_min, p1)) and \
+                       np.allclose(bbox_max, np.maximum(bbox_max, p1)):
+                        # Calculate the distance between the start and end points
+                        lineDist = np.linalg.norm(p1 - p2)
+
+                        # Append the indices and the line distance
+                        if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
+                            validCombo.append((point1, point2, lineDist))
+
+    return validCombo, checkTriaFace

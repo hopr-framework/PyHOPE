@@ -360,9 +360,9 @@ def ConnectMesh() -> None:
     # Mortar sides
     if doMortars:
         # Mortar connections are not supported between mismatching side types
-        if any(len(s.corners) != len(nConnSide[0].corners) for s in nConnSide):
-            hopout.warning('Mortar connections are not supported between mixed side types, exiting...')
-            sys.exit(1)
+        # if any(len(s.corners) != len(nConnSide[0].corners) for s in nConnSide):
+        #     hopout.warning('Mortar connections are not supported between mixed side types, exiting...')
+        #     sys.exit(1)
 
         # Connect the mortar sides
         elems, sides = ConnectMortar(nConnSide, nConnCenter, elems, sides, bar)
@@ -370,7 +370,7 @@ def ConnectMesh() -> None:
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
         for side in nConnSide:
-            print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
+            print(hopout.warn(f'> Element {side.elemID+1}, Type {len(side.corners)}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem     = elems[side.elemID]
             nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
             nodes    = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
