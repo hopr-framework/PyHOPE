@@ -86,7 +86,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Check if the mesh contains any pyramids or hexahedra
     if any(s.startswith(x) for x in ['pyramid', 'hexahedron'] for s in mesh.cells_dict.keys()):
         unsupported = [s for s in mesh.cells_dict.keys() if any(s.startswith(x) for x in ['pyramid', 'hexahedron'])]
-        hopout.warning(f'{', '.join(unsupported)} are not supported for splitting, exiting...')
+        hopout.warning('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
         sys.exit(1)
 
     # Copy original points
