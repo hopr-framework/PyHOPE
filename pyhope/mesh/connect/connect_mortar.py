@@ -32,9 +32,8 @@ import sys
 import traceback
 from collections import defaultdict
 from functools import lru_cache
-# from functools import cache
 from itertools import combinations
-from typing import Optional
+from typing import Optional, Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -75,15 +74,15 @@ def ConnectMortar( nConnSide  : list
     bar.title('│               Preparing Mortars')
 
     # Cache mesh points for performance
-    points = mesh_vars.mesh.points
+    points: Final[np.ndarray] = mesh_vars.mesh.points
 
     # Set BC and periodic sides
-    bcs = mesh_vars.bcs
-    vvs = mesh_vars.vvs
+    bcs: Final[list[type | None]] = mesh_vars.bcs
+    vvs: Final[list             ] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree      = spatial.KDTree(np.array(nConnCenter))
-    indexList  = IndexedLists()
+    ctree:     Final[spatial.KDTree] = spatial.KDTree(np.array(nConnCenter))
+    indexList: Final[IndexedLists  ] = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
         targetSide   = side
@@ -105,13 +104,11 @@ def ConnectMortar( nConnSide  : list
         indexList .add(nConnID, targetNeighbors)
 
     # Obtain the target side IDs
-    targetSides = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
-
+    targetSides:   Final[list[int]] = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
     # Create a global offset manager.
-    offsetManager = LinkOffsetManager()
-
+    offsetManager: Final[LinkOffsetManager] = LinkOffsetManager()
     # Convert the sides to a doubly linked list
-    rbtsides      = RedBlackTree.from_list(sides, offsetManager)
+    rbtsides:      Final[RedBlackTree     ] = RedBlackTree.from_list(sides, offsetManager)
 
     # Change the title of the progress bar
     bar.title('│              Processing Mortars')
