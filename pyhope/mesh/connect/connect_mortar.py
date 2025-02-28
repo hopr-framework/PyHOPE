@@ -174,8 +174,11 @@ def ConnectMortar( nConnSide  : list
     bar.title('│              Finalizing Mortars')
 
     # Convert sides back to a list
-    # sides = redblacktree_to_list(rbtsides)
     sides = rbtsides.to_list()
+
+    # Perform explicit clean-up
+    del rbtsides
+    del offsetManager
 
     # Also update the elems with the new side IDs
     # > First, build a dictionary mapping elemID to list of sideIDs

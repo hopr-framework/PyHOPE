@@ -384,7 +384,7 @@ def ConnectMesh() -> None:
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
-        print()
+        print()  # Empty line for spacing
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem  = elems[side.elemID]
@@ -396,13 +396,13 @@ def ConnectMesh() -> None:
                 print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
                 print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
                 if side is not nConnSide[-1]:
-                    print()
+                    print()  # Empty line for spacing
             else:
                 nodes = mesh_vars.mesh.points[nodes]
                 for node in nodes:
                     print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in node) + ']'))
                 if side is not nConnSide[-1]:
-                    print()
+                    print()  # Empty line for spacing
         hopout.warning('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
         sys.exit(1)
 

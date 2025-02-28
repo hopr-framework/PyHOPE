@@ -33,6 +33,7 @@ from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -50,69 +51,68 @@ BLACK = False
 class LinkOffsetManager:
     """ Batch Update Manager for Connection Offsets
 
-    Instead of updating each node's stored link on every insertion, this manager maintains breakpoints for cumulative index shifts
+        Instead of updating each node's stored link on every insertion, this manager maintains breakpoints for cumulative index
+        shifts
     """
 
-    __slots__ = ('breakpoints', '_offset_cache')
+    __slots__ = ('breakpoints',)
 
     def __init__(self) -> None:
-        # For all indices, initial offset is 0
+        # Single breakpoint at stored_index=0 => offset=0
         self.breakpoints: List[Tuple[int, int]] = [(0, 0)]
 
-    def get_stored_index(self,
-                         effective_index: int) -> int:
-        """
-        Given an effective index (i.e. the logical index in the list), compute the corresponding stored index at which the
-        breakpoint update should occur. The effective index E is related to a stored index S by E = S + offset(S), where
-        offset(S) is constant between breakpoints.
-        """
-        # Precompute effective boundaries for each breakpoint.
-        effective_boundaries = [s + off for s, off in self.breakpoints]
-        pos = bisect.bisect_right(effective_boundaries, effective_index) - 1
-        return effective_index - self.breakpoints[pos][1]
-
     def update(self,
-               insert_index: int,
-               delta       : int) -> None:
-        """
-        Record that all stored links with value >= insert_index should be increased by delta
-        """
-        # Find the position to insert or update
-        pos = bisect.bisect_left(self.breakpoints, (insert_index, -float('inf')))
+               effective_index: int,
+               delta          : int) -> None:
+        """ Record that all stored links with value >= insert_index should be increased by delta
 
-        # Update existing breakpoint or insert a new one
+            Perform a binary search on breakpoints, then update or insert the breakpoint and adjust all subsequent offsets
+        """
+        # S = E - offset(S)
+        insert_index = effective_index - self.get_offset(effective_index)
+        pos          = bisect.bisect_left(self.breakpoints, (insert_index, -float('inf')))
+
+        # If there is a breakpoint exactly at insert_index, update its offset
         if pos < len(self.breakpoints) and self.breakpoints[pos][0] == insert_index:
-            # Update existing breakpoint
             index, current_offset = self.breakpoints[pos]
             self.breakpoints[pos] = (index, current_offset + delta)
             pos += 1
+        # Otherwise, insert a new breakpoint
         else:
-            # Insert new breakpoint
             prev_offset = self.breakpoints[pos - 1][1] if pos > 0 else 0
             self.breakpoints.insert(pos, (insert_index, prev_offset + delta))
             pos += 1
 
-        # Update all subsequent breakpoints
-        for i in range(pos, len(self.breakpoints)):
-            index, current_offset = self.breakpoints[i]
-            # Calculate the new offset by adding delta to the current offset
-            self.breakpoints[i] = (index, current_offset + delta)
+        # INFO: This is the original implementation
+        # > Directly update the breakpoints list
+        # # Increase offset of all subsequent breakpoints
+        # for i in range(pos, len(self.breakpoints)):
+        #     index, current_offset = self.breakpoints[i]
+        #     # Calculate the new offset by adding delta to the current offset
+        #     self.breakpoints[i] = (index, current_offset + delta)
 
-        # Clear cached offsets
-        self._get_offset.cache_clear()
+        # NOTE: This is the alternative implementation
+        # > Convert the slice of breakpoints to a NumPy array
+        breakpoints_array = np.array(self.breakpoints[pos:], dtype=[('index', int), ('offset', int)]).reshape(-1, 2)
+        # Add delta to the 'offset' column
+        breakpoints_array['offset'] += delta
+        # Convert back to a list of tuples
+        self.breakpoints[ pos:    ]  = cast(list[tuple[int, int]], breakpoints_array.tolist())
+
+        # Clear any cached offset computations
+        self.get_offset.cache_clear()
 
     @cache
-    def _get_offset(self,
-                    index: int) -> int:
-        """
-        Return the cumulative offset for a given stored link (cached)
-        """
-        pos = bisect.bisect_right(self.breakpoints, (index, float('inf'))) - 1
-        return self.breakpoints[pos][1]
-
     def get_offset(self,
                    index: int) -> int:
-        return self._get_offset(index)
+        """ Cached offset lookup for stored index.
+        """
+        # Binary search for the region containing 'index'
+        pos = bisect.bisect_right(self.breakpoints, (index, float('inf'))) - 1
+        if pos < 0:
+            # If index < the first breakpoint, offset=0
+            return 0
+        return self.breakpoints[pos][1]
 
 
 @final
@@ -337,8 +337,7 @@ class RedBlackTree:
         self._size += 1
 
         if update_offset:
-            stored_index = self.offset_manager.get_stored_index(effective_index)
-            self.offset_manager.update(stored_index, 1)
+            self.offset_manager.update(effective_index, 1)
 
     def update(self, index: int, new_value: SIDE) -> None:
         """
@@ -385,15 +384,56 @@ class RedBlackTree:
             rbt.insert(len(rbt), node, update_offset=False)
         return rbt
 
-    def to_list(self) -> List[SIDE]:
-        """ Convert the red-black tree (balanced BST) back into a list of SIDE objects
+    # INFO: This is the original implementation
+    # def to_list(self) -> List[SIDE]:
+    #     """ Convert the red-black tree (balanced BST) back into a list of SIDE objects
+    #
+    #         For each node, update its SIDE object's connection field using the effective link, and update sideID to reflect
+    #         the node's new position in the red-black tree.
+    #     """
+    #     nodes = self._to_list()
+    #     for idx, node in enumerate(nodes):
+    #         if node.value.connection is not None and node.value.connection >= 0:
+    #             node.value.connection = node.effective_link(self.offset_manager) if node.link is not None else None
+    #         node.value.sideID = idx
+    #     return [node.value for node in nodes]
 
-            For each node, update its SIDE object's connection field using the effective link, and update sideID to reflect
-            the node's new position in the red-black tree.
+    def to_list(self) -> List[SIDE]:
+        """ Convert the red-black tree back into a list of SIDE objects
+
+        Instead of computing each node's effective link individually (using a binary search for each call), we batch-process updates
+        by precomputing the breakpoints and then sweeping through the nodes that require an update.
         """
         nodes = self._to_list()
+
+        # Extract the current breakpoints from the offset manager.
+        # Assumed to be sorted by the stored index.
+        breakpoints = self.offset_manager.breakpoints
+
+        # Create a list of tuples containing (stored_link, SideNode)
+        update_nodes: list[tuple[int, SideNode]] = []
+
+        # Only consider nodes with a valid stored connection (>= 0)
+        for node in nodes:
+            # We use the stored link (node.link) for the update computation
+            if node.link is not None and node.link >= 0:
+                update_nodes.append((node.link, node))
+
+        # Sort the update_nodes by the stored connection value
+        update_nodes.sort(key=lambda tup: tup[0])
+
+        bp_index = 0
+        bp_count = len(breakpoints)
+        # Iterate over the nodes (sorted by connection) and assign the effective link
+        for stored_link, node in update_nodes:
+            # Advance the breakpoint pointer while the next breakpoint index is <= stored_link
+            while bp_index < bp_count - 1 and breakpoints[bp_index + 1][0] <= stored_link:
+                bp_index += 1
+            offset = breakpoints[bp_index][1]
+            node.value.connection = stored_link + offset
+
+        # Update the sideID for all nodes based on in-order position
         for idx, node in enumerate(nodes):
-            if node.value.connection is not None and node.value.connection >= 0:
-                node.value.connection = node.effective_link(self.offset_manager) if node.link is not None else None
             node.value.sideID = idx
+
         return [node.value for node in nodes]
