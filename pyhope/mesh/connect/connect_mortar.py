@@ -64,7 +64,7 @@ def ConnectMortar( nConnSide  : list
             doPeriodic: Flag to enable periodic connections
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.connect.connect_treap import LinkOffsetManager, list_to_treap, treap_to_list
+    from pyhope.mesh.connect.connect_rbtree import LinkOffsetManager, RedBlackTree
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
 
@@ -111,7 +111,7 @@ def ConnectMortar( nConnSide  : list
     offsetManager = LinkOffsetManager()
 
     # Convert the sides to a doubly linked list
-    dllsides = list_to_treap(sides, offsetManager)
+    rbtsides      = RedBlackTree.from_list(sides, offsetManager)
 
     # Change the title of the progress bar
     bar.title('│              Processing Mortars')
@@ -158,7 +158,7 @@ def ConnectMortar( nConnSide  : list
 
             # Connect mortar sides and update the list
             # connect_mortar_sides(sideIDs, elems, sides, dllsides, offsetManager, bcID)
-            connect_mortar_sides(sideIDs, elems, dllsides, offsetManager, bcID)
+            connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
             # Remove the target side from the list
             removeSides = [targetID] + list(comboIDs)
@@ -174,7 +174,8 @@ def ConnectMortar( nConnSide  : list
     bar.title('│              Finalizing Mortars')
 
     # Convert sides back to a list
-    sides = treap_to_list(dllsides)
+    # sides = redblacktree_to_list(rbtsides)
+    sides = rbtsides.to_list()
 
     # Also update the elems with the new side IDs
     # > First, build a dictionary mapping elemID to list of sideIDs
@@ -201,7 +202,7 @@ def connect_mortar_sides( sideIDs    : list
         > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.connect.connect_treap import SideNode
+    from pyhope.mesh.connect.connect_rbtree import SideNode
     from pyhope.mesh.connect.connect import flip_analytic
     from pyhope.mesh.mesh_common import type_to_mortar_flip
     # ------------------------------------------------------

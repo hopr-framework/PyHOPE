@@ -43,11 +43,12 @@ STD_LENGTH: Final[int] = 79  # Standard length for output to console
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Colors:
-    # Define colors used throughout this framework
-    #
-    # Attributes:
-    #     WARN    (str): Defines color for warnings.
-    #     END     (str): Defines end of color in string.
+    """ Define colors used throughout this framework
+
+        Attributes:
+            WARN    (str): Defines color for warnings.
+            END     (str): Defines end of color in string.
+    """
     BANNERA: Final[str] = '\033[93m'
     BANNERB: Final[str] = '\033[94m'
     WARN:    Final[str] = '\033[91m'
@@ -66,7 +67,7 @@ def header(program: str, version: str, commit: Optional[str], length: int = STD_
     print(Colors.BANNERA + '┃' + ' P y H O P E — Python High-Order Preprocessing Environment')
     # print(Colors.BANNERA + '┃' + ' {}'.format(string))
     print(f'{Colors.BANNERA}┃{Colors.END} {program} version {version}' + (f' [commit {commit}]' if commit else '')
-        + f' - {Colors.WARN}🔫 Licence to mesh{Colors.END}') # special output for version 007
+        + f' - {Colors.WARN}🔫 Licence to mesh{Colors.END}')  # special output for version 007
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
 
 
