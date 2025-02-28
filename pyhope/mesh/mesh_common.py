@@ -288,34 +288,91 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
         elemType = elemTypeClass.name[elemType]
 
     order     = nGeo
-    faces_map = {  # Tetrahedron
-                   4: { 'y-': np.array([  0,  1,  3]),
-                        'x+': np.array([  1,  2,  3]),
-                        'x-': np.array([  2,  0,  3]),
-                        'z-': np.array([  0,  2,  1])},
-                   # Pyramid
-                   # Wedge / Prism
-                   6: { 'y-': np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15]),
-                        'x+': np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16]),
-                        'x-': np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17]),
-                        'z-': np.array([  0,  2,  1,  6,  7,  8            ]),
-                        'z+': np.array([  3,  4,  5,  9, 10, 11            ])},
-                   # Hexahedron
-                   8: { 'z-':              LINMAP(108 if order == 1 else 208, order=order)[:    , :    , 0    ] ,
-                        'y-': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , 0    , :    ]),
-                        'x+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[order, :    , :    ]),
-                        'y+':              LINMAP(108 if order == 1 else 208, order=order)[:    , order, :    ] ,
-                        'x-':              LINMAP(108 if order == 1 else 208, order=order)[0    , :    , :    ] ,
-                        'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}
+    # https://hopr.readthedocs.io/en/latest/_images/CGNS_edges.jpg
+    # faces_map = {  # Tetrahedron
+    #                4: {  # Sides aligned with the axes
+    #                      'z-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'y-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , 0    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'x-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[0    , :    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      # Diagonal side
+    #                      'x+': [s for i in range(order+1)
+    #                               for j in range(order+1-i) for s in [LINMAP(104 if order == 1 else 204, order=order)[i, j, order-i-j]] if s != -1]},  # noqa: E272, E501
+    #                # Pyramid
+    #                5: {  # Sides aligned with the axes
+    #                      'z-': [s for s  in LINMAP(105 if order == 1 else 205, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'y-': [s for s  in LINMAP(105 if order == 1 else 205, order=order)[:    , 0    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'x-': [s for s  in LINMAP(105 if order == 1 else 205, order=order)[0    , :    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      # Diagonal sides
+    #                      'x+': [s for i  in range(order+1) for s in LINMAP(105 if order == 1 else 205, order=order)[:, order-i, i] if s != -1],   # noqa: E272, E501
+    #                      'y+': [s for i  in range(order+1) for s in LINMAP(105 if order == 1 else 205, order=order)[order-i, :, i] if s != -1]},  # noqa: E272, E501
+    #                # Wedge
+    #                6: {  # Sides aligned with the axes
+    #                      'y-': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[:    , 0    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'x-': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[0    , :    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'z-': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
+    #                      'z+': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[:    , :    , order].flatten()         if s != -1],   # noqa: E272, E501
+    #                      # Diagonal side
+    #                      'x+': [s for i  in range(order+1) for s in LINMAP(106 if order == 1 else 206, order=order)[i, order-i, :] if s != -1]},  # noqa: E272, E501
+    #                # Hexahedron
+    #                8: {  'z-':              LINMAP(108 if order == 1 else 208, order=order)[:    , :    , 0    ] ,                                # noqa: E272, E501
+    #                      'y-': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , 0    , :    ]),                                # noqa: E272, E501
+    #                      'x+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[order, :    , :    ]),                                # noqa: E272, E501
+    #                      'y+':              LINMAP(108 if order == 1 else 208, order=order)[:    , order, :    ] ,                                # noqa: E272, E501
+    #                      'x-':              LINMAP(108 if order == 1 else 208, order=order)[0    , :    , :    ] ,                                # noqa: E272, E501
+    #                      'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}                                # noqa: E272, E501
+    #
+    #             }
+    # if elemType % 100 not in faces_map:
+    #     raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
+    #
+    # try:
+    #     return faces_map[elemType % 100][face]
+    # except KeyError:
+    #     raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
-                }
-    if elemType % 100 not in faces_map:
-        raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
+    match elemType % 100:
+        case 4:  # Tetrahedron
+            faces_map = {  # Sides aligned with the axes
+                           'z-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'y-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , 0    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'x-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[0    , :    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+                           # Diagonal side
+                           'x+': [s for i in range(order+1)
+                                    for j in range(order+1-i) for s in [LINMAP(104 if order == 1 else 204, order=order)[i, j, order-i-j]] if s != -1]    # noqa: E272, E501
+                        }
+        case 5:  # Pyramid
+            faces_map = {  # Sides aligned with the axes
+                           'z-': [s for s  in LINMAP(105 if order == 1 else 205, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'y-': [s for s  in LINMAP(105 if order == 1 else 205, order=order)[:    , 0    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'x-': [s for s  in LINMAP(105 if order == 1 else 205, order=order)[0    , :    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+                           # Diagonal sides
+                           'y+': [s for i  in range(order+1) for s in LINMAP(105 if order == 1 else 205, order=order)[:, order-i, i] if s != -1],   # noqa: E272, E501
+                           'x+': [s for i  in range(order+1) for s in LINMAP(105 if order == 1 else 205, order=order)[order-i, :, i] if s != -1]    # noqa: E272, E501
+                        }
+        case 6:  # Wedge
+            faces_map = {  # Sides aligned with the axes
+                           'y-': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[:    , 0    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'x-': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[0    , :    , :    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'z-': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
+                           'z+': [s for s  in LINMAP(106 if order == 1 else 206, order=order)[:    , :    , order].flatten()         if s != -1],   # noqa: E272, E501
+                           # Diagonal side
+                           'x+': [s for i  in range(order+1) for s in LINMAP(106 if order == 1 else 206, order=order)[i, order-i, :] if s != -1]    # noqa: E272, E501
+                        }
+        case 8:  # Hexahedron
+            faces_map = {  'z-':              LINMAP(108 if order == 1 else 208, order=order)[:    , :    , 0    ] ,                                # noqa: E272, E501
+                           'y-': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , 0    , :    ]),                                # noqa: E272, E501
+                           'x+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[order, :    , :    ]),                                # noqa: E272, E501
+                           'y+':              LINMAP(108 if order == 1 else 208, order=order)[:    , order, :    ] ,                                # noqa: E272, E501
+                           'x-':              LINMAP(108 if order == 1 else 208, order=order)[0    , :    , :    ] ,                                # noqa: E272, E501
+                           'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])                                 # noqa: E272, E501
+                        }
+        case _:
+            raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[face]
     except KeyError:
-        raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
+        raise KeyError(f'Error in face_to_nodes: face {face} is not supported')
 
 
 @cache
@@ -482,18 +539,32 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
     # Local imports ----------------------------------------
     # from pyhope.io.formats.cgns import HEXMAPCGNS
     # from pyhope.io.formats.vtk import HEXMAPVTK
-    from pyhope.io.formats.meshio import HEXMAPMESHIO
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
     # ------------------------------------------------------
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            sys.exit(1)
+            linmap = np.full((2, 2, 2), -1, dtype=np.int32)
+            indices = [ (0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)]
+            for i, index in enumerate(indices):
+                linmap[index] = i
+            return linmap
         case 105:  # Pyramid
-            sys.exit(1)
+            linmap = np.full((2, 2, 2), -1, dtype=np.int32)
+            indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),
+                        (0, 0, 1)]
+            for i, index in enumerate(indices):
+                linmap[index] = i
+            return linmap
         case 106:  # Prism
-            sys.exit(1)
+            linmap = np.full((2, 2, 2), -1, dtype=np.int32)
+            indices = [ (0, 0, 0), (1, 0, 0), (0, 1, 0),
+                        (0, 0, 1), (1, 0, 1), (0, 1, 1)]
+            for i, index in enumerate(indices):
+                linmap[index] = i
+            return linmap
         case 108:  # Hexaeder
-            linmap = np.zeros((2, 2, 2), dtype=int)
+            linmap = np.zeros((2, 2, 2), dtype=np.int32)
             indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),
                         (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1) ]
             for i, index in enumerate(indices):
@@ -501,18 +572,27 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
             return linmap
 
         # Curved elements, use mapping
+        case 204:  # Tetraeder
+            TETRMAP, _ = TETRMAPMESHIO(order+1)
+            return TETRMAP
+        case 205:  # Pyramid
+            PYRAMAP, _ = PYRAMAPMESHIO(order+1)
+            return PYRAMAP
+        case 206:  # Prism
+            PRISMAP, _ = PRISMAPMESHIO(order+1)
+            return PRISMAP
         case 208:  # Hexaeder
             # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
             # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
 
             # # CGNS
-            # HEXMAP, _ = HEXMAPCGNS(order+1)
+            # HEXMAP  , _ = HEXMAPCGNS(order+1)
 
             # # VTK
-            # HEXMAP, _ = HEXMAPVTK(order+1)
+            # HEXMAP  , _ = HEXMAPVTK(order+1)
 
             # MESHIO
-            HEXMAP, _ = HEXMAPMESHIO(order+1)
+            HEXMAP  , _ = HEXMAPMESHIO(order+1)
             return HEXMAP
         case _:  # Default
             print('Error in LINMAP, unknown elemType')

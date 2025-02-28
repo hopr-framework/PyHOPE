@@ -112,10 +112,10 @@ class CommandLine:
         _ = parser.add_argument('-V', '--version',
                                 action='store_true',
                                 help='display the version number and exit')
-        _ = parser.add_argument('parameter',
+        _ = parser.add_argument('input',
                                 nargs='?',
-                                metavar='<parameter.ini>',
-                                help='HOPR parameter file')
+                                metavar='<parameter.ini / mesh.h5>',
+                                help='PyHOPE parameter or mesh file')
         # Parse known arguments and return other flags for further processing
         args, argv = parser.parse_known_args()
         return args, argv

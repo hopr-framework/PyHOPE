@@ -32,9 +32,8 @@ import sys
 import traceback
 from collections import defaultdict
 from functools import lru_cache
-# from functools import cache
 from itertools import combinations
-from typing import Optional
+from typing import Optional, Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -64,23 +63,26 @@ def ConnectMortar( nConnSide  : list
             doPeriodic: Flag to enable periodic connections
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.connect.connect_treap import LinkOffsetManager, list_to_treap, treap_to_list
+    from pyhope.mesh.connect.connect_rbtree import LinkOffsetManager, RedBlackTree
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
 
     if len(nConnSide) == 0:
         return elems, sides
 
+    # Change the title of the progress bar
+    bar.title('│               Preparing Mortars')
+
     # Cache mesh points for performance
-    points = mesh_vars.mesh.points
+    points: Final[np.ndarray] = mesh_vars.mesh.points
 
     # Set BC and periodic sides
-    bcs = mesh_vars.bcs
-    vvs = mesh_vars.vvs
+    bcs: Final[list[type | None]] = mesh_vars.bcs
+    vvs: Final[list             ] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree      = spatial.KDTree(np.array(nConnCenter))
-    indexList  = IndexedLists()
+    ctree:     Final[spatial.KDTree] = spatial.KDTree(np.array(nConnCenter))
+    indexList: Final[IndexedLists  ] = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
         targetSide   = side
@@ -102,13 +104,14 @@ def ConnectMortar( nConnSide  : list
         indexList .add(nConnID, targetNeighbors)
 
     # Obtain the target side IDs
-    targetSides = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
-
+    targetSides:   Final[list[int]] = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
     # Create a global offset manager.
-    offsetManager = LinkOffsetManager()
-
+    offsetManager: Final[LinkOffsetManager] = LinkOffsetManager()
     # Convert the sides to a doubly linked list
-    dllsides = list_to_treap(sides, offsetManager)
+    rbtsides:      Final[RedBlackTree     ] = RedBlackTree.from_list(sides, offsetManager)
+
+    # Change the title of the progress bar
+    bar.title('│              Processing Mortars')
 
     for targetID in targetSides:
         # Skip already connected sides
@@ -152,7 +155,7 @@ def ConnectMortar( nConnSide  : list
 
             # Connect mortar sides and update the list
             # connect_mortar_sides(sideIDs, elems, sides, dllsides, offsetManager, bcID)
-            connect_mortar_sides(sideIDs, elems, dllsides, offsetManager, bcID)
+            connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
             # Remove the target side from the list
             removeSides = [targetID] + list(comboIDs)
@@ -164,8 +167,15 @@ def ConnectMortar( nConnSide  : list
             # Break out of the loop
             break
 
+    # Change the title of the progress bar
+    bar.title('│              Finalizing Mortars')
+
     # Convert sides back to a list
-    sides = treap_to_list(dllsides)
+    sides = rbtsides.to_list()
+
+    # Perform explicit clean-up
+    del rbtsides
+    del offsetManager
 
     # Also update the elems with the new side IDs
     # > First, build a dictionary mapping elemID to list of sideIDs
@@ -176,6 +186,9 @@ def ConnectMortar( nConnSide  : list
     # > Then update elems using the dictionary
     for elem in elems:
         elem.sides = elem_to_side_ids.get(elem.elemID, [])
+
+    # Change the title of the progress bar
+    bar.title('│                Processing Sides')
 
     return elems, sides
 
@@ -189,7 +202,7 @@ def connect_mortar_sides( sideIDs    : list
         > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
-    from pyhope.mesh.connect.connect_treap import SideNode
+    from pyhope.mesh.connect.connect_rbtree import SideNode
     from pyhope.mesh.connect.connect import flip_analytic
     from pyhope.mesh.mesh_common import type_to_mortar_flip
     # ------------------------------------------------------

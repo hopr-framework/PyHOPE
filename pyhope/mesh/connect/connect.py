@@ -272,7 +272,17 @@ def ConnectMesh() -> None:
             for iSide in iBCsides:
                 # Get the corner nodes
                 corners = np.sort(mapFaces[iSide][:nCorners])
-                corners= hash(corners.tobytes())
+                corners = hash(corners.tobytes())
+
+                if corners not in corner_side:
+                    print()
+                    print(hopout.warn('Malformatted side corners, exiting...'))
+                    corners = np.sort(mapFaces[iSide][:nCorners])
+                    print(hopout.warn(f'> Side {cell_types}, Nodes {corners}'))
+                    for corner in corners:
+                        print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in mesh.points[corner]) + ']'))
+                    # traceback.print_stack(file=sys.stdout)
+                    sys.exit(1)
 
                 # Boundary faces are unique
                 if len(corner_side[corners]) == 0:
@@ -303,6 +313,11 @@ def ConnectMesh() -> None:
                 continue
             case 2:  # Internal side
                 sideIDs   = val
+                # Flip pyramids
+                # if elems[sides[sideIDs[0]].elemID].type % 100 != 5 and \
+                #    elems[sides[sideIDs[1]].elemID].type % 100 == 5:
+                #     sideIDs   = sideIDs[::-1]
+
                 side0     = sides[sideIDs[0]]
                 side1     = sides[sideIDs[1]]
                 corners   = side0.corners
@@ -369,18 +384,26 @@ def ConnectMesh() -> None:
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
+        print()  # Empty line for spacing
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
-            elem     = elems[side.elemID]
-            nodes    = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
-            nodes    = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
-            print()
-
-        hopout.warning('Could not connect {} side{}'.format(len(nConnSide), '' if len(nConnSide) == 1 else 's'))
+            elem  = elems[side.elemID]
+            nodes = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, mesh_vars.nGeo)]))
+            if elem.type % 100 == 8:
+                nodes = np.transpose(mesh_vars.mesh.points[nodes]         , axes=(2, 0, 1))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
+                if side is not nConnSide[-1]:
+                    print()  # Empty line for spacing
+            else:
+                nodes = mesh_vars.mesh.points[nodes]
+                for node in nodes:
+                    print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in node) + ']'))
+                if side is not nConnSide[-1]:
+                    print()  # Empty line for spacing
+        hopout.warning('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
         sys.exit(1)
 
     # Close the progress bar
