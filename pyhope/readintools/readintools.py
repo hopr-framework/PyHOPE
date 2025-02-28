@@ -582,6 +582,8 @@ class ReadConfig():
         # Check if input is mesh or parameter file
         parameter_mode = False
         mesh_mode      = False
+
+        # Check whether given input is a valid mesh or a parameter file
         if h5py.is_hdf5(self.input):
             mesh_mode = True
         else:
@@ -626,6 +628,12 @@ class ReadConfig():
                 NGeo    = cast(int, f.attrs['Ngeo'])
                 BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
+                if np.any(BCType[:, 0] == 1):   # check if there are preiodic boundary conditions
+                    print(hopout.warn('HDF5-FILE READIN WARNING:'))
+                    print(hopout.warn('Found periodic boundary conditions that cannot berecovered in '
+                                      'mesh-mode as the periodic vector is unavailable. '
+                                      'Converting boundary condition to Dirichlet-type "2".'))
+                    BCType[BCType[:, 0] == 1, 0] = 2  # Replace periodic with farfield confitions as vv vector is not available
 
             # Write geometric order info to file
             mesh_params.append(f'NGeo = {NGeo}')
@@ -642,6 +650,8 @@ class ReadConfig():
             # Parse dummy parameters
             parser.read_string(mesh_param)
 
+        # Parse configation file either from read in parameter file or
+        # recovered from a given mesh file
         config.std_length = max(len(s) for s in config.prms.keys())
         config.std_length = max(32, config.std_length+1)
 

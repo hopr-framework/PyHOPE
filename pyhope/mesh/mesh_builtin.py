@@ -106,9 +106,12 @@ def MeshCartesian() -> meshio.Mesh:
             hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
             sys.exit(1)
 
-        nElems          = GetIntArray(  'nElems'  , number=zone)
+        nElems = GetIntArray(  'nElems'  , number=zone)
         # Store the requested element types
-        elemTypes[zone] = GetIntFromStr('ElemType', number=zone)
+        if CountOption('ElemType') == 1 and zone > 0:
+            elemTypes[zone] = elemTypes[0]
+        else:
+            elemTypes[zone] = GetIntFromStr('ElemType', number=zone)
         # ... but GMSH always builds hexahedral elements
         elemType = 108
 
