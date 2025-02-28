@@ -53,7 +53,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
-    from pyhope.readintools.readintools import GetLogical, GetIntFromStr, CountOption
+    from pyhope.readintools.readintools import GetLogical, CountOption
     # ------------------------------------------------------
 
     if CountOption('doSplitToHex') == 0:
@@ -68,22 +68,13 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         hopout.separator()
 
     # Sanity check
-    # > Check if all requested element types are hexahedral
-    nElemTypes = CountOption('ElemType')
-    for iElemType in range(nElemTypes):
-        elemType = GetIntFromStr('ElemType', number=iElemType)
-
-        if elemType % 100 != 8:
-            # Simplex elements requested
-            hopout.warning('Non-hexahedral elements are not supported for splitting, exiting...')
-
     # > Check if the requested polynomial order is 1
     if nGeo > 1:
         hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
         traceback.print_stack(file=sys.stdout)
         sys.exit(1)
 
-    # Check if the mesh contains any pyramids or hexahedra
+    # > Check if the mesh contains any pyramids or hexahedra
     if any(s.startswith(x) for x in ['pyramid', 'hexahedron'] for s in mesh.cells_dict.keys()):
         unsupported = [s for s in mesh.cells_dict.keys() if any(s.startswith(x) for x in ['pyramid', 'hexahedron'])]
         hopout.warning('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
