@@ -62,8 +62,28 @@ reportOptionalMemberAccess      = false
 reportAny                       = false
 reportExplicitAny               = false
 
+pythonVersion                   = "3.10"
+reportTypeCommentUsage          = true
 deprecateTypingAliases          = false
 # Performance implications, > https://github.com/DetachHead/basedpyright/issues/461
 reportImportCycles              = false
 reportUnsafeMultipleInheritance = false
 enableExperimentalFeatures      = false
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [ ".git",
+            ".pyenv",
+            ".venv",
+            ".vscode",
+            "dist",
+            "node_modules",
+            "site-packages",
+            "venv"
+          ]
+# PyHOPE requires Python 3.10 or newer
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style  = "single"
+indent-style = "space"
