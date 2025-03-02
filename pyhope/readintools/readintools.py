@@ -308,7 +308,12 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
             if number is None: num = config.prms[name]['counter']-1  # noqa: E701
             else:              num = number                          # noqa: E701
 
-            value = [s for s in config.params.get('general', name).split('\n') if s != ''][num]
+            input = [s for s in config.params.get('general', name).split('\n') if s != '']
+            if num >= len(input):
+                hopout.warning(f'Index {num+1} is out of range for option "{name}"')
+                # traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+            value = input[num]
         else:
             value = config.params.get('general', name)
             # Single values cannot contain spaces
@@ -551,7 +556,8 @@ class ReadConfig():
 
         # Check if the file exists in argv
         if not self.input:
-            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
+                                                                                             stderr=subprocess.DEVNULL)
             common  = Common()
             program = common.program
             version = common.version
