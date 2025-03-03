@@ -209,13 +209,12 @@ def TransformMesh() -> None:
     hopout.sep()
     hopout.routine('Performing advanced transformations')
     hopout.routine('  Template: {}'.format(meshPostDeform))
-    hopout.sep()
 
-    # Define locations of the transformation files
+    # Define locations of the transformation files ( Priority: prmfile folder > CWD > templates )
     DeformLocations = [
-        os.path.join(os.path.dirname(__file__), 'templates', f'{meshPostDeform}.py'),  # Search in 'templates'
+        os.path.join(os.path.dirname(prmfile), f'{meshPostDeform}.py'),                # Search folder of parameter file
         os.path.join(os.getcwd(), f'{meshPostDeform}.py'),                             # Search in CWD
-        os.path.join(os.path.dirname(prmfile), f'{meshPostDeform}.py')                 # Search folder of parameter file
+        os.path.join(os.path.dirname(__file__), 'templates', f'{meshPostDeform}.py')   # Search in 'templates'
     ]
 
     # Check if the transformation file exists
@@ -230,6 +229,9 @@ def TransformMesh() -> None:
             PostDeformMod = importlib.util.module_from_spec(spec)
             sys.modules[meshPostDeform] = PostDeformMod
             spec.loader.exec_module(PostDeformMod)
+
+            # Output filename of template
+            hopout.routine('     found: {}'.format(loc))
 
             # Stop once the module is successfully loaded
             break
