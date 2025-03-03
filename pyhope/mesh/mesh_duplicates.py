@@ -129,31 +129,30 @@ def EliminateDuplicates() -> None:
     points = mesh_vars.mesh.points
     tree   = spatial.KDTree(points)
 
-    tol = mesh_vars.tolExternal
-    bb  = 0.
-    for cell in mesh_vars.mesh.cells:
-        # Only consider three-dimensional types
-        if not any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()):
-            continue
+    # Filter the valid three-dimensional cell types
+    valid_cells = [cell for cell in mesh_vars.mesh.cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys())]
 
-        # Find the bounding box of the smallest element
-        bb = np.min([np.ptp(points[c], axis=0) for c in cell.data])
+    tol = mesh_vars.tolExternal
+    bbs = np.empty(len(valid_cells), dtype=float)
+
+    for i, cell in enumerate(valid_cells):
+        edata   = np.array(cell.data)
+        ecoords = points[edata]
+        # Compute the ptp (range) along the vertex axis (axis=1) for each element.
+        ptp     = np.ptp(ecoords, axis=1)
+        # For each element type, take the minimum across dimensions
+        bbs[i]  = ptp.min(axis=1).min()
+
     # Set the tolerance to 10% of the bounding box of the smallest element
-    tol = np.max([tol, bb / ((mesh_vars.nGeo+1)*10.) ])
+    tol = np.max([tol, bbs.min() / ((mesh_vars.nGeo+1)*10.) ])
 
     # Find all points within the tolerance
     clusters = tree.query_ball_point(points, r=tol)
     del tree
 
     # Map each point to its cluster representative (first point in the cluster)
-    indices = {}
-    for i, cluster in enumerate(clusters):
-        # Choose the minimum index as the representative for consistency
-        representative = min(cluster)
-        indices[i] = representative
-
-    # Create a mapping from old indices to new indices
-    indices = np.array([indices[i] for i in range(len(points))])
+    # > Choose the minimum index as the representative for consistency
+    indices = np.array([min(cluster) for cluster in clusters])
 
     # Eliminate duplicates
     _, inverseIndices = np.unique(indices, return_inverse=True)
