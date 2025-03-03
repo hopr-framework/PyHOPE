@@ -28,6 +28,7 @@
 import copy
 import gc
 import sys
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -55,8 +56,8 @@ def EliminateDuplicates() -> None:
     mesh   = mesh_vars.mesh
 
     # Find the mapping to the (N-1)-dim elements
-    csetMap = {key: [s for s in range(len(cset)) if cset[s] is not None and np.size(cset[s]) > 0]
-                       for key, cset in mesh.cell_sets.items()}
+    csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
+                             for key, cset in mesh.cell_sets.items()}
 
     # Create new periodic nodes per (original node, boundary) pair
     # > Use a dictionary mapping (node, bc_key) --> new node index
@@ -83,7 +84,7 @@ def EliminateDuplicates() -> None:
 
         for iMap in csetMap[bc_key]:
             # Only process 2D faces (quad or triangle)
-            if not any(s in list(mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
+            if not any(s in tuple(mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
                 continue
 
             iBCsides = np.array(cset[iMap]).astype(int)
@@ -130,7 +131,7 @@ def EliminateDuplicates() -> None:
     tree   = spatial.KDTree(points)
 
     # Filter the valid three-dimensional cell types
-    valid_cells = [cell for cell in mesh_vars.mesh.cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys())]
+    valid_cells = tuple(cell for cell in mesh_vars.mesh.cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
 
     tol = mesh_vars.tolExternal
     bbs = np.empty(len(valid_cells), dtype=float)
@@ -152,7 +153,7 @@ def EliminateDuplicates() -> None:
 
     # Map each point to its cluster representative (first point in the cluster)
     # > Choose the minimum index as the representative for consistency
-    indices = np.array([min(cluster) for cluster in clusters])
+    indices = np.fromiter((min(cluster) for cluster in clusters), dtype=int)
 
     # Eliminate duplicates
     _, inverseIndices = np.unique(indices, return_inverse=True)

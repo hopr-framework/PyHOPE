@@ -223,8 +223,8 @@ def CheckWatertight() -> None:
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks  = [(elem, VdmEqToGP, DGP, weights)
-                  for elem in elems]
+        tasks  = tuple((elem, VdmEqToGP, DGP, weights)
+                        for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
         res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))

@@ -146,11 +146,11 @@ class NodeOrdering:
     def deviation(self, x: float) -> float:
         return abs(x - round(x))
 
-    def HEXREORDER(self, order: int, incomplete: Optional[bool] = False) -> list[int]:
+    def HEXREORDER(self, order: int, incomplete: Optional[bool] = False) -> tuple[int]:
         """ Converts node ordering from gmsh to meshio format
         """
-        EDGEMAP   = tuple([  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7])
-        FACEMAP   = tuple([  2,  3,  1,  4,  0,  5])
+        EDGEMAP   = (  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7)
+        FACEMAP   = (  2,  3,  1,  4,  0,  5)
 
         order    += 1
         nNodes    = 8 + 12*(order - 2) if incomplete else order**3
@@ -173,7 +173,7 @@ class NodeOrdering:
 
             # Only vertices and edges of the outermost shell required for incomplete elements
             if incomplete:
-                return map
+                return tuple(map)
 
             # Faces
             for iFace in range(6):
@@ -184,7 +184,7 @@ class NodeOrdering:
         if order % 2 != 0:
             map[count] = count
 
-        return map
+        return tuple(map)
 
     # INFO: Alternative implementation
     # def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:

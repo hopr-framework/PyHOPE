@@ -83,11 +83,7 @@ def compatibleGMSH(file: str) -> bool:
 
     # get file extension
     _, ext = os.path.splitext(file)
-
-    if ext in ioFormat.values():
-        return True
-    else:
-        return False
+    return ext in ioFormat.values()
 
 
 def ReadGMSH(fnames: list) -> meshio.Mesh:

@@ -28,7 +28,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cache
-from typing import Optional, Final, final
+from typing import Final, Optional, Union, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -178,8 +178,8 @@ class ELEM:
     #     self.nodes       : Optional[list] = nodes
     type        : Optional[int]  = None
     elemID      : Optional[int]  = None
-    sides       : Optional[list] = None
-    nodes       : Optional[list] = None
+    sides       : Optional[Union[list, np.ndarray]] = None
+    nodes       : Optional[            np.ndarray]  = None
 
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():

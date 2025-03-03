@@ -90,8 +90,8 @@ def check_orientation(ionodes : np.ndarray,
 def process_chunk(chunk) -> np.ndarray:
     """Process a chunk of elements by checking surface normal orientation
     """
-    chunk_results = np.array([(check_orientation(ionodes, elemType), iElem)
-                               for iElem, ionodes, elemType in chunk], dtype=object)
+    chunk_results = np.fromiter(((check_orientation(ionodes, elemType), iElem)
+                                  for iElem, ionodes, elemType in chunk), dtype=object)
     return chunk_results
 
 
@@ -134,14 +134,14 @@ def OrientMesh() -> None:
 
         # Prepare elements for parallel processing
         if np_mtp > 0:
-            tasks = [(iElem, ioelems[iElem - nElems], elemType)
-                     for iElem in range(nElems, nElems + nIOElems)]
+            tasks = tuple((iElem, ioelems[iElem - nElems], elemType)
+                           for iElem in range(nElems, nElems + nIOElems))
             # Run in parallel with a chunk size
             # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
             res   = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
         else:
-            res   = np.array([(check_orientation(ioelems[iElem - nElems], elemType), iElem)
-                              for iElem in range(nElems, nElems + nIOElems)], dtype=object)
+            res   = np.fromiter(((check_orientation(ioelems[iElem - nElems], elemType), iElem)
+                                  for iElem in range(nElems, nElems + nIOElems)), dtype=object)
 
         if not np.all([success for (success, _), _ in res]):
             failed_elems = [(iElem + 1, face) for (success, face), iElem in res if not success]
