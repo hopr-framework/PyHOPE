@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import time
-from sortedcontainers import SortedDict
+# from sortedcontainers import SortedDict
 from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -81,8 +81,12 @@ def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> Tuple[d
 
 class IndexedLists:
     def __init__(self) -> None:
+        # PERF: The unsorted dict is faster for adding and removing elements
         # Create a SortedDict to keep the data sorted by index
-        self.data = SortedDict()
+        # self.data = SortedDict()
+
+        # Use a plain dict for faster key operations
+        self.data = {}
 
     def add(self, index: int, values) -> None:
         """ Add a sublist at a specific integer index
