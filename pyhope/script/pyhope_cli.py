@@ -97,11 +97,11 @@ def main() -> None:
 
     # Check if there are unrecognized arguments
     if len(argv) >= 1:
-        print('{} expects exactly one parameter file! Exiting ...'
+        print('{} expects exactly one parameter or HDF5-mesh file! Exiting ...'
               .format(program))
         sys.exit()
 
-    with ReadConfig(args.parameter) as rc:
+    with ReadConfig(args.input) as rc:
         config.params = rc
 
     # Print banner

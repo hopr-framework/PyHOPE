@@ -263,8 +263,8 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
     """
-    if order not in [1, 3, 5]:
-        raise ValueError("Only orders 1, 3, and 5 are supported")
+    if order not in [1, 2, 3, 5]:
+        raise ValueError("Only orders 1, 2, and 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
 
@@ -393,8 +393,8 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (3D mapping)
     """
-    if order not in [1, 3, 5]:
-        raise ValueError("Only orders 1, 3, and 5 are supported")
+    if order not in [1, 2, 3, 5]:
+        raise ValueError("Only orders 1, 2, and 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
 
@@ -520,8 +520,8 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)
     """
-    if order not in [1, 3, 5]:
-        raise ValueError("Only orders 1, 3, and 5 are supported")
+    if order not in [1, 2, 3, 5]:
+        raise ValueError("Only orders 1, 2, and 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
 

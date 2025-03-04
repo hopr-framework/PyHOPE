@@ -45,9 +45,12 @@ class ProgressBar:
     """ Provide a progress bar outside of the context manager
     """
     def __init__(self, title: Optional[str], value: int, length: int = 33, threshold: int = barElems) -> None:
-        self.cm: Final = alive_bar(title=title, total=value, length=length)
+        self._cm   : Final         = alive_bar(title=title, total=value, length=length)
+        self._title: Optional[str] = title
+        self._len  : int           = length
+
         if value > threshold:
-            self.bar = self.cm.__enter__()
+            self.bar = self._cm.__enter__()
         else:
             self.bar = None
 
@@ -55,6 +58,10 @@ class ProgressBar:
         if self.bar is not None:
             self.bar(steps)
 
+    def title(self, title: str) -> None:
+        if self.bar is not None:
+            self.bar.title(title)
+
     def close(self) -> None:
         if self.bar is not None:
-            _ = self.cm.__exit__(None, None, None)
+            _ = self._cm.__exit__(None, None, None)

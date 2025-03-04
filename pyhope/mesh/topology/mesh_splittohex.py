@@ -53,7 +53,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
-    from pyhope.readintools.readintools import GetLogical, GetIntFromStr, CountOption
+    from pyhope.readintools.readintools import GetLogical, CountOption
     # ------------------------------------------------------
 
     if CountOption('doSplitToHex') == 0:
@@ -68,19 +68,16 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         hopout.separator()
 
     # Sanity check
-    # > Check if all requested element types are hexahedral
-    nElemTypes = CountOption('ElemType')
-    for iElemType in range(nElemTypes):
-        elemType = GetIntFromStr('ElemType', number=iElemType)
-
-        if elemType % 100 != 8:
-            # Simplex elements requested
-            hopout.warning('Non-hexahedral elements are not supported for splitting, exiting...')
-
     # > Check if the requested polynomial order is 1
     if nGeo > 1:
         hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
         traceback.print_stack(file=sys.stdout)
+        sys.exit(1)
+
+    # > Check if the mesh contains any pyramids or hexahedra
+    if any(s.startswith(x) for x in ['pyramid', 'hexahedron'] for s in mesh.cells_dict.keys()):
+        unsupported = [s for s in mesh.cells_dict.keys() if any(s.startswith(x) for x in ['pyramid', 'hexahedron'])]
+        hopout.warning('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
         sys.exit(1)
 
     # Copy original points
@@ -125,11 +122,6 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     faceVal  = 1
     subNodes = hexa_faces()
 
-    # Check if the mesh contains any pyramids
-    if 'pyramid' in mesh.cells_dict:
-        hopout.warning('Pyramids are not supported for splitting, exiting...')
-        sys.exit(1)
-
     # Create the element sets
     ignElems    = ['vertex', 'line', 'quad', 'triangle', 'pyramid', 'hexahedron']
     meshcells   = [(k, v) for k, v in mesh.cells_dict.items() if not any(x in k for x in ignElems)]
@@ -145,8 +137,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
 
-        if ctype[:10] == 'hexahedron':
-            continue
+        # if ctype[:10] == 'hexahedron':
+        #     continue
 
         elemSplitter = { 'tetra': (tet_to_hex_points  , tet_to_hex_split  , tet_to_hex_faces  ),
                          'wedge': (prism_to_hex_points, prism_to_hex_split, prism_to_hex_faces)}
