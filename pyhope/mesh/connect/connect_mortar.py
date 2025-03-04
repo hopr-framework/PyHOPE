@@ -119,6 +119,7 @@ def ConnectMortar( nConnSide  : list
 
     for targetID in targetSides:
         # Skip already connected sides
+        # if indexList.data[targetID] == -1:
         if targetID not in indexList.data.keys():
             continue
 
@@ -163,6 +164,8 @@ def ConnectMortar( nConnSide  : list
 
             # Remove the target side from the list
             removeSides = [targetID] + list(comboIDs)
+            # for r in removeSides:
+            #     indexList.data[r] = -1
             indexList.remove_index(removeSides)
 
             # Update the progress bar
@@ -522,27 +525,33 @@ def find_edge_combinations(comboEdges) -> tuple:
                 edgePoints = np.array([i1, j1, i2, j2])
 
                 # Find the index of the common point and delete it
-                commonIndex = np.where(edgePoints == commonPoint)[0]
-                edgePoints  = np.delete(edgePoints, commonIndex)
+                # commonIndex = np.where(edgePoints == commonPoint)[0]
+                # edgePoints  = np.delete(edgePoints, commonIndex)
+                edgePoints = edgePoints[edgePoints != commonPoint]
 
                 # The remaining points are the start and end points of the edge combination
                 point1, point2 = edgePoints
 
                 # Get the coordinates of the points
                 p1, p2 = points[point1], points[point2]
-                c1 = points[commonPoint]
 
-                # Calculate the bounding box of the two edge points
-                bbox_min = np.minimum(p1, p2)
-                bbox_max = np.maximum(p1, p2)
-
+                # INFO: This is a more strict check that is not necessary
+                # c1 = points[commonPoint]
+                #
+                # # Calculate the bounding box of the two edge points
+                # bbox_min = np.minimum(p1, p2)
+                # bbox_max = np.maximum(p1, p2)
+                #
                 # Check if the common point is within the bounding box of p1 and p2
-                if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
-                   np.allclose(bbox_max, np.maximum(bbox_max, c1)):
-                    # Calculate the distance between the start and end points
-                    lineDist = np.linalg.norm(p1 - p2)
+                # if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
+                #    np.allclose(bbox_max, np.maximum(bbox_max, c1)):
+                #     # Calculate the distance between the start and end points
+                #     lineDist = np.linalg.norm(p1 - p2)
+                #
+                #     # Append the indices and the line distance
+                #     validCombo.append((point1, point2, lineDist))
 
-                    # Append the indices and the line distance
-                    validCombo.append((point1, point2, lineDist))
+                lineDist = np.linalg.norm(p1 - p2)
+                validCombo.append((point1, point2, lineDist))
 
     return tuple(validCombo)

@@ -462,6 +462,10 @@ def LINTEN(elemType: int, order: int = 1) -> tuple[np.ndarray, dict[np.int64, in
     # from pyhope.io.formats.vtk import genHEXMAPVTK
     from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
     # ------------------------------------------------------
+    # Check if we try to access a curved element with a straight-sided mapping
+    if order > 1 and elemType < 200:
+        raise ValueError(f'Error in LINTEN: order {order} is not supported for elemType {elemType}')
+
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
@@ -541,6 +545,10 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
     # from pyhope.io.formats.vtk import HEXMAPVTK
     from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
     # ------------------------------------------------------
+    # Check if we try to access a curved element with a straight-sided mapping
+    if order > 1 and elemType < 200:
+        raise ValueError(f'Error in LINTEN: order {order} is not supported for elemType {elemType}')
+
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
