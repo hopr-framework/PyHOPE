@@ -253,13 +253,33 @@ def hexa_faces(order: int) -> list[np.ndarray]:
     """
     match order:
         case 1:
-            return [np.array([0, 1, 2, 3], dtype=int),
-                    np.array([4, 5, 6, 7], dtype=int),
-                    np.array([0, 1, 5, 4], dtype=int),
-                    np.array([2, 3, 7, 6], dtype=int),
-                    np.array([0, 3, 7, 4], dtype=int),
-                    np.array([1, 2, 6, 5], dtype=int),
-                   ]
+            return [np.array([  0,  1,  2,  3], dtype=int),
+                    np.array([  0,  1,  5,  4], dtype=int),
+                    np.array([  1,  2,  6,  5], dtype=int),
+                    np.array([  2,  6,  7,  3], dtype=int),
+                    np.array([  0,  4,  7,  3], dtype=int),
+                    np.array([  4,  5,  6,  7], dtype=int)]
+        case 2:
+            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 24], dtype=int),
+                    np.array([  0,  1,  5,  4,  8, 17, 12, 16, 22], dtype=int),
+                    np.array([  1,  2,  6,  5,  9, 18, 13, 17, 21], dtype=int),
+                    np.array([  2,  6,  7,  3, 18, 14, 19, 10, 23], dtype=int),
+                    np.array([  0,  4,  7,  3, 16, 15, 19, 11, 20], dtype=int),
+                    np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int)]
+        case 3:
+            return [np.array([  0,  1,  2,  3, *range( 8, 10), *range(10, 12),          *range(12, 14),  *reversed(range(14, 16)), 48, *reversed(range(50, 52)), 49], dtype=int),  # noqa: E501
+                    np.array([  0,  1,  5,  4, *range( 8, 10), *range(26, 28), *reversed(range(16, 18)), *reversed(range(24, 26)), 40,          *range(41, 43) , 43], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  6,  5, *range(10, 12), *range(28, 30), *reversed(range(18, 20)), *reversed(range(26, 28)), 36,          *range(37, 39) , 39], dtype=int),  # noqa: E501
+                    np.array([  2,  6,  7,  3, *range(28, 30), *range(20, 22), *reversed(range(30, 32)), *reversed(range(12, 14)), 44, *reversed(range(46, 48)), 45], dtype=int),  # noqa: E501
+                    np.array([  0,  4,  7,  3, *range(24, 26), *range(22, 24), *reversed(range(32, 34)), *reversed(range(14, 16)), 32,          *range(33, 35) , 35], dtype=int),  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(16, 18), *range(18, 20),          *range(20, 22) , *reversed(range(22, 24)), 52,          *range(53, 55) , 54], dtype=int)]  # noqa: E501
+        case 4:
+            return [np.array([  0,  1,  2,  3, *range( 8, 11), *range(11, 14),          *range(14, 17) , *reversed(range(17, 20)), 80, *reversed(range(81, 84)), 87, *reversed(range(84, 87)), 88], dtype=int),  # noqa: E501
+                    np.array([  0,  1,  5,  4, *range( 8, 11), *range(35, 38), *reversed(range(20, 23)), *reversed(range(32, 35)), 62,          *range(63, 66) , 66,          *range(67, 70) , 70], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  6,  5, *range(11, 14), *range(38, 41), *reversed(range(23, 26)), *reversed(range(35, 38)), 53,          *range(54, 57) , 57,          *range(58, 61) , 61], dtype=int),  # noqa: E501
+                    np.array([  2,  6,  7,  3, *range(38, 41), *range(26, 29), *reversed(range(41, 44)), *reversed(range(14, 17)), 71, *reversed(range(72, 75)), 78, *reversed(range(75, 78)), 79], dtype=int),  # noqa: E501
+                    np.array([  0,  4,  7,  3, *range(32, 35), *range(29, 32), *reversed(range(41, 44)), *reversed(range(17, 20)), 44,          *range(45, 48) , 48,          *range(49, 52) , 52], dtype=int),  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97], dtype=int)]  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -374,10 +394,10 @@ def pyram_to_tet_faces(order: int) -> list[np.ndarray]:
                         np.array([  2,  0,  3], dtype=int),
                         np.array([  0,  1,  2], dtype=int)]
         case 2:
-            newFaces = [np.array([  0,  1,  3,  4,  5,  9,  7], dtype=int),
-                        np.array([  1,  2,  3,  4, -1, -1], dtype=int),
-                        np.array([  2,  0,  3,  4, -1, -1], dtype=int),
-                        np.array([  0,  1,  2,  4, -1, -1], dtype=int)]
+            newFaces = [np.array([  0,  1,  3,  4,  8,  7], dtype=int),
+                        np.array([  1,  2,  3,  5,  9,  8], dtype=int),
+                        np.array([  2,  0,  3,  6,  7,  9], dtype=int),
+                        np.array([  0,  1,  2,  4,  5,  6], dtype=int)]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

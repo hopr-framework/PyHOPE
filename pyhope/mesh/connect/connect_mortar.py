@@ -264,6 +264,7 @@ def connect_mortar_sides( sideIDs    : list
 
         case 4:
             mortarType = 1
+            slaveSideType = 104
             # Sort the small sides
             slaveSides = [s for i in [0, 1, 3, 2]
                             for s in slaveSides if points_exist_in_target(masterCorners[i], tuple(s.corners))]
@@ -569,8 +570,7 @@ def find_edge_combinations(comboEdges) -> Tuple[list[tuple], bool]:
                         lineDist = np.linalg.norm(p1 - p2)
 
                         # Append the indices and the line distance
-                        if (point1, point2, lineDist) not in validCombo:
-                            validCombo.append((point1, point2, lineDist))
+                        validCombo.append((point1, point2, lineDist))
 
                 else:
 
