@@ -27,7 +27,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import time
 # from sortedcontainers import SortedDict
-from typing import Tuple
+from collections import defaultdict
+from typing import Final, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -55,10 +56,10 @@ def time_function(func, *args, **kwargs) -> float:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------
-    tStart = time.time()
-    result = func(*args, **kwargs)
-    tEnd   = time.time()
-    tFunc  = tEnd - tStart
+    tStart: Final[float] = time.time()
+    result               = func(*args, **kwargs)
+    tEnd:   Final[float] = time.time()
+    tFunc:  Final[float] = tEnd - tStart
     hopout.info(  hopout.Colors.BANNERA + f'Function {func.__name__} required {tFunc:.6f} seconds to complete.'
                 + hopout.Colors.END)
 
@@ -87,13 +88,18 @@ class IndexedLists:
 
         # Use a plain dict for faster key operations
         self.data = {}
+        # Inverse mapping: for each value, store the set of keys (indices) that contain it
+        self._inverse = defaultdict(set)
 
     def add(self, index: int, values) -> None:
         """ Add a sublist at a specific integer index
         """
-        self.data[index] = set(values)  # Use set for fast removals
+        value_set = set(values)  # Use set for fast removals
+        self.data[index] = value_set
+        for v in value_set:
+            self._inverse[v].add(index)
 
-    def remove_index(self, indices):
+    def remove_index(self, indices) -> None:
         """ Remove the sublist at idx and remove the integer idx from all remaining sublists
         """
         if isinstance(indices, int):
@@ -103,18 +109,26 @@ class IndexedLists:
             # Convert list to set for O(1) lookups
             indices = set(indices)
 
-        # Remove sublists at specified indices, O(log n)
+        # Create a set to hold all affected keys
+        affected_keys = set()
+        # Remove keys directly and collect affected keys from inverse mapping
         for idx in indices:
-            self.data.pop(idx, None)
+            if idx in self.data:
+                # Remove the entire key; also clean up the inverse mapping
+                for v in self.data[idx]:
+                    self._inverse[v].discard(idx)
+                del self.data[idx]
+            affected_keys |= self._inverse.pop(idx, set())
 
-        # Remove all values from remaining sublists
-        for value_set in self.data.values():
-            value_set.difference_update(indices)  # O(1) removal
+        # Now update each affected key only once while checking for emptiness
+        for key in affected_keys:
+            if key in self.data:
+                self.data[key].difference_update(indices)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> list[int]:
         """ Retrieve a sublist by index
         """
         return list(self.data[index])  # Convert set back to list when accessed
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr({k: list(v) for k, v in self.data.items()})  # Convert to list for cleaner output
