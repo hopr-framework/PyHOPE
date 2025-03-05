@@ -144,14 +144,6 @@ def ConnectMortar( nConnSide  : list
 
             sideID   = targetSide.sideID
             nbSideID = [side.sideID for side in comboSides]
-            if sideID == 500:
-                print(targetSide.corners)
-                print([key.corners for key in comboSides])
-                print(points[targetSide.corners])
-                print([points[key.corners] for key in comboSides])
-                print(sideID,nbSideID)
-                print(find_mortar_match(targetSide.corners, comboSides, bcID))
-                input()
 
             # Check if we found a valid match
             if not find_mortar_match(targetSide.corners, comboSides, bcID):
@@ -160,9 +152,6 @@ def ConnectMortar( nConnSide  : list
             # Get our and neighbor corner quad nodes
             sideID   = targetSide.sideID
             nbSideID = [side.sideID for side in comboSides]
-            if sideID == 500:
-                print(sideID,nbSideID)
-                input()
 
             # Build the connection, including flip
             sideIDs = [sideID, nbSideID]
@@ -583,11 +572,6 @@ def find_edge_combinations(comboEdges) -> Tuple[list[tuple], bool]:
                 # Get the coordinates of the points
                 p1, p2 = points[point1], points[point2]
                 c1 = points[commonPoint]
-
-                if point2==2493:
-                  print(p1,p2,c1,point1,point2,commonPoint)
-                  print(pointToEdges)
-                  input()
 
                 if not checkTriaFace:
 

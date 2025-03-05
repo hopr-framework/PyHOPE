@@ -54,13 +54,13 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
-    from pyhope.mesh.mesh_vars import nGeo
+    from pyhope.mesh.mesh_vars import nGeo,ELEMTYPE
     # ------------------------------------------------------
 
     if not GetLogical('doSplitToTet') and nGeo == 1:
         return mesh
 
-    if 'pyramid' not in mesh.cells_dict:
+    if not any(key.startswith('pyramid') for key in mesh.cells_dict):
         return mesh
 
     hopout.separator()
@@ -118,21 +118,28 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     elems_lst = {ftype: [] for ftype in faceType}
     csets_lst = {}
 
-    elemType               = {'tetra':4,'wedge':6,'pyramid':5,'hexahedron':8}
-    oldFIdxs               = {ftype: [] for ftype in elemType.keys()}
-    oldFIdxs['hexahedron'] = hexa_faces(order=nGeo)
-    oldFIdxs['wedge']      = prism_faces(order=nGeo)
-    oldFIdxs['pyramid']    = pyram_faces(order=nGeo)
-    oldFIdxs['tetra']      = tetra_faces(order=nGeo)
+    ElemType = 'tetra'
+    ElemType += '' if nGeo == 1 else str(NDOFperElemType('tetra', nGeo))
+    oldFIdxs = {ftype: [] for ftype in ELEMTYPE.type.keys()}
+    for key in mesh.cells_dict:
+      if key.startswith('hexahedron'):
+        oldFIdxs[key] = hexa_faces(order=nGeo)
+      if key.startswith('wedge'):
+        oldFIdxs[key] = prism_faces(order=nGeo)
+      if key.startswith('pyramid'):
+        oldFIdxs[key] = pyram_faces(order=nGeo)
+      if key.startswith('tetra'):
+        ElemType = key
+        oldFIdxs[key] = tetra_faces(order=nGeo)
 
     # Sort out all pyramids
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
 
-        if ctype == 'triangle' or ctype == 'quad':
+        if ctype[:8] == 'triangle' or ctype[:4] == 'quad':
             continue
 
-        if ctype == 'pyramid':
+        if ctype[:7] == 'pyramid':
             continue
 
         # Iterate over element types
@@ -173,7 +180,7 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
         if ctype[:7] != 'pyramid':
             continue
 
-        elemSplitter = {'pyramid': (pyram_to_tet_split, pyram_to_tet_faces)}
+        elemSplitter = {ctype: (pyram_to_tet_split, pyram_to_tet_faces)}
         splitElems, splitFaces = elemSplitter.get(ctype, (None, None))
 
         # Only process valid splits
@@ -209,10 +216,10 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
                     elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
                     nFaces[faceVal] += 1
 
-            if 'tetra' not in elems_lst:
-                elems_lst['tetra'] = []
+            if not any(key.startswith('tetra') for key in elems_lst):
+                elems_lst[ElemType] = []
             # Append all rows from subElems
-            elems_lst['tetra'].extend(subElems)
+            elems_lst[ElemType].extend(subElems)
 
             # Update the progress bar
             bar.step()
@@ -417,10 +424,30 @@ def pyram_to_tet_split(order: int) -> list[tuple]:
                     (2,  3,  1,  4),
                    ]
         case 2:
-            return [(0,  1,  3,  4,  5, 13,  6,  7,  9, 12),
-                    (2,  3,  1,  4, 10, 13,  8, 11, 12,  9),
+            return [(0,  1,  3,  4,  5, 13,  8,  9, 10, 12),
+                    (2,  3,  1,  4,  7, 13,  6, 11, 12, 10),
                    ]
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
+
+@cache
+def NDOFperElemType(elemType: str, nGeo: int) -> int:
+    """ Calculate the number of degrees of freedom for a given element type
+    """
+    match elemType:
+        case _ if elemType.startswith('triangle'):
+            return round((nGeo+1)*(nGeo+2)/2.)
+        case _ if elemType.startswith('quad'):
+            return round((nGeo+1)**2)
+        case _ if elemType.startswith('tetra'):
+            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
+        case _ if elemType.startswith('pyramid'):
+            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
+        case _ if elemType.startswith('wedge'):
+            return round((nGeo+1)**2 *(nGeo+2)/2.)
+        case _ if elemType.startswith('hexahedron'):
+            return round((nGeo+1)**3)
+        case _:
+            raise ValueError(f'Unknown element type {elemType}')
