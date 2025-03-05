@@ -57,7 +57,7 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.mesh.mesh_vars import nGeo,ELEMTYPE
     # ------------------------------------------------------
 
-    if not GetLogical('doSplitToTet') and nGeo == 1:
+    if not GetLogical('doSplitToTet') and nGeo!=2:
         return mesh
 
     if not any(key.startswith('pyramid') for key in mesh.cells_dict):
