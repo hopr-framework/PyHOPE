@@ -35,7 +35,7 @@ import sys
 import tempfile
 import time
 import traceback
-from typing import cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -213,7 +213,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
-    cells_lst = list(mesh.cells_dict)
+    cells_lst = tuple(mesh.cells_dict)
 
     # Now, for quadrilateral elements
     nConnLen  = 0
@@ -255,7 +255,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
         ttree = spatial.KDTree(tbPoints)
 
-    tol = mesh_vars.tolExternal
+    tol: Final[float] = mesh_vars.tolExternal
 
     # Now set the missing CGNS boundaries
     for fname in fnames:

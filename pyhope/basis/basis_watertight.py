@@ -109,7 +109,7 @@ def check_sides(elem,
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
             nSurf   = eval_nsurf(transform(nodes), VdmEqToGP, DGP, weights)
-            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
+            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolInternal
             # checked[SideID] = True
 
             # Mortar sides are the following virtual sides
@@ -139,7 +139,7 @@ def check_sides(elem,
             # INFO: This should be faster but I could not confirm the speedup in practice
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             nSurf   = eval_nsurf(transform(nodes), VdmEqToGP, DGP, weights)
-            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
+            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolInternal
             # checked[SideID] = True
 
             # Connected side
