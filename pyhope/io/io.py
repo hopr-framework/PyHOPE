@@ -318,7 +318,7 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
             mapLin = linCache[elemType]
         else:
             _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
-            mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+            mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
             linCache[elemType] = mapLin
 
         elemNodes = elem.nodes

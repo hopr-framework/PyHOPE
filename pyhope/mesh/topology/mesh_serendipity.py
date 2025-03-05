@@ -83,10 +83,10 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 # Get number of hexahedrons which have to be converted
                 nHex20    = len(cdata)
 
-                faces     = ['x-', 'x+', 'y-', 'y+', 'z-', 'z+']
+                faces     = ('x-', 'x+', 'y-', 'y+', 'z-', 'z+')
                 nFaces    = len(faces)
 
-                N         = [np.array([]) for _ in range(nFaces + 1)]
+                N         = [np.array(()) for _ in range(nFaces + 1)]
                 faceNodes = [list()       for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements
@@ -139,11 +139,11 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 # Get number of hexahedrons which have to be converted
                 nWed15    = len(cdata)
 
-                faces     = ['y-', 'x+', 'x-']  # square faces of element
+                faces     = ('y-', 'x+', 'x-')  # square faces of element
                 # faces     = ['x+']
                 nFaces    = len(faces)
 
-                N         = [np.array([]) for _ in range(nFaces + 1)]
+                N         = [np.array(()) for _ in range(nFaces + 1)]
                 faceNodes = [list()       for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements

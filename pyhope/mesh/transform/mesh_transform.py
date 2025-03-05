@@ -86,7 +86,7 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
     }
 
     handler = stretchingHandlers.get(stretchingType)
-    progFac, l0, dx = handler() if handler else (np.array([]), np.array([]), np.array([]))
+    progFac, l0, dx = handler() if handler else (np.array(()), np.array(()), np.array(()))
 
     if stretchingType == 'combination':
         for iDim in range(3):

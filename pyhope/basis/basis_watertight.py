@@ -233,8 +233,8 @@ def CheckWatertight() -> None:
         res[:] = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]
 
     # Helper for transforming face nodes
-    transform = lambda n      : np.transpose(n, axes=(2, 0, 1))                                                         # noqa: E731
-    get_face  = lambda e, face: transform(np.array([e.nodes[s] for s in face_to_nodes(face, e.type, mesh_vars.nGeo)]))  # noqa: E731
+    transform = lambda n      : np.transpose(n, axes=(2, 0, 1))                                                    # noqa: E731
+    get_face  = lambda e, face: transform(np.array(tuple(e.nodes[s] for s in face_to_nodes(face, e.type, nGeo))))  # noqa: E731
 
     for r in res:
         for result in r:

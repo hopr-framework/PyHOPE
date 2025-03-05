@@ -200,7 +200,7 @@ def SortMeshByIJK() -> None:
 
     # Adjust nElemsIJK based on structured directions
     if nStructDirs == 0:
-        nElemsIJK = np.array([nElems, 1, 1])
+        nElemsIJK = np.array((nElems, 1, 1))
     elif nStructDirs == 1:
         structured_dir = np.argmax(structDir)
         nElemsIJK[structured_dir] = nElems // nElemsIJK[structured_dir]

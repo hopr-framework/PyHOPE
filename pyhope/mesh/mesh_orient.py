@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import re
 import sys
-from typing import Optional
+from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -111,13 +111,16 @@ def OrientMesh() -> None:
     if not checkSurfaceNormals:
         return None
 
-    mesh   = mesh_vars.mesh
-    nElems = 0
+    mesh = mesh_vars.mesh
+
+    elemNames: Final[dict] = mesh_vars.ELEMTYPE.name
+    elemKeys : Final       = mesh_vars.ELEMTYPE.type.keys()
+    nElems      = 0
     passedTypes = []
 
     for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in elemKeys):
             continue
 
         # Only consider hexahedrons
@@ -130,7 +133,7 @@ def OrientMesh() -> None:
         nIOElems = ioelems.shape[0]
 
         if isinstance(elemType, str):
-            elemType = mesh_vars.ELEMTYPE.name[elemType]
+            elemType = elemNames[elemType]
 
         # Prepare elements for parallel processing
         if np_mtp > 0:

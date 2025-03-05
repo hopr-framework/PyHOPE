@@ -138,12 +138,12 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: {  'z-': np.array([  0,  1,   2,   3], dtype=dtype),
-                         'y-': np.array([  0,  9,  -4,  -8], dtype=dtype),
-                         'x+': np.array([  1, 10,  -5,  -9], dtype=dtype),
-                         'y+': np.array([ -2, 10,   6, -11], dtype=dtype),
-                         'x-': np.array([  8, -7, -11,   3], dtype=dtype),
-                         'z+': np.array([  4,  5,   6,   7], dtype=dtype)}
+                   8: {  'z-': np.array((  0,  1,   2,   3), dtype=dtype),
+                         'y-': np.array((  0,  9,  -4,  -8), dtype=dtype),
+                         'x+': np.array((  1, 10,  -5,  -9), dtype=dtype),
+                         'y+': np.array(( -2, 10,   6, -11), dtype=dtype),
+                         'x-': np.array((  8, -7, -11,   3), dtype=dtype),
+                         'z+': np.array((  4,  5,   6,   7), dtype=dtype)}
                 }
 
     if isinstance(elemType, str):
@@ -166,12 +166,12 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: {  'z-': np.array([  0,  1,   2,   3], dtype=dtype),
-                         'y-': np.array([  0,  1,   5,   4], dtype=dtype),
-                         'x+': np.array([  1,  2,   6,   5], dtype=dtype),
-                         'y+': np.array([  2,  6,   7,   3], dtype=dtype),
-                         'x-': np.array([  0,  4,   7,   3], dtype=dtype),
-                         'z+': np.array([  4,  5,   6,   7], dtype=dtype)}
+                   8: {  'z-': np.array((  0,  1,   2,   3), dtype=dtype),
+                         'y-': np.array((  0,  1,   5,   4), dtype=dtype),
+                         'x+': np.array((  1,  2,   6,   5), dtype=dtype),
+                         'y+': np.array((  2,  6,   7,   3), dtype=dtype),
+                         'x-': np.array((  0,  4,   7,   3), dtype=dtype),
+                         'z+': np.array((  4,  5,   6,   7), dtype=dtype)}
                 }
 
     if isinstance(elemType, str):
@@ -191,29 +191,29 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
-                   4: {'z-': np.array([  0,  2,  1    ], dtype=dtype),
-                       'y-': np.array([  0,  1,  3    ], dtype=dtype),
-                       'x+': np.array([  1,  2,  3    ], dtype=dtype),
-                       'x-': np.array([  2,  0,  3    ], dtype=dtype)},
+                   4: {'z-': np.array((  0,  2,  1    ), dtype=dtype),
+                       'y-': np.array((  0,  1,  3    ), dtype=dtype),
+                       'x+': np.array((  1,  2,  3    ), dtype=dtype),
+                       'x-': np.array((  2,  0,  3    ), dtype=dtype)},
                    # Pyramid
-                   5: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),
-                       'y-': np.array([  0,  1,  4    ], dtype=dtype),
-                       'x+': np.array([  1,  2,  4    ], dtype=dtype),
-                       'y+': np.array([  2,  3,  4    ], dtype=dtype),
-                       'x-': np.array([  3,  0,  4    ], dtype=dtype)},
+                   5: {'z-': np.array((  0,  3,  2,  1), dtype=dtype),
+                       'y-': np.array((  0,  1,  4    ), dtype=dtype),
+                       'x+': np.array((  1,  2,  4    ), dtype=dtype),
+                       'y+': np.array((  2,  3,  4    ), dtype=dtype),
+                       'x-': np.array((  3,  0,  4    ), dtype=dtype)},
                    # Wedge / Prism
-                   6: {'y-': np.array([  0,  1,  4,  3], dtype=dtype),
-                       'x+': np.array([  1,  2,  5,  4], dtype=dtype),
-                       'x-': np.array([  2,  0,  3,  5], dtype=dtype),
-                       'z-': np.array([  0,  2,  1    ], dtype=dtype),
-                       'z+': np.array([  3,  4,  5    ], dtype=dtype)},
+                   6: {'y-': np.array((  0,  1,  4,  3), dtype=dtype),
+                       'x+': np.array((  1,  2,  5,  4), dtype=dtype),
+                       'x-': np.array((  2,  0,  3,  5), dtype=dtype),
+                       'z-': np.array((  0,  2,  1    ), dtype=dtype),
+                       'z+': np.array((  3,  4,  5    ), dtype=dtype)},
                    # Hexahedron
-                   8: {'z-': np.array([  0,  3,  2,  1], dtype=dtype),
-                       'y-': np.array([  0,  1,  5,  4], dtype=dtype),
-                       'x+': np.array([  1,  2,  6,  5], dtype=dtype),
-                       'y+': np.array([  2,  3,  7,  6], dtype=dtype),
-                       'x-': np.array([  0,  4,  7,  3], dtype=dtype),
-                       'z+': np.array([  4,  5,  6,  7], dtype=dtype)}
+                   8: {'z-': np.array((  0,  3,  2,  1), dtype=dtype),
+                       'y-': np.array((  0,  1,  5,  4), dtype=dtype),
+                       'x+': np.array((  1,  2,  6,  5), dtype=dtype),
+                       'y+': np.array((  2,  3,  7,  6), dtype=dtype),
+                       'x-': np.array((  0,  4,  7,  3), dtype=dtype),
+                       'z+': np.array((  4,  5,  6,  7), dtype=dtype)}
                 }
 
     if isinstance(elemType, str):
@@ -469,29 +469,29 @@ def LINTEN(elemType: int, order: int = 1) -> tuple[np.ndarray, dict[np.int64, in
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            # return np.array([0, 1, 2, 3])
-            TETRTEN = np.array([0, 1, 2, 3])
+            # return np.array((0, 1, 2, 3))
+            TETRTEN = np.array((0, 1, 2, 3))
             # meshio accesses them in their own ordering
             # > need to reverse the mapping
             TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
             return TETRTEN, TENTETR
         case 105:  # Pyramid
-            # return np.array([0, 1, 3, 2, 4])
-            PYRATEN = np.array([0, 1, 3, 2, 4])
+            # return np.array((0, 1, 3, 2, 4))
+            PYRATEN = np.array((0, 1, 3, 2, 4))
             # meshio accesses them in their own ordering
             # > need to reverse the mapping
             TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
             return PYRATEN, TENPYRA
         case 106:  # Prism
-            # return np.array([0, 1, 2, 3, 4, 5])
-            PRISTEN = np.array([0, 1, 2, 3, 4, 5])
+            # return np.array((0, 1, 2, 3, 4, 5))
+            PRISTEN = np.array((0, 1, 2, 3, 4, 5))
             # meshio accesses them in their own ordering
             # > need to reverse the mapping
             TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
             return PRISTEN, TENPRIS
         case 108:  # Hexaeder
-            # return np.array([0, 1, 3, 2, 4, 5, 7, 6])
-            HEXTEN = np.array([0, 1, 3, 2, 4, 5, 7, 6])
+            # return np.array((0, 1, 3, 2, 4, 5, 7, 6))
+            HEXTEN = np.array((0, 1, 3, 2, 4, 5, 7, 6))
             # meshio accesses them in their own ordering
             # > need to reverse the mapping
             TENHEX    = {k: v for v, k in enumerate(HEXTEN)}

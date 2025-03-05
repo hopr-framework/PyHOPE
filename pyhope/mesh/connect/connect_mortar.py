@@ -550,7 +550,7 @@ def find_edge_combinations(comboEdges) -> tuple:
                 commonPoint = commonPoint.pop()
 
                 # Exclude the common point and get the unique start and end points
-                edgePoints = np.array([i1, j1, i2, j2])
+                edgePoints = np.array((i1, j1, i2, j2))
 
                 # Find the index of the common point and delete it
                 # commonIndex = np.where(edgePoints == commonPoint)[0]

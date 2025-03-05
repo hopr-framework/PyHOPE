@@ -159,7 +159,7 @@ def CheckJacobians() -> None:
             mapLin = linCache[elemType]
         else:
             _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
-            mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+            mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
             linCache[elemType] = mapLin
 
         # Fill the NodeCoords

@@ -110,4 +110,4 @@ class ShapeFunctions:
             raise ValueError(f'Unsupported element type: {elemType}')
 
         funcs = self.shape_functions[elemType]
-        return np.array([func(xi, eta, zeta) for func in funcs])
+        return np.array(tuple(func(xi, eta, zeta) for func in funcs))
