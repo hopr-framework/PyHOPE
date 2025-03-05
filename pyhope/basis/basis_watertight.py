@@ -227,7 +227,7 @@ def CheckWatertight() -> None:
                         for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
+        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
     else:
         res    = np.empty(len(elems), dtype=object)
         res[:] = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]

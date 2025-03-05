@@ -253,6 +253,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             sideInfo   = np.array(f['SideInfo'])
             BCNames    = [s.strip().decode('utf-8') for s in cast(h5py.Dataset, f['BCNames'])]
 
+            # Cache the mapping here, so we consider the mesh order
+            linCache   = {}
+
             with alive_bar(len(elemInfo), title='│             Processing Elements', length=33) as bar:
                 # Construct the elements, meshio format
                 for elem in elemInfo:
@@ -269,8 +272,12 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         elemType  = elemType[0]
 
                     # ChangeBasis currently only supported for hexahedrons
-                    _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
-                    mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+                    if elemNum in linCache:
+                        mapLin = linCache[elemNum]
+                    else:
+                        _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
+                        mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+                        linCache[elemNum] = mapLin
 
                     if nGeo == mesh_vars.nGeo:
                         elemIDs   = np.arange(elem[4], elem[5])

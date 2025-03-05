@@ -144,19 +144,29 @@ def CheckJacobians() -> None:
     # Prepare elements for parallel processing
     tasks = []
 
+    # Cache the mapping
+    linCache   = {}
+
     for elem in elems:
+        elemType = elem.type
+
         # Only consider hexahedrons
-        if int(elem.type) % 100 != 8:
+        if int(elemType) % 100 != 8:
             continue
 
         # Get the mapping
-        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
+        if elemType in linCache:
+            mapLin = linCache[elemType]
+        else:
+            _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
+            mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+            linCache[elemType] = mapLin
 
         # Fill the NodeCoords
-        nodeCoords = np.zeros((nGeo ** 3, 3), dtype=np.float64)
-        nodeCoords[[mapLin[np.int64(iNode)] for iNode in range(len(elem.nodes))]] = nodes[elem.nodes]
+        nodeCoords         = np.zeros((nGeo ** 3, 3), dtype=np.float64)
+        nodeCoords[mapLin] = nodes[elem.nodes]
 
-        xGeo = np.zeros((3, nGeo, nGeo, nGeo))
+        # xGeo = np.zeros((3, nGeo, nGeo, nGeo))
         xGeo = nodeCoords[:nGeo**3].reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
 
         if np_mtp > 0:
@@ -175,7 +185,7 @@ def CheckJacobians() -> None:
     if np_mtp > 0:
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        jacs = run_in_parallel(process_chunk, tuple(tasks), chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
+        jacs = run_in_parallel(process_chunk, tuple(tasks), chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
     else:
         jacs = np.array(tasks)
 

@@ -308,15 +308,26 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
     nodeCount  = 0
 
+    # Cache the mapping
+    linCache   = {}
+
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
-        elemNodes = elem.nodes
+        elemType = elem.type
+        if elemType in linCache:
+            mapLin = linCache[elemType]
+        else:
+            _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
+            mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+            linCache[elemType] = mapLin
 
-        # Access the actual nodeCoords and reorder them
-        for iNode, nodeID in enumerate(elemNodes):
-            nodeInfo[  nodeCount + mapLin[np.int64(iNode)]   ] = nodeID + 1
-            nodeCoords[nodeCount + mapLin[np.int64(iNode)], :] = points[nodeID]
+        elemNodes = elem.nodes
+        nNodes    = len(elemNodes)
+        indices   = nodeCount + mapLin[:nNodes]
+
+        # Assign nodeInfo and nodeCoords in vectorized fashion
+        nodeInfo[  indices   ] = np.asarray(elemNodes) + 1
+        nodeCoords[indices, :] = points[np.asarray(elemNodes)]
 
         nodeCount += len(elemNodes)
 
