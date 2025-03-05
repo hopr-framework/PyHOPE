@@ -93,7 +93,7 @@ def GenerateSides() -> None:
         mesh_vars.sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
 
         # Create the corner faces
-        corner_faces = [face_to_cgns(s, elemType) for s in faces(elemType)]
+        corner_faces = tuple(face_to_cgns(s, elemType) for s in faces(elemType))
 
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
@@ -114,6 +114,8 @@ def GenerateSides() -> None:
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
+                # PERF: It is faster to use a list comprehension than numpy.fromiter
+                # corners = np.fromiter((nodes[s] for s in corner_faces[index]), dtype=int)
                 corners = [nodes[s] for s in corner_faces[index]]
                 # sides[sCount].update(face    = face,                   # noqa: E251
                 #                      elemID  = iElem,                  # noqa: E251
@@ -124,6 +126,8 @@ def GenerateSides() -> None:
                 sides[sCount].elemID  = iElem                   # noqa: E251
                 sides[sCount].sideID  = sCount                  # noqa: E251
                 sides[sCount].locSide = index+1                 # noqa: E251
+                # PERF: It is faster to use a list comprehension than numpy.fromiter
+                # sides[sCount].corners = corners                 # noqa: E251
                 sides[sCount].corners = np.array(corners)       # noqa: E251
                 sCount += 1
 
@@ -144,3 +148,7 @@ def GenerateSides() -> None:
         elemID = side.elemID
         sideID = side.sideID
         elems[elemID].sides.append(sideID)
+
+    # Convert lists to numpy arrays
+    for elem in elems:
+        elem.sides = np.array(elem.sides)

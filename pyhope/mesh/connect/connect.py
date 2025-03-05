@@ -47,7 +47,7 @@ import pyhope.output.output as hopout
 # ==================================================================================================================================
 
 
-def flip_analytic(side: int, nbside: list[int]) -> int:
+def flip_analytic(side: int, nbside: np.ndarray) -> int:
     """ Determines the flip of the side-to-side connection based on the analytic side ID
         flip = 1 : 1st node of neighbor side = 1st node of side
         flip = 2 : 2nd node of neighbor side = 1st node of side
@@ -133,14 +133,14 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[n
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     # Update the list
-    nConnSide = [s for s in sides if   s.connection is None  # noqa: E271
-                                  and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1))]
+    nConnSide   = [s for s in sides if   s.connection is None  # noqa: E271
+                                    and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1))]
 
     nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
     return nConnSide, nConnCenter
 
 
-def periodic_update(sides: list, elems: list, vv: np.ndarray) -> None:
+def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     """Update the mesh after connecting periodic sides
     """
     # Local imports ----------------------------------------
@@ -240,8 +240,8 @@ def ConnectMesh() -> None:
     vvs = mesh_vars.vvs
 
     # Find the mapping to the (N-1)-dim elements
-    csetMap = {key: [s for s in range(len(cset)) if cset[s] is not None and np.size(cset[s]) > 0]
-                       for key, cset in mesh.cell_sets.items()}
+    csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
+                             for key, cset in mesh.cell_sets.items()}
 
     for key, cset in mesh.cell_sets.items():
         # Check if the set is a BC
@@ -258,7 +258,7 @@ def ConnectMesh() -> None:
         # Get the list of sides
         for iMap in csetMap[key]:
             # Cache cell types for this mapping to avoid repeated list creation
-            cell_types = list(mesh_vars.mesh.cells_dict)[iMap]
+            cell_types = tuple(mesh_vars.mesh.cells_dict)[iMap]
             # Only 2D faces
             if not any(s in cell_types for s in ['quad', 'triangle']):
                 continue
@@ -325,7 +325,7 @@ def ConnectMesh() -> None:
 
                 # Translate to periodic nodes if required
                 if side0.bcid is not None and side1.bcid is not None and bcs[side1.bcid].type[0] == 1:
-                    nbcorners = [mesh_vars.periNodes[(s, bcs[side1.bcid].name)] for s in side1.corners]
+                    nbcorners = np.fromiter((mesh_vars.periNodes[(s, bcs[side1.bcid].name)] for s in side1.corners), dtype=int)
 
                 flipID    = flip_analytic(corners[0], nbcorners) + 1
                 # Connect the sides
@@ -347,8 +347,8 @@ def ConnectMesh() -> None:
                 # At this point, we know both sides have periodic BCs.
                 iVV = bcs[side0.bcid].type[3]
                 VV  = vvs[np.abs(iVV) - 1]['Dir'] * np.sign(iVV)
-                locSides = [mesh_vars.sides[s] for s in sideIDs]  # noqa: E272
-                locElems = [mesh_vars.elems[s.elemID] for s in locSides]
+                locSides = tuple(mesh_vars.sides[s]        for s in sideIDs)  # noqa: E272
+                locElems = tuple(mesh_vars.elems[s.elemID] for s in locSides)
 
                 # Only update hexahedral elements
                 if any(e.type % 100 != 8 for e in locElems):
@@ -414,10 +414,16 @@ def ConnectMesh() -> None:
 
     # Count the sides
     nsides             = len(sides)
-    sides_conn         = np.array([s.connection is not None                      for s in sides])  # noqa: E271, E272
-    sides_bc           = np.array([s.bcid       is not None                      for s in sides])  # noqa: E271, E272
-    sides_mortar_big   = np.array([s.connection is not None and s.connection < 0 for s in sides])  # noqa: E271, E272
-    sides_mortar_small = np.array([s.locMortar  is not None                      for s in sides])  # noqa: E271, E272
+    sides_conn         = np.empty(nsides, dtype=bool)
+    sides_bc           = np.empty(nsides, dtype=bool)
+    sides_mortar_big   = np.empty(nsides, dtype=bool)
+    sides_mortar_small = np.empty(nsides, dtype=bool)
+
+    for i, s in enumerate(sides):
+        sides_conn[        i] = s.connection is not None
+        sides_bc[          i] = s.bcid       is not None  # noqa: E272
+        sides_mortar_big[  i] = s.connection is not None and s.connection < 0
+        sides_mortar_small[i] = s.locMortar  is not None  # noqa: E272
 
     # Count each type of side
     ninnersides        = np.sum( sides_conn & ~sides_bc & ~sides_mortar_small & ~sides_mortar_big)

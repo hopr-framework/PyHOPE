@@ -69,7 +69,7 @@ def MeshCartesian() -> meshio.Mesh:
     hopout.sep()
 
     nZones    = GetInt('nZones')
-    elemTypes = [-1 for _ in range(nZones)]
+    elemTypes = [int() for _ in range(nZones)]
 
     offsetp   = 0
     offsets   = 0

@@ -162,12 +162,12 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     csets_lst = {}
 
     # Create the element sets
-    meshcells = [(k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys())]
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys()))
 
     # If meshcells is empty, we fake it assign it to Zone1
     if len(meshcells) == 0:
-        meshcells = [('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
-                                                                              if k.startswith('hexahedron')]
+        meshcells = tuple(('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
+                                                                                   if k.startswith('hexahedron'))
 
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
@@ -257,7 +257,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             subElems = elem[elemSplit]
 
             for subElem in subElems:
-                subFaces = [np.array(subElem)[face] for face in faces(nGeo)]
+                subFaces = tuple(np.array(subElem)[face] for face in faces(nGeo))
 
                 for subFace in subFaces:
                     faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
@@ -388,26 +388,26 @@ def split_hex_to_tets(order: int) -> list[tuple]:
 
 
 @cache
-def tetra_faces(order: int) -> list[np.ndarray]:
+def tetra_faces(order: int) -> tuple[np.ndarray, ...]:
     """
     Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
     match order:
         case 1:
-            return [np.array([  0,  1,  2], dtype=int),
+            return (np.array([  0,  1,  2], dtype=int),
                     np.array([  0,  1,  3], dtype=int),
                     np.array([  0,  2,  3], dtype=int),
-                    np.array([  1,  2,  3], dtype=int)]
+                    np.array([  1,  2,  3], dtype=int))
         case 2:
-            return [np.array([  0,  1,  2,  4,  5,  6], dtype=int),
+            return (np.array([  0,  1,  2,  4,  5,  6], dtype=int),
                     np.array([  0,  1,  3,  4,  8,  7], dtype=int),
                     np.array([  0,  2,  3,  6,  9,  7], dtype=int),
-                    np.array([  1,  2,  3,  5,  9,  8], dtype=int)]
+                    np.array([  1,  2,  3,  5,  9,  8], dtype=int))
         case 4:
-            return [np.array([  0,  1,  2,  *range( 4, 13)          , *range(31, 34)], dtype=int),
+            return (np.array([  0,  1,  2,  *range( 4, 13)          , *range(31, 34)], dtype=int),
                     np.array([  0,  1,  3,  *range( 4,  7)          , *range(16, 19), *reversed(range(13, 16)), *range(22, 25)], dtype=int),  # noqa: E501
                     np.array([  0,  2,  3,  *reversed(range(10, 13)), *range(19, 22), *reversed(range(13, 16)), *range(28, 31)], dtype=int),  # noqa: E501
-                    np.array([  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)], dtype=int)]  # noqa: E501
+                    np.array([  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)], dtype=int))  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -476,35 +476,35 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
 
 
 @cache
-def pyram_faces(order: int) -> list[np.ndarray]:
+def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
     """
     Given the pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples
     """
     match order:
         case 1:
-            return [# Triangular faces  # noqa: E261
+            return (# Triangular faces  # noqa: E261
                     np.array([  0,  1,  4], dtype=int),
                     np.array([  1,  2,  4], dtype=int),
                     np.array([  2,  3,  4], dtype=int),
                     np.array([  3,  0,  4], dtype=int),
                     # Quadrilateral face
-                    np.array([  0,  1,  2,  3], dtype=int)]
+                    np.array([  0,  1,  2,  3], dtype=int))
         case 2:
-            return [# Triangular faces  # noqa: E261
+            return (# Triangular faces  # noqa: E261
                     np.array([  0,  1,  4,  5, 10,  9], dtype=int),  # 8, 22,16
                     np.array([  1,  2,  4,  6, 11, 10], dtype=int),  # 9, 26,22
                     np.array([  2,  3,  4,  7, 12, 11], dtype=int),  # 10,20,26
                     np.array([  3,  0,  4,  8,  9, 12], dtype=int),  # 11,16,20
                     # Quadrilateral face
-                    np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int)]
+                    np.array([  0,  1,  2,  3,  5,  6,  7,  8, 13], dtype=int))
         case 4:
-            return [# Triangular faces  # noqa: E261
-                    np.array([  0,  1,  4,  *range( 4,  7), *range(19, 22), *reversed(range(16, 19)), *range(28, 31)], dtype=int),
-                    np.array([  1,  2,  4,  *range( 7, 10), *range(22, 25), *reversed(range(19, 22)), *range(31, 34)], dtype=int),
-                    np.array([  2,  3,  4,  *range(10, 13), *range(25, 28), *reversed(range(22, 25)), *range(34, 37)], dtype=int),
-                    np.array([  3,  0,  4,  *range(13, 16), *range(16, 19), *reversed(range(25, 28)), *range(37, 40)], dtype=int),
+            return (# Triangular faces  # noqa: E261
+                    np.array([  0,  1,  4,  *range( 4,  7), *range(19, 22), *reversed(range(16, 19)), *range(28, 31)], dtype=int),  # noqa: E501
+                    np.array([  1,  2,  4,  *range( 7, 10), *range(22, 25), *reversed(range(19, 22)), *range(31, 34)], dtype=int),  # noqa: E501
+                    np.array([  2,  3,  4,  *range(10, 13), *range(25, 28), *reversed(range(22, 25)), *range(34, 37)], dtype=int),  # noqa: E501
+                    np.array([  3,  0,  4,  *range(13, 16), *range(16, 19), *reversed(range(25, 28)), *range(37, 40)], dtype=int),  # noqa: E501
                     # Quadrilateral face
-                    np.array([ 0,  1,  2,  3, *range(5, 17), *range(41, 50)], dtype=int)]
+                    np.array([ 0,  1,  2,  3, *range(5, 17), *range(41, 50)], dtype=int))
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -571,35 +571,35 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 
 
 @cache
-def prism_faces(order: int) -> list[np.ndarray]:
+def prism_faces(order: int) -> tuple[np.ndarray, ...]:
     """
     Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
     """
     match order:
         case 1:
-            return [# Triangular faces  # noqa: E261
+            return (# Triangular faces  # noqa: E261
                     np.array([  0,  1,  2], dtype=int),
                     np.array([  3,  4,  5], dtype=int),
                     # Quadrilateral faces
                     np.array([  0,  1,  4,  3], dtype=int),
                     np.array([  1,  2,  5,  4], dtype=int),
-                    np.array([  2,  0,  3,  5], dtype=int)]
+                    np.array([  2,  0,  3,  5], dtype=int))
         case 2:
-            return [# Triangular faces  # noqa: E261
+            return (# Triangular faces  # noqa: E261
                     np.array([  0,  1,  2,  6,  7,  8], dtype=int),
                     np.array([  3,  4,  5,  9, 10, 11], dtype=int),
                     # Quadrilateral faces
                     np.array([  0,  1,  4,  3,  6, 13,  9, 12, 15], dtype=int),
                     np.array([  1,  2,  5,  4,  7, 14, 10, 13, 16], dtype=int),
-                    np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17], dtype=int)]
+                    np.array([  2,  0,  3,  5,  8, 12, 11, 14, 17], dtype=int))
         case 4:
-            return [# Triangular faces  # noqa: E261
+            return (# Triangular faces  # noqa: E261
                     np.array([  0, 1, 2, *range( 6, 15), *range(63, 66)], dtype=int),  # z-
                     np.array([  3, 4, 5, *range(15, 24), *range(60, 63)], dtype=int),  # z+
                     # Quadrilateral faces
                     np.array([  0, 1, 4, 3, *range( 6,  9), *range(27, 30), *reversed(range(15, 18)), *reversed(range(24, 27)), *range(33, 42)], dtype=int),  # noqa: E501
                     np.array([  1, 2, 5, 4, *range( 9, 12), *range(30, 33), *reversed(range(18, 21)), *reversed(range(27, 30)), *range(42, 51)], dtype=int),  # noqa: E501
-                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)], dtype=int)]  # noqa: E501
+                    np.array([  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)], dtype=int))  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -615,38 +615,38 @@ def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
 
 # Dummy function for hexahedral elements
 @cache
-def hex_faces(order: int) -> list[np.ndarray]:
+def hex_faces(order: int) -> tuple[np.ndarray, ...]:
     """ Given the indices of a hexahedral element, return the 6 faces as tuples
     """
     match order:
         case 1:
-            return [np.array([  0,  1,  2,  3], dtype=int),
+            return (np.array([  0,  1,  2,  3], dtype=int),
                     np.array([  0,  1,  5,  4], dtype=int),
                     np.array([  1,  2,  6,  5], dtype=int),
                     np.array([  2,  6,  7,  3], dtype=int),
                     np.array([  0,  4,  7,  3], dtype=int),
-                    np.array([  4,  5,  6,  7], dtype=int)]
+                    np.array([  4,  5,  6,  7], dtype=int))
         case 2:
-            return [np.array([  0,  1,  2,  3,  8,  9, 10, 11, 24], dtype=int),
+            return (np.array([  0,  1,  2,  3,  8,  9, 10, 11, 24], dtype=int),
                     np.array([  0,  1,  5,  4,  8, 17, 12, 16, 22], dtype=int),
                     np.array([  1,  2,  6,  5,  9, 18, 13, 17, 21], dtype=int),
                     np.array([  2,  6,  7,  3, 18, 14, 19, 10, 23], dtype=int),
                     np.array([  0,  4,  7,  3, 16, 15, 19, 11, 20], dtype=int),
-                    np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int)]
+                    np.array([  4,  5,  6,  7, 12, 13, 14, 15, 25], dtype=int))
         case 3:
-            return [np.array([  0,  1,  2,  3, *range( 8, 10), *range(10, 12),          *range(12, 14),  *reversed(range(14, 16)), 48, *reversed(range(50, 52)), 49], dtype=int),  # noqa: E501
+            return (np.array([  0,  1,  2,  3, *range( 8, 10), *range(10, 12),          *range(12, 14),  *reversed(range(14, 16)), 48, *reversed(range(50, 52)), 49], dtype=int),  # noqa: E501
                     np.array([  0,  1,  5,  4, *range( 8, 10), *range(26, 28), *reversed(range(16, 18)), *reversed(range(24, 26)), 40,          *range(41, 43) , 43], dtype=int),  # noqa: E501
                     np.array([  1,  2,  6,  5, *range(10, 12), *range(28, 30), *reversed(range(18, 20)), *reversed(range(26, 28)), 36,          *range(37, 39) , 39], dtype=int),  # noqa: E501
                     np.array([  2,  6,  7,  3, *range(28, 30), *range(20, 22), *reversed(range(30, 32)), *reversed(range(12, 14)), 44, *reversed(range(46, 48)), 45], dtype=int),  # noqa: E501
                     np.array([  0,  4,  7,  3, *range(24, 26), *range(22, 24), *reversed(range(32, 34)), *reversed(range(14, 16)), 32,          *range(33, 35) , 35], dtype=int),  # noqa: E501
-                    np.array([  4,  5,  6,  7, *range(16, 18), *range(18, 20),          *range(20, 22) , *reversed(range(22, 24)), 52,          *range(53, 55) , 54], dtype=int)]  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(16, 18), *range(18, 20),          *range(20, 22) , *reversed(range(22, 24)), 52,          *range(53, 55) , 54], dtype=int))  # noqa: E501
         case 4:
-            return [np.array([  0,  1,  2,  3, *range( 8, 11), *range(11, 14),          *range(14, 17) , *reversed(range(17, 20)), 80, *reversed(range(81, 84)), 87, *reversed(range(84, 87)), 88], dtype=int),  # noqa: E501
+            return (np.array([  0,  1,  2,  3, *range( 8, 11), *range(11, 14),          *range(14, 17) , *reversed(range(17, 20)), 80, *reversed(range(81, 84)), 87, *reversed(range(84, 87)), 88], dtype=int),  # noqa: E501
                     np.array([  0,  1,  5,  4, *range( 8, 11), *range(35, 38), *reversed(range(20, 23)), *reversed(range(32, 35)), 62,          *range(63, 66) , 66,          *range(67, 70) , 70], dtype=int),  # noqa: E501
                     np.array([  1,  2,  6,  5, *range(11, 14), *range(38, 41), *reversed(range(23, 26)), *reversed(range(35, 38)), 53,          *range(54, 57) , 57,          *range(58, 61) , 61], dtype=int),  # noqa: E501
                     np.array([  2,  6,  7,  3, *range(38, 41), *range(26, 29), *reversed(range(41, 44)), *reversed(range(14, 17)), 71, *reversed(range(72, 75)), 78, *reversed(range(75, 78)), 79], dtype=int),  # noqa: E501
                     np.array([  0,  4,  7,  3, *range(32, 35), *range(29, 32), *reversed(range(41, 44)), *reversed(range(17, 20)), 44,          *range(45, 48) , 48,          *range(49, 52) , 52], dtype=int),  # noqa: E501
-                    np.array([  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97], dtype=int)]  # noqa: E501
+                    np.array([  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97], dtype=int))  # noqa: E501
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)

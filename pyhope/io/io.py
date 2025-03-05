@@ -94,7 +94,7 @@ def IO() -> None:
 
             nElems = len(elems)
             nSides = len(sides)
-            nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
+            nNodes = sum(s.nodes.size for s in elems)  # number of non-unique nodes
 
             bcs   = mesh_vars.bcs
             nBCs  = len(bcs)
@@ -161,8 +161,8 @@ def IO() -> None:
             # Mixed elements require gmsh:physical and gmsh:geometrical
             # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
             cell_types = mesh.cells_dict.keys()
-            cell_data  = [np.ravel(np.array([[1] for _ in range(mesh.cells_dict[cell_type].data.shape[1])]))
-                                                 for cell_type in cell_types]
+            cell_data  = [np.ones(mesh.cells_dict[cell_type].data.shape[1], dtype=int) for cell_type in cell_types
+]
             mesh.cell_data_dict.update({'gmsh:physical':    cell_data})
             mesh.cell_data_dict.update({'gmsh:geometrical': cell_data})
 

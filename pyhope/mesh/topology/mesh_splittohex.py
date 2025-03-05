@@ -253,26 +253,26 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
 
 @cache
-def hexa_faces() -> list[np.ndarray]:
+def hexa_faces() -> tuple[np.ndarray, ...]:
     """ Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
         return a list of new hexahedral face connectivity lists.
     """
-    return [np.array([0, 1, 2, 3], dtype=int),
+    return (np.array([0, 1, 2, 3], dtype=int),
             np.array([4, 5, 6, 7], dtype=int),
             np.array([0, 1, 5, 4], dtype=int),
             np.array([2, 3, 7, 6], dtype=int),
             np.array([0, 3, 7, 4], dtype=int),
             np.array([1, 2, 6, 5], dtype=int),
-           ]
+           )
 
 
 @cache
-def tet_to_hex_points(order: int) -> list[np.ndarray]:
+def tet_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
     """
     """
     match order:
         case 1:
-            return [  # Nodes on edges
+            return (  # Nodes on edges
                       np.array([  0,  1], dtype=int),               # index 4
                       np.array([  1,  2], dtype=int),               # index 5
                       np.array([  0,  2], dtype=int),               # index 6
@@ -286,7 +286,7 @@ def tet_to_hex_points(order: int) -> list[np.ndarray]:
                       np.array([  0,  2,  3], dtype=int),           # index 13
                       # Inside node
                       np.arange(  0,  4, dtype=int)                # index 14
-                    ]
+                   )
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -340,12 +340,12 @@ def tet_to_hex_split() -> list[np.ndarray]:
 
 
 @cache
-def prism_to_hex_points(order: int) -> list[np.ndarray]:
+def prism_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
     """
     """
     match order:
         case 1:
-            return [  # Nodes on edges
+            return (  # Nodes on edges
                       np.array([  0,  1], dtype=int),               # index 6
                       np.array([  1,  2], dtype=int),               # index 7
                       np.array([  0,  2], dtype=int),               # index 8
@@ -355,7 +355,7 @@ def prism_to_hex_points(order: int) -> list[np.ndarray]:
                       # Nodes on faces
                       np.array([  0,  1,  2], dtype=int),           # index 12
                       np.array([  3,  4,  5], dtype=int),           # index 13
-                    ]
+                   )
         case _:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
@@ -401,11 +401,11 @@ def prism_to_hex_faces() -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
 
 
 @cache
-def prism_to_hex_split() -> list[np.ndarray]:
+def prism_to_hex_split() -> tuple[np.ndarray, ...]:
     """ Given the 6 corner node indices of a single prism element (indexed 0..5),
         return a list of new hexahedral element connectivity lists.
     """
-    return [np.array([  0,  6, 12,  8,  3,  9, 13, 11], dtype=int),
+    return (np.array([  0,  6, 12,  8,  3,  9, 13, 11], dtype=int),
             np.array([  1,  7, 12,  6,  4, 10, 13,  9], dtype=int),
             np.array([  2,  8, 12,  7,  5, 11, 13, 10], dtype=int),
-           ]
+           )
