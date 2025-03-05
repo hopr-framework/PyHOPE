@@ -563,57 +563,16 @@ def find_edge_combinations(comboEdges) -> Tuple[list[tuple], bool]:
                 edgePoints = np.array([i1, j1, i2, j2])
 
                 # Find the index of the common point and delete it
-                commonIndex = np.where(edgePoints == commonPoint)[0]
-                edgePoints  = np.delete(edgePoints, commonIndex)
+                edgePoints = edgePoints[edgePoints != commonPoint]
 
                 # The remaining points are the start and end points of the edge combination
                 point1, point2 = edgePoints
 
                 # Get the coordinates of the points
                 p1, p2 = points[point1], points[point2]
-                c1 = points[commonPoint]
 
-                if not checkTriaFace:
-
-                    # Calculate the bounding box of the two edge points
-                    bbox_min = np.minimum(p1, p2)
-                    bbox_max = np.maximum(p1, p2)
-
-                    # Check if the common point is within the bounding box of p1 and p2
-                    if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
-                       np.allclose(bbox_max, np.maximum(bbox_max, c1)):
-                        # Calculate the distance between the start and end points
-                        lineDist = np.linalg.norm(p1 - p2)
-
-                        # Append the indices and the line distance
-                        validCombo.append((point1, point2, lineDist))
-
-                else:
-
-                    bbox_min = np.minimum(p1, c1)
-                    bbox_max = np.maximum(p1, c1)
-
-                    # Check if the common point is within the bounding box of p1 and p2
-                    if np.allclose(bbox_min, np.minimum(bbox_min, p2)) and \
-                       np.allclose(bbox_max, np.maximum(bbox_max, p2)):
-                        # Calculate the distance between the start and end points
-                        lineDist = np.linalg.norm(p1 - p2)
-
-                        # Append the indices and the line distance
-                        if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
-                            validCombo.append((point1, point2, lineDist))
-
-                    bbox_min = np.minimum(p2, c1)
-                    bbox_max = np.maximum(p2, c1)
-
-                    # Check if the common point is within the bounding box of p1 and p2
-                    if np.allclose(bbox_min, np.minimum(bbox_min, p1)) and \
-                       np.allclose(bbox_max, np.maximum(bbox_max, p1)):
-                        # Calculate the distance between the start and end points
-                        lineDist = np.linalg.norm(p1 - p2)
-
-                        # Append the indices and the line distance
-                        if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
-                            validCombo.append((point1, point2, lineDist))
+                lineDist = np.linalg.norm(p1 - p2)
+                if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
+                    validCombo.append((point1, point2, lineDist))
 
     return validCombo, checkTriaFace
