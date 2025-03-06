@@ -628,12 +628,12 @@ class ReadConfig():
                 NGeo    = cast(int, f.attrs['Ngeo'])
                 BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
-                if np.any(BCType[:, 0] == 1):   # check if there are preiodic boundary conditions
-                    print(hopout.warn('HDF5-FILE READIN WARNING:'))
-                    print(hopout.warn('Found periodic boundary conditions that cannot berecovered in '
-                                      'mesh-mode as the periodic vector is unavailable. '
-                                      'Converting boundary condition to Dirichlet-type "2".'))
-                    BCType[BCType[:, 0] == 1, 0] = 2  # Replace periodic with farfield confitions as vv vector is not available
+            #     if np.any(BCType[:, 0] == 1):   # check if there are preiodic boundary conditions
+            #         print(hopout.warn('HDF5-FILE READIN WARNING:'))
+            #         print(hopout.warn('Found periodic boundary conditions that cannot berecovered in '
+            #                           'mesh-mode as the periodic vector is unavailable. '
+            #                           'Converting boundary condition to Dirichlet-type "2".'))
+            #         BCType[BCType[:, 0] == 1, 0] = 2  # Replace periodic with farfield confitions as vv vector is not available
 
             # Write geometric order info to file
             mesh_params.append(f'NGeo = {NGeo}')

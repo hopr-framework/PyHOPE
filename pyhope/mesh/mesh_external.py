@@ -122,7 +122,57 @@ def MeshExternal() -> meshio.Mesh:
     if mesh_vars.CGNS.regenerate_BCs:
         mesh = BCCGNS(mesh, fgmsh)
 
+    # Reconstruct periodicity vectors from mesh
+    # TODO: Check if alphas start from 1 or if they start at alpha > 1???
+    hasPeriodic = np.sum([bcs[s].type[0] == 1 for s in range(nBCs)])/2
+    if nVVs == 0 and hasPeriodic > 0:
+        print(hopout.warn('Periodicity vectors neither defined in parameter file '
+                        'nor could be read from the given mesh file. Reconstructing '
+                        'the vector from boundaries!'))
+        mesh_vars.vvs = [dict() for _ in range(int(hasPeriodic))]
+        vvs = recontruct_periodicity(mesh)
+
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()
 
     return mesh
+
+def recontruct_periodicity(mesh: meshio.Mesh) -> list:
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+
+    bcs = mesh_vars.bcs
+    vvs = mesh_vars.vvs
+
+    for iVV in range(len(vvs)):
+        vvs[iVV] = {}
+
+        # Identify positive and negative periodic boundaries
+        boundaries = {1: None, -1: None}
+        for bc in bcs:
+            if bc.type[0] == 1 and abs(bc.type[3]) == iVV + 1:
+                sign = np.sign(bc.type[3])
+                if boundaries[sign] is not None:
+                    hopout.warning("Multiple periodic boundaries found for the same direction")
+                    sys.exit(1)
+                boundaries[sign] = bc.name
+
+        # Compute mean coordinates for both boundaries as a tuple
+        mean_coords = tuple(
+            np.mean(mesh.points[
+                np.array(sorted({
+                    node for iBlock, cell_block in enumerate(mesh.cells)
+                    if (mesh.cell_sets[bc] and mesh.cell_sets[bc][iBlock] is not None)
+                    for node in mesh.cells[iBlock].data[mesh.cell_sets[bc][iBlock]].flatten()
+                }))
+            ], axis=0) if bc else None
+            for bc in (boundaries[1], boundaries[-1])
+        )
+
+        # Store the periodicity vector if both mean coordinates exist
+        if mean_coords[0] is not None and mean_coords[1] is not None:
+            vvs[iVV]["Dir"] = mean_coords[1] - mean_coords[0]
+
+    return vvs
