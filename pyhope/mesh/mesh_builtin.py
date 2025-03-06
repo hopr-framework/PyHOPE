@@ -120,6 +120,13 @@ def MeshCartesian() -> meshio.Mesh:
         for index, corner in enumerate(corners):
             p[index] = gmsh.model.geo.addPoint(*corner, tag=offsetp+index+1)
 
+        # Define edge connectivity based on your corner indexing
+        edge_pairs = [
+            (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face edges
+            (4, 5), (5, 6), (6, 7), (7, 4),  # Top face edges
+            (0, 4), (1, 5), (2, 6), (3, 7)   # Vertical edges
+        ]
+
         # Connect the corner points
         e = [None for _ in range(12)]
         # First, the plane surface
@@ -129,6 +136,9 @@ def MeshCartesian() -> meshio.Mesh:
         # Then, the connection
         for j in range(4):
             e[j+8] = gmsh.model.geo.addLine(p[j], p[j+4])
+
+        # Extract edge vectors from 'corners' for orientation checking
+        edge_vectors = [corners[end] - corners[start] for start, end in edge_pairs]
 
         # Get dimensions of domain
         gmsh.model.geo.synchronize()
@@ -166,7 +176,7 @@ def MeshCartesian() -> meshio.Mesh:
 
             # We set the number of nodes, so Elems+1
             currDir = edge_to_dir(index, elemType)
-            stretch_type = stretchType[currDir[0]]
+            stretch_type = stretchType[currDir]
 
             # Set default values for equidistant elements
             progType = 'Progression'
@@ -176,12 +186,12 @@ def MeshCartesian() -> meshio.Mesh:
             if stretch_type == 3:
                 progType = 'Bump'
             if stretch_type == 1:
-                progFac = stretchFac[currDir[0]]
+                progFac = stretchFac[currDir]
             elif stretch_type == 2:
-                progFac = -1./(DXmaxToDXmin[currDir[0]] ** (1. / (nElems[currDir[0]] - 1.)))
+                progFac = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
             elif stretch_type == 3:
-                progFac = 1./DXmaxToDXmin[currDir[0]]
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir[0]]+1, progType, currDir[1]* progFac)
+                progFac = 1./DXmaxToDXmin[currDir]
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir]+1, progType, np.sign(edge_vectors[index][currDir]) * progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]

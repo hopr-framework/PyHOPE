@@ -70,7 +70,7 @@ def faces(elemType: Union[int, str]) -> list[str]:
 
 
 @cache
-def edge_to_dir(edge: int, elemType: Union[int, str]) -> Tuple[int, int]:
+def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
     """ GMSH: Create edges from points in the given direction
     """
     eps = np.finfo(np.float64).eps
@@ -78,9 +78,9 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> Tuple[int, int]:
                   # Pyramid
                   # Wedge / Prism
                   # Hexahedron
-                  8: {  0:  eps,  2: -eps,  4: eps,  6:  -eps,  # Direction 0
-                        1:   1.,  3:  -1.,  5:  1.,  7:   -1.,  # Direction 1
-                        8:   2.,  9:  -2., 10:  2., 11:   -2.}  # Direction 2
+                  8: {  0:  eps,  2:  eps,  4: eps,  6:   eps,  # Direction 0
+                        1:   1.,  3:   1.,  5:  1.,  7:    1.,  # Direction 1
+                        8:   2.,  9:   2., 10:  2., 11:    2.}  # Direction 2
                }
 
     if isinstance(elemType, str):
@@ -92,7 +92,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> Tuple[int, int]:
     dir = dir_map[elemType % 100]
 
     try:
-        return (np.rint(abs(dir[edge]))).astype(int), np.sign(dir[edge])
+        return (np.rint(abs(dir[edge]))).astype(int)
     except KeyError:
         raise KeyError(f'Error in edge_to_dir: edge {edge} is not supported')
 
