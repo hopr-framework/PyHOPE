@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -188,14 +189,14 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
     from pyhope.io.io_vars import ELEM, SIDE
     # ------------------------------------------------------
 
-    mesh   = mesh_vars.mesh
-    elems  = mesh_vars.elems
-    sides  = mesh_vars.sides
-    points = mesh.points
+    mesh:   Final             = mesh_vars.mesh
+    elems:  Final[list]       = mesh_vars.elems
+    sides:  Final[list]       = mesh_vars.sides
+    points: Final[np.ndarray] = mesh.points
 
-    nElems = len(elems)
-    nSides = len(sides)
-    nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
+    nElems: Final[int] = len(elems)
+    nSides: Final[int] = len(sides)
+    nNodes: Final[int] = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
     elemCounter = dict()
@@ -321,14 +322,14 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
             mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
             linCache[elemType] = mapLin
 
-        elemNodes = elem.nodes
-        nNodes    = len(elemNodes)
-        indices   = nodeCount + mapLin[:nNodes]
+        elemNodes  = np.asarray(elem.nodes)
+        nElemNodes = elemNodes.size
+        indices    = nodeCount + mapLin[:nElemNodes]
 
         # Assign nodeInfo and nodeCoords in vectorized fashion
-        nodeInfo[  indices   ] = np.asarray(elemNodes) + 1
-        nodeCoords[indices, :] = points[np.asarray(elemNodes)]
+        nodeInfo[  indices   ] = elemNodes + 1
+        nodeCoords[indices, :] = points[elemNodes]
 
-        nodeCount += len(elemNodes)
+        nodeCount += nElemNodes
 
     return elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter

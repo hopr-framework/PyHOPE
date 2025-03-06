@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import plotext as plt
 import re
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -86,9 +87,10 @@ def process_chunk(chunk) -> list[np.ndarray]:
         # INFO: ALTERNATIVE VERSION, CACHING VDM, D
         # nodeCoords, evaluate_jacobian = elem
         # jac    = evaluate_jacobian(nodeCoords)
-        maxJac = np.max(np.abs(jac))
-        minJac = np.min(jac)
-        chunk_results.append(minJac / maxJac)
+        # maxJac = np.max(np.abs(jac))
+        # minJac = np.min(jac)
+        # chunk_results.append(minJac / maxJac)
+        chunk_results.append(jac.min() / np.abs(jac).max())
     return chunk_results
 
 
@@ -115,14 +117,12 @@ def CheckJacobians() -> None:
         return None
 
     # Map all points to tensor product
-    nGeo  = mesh_vars.nGeo + 1
-    elems = mesh_vars.elems
-    nodes = mesh_vars.mesh.points
+    nGeo:  Final[int]        = mesh_vars.nGeo + 1
+    elems: Final[list]       = mesh_vars.elems
+    nodes: Final[np.ndarray] = mesh_vars.mesh.points
 
     # Compute the equidistant point set used by meshIO
-    xEq = np.zeros(nGeo)
-    for i in range(nGeo):
-        xEq[i] = 2.*float(i)/float(nGeo-1) - 1.
+    xEq       = np.linspace(-1, 1, num=nGeo, dtype=np.float64)
     wBaryEq   = barycentric_weights(nGeo, xEq)
 
     xGL, _    = legendre_gauss_lobatto_nodes(nGeo)
@@ -133,10 +133,8 @@ def CheckJacobians() -> None:
     D_EqToGL  = np.matmul(DGL, VdmEqToGL)
 
     # Interpolate derivatives on GL (N) to nGeoRef points
-    nGeoRef = 3*(nGeo-1)+1
-    xAP     = np.zeros(nGeoRef)
-    for i in range(nGeoRef):
-        xAP[i] = 2. * float(i)/float(nGeoRef-1) - 1.
+    nGeoRef   = 3*(nGeo-1)+1
+    xAP       = np.linspace(-1, 1, num=nGeoRef, dtype=np.float64)
     VdmGLtoAP = calc_vandermonde(nGeo, nGeoRef, wbaryGL, xGL, xAP)
     # INFO: ALTERNATIVE VERSION, CACHING VDM, D
     # evaluate_jacobian = JacobianEvaluator(VdmGLtoAP, D_EqToGL).evaluate_jacobian
@@ -163,7 +161,7 @@ def CheckJacobians() -> None:
             linCache[elemType] = mapLin
 
         # Fill the NodeCoords
-        nodeCoords         = np.zeros((nGeo ** 3, 3), dtype=np.float64)
+        nodeCoords         = np.empty((nGeo ** 3, 3), dtype=np.float64)
         nodeCoords[mapLin] = nodes[elem.nodes]
 
         # xGeo = np.zeros((3, nGeo, nGeo, nGeo))
@@ -178,9 +176,10 @@ def CheckJacobians() -> None:
             jac = evaluate_jacobian(xGeo, VdmGLtoAP, D_EqToGL)
             # INFO: ALTERNATIVE VERSION, CACHING VDM, D
             # jac = evaluate_jacobian(xGeo)
-            maxJac =  np.max(np.abs(jac))
-            minJac =  np.min(       jac)
-            tasks.append(minJac / maxJac)
+            # maxJac =  np.max(np.abs(jac))
+            # minJac =  np.min(       jac)
+            # tasks.append(minJac / maxJac)
+            tasks.append(jac.min() / np.abs(jac).max())
 
     if np_mtp > 0:
         # Run in parallel with a chunk size

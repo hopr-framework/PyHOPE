@@ -234,15 +234,11 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo}') + '\n')
 
                 # Compute the equidistant point set used by HOPR
-                xEqHdf5 = np.zeros(nGeo+1)
-                for i in range(nGeo+1):
-                    xEqHdf5[i] = 2.*float(i)/float(nGeo) - 1.
+                xEqHdf5     = np.linspace(-1, 1, num=nGeo+1, dtype=np.float64)
                 wBaryEqHdf5 = barycentric_weights(nGeo, xEqHdf5)
 
                 # Compute the equidistant point set used by meshIO
-                xEqMesh = np.zeros(mesh_vars.nGeo+1)
-                for i in range(mesh_vars.nGeo+1):
-                    xEqMesh[i] = 2.*float(i)/float(mesh_vars.nGeo) - 1.
+                xEqMesh     = np.linspace(-1, 1, num=mesh_vars.nGeo+1, dtype=np.float64)
                 # wBaryEqMesh = barycentric_weights(mesh_vars.nGeo, xEqMesh)
 
                 # Compute the Vandermonde matrix

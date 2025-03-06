@@ -31,6 +31,7 @@ import sys
 import traceback
 from collections import defaultdict
 from typing import Final, Optional, cast
+# from multiprocessing import Pool
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -195,11 +196,28 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     points[nbNodes] = centers + 0.5*vv
 
 
+# PERF: The parallel version does not really speed up the process
+# def init_side_worker(s) -> None:
+#     """ Initialize the worker with the side data
+#     """
+#     global worker_sides
+#     worker_sides = s
+
+
+# PERF: The parallel version does not really speed up the process
+# def compute_side_hash(side) -> tuple:
+#     """ Compute the hash of the side using the global sides
+#     """
+#     sorted_bytes = np.sort(worker_sides[side].corners).tobytes()
+#     return side, hash(sorted_bytes)
+
+
 def ConnectMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common_progress import ProgressBar
+    # from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
@@ -236,7 +254,18 @@ def ConnectMesh() -> None:
 
     # Map sides to BC
     # > Create a dict containing only the face corners
+    # PERF: The parallel version does not really speed up the process
+    # if np_mtp > 0:
+    #     # Run in parallel with a chunk size
+    #     # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
+    #     sides_lst = tuple(s for elem in elems for s in elem.sides)
+    #     with Pool(processes=np_mtp, initializer=init_side_worker, initargs=(sides,)) as pool:
+    #         results = pool.map(compute_side_hash, sides_lst)
+    #     side_corners = dict(results)
+    # else:
+    #     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
+    # > Create a dict containing only the periodic corners
     peri_corners = {}
 
     # Build the reverse dictionary
