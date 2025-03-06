@@ -109,7 +109,7 @@ def check_sides(elem,
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
             nSurf   = eval_nsurf(transform(nodes), VdmEqToGP, DGP, weights)
-            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
+            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolInternal
             # checked[SideID] = True
 
             # Mortar sides are the following virtual sides
@@ -139,7 +139,7 @@ def check_sides(elem,
             # INFO: This should be faster but I could not confirm the speedup in practice
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             nSurf   = eval_nsurf(transform(nodes), VdmEqToGP, DGP, weights)
-            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolExternal
+            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolInternal
             # checked[SideID] = True
 
             # Connected side
@@ -227,14 +227,14 @@ def CheckWatertight() -> None:
                         for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
+        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
     else:
         res    = np.empty(len(elems), dtype=object)
         res[:] = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]
 
     # Helper for transforming face nodes
-    transform = lambda n      : np.transpose(n, axes=(2, 0, 1))                                                         # noqa: E731
-    get_face  = lambda e, face: transform(np.array([e.nodes[s] for s in face_to_nodes(face, e.type, mesh_vars.nGeo)]))  # noqa: E731
+    transform = lambda n      : np.transpose(n, axes=(2, 0, 1))                                                    # noqa: E731
+    get_face  = lambda e, face: transform(np.array(tuple(e.nodes[s] for s in face_to_nodes(face, e.type, nGeo))))  # noqa: E731
 
     for r in res:
         for result in r:

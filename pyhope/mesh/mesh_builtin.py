@@ -94,14 +94,14 @@ def MeshCartesian() -> meshio.Mesh:
             X0 = GetRealArray( 'X0'  , number=zone)
 
             # reconstruct points from DX and X0 such that all coreners are defined
-            corners = np.array([np.array([X0[0],       X0[1],       X0[2]]      ),
-                                np.array([X0[0]+DX[0], X0[1],       X0[2]]      ),
-                                np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]]      ),
-                                np.array([X0[0],       X0[1]+DX[1], X0[2]]      ),
-                                np.array([X0[0],       X0[1],       X0[2]+DX[2]]),
-                                np.array([X0[0]+DX[0], X0[1],       X0[2]+DX[2]]),
-                                np.array([X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2]]),
-                                np.array([X0[0],       X0[1]+DX[1], X0[2]+DX[2]])])
+            corners = np.array((np.array((X0[0],       X0[1],       X0[2]      )),
+                                np.array((X0[0]+DX[0], X0[1],       X0[2]      )),
+                                np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]      )),
+                                np.array((X0[0],       X0[1]+DX[1], X0[2]      )),
+                                np.array((X0[0],       X0[1],       X0[2]+DX[2])),
+                                np.array((X0[0]+DX[0], X0[1],       X0[2]+DX[2])),
+                                np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2])),
+                                np.array((X0[0],       X0[1]+DX[1], X0[2]+DX[2]))))
         else:
             hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
             sys.exit(1)

@@ -114,7 +114,7 @@ def SortMeshBySFC() -> None:
     sorted_indices = np.argsort(distances)
 
     # Initialize sorted cells
-    sorted_elems   = [elems[i] for i in sorted_indices]
+    sorted_elems   = tuple(elems[i] for i in sorted_indices)
     sorted_sides   = []
 
     # Overwrite the elem/side IDs
@@ -130,8 +130,9 @@ def SortMeshBySFC() -> None:
             sorted_sides.append(side)
 
         # Correct the sideID
-        elem.sides  = np.arange(offsetSide, offsetSide + len(elem.sides)).tolist()
-        offsetSide += len(elem.sides)
+        nSides      = len(elem.sides)
+        elem.sides  = list(range(offsetSide, offsetSide + nSides))
+        offsetSide += nSides
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
@@ -199,7 +200,7 @@ def SortMeshByIJK() -> None:
 
     # Adjust nElemsIJK based on structured directions
     if nStructDirs == 0:
-        nElemsIJK = np.array([nElems, 1, 1])
+        nElemsIJK = np.array((nElems, 1, 1))
     elif nStructDirs == 1:
         structured_dir = np.argmax(structDir)
         nElemsIJK[structured_dir] = nElems // nElemsIJK[structured_dir]
@@ -242,8 +243,9 @@ def SortMeshByIJK() -> None:
             sorted_sides.append(side)
 
         # Correct the sideID
-        elem.sides  = np.arange(offsetSide, offsetSide + len(elem.sides)).tolist()
-        offsetSide += len(elem.sides)
+        nSides      = len(elem.sides)
+        elem.sides  = list(range(offsetSide, offsetSide + nSides))
+        offsetSide += nSides
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides

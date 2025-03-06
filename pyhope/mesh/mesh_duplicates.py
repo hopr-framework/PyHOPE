@@ -28,7 +28,7 @@
 import copy
 import gc
 import sys
-from typing import cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -51,19 +51,27 @@ def EliminateDuplicates() -> None:
     # ------------------------------------------------------
     hopout.routine('Removing duplicate points')
 
-    bcs    = mesh_vars.bcs
-    vvs    = mesh_vars.vvs
-    mesh   = mesh_vars.mesh
+    bcs:   Final[list] = mesh_vars.bcs
+    vvs:   Final[list] = mesh_vars.vvs
+
+    # Native meshio data
+    mesh               = mesh_vars.mesh
+    points: np.ndarray = mesh.points
+    cells: Final[list] = mesh.cells
+    csets: Final[dict] = mesh.cell_sets
+    cdict: Final[dict] = mesh.cells_dict
 
     # Find the mapping to the (N-1)-dim elements
     csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
-                             for key, cset in mesh.cell_sets.items()}
+                             for key, cset in csets.items()}
 
     # Create new periodic nodes per (original node, boundary) pair
     # > Use a dictionary mapping (node, bc_key) --> new node index
     node_bc_translation = {}
+    # > Create a list of points to append to the mesh
+    pointl  = cast(list, points.tolist())
 
-    for bc_key, cset in mesh.cell_sets.items():
+    for bc_key, cset in csets.items():
         # Find the matching boundary condition
         bcID = find_bc_index(bcs, bc_key)
 
@@ -84,11 +92,11 @@ def EliminateDuplicates() -> None:
 
         for iMap in csetMap[bc_key]:
             # Only process 2D faces (quad or triangle)
-            if not any(s in tuple(mesh.cells_dict)[iMap] for s in ['quad', 'triangle']):
+            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
                 continue
 
             iBCsides = np.array(cset[iMap]).astype(int)
-            mapFaces = mesh.cells[iMap].data
+            mapFaces = cells[iMap].data
 
             for iSide in iBCsides:
                 for node in mapFaces[iSide]:
@@ -100,19 +108,25 @@ def EliminateDuplicates() -> None:
                         continue
 
                     # Create the new periodic node by applying the boundary's translation.
-                    new_node    = mesh.points[node] + VV
-                    mesh.points = np.vstack((mesh.points, new_node))
-                    node_bc_translation[key_pair] = len(mesh.points) - 1
+                    new_node    = points[node] + VV
+                    # mesh.points = np.vstack((mesh.points, new_node))
+                    pointl.append(new_node)
+                    node_bc_translation[key_pair] = len(pointl) - 1
+
+    # Convert the list of points back to an array
+    points = np.array(pointl)
+    mesh_vars.mesh.points = points
+    del pointl
 
     # At this point, each (node, bc_key) pair has its own new node
     # > Store these in a mapping (here, keys remain as tuples) for later reference
     periNodes = node_bc_translation.copy()
 
     # Eliminate duplicate points
-    mesh_vars.mesh.points, inverseIndices = np.unique(mesh_vars.mesh.points, axis=0, return_inverse=True)
+    points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
 
     # Update the mesh
-    for cell in mesh_vars.mesh.cells:
+    for cell in cells:
         # Map the old indices to the new ones
         # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
         # Efficiently map all indices in one operation
@@ -127,11 +141,11 @@ def EliminateDuplicates() -> None:
 
     # Also, remove near duplicate points
     # Create a KDTree for the mesh points
-    points = mesh_vars.mesh.points
+    mesh_vars.mesh.points = points
     tree   = spatial.KDTree(points)
 
     # Filter the valid three-dimensional cell types
-    valid_cells = tuple(cell for cell in mesh_vars.mesh.cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
+    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
 
     tol = mesh_vars.tolExternal
     bbs = np.empty(len(valid_cells), dtype=float)
@@ -161,7 +175,7 @@ def EliminateDuplicates() -> None:
     del indices
 
     # Update the mesh cells
-    for cell in mesh_vars.mesh.cells:
+    for cell in cells:
         cell.data = inverseIndices[cell.data]
 
     # Update the periodic nodes

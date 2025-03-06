@@ -82,7 +82,7 @@ def MeshExternal() -> meshio.Mesh:
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
     # Load the mesh(es)
-    mesh   = meshio.Mesh(np.array([]), dict())
+    mesh   = meshio.Mesh(np.array(()), dict())
     fnames = [GetStr('Filename', number=i) for i in range(CountOption('Filename'))]
 
     # Check whether mesh file exists in the current directory or in the same directory

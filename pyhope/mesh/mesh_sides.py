@@ -89,11 +89,12 @@ def GenerateSides() -> None:
         # mesh_vars.sides += tuple(SIDE() for _ in range(nIOElems*nIOSides))
         # elems = mesh_vars.elems
         # sides = mesh_vars.sides
-        mesh_vars.elems.extend([ELEM() for _ in range(nIOElems         )])
-        mesh_vars.sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
+        elems.extend([ELEM() for _ in range(nIOElems         )])
+        sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
 
         # Create the corner faces
-        corner_faces = tuple(face_to_cgns(s, elemType) for s in faces(elemType))
+        corner_faces = tuple(face_to_cgns(s, elemType) for s in faces(elemType))  # noqa: E272
+        corner_index = tuple(np.array(c, dtype=int)    for c in corner_faces)     # noqa: E272
 
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
@@ -116,19 +117,19 @@ def GenerateSides() -> None:
             for index, face in enumerate(faces(elemType)):
                 # PERF: It is faster to use a list comprehension than numpy.fromiter
                 # corners = np.fromiter((nodes[s] for s in corner_faces[index]), dtype=int)
-                corners = [nodes[s] for s in corner_faces[index]]
+                # corners = nodes[corner_index[index]]
                 # sides[sCount].update(face    = face,                   # noqa: E251
                 #                      elemID  = iElem,                  # noqa: E251
                 #                      sideID  = sCount,                 # noqa: E251
                 #                      locSide = index+1,                # noqa: E251
                 #                      corners = np.array(corners))      # noqa: E251
-                sides[sCount].face    = face                    # noqa: E251
-                sides[sCount].elemID  = iElem                   # noqa: E251
-                sides[sCount].sideID  = sCount                  # noqa: E251
-                sides[sCount].locSide = index+1                 # noqa: E251
+                sides[sCount].face    = face                        # noqa: E251
+                sides[sCount].elemID  = iElem                       # noqa: E251
+                sides[sCount].sideID  = sCount                      # noqa: E251
+                sides[sCount].locSide = index+1                     # noqa: E251
                 # PERF: It is faster to use a list comprehension than numpy.fromiter
-                # sides[sCount].corners = corners                 # noqa: E251
-                sides[sCount].corners = np.array(corners)       # noqa: E251
+                # sides[sCount].corners = corners                     # noqa: E251
+                sides[sCount].corners = nodes[corner_index[index]]  # noqa: E251
                 sCount += 1
 
             # Add to nSides

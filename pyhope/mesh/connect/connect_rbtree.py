@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import bisect
+from dataclasses import dataclass
 from typing import Optional, List, Tuple, cast
 from typing import final
 from functools import cache
@@ -44,6 +45,8 @@ from pyhope.mesh.mesh_vars import SIDE
 # ----------------------------------------------------------------------------------------------------------------------------------
 RED   = True
 BLACK = False
+LEFT  = True
+RIGHT = False
 # ==================================================================================================================================
 
 
@@ -116,7 +119,15 @@ class LinkOffsetManager:
 
 
 @final
+@dataclass(init=False, repr=False, eq=False, slots=False)
 class SideNode:
+    # PERF: Convert class to dataclass for better performance
+    # """
+    # value: a SIDE object
+    # link : the stored connection (an int) from the SIDE (side.connection)
+    # """
+    # value = SIDE
+    # link  = Optional[int]  # This is the base (stored) connection value
     __slots__ = ('value', 'link')
 
     def __init__(self,
@@ -136,22 +147,30 @@ class SideNode:
         """
         if self.link is None:
             return None
-        return self.link + offset_manager.get_offset(self.link)
+        return cast(int, self.link) + offset_manager.get_offset(self.link)
 
 
 # ----- Red-Black Tree Helpers ---------------------------------------------------------------------------
 @final
+@dataclass(init=True, repr=False, eq=False, slots=True)
 class _RBTreeNode:
-    __slots__ = ('data', 'color', 'left', 'right', 'parent', 'size')
-
-    def __init__(self,
-                 data: SideNode) -> None:
-        self.data  : SideNode = data
-        self.color : bool = RED  # New nodes are initially red
-        self.left  : Optional[_RBTreeNode] = None
-        self.right : Optional[_RBTreeNode] = None
-        self.parent: Optional[_RBTreeNode] = None
-        self.size  : int = 1
+    # PERF: Convert class to dataclass for better performance
+    # __slots__ = ('data', 'color', 'left', 'right', 'parent', 'size')
+    #
+    # def __init__(self,
+    #              data: SideNode) -> None:
+    #     self.data  : SideNode = data
+    #     self.color : bool     = RED  # New nodes are initially red
+    #     self.left  : Optional[_RBTreeNode] = None
+    #     self.right : Optional[_RBTreeNode] = None
+    #     self.parent: Optional[_RBTreeNode] = None
+    #     self.size  : int = 1
+    data  : SideNode
+    color : bool     = RED  # New nodes are initially red
+    left  : Optional[_RBTreeNode] = None
+    right : Optional[_RBTreeNode] = None
+    parent: Optional[_RBTreeNode] = None
+    size  : int = 1
 
 
 @final
@@ -300,14 +319,15 @@ class RedBlackTree:
             raise IndexError('Index out of range')
 
         # Invalidate the node_at cache since the tree structure is about to change
-        self._node_at.cache_clear()
+        if update_offset:
+            self._node_at.cache_clear()
 
         # Create a new red-black tree node for new_node
         z: _RBTreeNode           = _RBTreeNode(new_node)
         y: Optional[_RBTreeNode] = None
         x: Optional[_RBTreeNode] = self._root
         current_index: int       = effective_index
-        branch: Optional[str]    = None
+        branch: Optional[bool]   = None
 
         # Find the insertion point using order statistics
         while x is not None:
@@ -316,18 +336,18 @@ class RedBlackTree:
             left_size = x.left.size if x.left is not None else 0
 
             if current_index <= left_size:
-                branch = 'left'
+                branch = LEFT
                 x = x.left
             else:
                 current_index -= left_size + 1
-                branch = 'right'
+                branch = RIGHT
                 x = x.right
 
         z.parent = y
         if y is None:
             self._root = z
         else:
-            if branch == 'left':
+            if branch == LEFT:
                 y.left  = z
             else:
                 y.right = z
@@ -370,19 +390,65 @@ class RedBlackTree:
         """
         return iter(self.to_list())
 
+    @staticmethod
+    def _build_tree(nodes: tuple[_RBTreeNode, ...], start: int, end: int) -> Optional[_RBTreeNode]:
+        """Recursively build a balanced tree from the tuple of nodes
+
+        This method assumes that the nodes are in the desired in-order sequence
+        """
+        # Return if subtree is empty
+        if start > end:
+            return None
+
+        mid  = (start + end) // 2
+        root = nodes[mid]
+
+        # Recursively build left and right subtrees
+        root.left  = RedBlackTree._build_tree(nodes, start, mid - 1)
+        if root.left is not None:
+            root.left.parent  = root
+
+        root.right = RedBlackTree._build_tree(nodes, mid + 1, end)
+        if root.right is not None:
+            root.right.parent = root
+
+        # Compute subtree size in one pass
+        left_size  = root.left.size  if root.left  is not None else 0  # noqa: E272
+        right_size = root.right.size if root.right is not None else 0  # noqa: E272
+        root.size  = 1 + left_size + right_size
+
+        return root
+
     @classmethod
     def from_list(cls, sides: List[SIDE], offset_manager: LinkOffsetManager) -> RedBlackTree:
-        """ Convert a list of SIDE objects into a red-black tree (balanced BST) for efficient insertion and random access
+        """Optimized bulk conversion from a sorted list to a red–black tree
 
-            When building from an existing list, we do not update offsets because the offset manager because the stored
-            connection (side.connection) is already valid
+        Assumes that the provided list is already in the desired in-order sequence.
+        All nodes are initialized as black to maintain red–black properties.
         """
-        rbt = cls(offset_manager)
-        for side in sides:
-            node = SideNode(value=side, link=side.connection)
-            # Do not update the offset manager during this bulk conversion
-            rbt.insert(len(rbt), node, update_offset=False)
+        rbt   = cls(offset_manager)
+
+        # Create a list of nodes with the SIDE data
+        nodes = tuple(_RBTreeNode(SideNode(value=side, link=side.connection), color=BLACK) for side in sides)
+
+        rbt._root = cls._build_tree(nodes, 0, len(nodes) - 1)
+        rbt._size = len(nodes)
+
         return rbt
+
+    # PERF: This is an improved implementation but still not optimal
+    # def from_list(cls, sides: List[SIDE], offset_manager: LinkOffsetManager) -> RedBlackTree:
+    #     """ Convert a list of SIDE objects into a red-black tree (balanced BST) for efficient insertion and random access
+    #
+    #         When building from an existing list, we do not update offsets because the offset manager because the stored
+    #         connection (side.connection) is already valid
+    #     """
+    #     rbt = cls(offset_manager)
+    #     for side in sides:
+    #         node = SideNode(value=side, link=side.connection)
+    #         # Do not update the offset manager during this bulk conversion
+    #         rbt.insert(len(rbt), node, update_offset=False)
+    #     return rbt
 
     # INFO: This is the original implementation
     # def to_list(self) -> List[SIDE]:

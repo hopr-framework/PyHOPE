@@ -35,7 +35,7 @@ import sys
 import tempfile
 import time
 import traceback
-from typing import cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -213,7 +213,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     # All non-connected sides (technically all) are potential BC sides
     # nConnSide = [s for s in sides if 'Connection' not in s and 'BCID' not in s]
-    cells_lst = list(mesh.cells_dict)
+    cells_lst = tuple(mesh.cells_dict)
 
     # Now, for quadrilateral elements
     nConnLen  = 0
@@ -255,7 +255,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
         ttree = spatial.KDTree(tbPoints)
 
-    tol = mesh_vars.tolExternal
+    tol: Final[float] = mesh_vars.tolExternal
 
     # Now set the missing CGNS boundaries
     for fname in fnames:
@@ -310,12 +310,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 zonedata = cast(h5py.Dataset, zone[' data'])
                 match len(zonedata[0]):
                     case 1:  # Unstructured mesh, 1D arrays
-                        BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen,  # noqa: E501
-                                            # Support for triangular elements
-                                            cast(spatial.KDTree, ttree), tConnNum, tConnLen)
+                        mesh = BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen,  # noqa: E501
+                                                   # Support for triangular elements
+                                                   cast(spatial.KDTree, ttree), tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
                         # Structured grid can only contain tensor-product elements
-                        BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen)
+                        mesh = BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
                         hopout.warning('Unsupported number of dimensions')
@@ -359,10 +359,10 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
     # For the first side on the BC, the dict does not exist
     if BCName in cellsets:
         prevSides = cellsets[BCName]
-        prevSides[nConnNum] = np.append(prevSides[nConnNum], sideID)
+        prevSides[nConnNum].append(sideID)
     else:
-        prevSides = [np.array([], dtype=int) for _ in range(nConnLen)]
-        prevSides[nConnNum] = np.array([sideID], dtype=int)
+        prevSides = [[] for _ in range(nConnLen)]
+        prevSides[nConnNum] = [sideID]
     # Update the cellsets
     cellsets.update({BCName: prevSides})
 
@@ -380,11 +380,10 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                           # Triangular elements
                           ttree:    spatial.KDTree,
                           tConnNum: int,
-                          tConnLen: int) -> None:
+                          tConnLen: int) -> meshio.Mesh:
     """ Set the CGNS boundary conditions for uncurved (unstructured) grids
     """
     # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.io.formats.cgns import ElemTypes
     # ------------------------------------------------------
@@ -392,8 +391,11 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     bpoints = np.column_stack([zone['GridCoordinates'][f'Coordinate{axis}'][' data'][:].astype(float) for axis in 'XYZ'])
 
     # Loop over all BCs
-    cellsets = mesh.cell_sets
     zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    cellsets = mesh.cell_sets
+    # Convert the cellsets to a list of lists for easier manipulation
+    for k, v in cellsets.items():
+        cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
 
     for zoneBC in zoneBCs:
         # bcName = zoneBC[3:]
@@ -500,11 +502,16 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                     nShells += 1
                     count   += int(elemType['Nodes']) + 1
 
-        mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                             cells     = cells,     # noqa: E251
-                             cell_sets = cellsets)  # noqa: E251
+    # Convert the cellsets back to a dictionary
+    csets = {}
+    for k, v in cellsets.items():
+        csets[k] = [np.array(s, dtype=int) for s in v]
 
-        mesh_vars.mesh = mesh
+    mesh   = meshio.Mesh(points    = points,    # noqa: E251
+                         cells     = cells,     # noqa: E251
+                         cell_sets = csets)     # noqa: E251
+
+    return mesh
 
 
 def BCCGNS_Structured(mesh:     meshio.Mesh,
@@ -514,7 +521,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
                       zone,     # CGNS zone
                       tol:      float,
                       nConnNum: int,
-                      nConnLen: int) -> None:
+                      nConnLen: int) -> meshio.Mesh:
     """ Set the CGNS boundary conditions for (un)curved (structured) grids
     """
     # Local imports ----------------------------------------
@@ -522,6 +529,12 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     import pyhope.output.output as hopout
     # from pyhope.io.io_cgns import ElemTypes
     # ------------------------------------------------------
+    # Loop over all BCs
+    cellsets = mesh.cell_sets
+    # Convert the cellsets to a list of lists for easier manipulation
+    for k, v in cellsets.items():
+        cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
+
     # Load the zone BCs
     for zoneBC, bcData in zone['ZoneBC'].items():
         try:
@@ -580,7 +593,6 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             sys.exit(1)
 
         # Loop over all elements
-        cellsets = mesh.cell_sets
         for quad in quads:
             # elemType = ElemTypes(cgnsBC[count])
 
@@ -588,8 +600,13 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             BCpoints = np.sort(quad, axis=0).flatten()
             cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, cgnsName)
 
-        mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                             cells     = cells,     # noqa: E251
-                             cell_sets = cellsets)  # noqa: E251
+    # Convert the cellsets back to a dictionary
+    csets = {}
+    for k, v in cellsets.items():
+        csets[k] = [np.array(s, dtype=int) for s in v]
 
-        mesh_vars.mesh = mesh
+    mesh   = meshio.Mesh(points    = points,    # noqa: E251
+                         cells     = cells,     # noqa: E251
+                         cell_sets = csets)     # noqa: E251
+
+    return mesh

@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import re
 import sys
-from typing import Optional
+from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -111,13 +111,16 @@ def OrientMesh() -> None:
     if not checkSurfaceNormals:
         return None
 
-    mesh   = mesh_vars.mesh
-    nElems = 0
+    mesh = mesh_vars.mesh
+
+    elemNames: Final[dict] = mesh_vars.ELEMTYPE.name
+    elemKeys : Final       = mesh_vars.ELEMTYPE.type.keys()
+    nElems      = 0
     passedTypes = []
 
     for elemType in mesh.cells_dict.keys():
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in elemKeys):
             continue
 
         # Only consider hexahedrons
@@ -130,7 +133,7 @@ def OrientMesh() -> None:
         nIOElems = ioelems.shape[0]
 
         if isinstance(elemType, str):
-            elemType = mesh_vars.ELEMTYPE.name[elemType]
+            elemType = elemNames[elemType]
 
         # Prepare elements for parallel processing
         if np_mtp > 0:
@@ -138,7 +141,7 @@ def OrientMesh() -> None:
                            for iElem in range(nElems, nElems + nIOElems))
             # Run in parallel with a chunk size
             # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-            res   = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(200.*np_mtp))))))
+            res   = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
         else:
             res   = np.fromiter(((check_orientation(ioelems[iElem - nElems], elemType), iElem)
                                   for iElem in range(nElems, nElems + nIOElems)), dtype=object)
