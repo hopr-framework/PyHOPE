@@ -582,6 +582,8 @@ class ReadConfig():
         # Check if input is mesh or parameter file
         parameter_mode = False
         mesh_mode      = False
+
+        # Check whether given input is a valid mesh or a parameter file
         if h5py.is_hdf5(self.input):
             mesh_mode = True
         else:
@@ -642,6 +644,8 @@ class ReadConfig():
             # Parse dummy parameters
             parser.read_string(mesh_param)
 
+        # Parse configation file either from read in parameter file or
+        # recovered from a given mesh file
         config.std_length = max(len(s) for s in config.prms.keys())
         config.std_length = max(32, config.std_length+1)
 

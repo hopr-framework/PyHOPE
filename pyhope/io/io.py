@@ -140,6 +140,14 @@ def IO() -> None:
                 _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
                 _ = f.create_dataset('BCType'    , data=bcTypes)
 
+                # Check if there is a periodic vector and write it to mesh file
+                nVV = len(mesh_vars.vvs)
+                if nVV > 0:
+                    vvs = np.zeros((nVV, 3), dtype=np.float64)
+                    for iVV, vv in enumerate(mesh_vars.vvs):
+                        vvs[iVV, :] = vv['Dir']
+                    _ = f.create_dataset('VV', data=vvs)
+
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh
             pname = io_vars.projectname
