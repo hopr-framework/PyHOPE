@@ -191,7 +191,7 @@ def MeshCartesian() -> meshio.Mesh:
                 progFac = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
             elif stretch_type == 3:
                 progFac = 1./DXmaxToDXmin[currDir]
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir]+1, progType, np.sign(edge_vectors[index][currDir]) * progFac)
+            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir]+1, progType, (np.sign(edge_vectors[index][currDir]) or 1.) * progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]

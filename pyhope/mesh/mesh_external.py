@@ -123,14 +123,17 @@ def MeshExternal() -> meshio.Mesh:
         mesh = BCCGNS(mesh, fgmsh)
 
     # Reconstruct periodicity vectors from mesh
-    # TODO: Check if alphas start from 1 or if they start at alpha > 1???
-    hasPeriodic = np.sum([bcs[s].type[0] == 1 for s in range(nBCs)])/2
-    if nVVs == 0 and hasPeriodic > 0:
-        print(hopout.warn('Periodicity vectors neither defined in parameter file '
-                        'nor could be read from the given mesh file. Reconstructing '
-                        'the vector from boundaries!'))
-        mesh_vars.vvs = [dict() for _ in range(int(hasPeriodic))]
+    hasPeriodic = np.any([bcs[s].type[0] == 1 for s in range(nBCs)])
+    if len(mesh_vars.vvs) == 0 and hasPeriodic:
+        print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
+                          'in the given mesh file. Reconstructing the vectors from BCs!'))
+        # Get max number of periodic alphas
+        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(bc.type[3]) for bc in bcs])))]
         vvs = recontruct_periodicity(mesh)
+        hopout.routine('The following vectors were recovered:')
+        for iVV, vv in enumerate(vvs):
+            hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'RECOVER')
+        hopout.sep()
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()
@@ -146,18 +149,16 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
     bcs = mesh_vars.bcs
     vvs = mesh_vars.vvs
 
-    for iVV in range(len(vvs)):
-        vvs[iVV] = {}
+    for iVV, vv in enumerate(vvs):
 
         # Identify positive and negative periodic boundaries
         boundaries = {1: None, -1: None}
-        for bc in bcs:
-            if bc.type[0] == 1 and abs(bc.type[3]) == iVV + 1:
-                sign = np.sign(bc.type[3])
-                if boundaries[sign] is not None:
-                    hopout.warning("Multiple periodic boundaries found for the same direction")
-                    sys.exit(1)
-                boundaries[sign] = bc.name
+        for bc in [s for s in bcs if abs(s.type[3]) == iVV + 1]:
+            sign = np.sign(bc.type[3])
+            if boundaries[sign] is not None:
+                hopout.warning("Multiple periodic boundaries found for the same direction. Exiting...")
+                sys.exit(1)
+            boundaries[sign] = bc.name
 
         # Compute mean coordinates for both boundaries as a tuple
         mean_coords = tuple(
@@ -173,6 +174,8 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
 
         # Store the periodicity vector if both mean coordinates exist
         if mean_coords[0] is not None and mean_coords[1] is not None:
-            vvs[iVV]["Dir"] = mean_coords[1] - mean_coords[0]
+            vv.update({"Dir": mean_coords[1] - mean_coords[0]})
+        else:
+            vv.update({"Dir": np.array([0.0, 0.0, 0.0])})
 
     return vvs

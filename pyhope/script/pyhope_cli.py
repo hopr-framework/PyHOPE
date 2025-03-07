@@ -101,11 +101,11 @@ def main() -> None:
               .format(program))
         sys.exit()
 
-    # Print banner
-    hopout.header(program, version, commit)
-
     with ReadConfig(args.input) as rc:
         config.params = rc
+
+    # Print banner
+    hopout.header(program, version, commit)
 
     # Read-in required parameters
     InitCommon()
