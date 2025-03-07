@@ -192,7 +192,7 @@ def CheckWatertight() -> None:
     nGeo:      Final[int] = mesh_vars.nGeo
 
     # Compute the equidistant point set used by meshIO
-    xEq:       Final[np.ndarray] = np.linspace(0., 1., nGeo+1)
+    xEq:       Final[np.ndarray] = np.linspace(-1., 1., nGeo+1)
     wBaryEq:   Final[np.ndarray] = barycentric_weights(nGeo+1, xEq)
 
     xGP, wGP  = legendre_gauss_nodes(nGeo+1)
