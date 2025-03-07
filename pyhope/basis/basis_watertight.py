@@ -232,6 +232,8 @@ def CheckWatertight() -> None:
     results = tuple(tuple(result for r in res for result in r if not bool(result[0]))
 )
     if len(results) > 0:
+        nconn = len(tuple(tuple(result for r in res for result in r)))
+
         for result in results:
             # Unpack the results
             side    = sides[result[1]]
@@ -246,9 +248,9 @@ def CheckWatertight() -> None:
 
             print()
             # Check if side is oriented inwards
-            errStr  =       'Side is oriented inwards!' if nSurfErr < 0 \
-                      else f'Surface normals are not within tolerance {nSurfErr} > {tol}!'
-            print(hopout.warn(errStr, length=len(errStr)))
+            errStr  =      'Side is oriented inwards!' if nSurfErr < 0 \
+                  else 'Surface normals are not within tolerance {:9.6e} > {:9.6e}'.format(nSurfErr, tol)
+            print(hopout.warn(errStr, length=len(errStr)+16))
 
             # Print the information
             strLen  = max(len(str(side.sideID+1)), len(str(nbside.sideID+1)))
@@ -266,5 +268,5 @@ def CheckWatertight() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
-        hopout.warning(f'Watertightness check failed for {len(results)} / {len(res)} sides!')
+        hopout.warning(f'Watertightness check failed for {len(results)} / {nconn} connections!')
         sys.exit(1)
