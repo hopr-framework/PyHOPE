@@ -221,15 +221,15 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             # Try reading in periodic vector if it is not provided in file
             if len(mesh_vars.vvs) == 0:
                 try:
-                    print(hopout.warn('Periodicity vectors not defined in parameter file. '
-                                      'Reading the vectors from given PyHOPE mesh!'))
-                    hopout.sep()
                     vvs = np.array(f['VV'])
                     mesh_vars.vvs = [dict() for _ in range(vvs.shape[0])]
                     for iVV, _ in enumerate(mesh_vars.vvs):
                         mesh_vars.vvs[iVV] = dict()
                         mesh_vars.vvs[iVV]['Dir'] = vvs[iVV]
                     # Output vectors
+                    print(hopout.warn('Periodicity vectors not defined in parameter file. '
+                                      'Reading the vectors from given PyHOPE mesh!'))
+                    hopout.sep()
                     hopout.routine('The following vectors were found:')
                     for iVV, vv in enumerate(mesh_vars.vvs):
                         hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'READ IN')

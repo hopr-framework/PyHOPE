@@ -625,7 +625,8 @@ class ReadConfig():
 
             # Get geometric order and boundary conditions
             with h5py.File(self.input, 'r') as f:
-                NGeo    = cast(int, f.attrs['Ngeo'])
+                # Here we use item for legacy reasons as HOPR stores scalars as arrays with one element
+                NGeo    = cast(int, f.attrs['Ngeo'].item())
                 BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
 
