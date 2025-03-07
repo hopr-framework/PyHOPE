@@ -150,8 +150,10 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     from pyhope.mesh.mesh_common import flip_s2m
     # ------------------------------------------------------
     nGeo     = mesh_vars.nGeo
-    nodes    = np.array(tuple(elems[0].nodes[s] for s in face_to_nodes(sides[0].face, elems[0].type, nGeo)))
-    nbNodes  = np.array(tuple(elems[1].nodes[s] for s in face_to_nodes(sides[1].face, elems[1].type, nGeo)))
+    # nodes    = np.array(tuple(elems[0].nodes[s] for s in face_to_nodes(sides[0].face, elems[0].type, nGeo)))
+    # nbNodes  = np.array(tuple(elems[1].nodes[s] for s in face_to_nodes(sides[1].face, elems[1].type, nGeo)))
+    nodes    = elems[0].nodes[face_to_nodes(sides[0].face, elems[0].type, nGeo)]
+    nbNodes  = elems[1].nodes[face_to_nodes(sides[1].face, elems[1].type, nGeo)]
 
     # Get the flip map
     indices = flip_s2m(nGeo+1, 1 if sides[0].flip <= 2 else sides[0].flip)
