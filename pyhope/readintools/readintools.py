@@ -397,6 +397,9 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
 
 
 def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
     value = GetParam(name=name, default=default, number=number, calltype='realarray')
 
     # Split the array definitiosn
@@ -406,10 +409,22 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     # Commas separate 1st dimension, double commas separate 2nd dimension
     if ',,' in value:
         value = [s.split(',') for s in value.split(',,')]
-        value = np.array(value).astype(float)
+        try:
+            value = np.array(value).astype(float)
+        except ValueError as e:
+            print()
+            print(hopout.warn(f'{e}'))
+            hopout.warning(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
+            sys.exit(1)
     else:
         value = value.split(',')
-        value = np.array(value).astype(float)
+        try:
+            value = np.array(value).astype(float)
+        except ValueError as e:
+            print()
+            print(hopout.warn(f'{e}'))
+            hopout.warning(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
+            sys.exit(1)
     CheckDimension(name, value.size)
     return value
 
@@ -468,7 +483,7 @@ class ReadConfig():
 
                 # HOPR supported inline variable definitions with prefix 'DEFVAR='
                 # For legacy reasons also support such variable definition constructs
-                if 'DEFVAR=' in line:
+                if line.strip().startswith('DEFVAR='):
                     if ':' not in line:
                         hopout.warning('DEFVAR= syntax error while parsing parameter file. Missing ":"')
                         sys.exit(1)
