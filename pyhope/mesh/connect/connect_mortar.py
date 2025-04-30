@@ -33,7 +33,7 @@ import traceback
 from collections import defaultdict
 from functools import lru_cache
 from itertools import combinations
-from typing import Optional, Final
+from typing import Optional, Final, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -233,7 +233,7 @@ def connect_mortar_sides( sideIDs    : tuple
 
     # Build mortar type and orientation
     nMortars      = len(sideIDs[1])
-    slaveSides = tuple(rbtsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1])
+    slaveSides    = tuple(rbtsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1])
     slaveSideType = 104
 
     match nMortars:
@@ -276,7 +276,8 @@ def connect_mortar_sides( sideIDs    : tuple
             slaveSides = tuple(s for i in [0, 2]
                                  for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
             # Sort out duplicates
-            slaveSides = np.unique(slaveSides)
+            if slaveSideType == 103:
+                slaveSides = np.unique(slaveSides)
 
         case 4:
             mortarType = 1
@@ -419,6 +420,7 @@ def find_mortar_match( targetCorners: np.ndarray
         # INFO: Cached version
         # comboEdges = (e for s in comboSides
         #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
+
         comboEdges, checkTria = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
@@ -430,8 +432,11 @@ def find_mortar_match( targetCorners: np.ndarray
             # Convert the star-unpacked targetEdge [list] into a tuple
             targetEdge = tuple(targetEdge)
             # Find the matching combo edges for the current target edge
-            matchEdges = [e for e in comboEdges if (targetEdge[:2] == e[:2] or targetEdge[:2] == e[1::-1]) and
+            matchEdges = [e for e in comboEdges if (set(targetEdge).issubset(e) or targetEdge[:2] == e[1::-1]) and
                                                    np.isclose(targetDist, e[2])]
+
+            if len(targetEdges) == 3:
+                continue
 
             # We only allow 2-1 matches, so in the end we should have exactly 1 match
             if len(matchEdges) > 1:
@@ -484,7 +489,7 @@ def find_mortar_match( targetCorners: np.ndarray
             elif len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
-        if len(matches) != 4:
+        if len(matches) != 4 and checkTria:
             return False
 
     # Found a valid match
@@ -549,7 +554,7 @@ def build_edges(corners: np.ndarray, points: np.ndarray) -> tuple:
 
 # @cache
 @lru_cache(maxsize=65536)
-def find_edge_combinations(comboEdges) -> tuple:
+def find_edge_combinations(comboEdges) -> Tuple[tuple, bool]:
     """Build combinations of edges that share exactly one point and form a line
     """
     points = mesh_vars.mesh.points
@@ -618,6 +623,9 @@ def find_edge_combinations(comboEdges) -> tuple:
                 #     validCombo.append((point1, point2, lineDist))
 
                 lineDist = norm(p1 - p2)
-                validCombo.append((point1, point2, lineDist))
+                # validCombo.append((point1, point2, lineDist))
+                if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
+                    validCombo.append((point1, point2, lineDist))
+
 
     return tuple(validCombo), checkTriaFace

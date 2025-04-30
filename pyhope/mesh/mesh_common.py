@@ -259,6 +259,10 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
     """
 
     flipID_map = {  # Tetrahedron
+                   4: { 0: {1: 1, 2: 2, 3: 3, 4: 4},
+                        1: {1: 2, 4: 1, 3: 4, 2: 3},
+                        2: {3: 1, 4: 2, 1: 3, 2: 4},
+                        3: {2: 1, 3: 2, 4: 3, 1: 4}},
                    # Pyramid
                    5: { 0: {1: 1, 2: 2, 3: 3, 4: 4},
                         1: {1: 2, 4: 1, 3: 4, 2: 3},
