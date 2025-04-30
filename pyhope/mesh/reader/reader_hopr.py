@@ -116,7 +116,7 @@ def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
             n           = nGeo
             grid        = np.arange((n+1)**2).reshape(n+1, n+1)
             # Corners: bottom-left, bottom-right, top-right, top-left
-            corners     = np.array([grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]])
+            corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
             # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
             bottom_edge = grid[0, 1:n]
             # Right edge: column n, rows 1 to n-1 (bottom-to-top)
@@ -185,7 +185,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     nSides       = np.zeros(2, dtype=int)
 
     # Vandermonde for changeBasis
-    VdmEqHdf5ToEqMesh = np.array([])
+    VdmEqHdf5ToEqMesh = np.array(())
     mortarTypeToSkip  = {1: 4, 2: 2, 3: 2}
 
     # Instantiate ELEMTYPE
@@ -218,6 +218,26 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             # Read nGeo
             nGeo       = int(cast(int, f.attrs['Ngeo']))
 
+            # Try reading in periodic vector if it is not provided in file
+            if len(mesh_vars.vvs) == 0:
+                try:
+                    vvs = np.array(f['VV'])
+                    mesh_vars.vvs = [dict() for _ in range(vvs.shape[0])]
+                    for iVV, _ in enumerate(mesh_vars.vvs):
+                        mesh_vars.vvs[iVV] = dict()
+                        mesh_vars.vvs[iVV]['Dir'] = vvs[iVV]
+                    # Output vectors
+                    print(hopout.warn('Periodicity vectors not defined in parameter file. '
+                                      'Reading the vectors from given PyHOPE mesh!'))
+                    hopout.sep()
+                    hopout.routine('The following vectors were found:')
+                    for iVV, vv in enumerate(mesh_vars.vvs):
+                        hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'READ IN')
+                    hopout.sep()
+                # old hopr files might not contain the VV
+                except KeyError:
+                    pass
+
             if nGeo == mesh_vars.nGeo:
                 # only retain the unique nodes
                 indices    = np.unique(nodeInfo, return_index=True)[1]
@@ -234,15 +254,11 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo}') + '\n')
 
                 # Compute the equidistant point set used by HOPR
-                xEqHdf5 = np.zeros(nGeo+1)
-                for i in range(nGeo+1):
-                    xEqHdf5[i] = 2.*float(i)/float(nGeo) - 1.
+                xEqHdf5     = np.linspace(-1, 1, num=nGeo+1, dtype=np.float64)
                 wBaryEqHdf5 = barycentric_weights(nGeo, xEqHdf5)
 
                 # Compute the equidistant point set used by meshIO
-                xEqMesh = np.zeros(mesh_vars.nGeo+1)
-                for i in range(mesh_vars.nGeo+1):
-                    xEqMesh[i] = 2.*float(i)/float(mesh_vars.nGeo) - 1.
+                xEqMesh     = np.linspace(-1, 1, num=mesh_vars.nGeo+1, dtype=np.float64)
                 # wBaryEqMesh = barycentric_weights(mesh_vars.nGeo, xEqMesh)
 
                 # Compute the Vandermonde matrix
@@ -252,6 +268,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             elemInfo   = np.array(f['ElemInfo'])
             sideInfo   = np.array(f['SideInfo'])
             BCNames    = [s.strip().decode('utf-8') for s in cast(h5py.Dataset, f['BCNames'])]
+
+            # Cache the mapping here, so we consider the mesh order
+            linCache   = {}
 
             with alive_bar(len(elemInfo), title='│             Processing Elements', length=33) as bar:
                 # Construct the elements, meshio format
@@ -269,8 +288,12 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         elemType  = elemType[0]
 
                     # ChangeBasis currently only supported for hexahedrons
-                    _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
-                    mapLin    = np.array([mapLin[np.int64(i)] for i in range(len(mapLin))])
+                    if elemNum in linCache:
+                        mapLin = linCache[elemNum]
+                    else:
+                        _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
+                        mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+                        linCache[elemNum] = mapLin
 
                     if nGeo == mesh_vars.nGeo:
                         elemIDs   = np.arange(elem[4], elem[5])

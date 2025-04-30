@@ -144,15 +144,15 @@ def find_key(dict: dict[int, str], item) -> int | None:
     return None
 
 
-def find_keys(dict: dict[int, str], item) -> list[int] | None:
+def find_keys(dict: dict[int, str], item) -> tuple[int, ...] | None:
     """ Find all occurrence of a key in dictionary
     """
     if type(item) is np.ndarray:
-        keys = [key for key, val in dict.items() if np.all(val == item)]
+        keys = tuple(key for key, val in dict.items() if np.all(val == item))
         if len(keys) > 0:
             return keys
     else:
-        keys = [key for key, val in dict.items() if        val == item ]  # noqa: E271
+        keys = tuple(key for key, val in dict.items() if        val == item )  # noqa: E271
         if len(keys) > 0:
             return keys
     return None
@@ -181,7 +181,7 @@ def find_index(seq, item) -> int:
     return -1
 
 
-def find_indices(seq, item) -> list[int]:
+def find_indices(seq, item) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:
@@ -197,4 +197,4 @@ def find_indices(seq, item) -> list[int]:
         else:
             locs.append(loc)
             start_at = loc
-    return locs
+    return tuple(locs)

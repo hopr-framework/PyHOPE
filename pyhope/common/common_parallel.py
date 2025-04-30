@@ -38,10 +38,10 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-def distribute_work(elems: list, chunk_size: int) -> list[object]:
+def distribute_work(elems: tuple, chunk_size: int) -> tuple:
     """Distribute elements into chunks of a given size
     """
-    return [elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size)]
+    return tuple(elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size))
 
 
 def update_progress(progress_queue: Queue, total_elements: int) -> None:
@@ -54,7 +54,7 @@ def update_progress(progress_queue: Queue, total_elements: int) -> None:
             bar()
 
 
-def run_in_parallel(process_chunk: Callable, elems: list, chunk_size: int = 10) -> list:
+def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10) -> list:
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------

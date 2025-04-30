@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -94,7 +95,7 @@ def IO() -> None:
 
             nElems = len(elems)
             nSides = len(sides)
-            nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
+            nNodes = sum(s.nodes.size for s in elems)  # number of non-unique nodes
 
             bcs   = mesh_vars.bcs
             nBCs  = len(bcs)
@@ -139,6 +140,14 @@ def IO() -> None:
                 _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
                 _ = f.create_dataset('BCType'    , data=bcTypes)
 
+                # Check if there is a periodic vector and write it to mesh file
+                nVV = len(mesh_vars.vvs)
+                if nVV > 0:
+                    vvs = np.zeros((nVV, 3), dtype=np.float64)
+                    for iVV, vv in enumerate(mesh_vars.vvs):
+                        vvs[iVV, :] = vv['Dir']
+                    _ = f.create_dataset('VV', data=vvs)
+
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh
             pname = io_vars.projectname
@@ -161,8 +170,8 @@ def IO() -> None:
             # Mixed elements require gmsh:physical and gmsh:geometrical
             # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
             cell_types = mesh.cells_dict.keys()
-            cell_data  = [np.ravel(np.array([[1] for _ in range(mesh.cells_dict[cell_type].data.shape[1])]))
-                                                 for cell_type in cell_types]
+            cell_data  = [np.ones(mesh.cells_dict[cell_type].data.shape[1], dtype=int) for cell_type in cell_types
+]
             mesh.cell_data_dict.update({'gmsh:physical':    cell_data})
             mesh.cell_data_dict.update({'gmsh:geometrical': cell_data})
 
@@ -188,14 +197,14 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
     from pyhope.io.io_vars import ELEM, SIDE
     # ------------------------------------------------------
 
-    mesh   = mesh_vars.mesh
-    elems  = mesh_vars.elems
-    sides  = mesh_vars.sides
-    points = mesh.points
+    mesh:   Final             = mesh_vars.mesh
+    elems:  Final[list]       = mesh_vars.elems
+    sides:  Final[list]       = mesh_vars.sides
+    points: Final[np.ndarray] = mesh.points
 
-    nElems = len(elems)
-    nSides = len(sides)
-    nNodes = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
+    nElems: Final[int] = len(elems)
+    nSides: Final[int] = len(sides)
+    nNodes: Final[int] = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
     elemCounter = dict()
@@ -308,16 +317,27 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
     nodeCount  = 0
 
+    # Cache the mapping
+    linCache   = {}
+
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
-        _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
-        elemNodes = elem.nodes
+        elemType = elem.type
+        if elemType in linCache:
+            mapLin = linCache[elemType]
+        else:
+            _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
+            mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+            linCache[elemType] = mapLin
 
-        # Access the actual nodeCoords and reorder them
-        for iNode, nodeID in enumerate(elemNodes):
-            nodeInfo[  nodeCount + mapLin[np.int64(iNode)]   ] = nodeID + 1
-            nodeCoords[nodeCount + mapLin[np.int64(iNode)], :] = points[nodeID]
+        elemNodes  = np.asarray(elem.nodes)
+        nElemNodes = elemNodes.size
+        indices    = nodeCount + mapLin[:nElemNodes]
 
-        nodeCount += len(elemNodes)
+        # Assign nodeInfo and nodeCoords in vectorized fashion
+        nodeInfo[  indices   ] = elemNodes + 1
+        nodeCoords[indices, :] = points[elemNodes]
+
+        nodeCount += nElemNodes
 
     return elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter

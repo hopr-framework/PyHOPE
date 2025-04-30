@@ -28,7 +28,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cache
-from typing import Optional, Final, final
+from typing import Final, Optional, Union, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -65,7 +65,6 @@ doPeriodicCorrect: bool                           # Flag if displacement between
 # Internal variables
 tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
 tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)
-tolMortar  : Final[float] = 1.E-8                 # Tolerance for mesh connect (mortar   sides)
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
@@ -178,8 +177,8 @@ class ELEM:
     #     self.nodes       : Optional[list] = nodes
     type        : Optional[int]  = None
     elemID      : Optional[int]  = None
-    sides       : Optional[list] = None
-    nodes       : Optional[list] = None
+    sides       : Optional[Union[list, np.ndarray]] = None
+    nodes       : Optional[            np.ndarray]  = None
 
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():

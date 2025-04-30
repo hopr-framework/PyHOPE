@@ -308,7 +308,12 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
             if number is None: num = config.prms[name]['counter']-1  # noqa: E701
             else:              num = number                          # noqa: E701
 
-            value = [s for s in config.params.get('general', name).split('\n') if s != ''][num]
+            input = [s for s in config.params.get('general', name).split('\n') if s != '']
+            if num >= len(input):
+                hopout.warning(f'Index {num+1} is out of range for option "{name}"')
+                # traceback.print_stack(file=sys.stdout)
+                sys.exit(1)
+            value = input[num]
         else:
             value = config.params.get('general', name)
             # Single values cannot contain spaces
@@ -551,7 +556,8 @@ class ReadConfig():
 
         # Check if the file exists in argv
         if not self.input:
-            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
+                                                                                             stderr=subprocess.DEVNULL)
             common  = Common()
             program = common.program
             version = common.version
@@ -576,6 +582,8 @@ class ReadConfig():
         # Check if input is mesh or parameter file
         parameter_mode = False
         mesh_mode      = False
+
+        # Check whether given input is a valid mesh or a parameter file
         if h5py.is_hdf5(self.input):
             mesh_mode = True
         else:
@@ -617,7 +625,8 @@ class ReadConfig():
 
             # Get geometric order and boundary conditions
             with h5py.File(self.input, 'r') as f:
-                NGeo    = cast(int, f.attrs['Ngeo'])
+                # Here we use item for legacy reasons as HOPR stores scalars as arrays with one element
+                NGeo    = cast(int, f.attrs['Ngeo'].item())
                 BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
 
@@ -636,6 +645,8 @@ class ReadConfig():
             # Parse dummy parameters
             parser.read_string(mesh_param)
 
+        # Parse configation file either from read in parameter file or
+        # recovered from a given mesh file
         config.std_length = max(len(s) for s in config.prms.keys())
         config.std_length = max(32, config.std_length+1)
 

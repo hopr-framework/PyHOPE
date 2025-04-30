@@ -66,8 +66,7 @@ def header(program: str, version: str, commit: Optional[str], length: int = STD_
     # print(Colors.BANNERA + '┃')
     print(Colors.BANNERA + '┃' + ' P y H O P E — Python High-Order Preprocessing Environment')
     # print(Colors.BANNERA + '┃' + ' {}'.format(string))
-    print(f'{Colors.BANNERA}┃{Colors.END} {program} version {version}' + (f' [commit {commit}]' if commit else '')
-        + f' - {Colors.WARN}🔫 Licence to mesh{Colors.END}')  # special output for version 007
+    print(f'{Colors.BANNERA}┃{Colors.END} {program} version {version}' + (f' [commit {commit}]' if commit else ''))
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
 
 

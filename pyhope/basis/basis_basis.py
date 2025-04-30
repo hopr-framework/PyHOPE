@@ -41,7 +41,7 @@ def legendre_gauss_lobatto_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
     order -= 1
     # Special cases for small N
     if order == 1:
-        return np.array([-1, 1]), np.array([1, 1])
+        return np.array((-1, 1)), np.array((1, 1))
 
     # Compute the initial guess for the LGL nodes (roots of P'_N)
     nodes = np.cos(np.pi * np.arange(order+1) / order)

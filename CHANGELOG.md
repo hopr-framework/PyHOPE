@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.8] - 2025-03-07
+
+### Added
+- Ability to split elements zonewise [63414dbc]
+- Allow for directly processing mesh files [3cfd8cfd]
+- Advanced parameter Options to ensure compatibility with HOPR [604776c5]
+- Add contributors according to `git shortlog -s -n` [8cb8da50]
+
+### Changed
+- Improve mortar support (HOPR reader, matching performance, ...) [481c2eae]
+- Linting and performance fixes [4181bb87] [e9a601ec]
+- Analytic Gmsh -> Meshio mapping [9c10f165]
+- Require Python 3.10+ for PyRight and Ruff [fdb7d8dd]
+- Permit creating builtin-tetras and split them to hex [78b4cefb]
+- Set new ruff parameter "-target-version" [c017b0ce]
+
+### Fixed
+- Fix extra offset for simplex/splitToHex [2191fa60]
+- Several bugfixes improving overall stability [63354530]
+
+
 ## [0.0.7-1] - 2025-02-13
 
 ### Added & Changed
@@ -15,7 +36,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.0.7] - 2025-02-11
 
 ### Added & Changed
-- Implement stretching and scaling [c07fa435]
 For this release there is a major feature merge [902b2b49] to the main branch which contains:
 - Add support for simplex elements
 - Add support for mixed meshes
@@ -24,6 +44,9 @@ For this release there is a major feature merge [902b2b49] to the main branch wh
 - Implement mesh transformations using templates
 - Search for meshes and templates in multiple dirs including CWD
 - Implement periodic mortar sides
+
+Other changes:
+- Implement stretching and scaling [c07fa435]
 
 ### Fixed
 - Fix compatibility for Python 3.10 to 3.13 using the typing-extensions [3aaeacf4]

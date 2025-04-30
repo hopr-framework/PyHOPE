@@ -81,9 +81,9 @@ def phill_normal(x_in: float) -> np.ndarray:
         h_deriv = -2.010520359035 + 2 * 1.644919857549E-02 * xloc + 3 * 2.674976141766E-05 * xloc**2
 
     if abs(h_deriv) < 1e-10:
-        return np.array([0.0, 1.0])
+        return np.array((0.0, 1.0))
 
-    normal = np.array([1.0, -1.0 / h_deriv])
+    normal = np.array((1.0, -1.0 / h_deriv))
     return normal / np.linalg.norm(normal)
 
 
@@ -111,10 +111,10 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
 
             if x_left < x_blend_top:
                 vec_ref_top    = phill_normal(x_blend_top)
-                vec            = np.array([0.0, 1.0]) +  x_left / x_blend_top     * (vec_ref_top            - np.array([0.0, 1.0]))
+                vec            = np.array((0.0, 1.0)) +  x_left / x_blend_top     * (vec_ref_top            - np.array((0.0, 1.0)))
             elif x_left >= x_blend_bottom:
                 vec_ref_bottom = phill_normal(x_blend_bottom)
-                vec            = vec_ref_bottom       + (x_left - x_blend_bottom) / (4.5 - x_blend_bottom) * (np.array([0.0, 1.0]) - vec_ref_bottom)  # noqa: E501
+                vec            = vec_ref_bottom       + (x_left - x_blend_bottom) / (4.5 - x_blend_bottom) * (np.array((0.0, 1.0)) - vec_ref_bottom)  # noqa: E501
             else:
                 vec            = phill_normal(x_left)
 
@@ -122,7 +122,7 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
                 vec[0] = -vec[0]
 
             g = 0.9 * g**3
-            xout[:2] += g * length * (vec - np.array([0.0, 1.0]))
+            xout[:2] += g * length * (vec - np.array((0.0, 1.0)))
 
         X_out[i, :] = xout
 
