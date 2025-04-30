@@ -432,8 +432,7 @@ def find_mortar_match( targetCorners: np.ndarray
             # Convert the star-unpacked targetEdge [list] into a tuple
             targetEdge = tuple(targetEdge)
             # Find the matching combo edges for the current target edge
-            matchEdges = [e for e in comboEdges if (set(targetEdge).issubset(e) or targetEdge[:2] == e[1::-1]) and
-                                                   np.isclose(targetDist, e[2])]
+            matchEdges = [e for e in comboEdges if (set(targetEdge).issubset(e)) and np.isclose(targetDist, e[2])]
 
             if len(targetEdges) == 3:
                 continue
@@ -442,6 +441,8 @@ def find_mortar_match( targetCorners: np.ndarray
             if len(matchEdges) > 1:
                 return False
             elif len(matchEdges) == 1:
+                if checkTria and (False in [(e in targetCorners) for s in comboSides for e in s.corners]):
+                    return False
                 matches.append((targetEdge, matchEdges.pop()))
 
         if len(matches) != 2 and not checkTria:
@@ -489,7 +490,7 @@ def find_mortar_match( targetCorners: np.ndarray
             elif len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
-        if len(matches) != 4 and checkTria:
+        if len(matches) != 4:
             return False
 
     # Found a valid match
