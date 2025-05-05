@@ -246,16 +246,25 @@ def connect_mortar_sides( sideIDs    : tuple
             # INFO: Uncached version
             if mesh_vars.elems[slaveSide.elemID].type % 100 != 8:
                 slaveSideType = 103
-                if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
-                     points_exist_in_target((masterCorners[1], masterCorners[3]), slaveCorners):  # noqa: E271
+                if   points_exist_in_target((masterCorners[1], masterCorners[3]), slaveCorners):
                     mortarType = 2
-                elif points_exist_in_target((masterCorners[0], masterCorners[2]), slaveCorners) or \
-                     points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):
+                elif points_exist_in_target((masterCorners[0], masterCorners[2]), slaveCorners):
                     mortarType = 3
                 else:
                     hopout.warning('Could not determine mortar type, exiting...')
                     traceback.print_stack(file=sys.stdout)
                     sys.exit(1)
+
+                del slaveSide
+                del slaveCorners
+
+                # Sort the small sides
+                slaveSides = tuple(s for i in [0, 2]
+                                     for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
+
+                # Sort out duplicates
+                slaveSides = np.unique(slaveSides)
+
             else:
                 slaveSideType = 104
                 if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
@@ -269,15 +278,12 @@ def connect_mortar_sides( sideIDs    : tuple
                     traceback.print_stack(file=sys.stdout)
                     sys.exit(1)
 
-            del slaveSide
-            del slaveCorners
+                del slaveSide
+                del slaveCorners
 
-            # Sort the small sides
-            slaveSides = tuple(s for i in [0, 2]
-                                 for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
-            # Sort out duplicates
-            if slaveSideType == 103:
-                slaveSides = np.unique(slaveSides)
+                # Sort the small sides
+                slaveSides = tuple(s for i in [0, 2]
+                                     for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
 
         case 4:
             mortarType = 1
@@ -327,6 +333,7 @@ def connect_mortar_sides( sideIDs    : tuple
         slave.flip = flipID  # update slave side's flip
 
         newID = masterSideID + i + 1
+        # if masterSideID == 708:
         side  = SIDE(
                   sideType   = sideType,            # noqa: E251
                   elemID     = masterElemID,        # noqa: E251
