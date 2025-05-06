@@ -27,8 +27,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 import traceback
-from functools import cache
 from collections import defaultdict
+from functools import cache
 from typing import Final, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries

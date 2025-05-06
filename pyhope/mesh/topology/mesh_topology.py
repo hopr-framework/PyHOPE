@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 import traceback
+from collections import defaultdict
 from functools import cache
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -172,6 +173,12 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
+    # Build an inverted index to map each node to all face keys (from csets_old) that contain it
+    nodeToFace = defaultdict(set)
+    for subFace in csets_old:
+        for node in subFace:
+            nodeToFace[node].add(subFace)
+
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
         mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
@@ -181,6 +188,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
         split, faces = elemSplitter.get(elemType, (None, None))
         faceMap      = faceMaper.get(elemType, None)
+        # Sanity check
+        if faceMap is None:
+            sys.exit(1)
 
         cdata = mesh.get_cells_type(mtype)[mcell]
 
@@ -197,14 +207,12 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             if elemType % 100 == 5:
                 # Find the element orientation
                 # > The first 8 points (indices) in elem are the CGNS-ordered vertices
-                vertices = np.array(tuple(pointl[i] for i in elem[:8]))
-
+                vertices = np.array([pointl[i] for i in elem[:8]])
                 # v[0] is origin, v[1] is local x-direction, v[2] is local y-direction, v[3] is local z-direction
                 # > This only works for trapezoidal elements
                 v        = [vertices[0], vertices[1]-vertices[0], vertices[3]-vertices[0], vertices[4]-vertices[0]]
-
                 # Compute the element center
-                center   = np.mean(np.array(tuple(pointl[i] for i in elem)), axis=0)
+                center   = np.mean(np.array([pointl[i] for i in elem]), axis=0)
 
                 match nGeo:
                     case 1:
@@ -216,46 +224,41 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         nPoints += 1
                     case 2:
                         # Generate the grid of new points
-                        edges    = np.zeros((8, 3))
                         signarr  = [-0.5, 0.5]
-                        count    = 0
-
-                        for k in signarr:
-                            for j in signarr:
-                                for i in signarr:
-                                    edges[count, :] = center + 0.5*i*v[1] + 0.5*j*v[2] + 0.5*k*v[3]
-                                    count += 1
-
+                        # Create a 3D grid of sign factors
+                        grid = np.array(np.meshgrid(signarr, signarr, signarr)).T.reshape(-1, 3)
+                        # Combine the grid with the directional vectors v[1], v[2], v[3]
+                        edge_array = center + 0.5 * (grid[:, 0][:, None] * v[1] +
+                                                     grid[:, 1][:, None] * v[2] +
+                                                     grid[:, 2][:, None] * v[3])
+                        # Convert all points to list in one go
+                        edges   = edge_array.tolist()
                         # Append the new points to the point list
-                        for edge in edges:
-                            pointl.append(edge.tolist())
+                        pointl.extend(edges)
 
                         # Overwrite the element with the new indices
                         elem     = np.array(list(elem) + list(range(nPoints, nPoints+8)))
-                        nPoints += count
+                        nPoints += edge_array.shape[0]
                     case 4:
                         # Generate the grid of new points
-                        edges   = np.zeros((64, 3))
                         signarr = [-3./4., -1./4., 1./4., 3./4.]
-                        count   = 0
-
-                        for k in signarr:
-                            for j in signarr:
-                                for i in signarr:
-                                    edges[count, :] = center + 0.5*i*v[1] + 0.5*j*v[2] + 0.5*k*v[3]
-                                    count += 1
-
+                        # Create a 3D grid of sign factors
+                        grid = np.array(np.meshgrid(signarr, signarr, signarr)).T.reshape(-1, 3)
+                        # Combine the grid with the directional vectors v[1], v[2], v[3]
+                        edge_array = center + 0.5 * (grid[:, 0][:, None] * v[1] +
+                                                     grid[:, 1][:, None] * v[2] +
+                                                     grid[:, 2][:, None] * v[3])
+                        # Convert all points to list in one go
+                        edges   = edge_array.tolist()
                         # Append the new points to the point list
-                        for edge in edges:
-                            pointl.append(edge.tolist())
+                        pointl.extend(edges)
 
                         # Overwrite the element with the new indices
-                        elem     = np.array(list(elem) + list(range(nPoints, nPoints+count)))
-                        nPoints += count
+                        elem     = np.array(list(elem) + list(range(nPoints, nPoints+8)))
+                        nPoints += edge_array.shape[0]
 
             # Split each element into sub-elements
             subElems = elem[elemSplit]
-
             for subElem in subElems:
                 subFaces = tuple(np.array(subElem)[face] for face in faces(nGeo))
 
@@ -263,24 +266,27 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                     faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
 
-                    for cnodes, cname in csets_old.items():
-                        # Face is not a subset of an existing boundary face
-                        if not faceSet.issubset(cnodes):
-                            continue
+                    # Get candidate cset keys using the nodes in the face
+                    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+                    if not candidate_sets:
+                        continue
 
-                        # For the first side on the BC, the dict does not exist
-                        if cname[0] not in csets_lst:
-                            csets_lst[cname[0]] = [[], []]
-                        csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
+                    common_candidates = set.intersection(*candidate_sets)
+                    for candidate in common_candidates:
+                        # Check if the subFace is indeed a subset of the candidate from csets_old
+                        if faceSet.issubset(candidate):
+                            # Use the associated boundary name
+                            # (Assuming all boundary names are stored in a list for this candidate. Adjust if needed.)
+                            names = csets_old[candidate]
+                            # Update csets_lst for each name in the list.
+                            for name in names:
+                                csets_lst.setdefault(name, [[], []])
+                                csets_lst[name][faceVal].append(nFaces[faceVal])
 
                     elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
                     nFaces[faceVal] += 1
 
-            if elemName not in elems_lst:
-                elems_lst[elemName] = []
-            # Append all rows from subElems
-            # elems_lst[elemName].extend(np.array(subElems, dtype=int).tolist())
-            elems_lst[elemName].extend(subElems)
+            elems_lst.setdefault(elemName, []).extend(subElems)
 
             # Update the progress bar
             bar.step()
@@ -293,7 +299,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     csets_new = {}
 
     for key in elems_lst:
-        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+        if isinstance(elems_lst[key], list) and elems_lst[key]:
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
         elif isinstance(elems_lst[key], list) and not elems_lst[key]:
