@@ -198,6 +198,8 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     nTotalElems = sum(cell.data.shape[0] for cell in meshcells)
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
+    elemSplitter = {'pyramid': (pyram_to_tet_split, pyram_to_tet_faces)}
+
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
 
@@ -205,7 +207,6 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
         if not ctype.startswith('pyramid'):
             continue
 
-        elemSplitter = {ctype: (pyram_to_tet_split, pyram_to_tet_faces)}
         splitElems, splitFaces = elemSplitter.get(ctype, (None, None))
 
         # Only process valid splits
@@ -216,33 +217,54 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
         subIdxs  = splitElems(order=nGeo)
         subFIdxs = splitFaces(order=nGeo)
 
-        # Iterate over element types
+        # Process each element in cell data
         for elem in cdata:
-            if not (np.all(np.array(points[elem])[:4, 1]==1.) or np.all(np.array(points[elem])[:4, 1]==2.)):
+            # Skip elements whose first 4 points do not meet the criteria
+            if not (np.all(np.array(points[elem])[:4, 1] == 1.) or np.all(np.array(points[elem])[:4, 1] == 2.)):
                 continue
 
             # Split each element into sub-elements
             subElems = elem[subIdxs]
 
+            # Initialize lists to collect deferred updates and new face indices
+            newBCFaces = []   # List of tuples (faceSet, cname, faceVal)
+            subFaces   = []   # List of tuples (faceSet, faceIndex) corresponding to new faces
+
+            # Process each sub-element
             for subElem in subElems:
+                # The new faces for this sub-element based on subFIdxs
                 newFaces = [subElem[face] for face in subFIdxs]
 
                 for subFace in newFaces:
+                    # Determine face type based on length criteria
                     faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
+                    # Record the current index of the new face
+                    currentFaceIndex = nFaces[faceVal]
+                    # Save the face key and its index for later deferred update merging
+                    subFaces.append((faceSet, currentFaceIndex))
 
+                    # Instead of immediately updating csets_lst, collect deferred updates
                     for cnodes, cname in csets_old.items():
                         if faceSet.issubset(cnodes):
-                            csets_lst.setdefault(cname[0], [[], []])
-                            csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
+                            # Defer the update for this face: note the combined name from csets_old
+                            newBCFaces.append((faceSet, cname[0], faceVal))
+
+                    # Add the new face to the appropriate element list and bump the face count
                     elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
                     nFaces[faceVal] += 1
 
+            # After processing all sub-elements, merge the deferred BC face updates
+            for newFace, faceName, faceVal in newBCFaces:
+                for subFace, faceIndex in subFaces:
+                    if subFace == newFace:
+                        csets_lst.setdefault(faceName, [[], []])
+                        csets_lst[faceName][faceVal].append(faceIndex)
+
             # Append the split tetrahedral sub-elements.
-            # If the destination key doesn't exist, initialize it first.
             elems_lst.setdefault(ElemType, []).extend(subElems)
 
-            # Update the progress bar
+            # Update the progress bar after processing this element
             bar.step()
 
     # Close the progress bar
