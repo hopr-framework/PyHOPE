@@ -27,8 +27,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 import traceback
-from functools import cache
 from collections import defaultdict
+from functools import cache
 from typing import Final, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -137,14 +137,15 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         for node in subFace:
             nodeToFace[node].add(subFace)
 
+    elemSplitter = { 'tetra': (tet_to_hex_points  , tet_to_hex_split  , tet_to_hex_faces  ),
+                     'wedge': (prism_to_hex_points, prism_to_hex_split, prism_to_hex_faces)}
+
     for cell in elems_old:
         ctype, cdata = cell.type, cell.data
 
-        # if ctype[:10] == 'hexahedron':
+        # if ctype.startswith('hexahedron'):
         #     continue
 
-        elemSplitter = { 'tetra': (tet_to_hex_points  , tet_to_hex_split  , tet_to_hex_faces  ),
-                         'wedge': (prism_to_hex_points, prism_to_hex_split, prism_to_hex_faces)}
         splitPoints, splitElems, splitFaces = elemSplitter.get(ctype, (None, None, None))
 
         # Only process valid splits
@@ -212,8 +213,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             for newFace, faceName in newBCFaces:
                 for subFace, faceIndex in subFaces:
                     if subFace == newFace:
-                        if faceName not in csets_lst:
-                            csets_lst[faceName] = [[], []]
+                        csets_lst.setdefault(faceName, [[], []])
                         csets_lst[faceName][faceVal].append(faceIndex)
 
             # Hardcode hexahedron elements

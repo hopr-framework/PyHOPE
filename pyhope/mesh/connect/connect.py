@@ -252,7 +252,7 @@ def ConnectMesh() -> None:
     csets:  Final[dict]       = mesh.cell_sets
     cdict:  Final[dict]       = mesh.cells_dict
 
-    bar = ProgressBar(value=len(sides), title='│                Processing Sides')
+    bar = ProgressBar(value=len(sides), title='│                 Preparing Sides')
 
     # Map sides to BC
     # > Create a dict containing only the face corners
@@ -283,6 +283,7 @@ def ConnectMesh() -> None:
     csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
                              for key, cset in csets.items()}
 
+    bar.title('│                Processing Sides')
     for key, cset in csets.items():
         # Check if the set is a BC
         bcID = find_bc_index(bcs, key)

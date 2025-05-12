@@ -82,6 +82,7 @@ def SortMeshBySFC() -> None:
     from hilbertcurve.hilbertcurve import HilbertCurve
     from pyhope.common.common_vars import np_mtp
     from pyhope.mesh.mesh_common import calc_elem_bary
+    from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     import numpy as np
@@ -93,13 +94,16 @@ def SortMeshBySFC() -> None:
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
+    totalElems = len(elems)
+    bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
+
     # Global bounding box
     points = mesh.points
     xmin = np.min(points, axis=0)
     xmax = np.max(points, axis=0)
 
     # Calculate the element barycenters and associated element offsets
-    elem_bary = calc_elem_bary(elems)
+    elem_bary  = calc_elem_bary(elems)
 
     # Calculate the space-filling curve resolution for the given KIND
     kind = 4
@@ -110,12 +114,15 @@ def SortMeshBySFC() -> None:
 
     # Generate the space-filling curve and order elements along it
     hc             = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
+
     distances      = np.array(hc.distances_from_points(elem_disc))  # bottleneck
     sorted_indices = np.argsort(distances)
 
     # Initialize sorted cells
     sorted_elems   = tuple(elems[i] for i in sorted_indices)
     sorted_sides   = []
+
+    bar.title('│             Processing Elements')
 
     # Overwrite the elem/side IDs
     offsetSide = 0
@@ -133,9 +140,13 @@ def SortMeshBySFC() -> None:
         nSides      = len(elem.sides)
         elem.sides  = list(range(offsetSide, offsetSide + nSides))
         offsetSide += nSides
+        bar.step()
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
+
+    # Close the progress bar
+    bar.close()
 
 
 def SortMeshByIJK() -> None:
@@ -143,6 +154,7 @@ def SortMeshByIJK() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along I,J,K direction')
@@ -222,6 +234,9 @@ def SortMeshByIJK() -> None:
     hopout.info(' Number of structured dirs      : {}'.format(nStructDirs))
     hopout.info(' Number of elems [I,J,K]        : {}'.format(nElemsIJK))
 
+    totalElems = len(elems)
+    bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
+
     # Now sort the elements based on z, y, then x coordinates
     intList        = (intCoords[:, 2] * 10000 + intCoords[:, 1]) * 10000 + intCoords[:, 0]
     sorted_indices = np.argsort(intList)
@@ -229,6 +244,8 @@ def SortMeshByIJK() -> None:
     # Initialize sorted cells
     sorted_elems   = [elems[i] for i in sorted_indices]
     sorted_sides   = []
+
+    bar.title('│             Processing Elements')
 
     # Overwrite the elem/side IDs
     offsetSide = 0
@@ -246,9 +263,12 @@ def SortMeshByIJK() -> None:
         nSides      = len(elem.sides)
         elem.sides  = list(range(offsetSide, offsetSide + nSides))
         offsetSide += nSides
+        bar.step()
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
+
+    bar.close()
 
 
 def SortMesh() -> None:
