@@ -182,7 +182,8 @@ class ELEM:
     sides       : Optional[Union[list, np.ndarray]] = None
     nodes       : Optional[            np.ndarray]  = None
     # FEM connectivity
-    vertexInfo  : Optional[Dict[int, Tuple[int, Tuple[int, ...]]]] = None
+    edgeInfo    : Optional[Dict[int, Tuple[int, int | None, Tuple[int, ...]]]] = None
+    vertexInfo  : Optional[Dict[int, Tuple[int,             Tuple[int, ...]]]] = None
 
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
