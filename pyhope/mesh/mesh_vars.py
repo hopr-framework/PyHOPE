@@ -28,7 +28,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cache
-from typing import Final, Optional, Union, final
+from typing import Dict, Final, Optional, Union, Tuple, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -57,8 +57,10 @@ sides    : list[type | None]                      # [list of list] - Side    nod
 # Periodic nodes
 periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
 
+# Mesh curving
 already_curved: bool                              # Flag if mesh is already curved
 
+# Mesh connectitivity
 doMortars: bool                                   # Flag if mortars are enabled
 doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
 
@@ -179,6 +181,8 @@ class ELEM:
     elemID      : Optional[int]  = None
     sides       : Optional[Union[list, np.ndarray]] = None
     nodes       : Optional[            np.ndarray]  = None
+    # FEM connectivity
+    vertexInfo  : Optional[Dict[int, Tuple[int, Tuple[int, ...]]]] = None
 
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
