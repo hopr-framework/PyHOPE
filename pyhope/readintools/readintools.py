@@ -474,12 +474,18 @@ class ReadConfig():
 
         with open(self.parameter, 'r', encoding='utf-8') as stream:
             for line in stream:
-                line = line.strip()
+                # Remove all whitespaces
+                line = ''.join(line.split())
 
                 # HOPR supported inline comments as prefix before '%'
                 # For legacy reasons also support such comment constructs
                 if '%' in line:
                     line = line.split('%', 1)[1].strip()
+
+                # Split of [#, ;, !] comments
+                for symbol in self.sym_comm:
+                    if symbol in line:
+                        line = line.split(symbol, 1)[0].strip()
 
                 # HOPR supported inline variable definitions with prefix 'DEFVAR='
                 # For legacy reasons also support such variable definition constructs
@@ -490,7 +496,7 @@ class ReadConfig():
                     parts = line.split(':')
 
                     var_type_part = parts[0].replace('DEFVAR=', '').strip()
-                    var_def_part = parts[1].strip()
+                    var_def_part  = parts[1].strip()
 
                     # Check if comment is in value part
                     for symbol in self.sym_comm:
