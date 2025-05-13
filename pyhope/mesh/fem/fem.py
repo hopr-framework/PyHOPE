@@ -57,7 +57,7 @@ def FEMConnect() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetLogical
-    from pyhope.mesh.mesh_common import edge_to_corner
+    from pyhope.mesh.mesh_common import edges, edge_to_corner
     # ------------------------------------------------------
 
     if CountOption('doFEMConnect') == 0:
@@ -82,8 +82,8 @@ def FEMConnect() -> None:
     # Build mapping of each node -> set of element indices that include that node.
     nodeToElements = defaultdict(set)
     for idx, elem in enumerate(elems):
-        for node in (int(n) for n in elem.nodes):
-            nodeToElements[node].add(idx)
+        for n in elem.nodes:
+            nodeToElements[int(n)].add(idx)
 
     # Precompute combined connectivity for each node
     # > For a given node, the combined set is:
@@ -93,8 +93,8 @@ def FEMConnect() -> None:
 
     # Collect all unique canonical vertices from every element
     # > The canonical vertex is the minimum of the node and its periodic counterpart
-    canonicalSet = { min(node, periDict.get(node, node)) for elem in elems
-                                                         for node in map(int, elem.nodes[:elem.type % 100])}
+    canonicalSet = { min(int(node), periDict.get(int(node), int(node))) for elem in elems
+                                                                        for node in elem.nodes[:(elem.type % 100)]}
 
     # Create a mapping from each canonical vertex to a unique index
     # > FEMVertexID starts at 1
@@ -118,17 +118,18 @@ def FEMConnect() -> None:
         # > Loop over all edges of an element
         # for iEdge, edge in enumerate(edge_to_corner):
         edgeInfo: Dict[int, Tuple[int, int | None, Tuple[int, ...], Tuple[int, ...]]] = {}
-        for iEdge in range(12):
-            edge = edge_to_corner(iEdge, elem.type)
+        for iEdge in edges(elem.type):
             # Get the nodes of the edge
+            edge        = edge_to_corner(iEdge, elem.type)
             edge        = tuple(int(s) for s in elem.nodes[edge])
             # Determine canonical vertex ID
             canonical   = [min(edge[s], cast(int, periDict.get(edge[s], edge[s]))) for s in range(2)]
             # Get the FEM vertex ID
-            FEMVertexID = [FEMNodeMapping[c] for c in canonical]
+            FEMVertexID = tuple(FEMNodeMapping[c] for c in canonical)
             # Set the edge connectivity for the element
-            # > Sort the edge in ascending order
-            edgeInfo[iEdge] = (iEdge, None, tuple((FEMVertexID)), edge)
+            # > FEMVertexID is unsorted as it contains the global orientation of the edge
+            edgeInfo[iEdge] = (iEdge, None, FEMVertexID, edge)
+        # Set the edge information for the element
         elem.edgeInfo = edgeInfo
 
 
@@ -261,14 +262,14 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
                     elems[nbElem].edgeInfo[nbLocEdge] = tuple(e)
 
             # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
-            orientation =  1 if masterEdgeNodes[0] < masterEdgeNodes[1] else -1
+            orientation =  1 if nodeInfo[masterEdgeNodes[0]] < nodeInfo[masterEdgeNodes[1]] else -1
             # Current edge is a slave edge, check our relative orientation
             if masterID != -1:
                 # Check if the edge is oriented in the same direction
                 orientation = orientation if masterEdge[0] == edge[0] else -orientation
 
             edgeConn = []
-            for iConn, (nbElem, nbEdgeIdx, nbLocEdge, nbEdge, nbEdgeNodes) in enumerate(connections):
+            for iConn, (nbElem, _, nbLocEdge, nbEdge, _) in enumerate(connections):
                 # The current edge is the master
                 if masterID == -1:
                     orientedElemID  = -(nbElem   +1)
@@ -321,7 +322,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
     vertexInfo = np.array(vertexInfoList, dtype=np.int32)
     vertexConn = np.array(vertexConnList, dtype=np.int32) if vertexConnList else np.array((0, 2), dtype=np.int32)
 
-    edgeInfo   = np.array(edgeInfoList, dtype=np.int32)
-    edgeConn   = np.array(edgeConnList, dtype=np.int32)   if edgeConnList   else np.array((0, 2), dtype=np.int32)  # noqa: E272
+    edgeInfo   = np.array(edgeInfoList  , dtype=np.int32)
+    edgeConn   = np.array(edgeConnList  , dtype=np.int32) if edgeConnList   else np.array((0, 2), dtype=np.int32)  # noqa: E272
 
     return FEMElemInfo, vertexInfo, vertexConn, edgeInfo, edgeConn

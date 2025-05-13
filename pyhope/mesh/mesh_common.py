@@ -48,7 +48,7 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 @cache
 def faces(elemType: Union[int, str]) -> list[str]:
-    """ Return a list of all sides of a hexahedron
+    """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron
                    4: ['z-', 'y-', 'x+', 'x-'            ],
@@ -67,6 +67,29 @@ def faces(elemType: Union[int, str]) -> list[str]:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
     return faces_map[elemType % 100]
+
+
+@cache
+def edges(elemType: Union[int, str]) -> list[int]:
+    """ Return a list of all edges of an element
+    """
+    edges_map = {  # Tetrahedron
+                   4: [0, 1, 2, 3, 4, 5],
+                   # Pyramid
+                   5: [0, 1, 2, 3, 4, 5, 6, 7],
+                   # Wedge / Prism
+                   6: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                   # Hexahedron
+                   8: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                }
+
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
+
+    if elemType % 100 not in edges_map:
+        raise ValueError(f'Error in edges: elemType {elemType} is not supported')
+
+    return edges_map[elemType % 100]
 
 
 @cache

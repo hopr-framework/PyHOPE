@@ -364,7 +364,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
         FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = getFEMInfo(nodeInfo)
     else:
-        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = None, None, None
+        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = [None for _ in range(5)]
 
     return elemInfo, sideInfo, nodeInfo, nodeCoords, \
            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
