@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import math
 import sys
 import traceback
 from collections import defaultdict
@@ -41,6 +42,12 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+def copysign_int(x: int, y: int) -> int:
+    """ Return a int with the magnitude (absolute value) of x but the sign of y
+    """
+    return int(math.copysign(x, y))
 
 
 def FEMConnect() -> None:
@@ -110,28 +117,26 @@ def FEMConnect() -> None:
         # Build the edge connectivity
         # > Loop over all edges of an element
         # for iEdge, edge in enumerate(edge_to_corner):
-        edgeInfo: Dict[int, Tuple[int, int | None, Tuple[int, ...]]] = {}
+        edgeInfo: Dict[int, Tuple[int, int | None, Tuple[int, ...], Tuple[int, ...]]] = {}
         for iEdge in range(12):
-            edge = edge_to_corner(iEdge, 108)
+            edge = edge_to_corner(iEdge, elem.type)
             # Get the nodes of the edge
-            edge = elem.nodes[edge]
+            edge        = tuple(int(s) for s in elem.nodes[edge])
             # Determine canonical vertex ID
-            canonical  = [min(edge[s], cast(int, periDict.get(edge[s], edge[s]))) for s in range(2)]
+            canonical   = [min(edge[s], cast(int, periDict.get(edge[s], edge[s]))) for s in range(2)]
             # Get the FEM vertex ID
-            FEMVertexID  = [FEMNodeMapping[c] for c in canonical]
+            FEMVertexID = [FEMNodeMapping[c] for c in canonical]
             # Set the edge connectivity for the element
             # > Sort the edge in ascending order
-            edgeInfo[iEdge] = (iEdge, None, tuple((FEMVertexID)))
+            edgeInfo[iEdge] = (iEdge, None, tuple((FEMVertexID)), edge)
         elem.edgeInfo = edgeInfo
-    # for idx, elem in enumerate(elems):
-    #     print(f'Element {idx}: {elem.nodes} -> {elem.vertexInfo}')
-
-    # sys.exit()
 
 
 def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
                                               np.ndarray,  # VertexInfo
-                                              np.ndarray   # VertexConnectInfo
+                                              np.ndarray,  # VertexConnectInfo
+                                              np.ndarray,  # EdgeInfo
+                                              np.ndarray   # EdgeConnectInfo
                                              ]:
     """ Extract the FEM connectivity information and return four arrays
 
@@ -149,9 +154,9 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
 
     # Check if elements contain FEM connectivity
     if not hasattr(elems[0], 'vertexInfo') or elems[0].vertexInfo is None:
-        return np.array([]), np.array([]), np.array([])
+        return np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
 
-    # Vertex connectivity information
+    # Vertex connectivity info ---------------------------------------------------
     # > Build list of all vertex occurrences, appearing in the same order as the elements
     occList = [(FEMVertexID, elemID, locNode) for elemID , elem             in enumerate(elems)  # noqa: E272
                                               for locNode, (FEMVertexID, _) in elem.vertexInfo.items()]
@@ -168,11 +173,6 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
     vertexConnList = []  # List: [[nbElemID, nbLocVertexID]]
     vertexOffset   = 0
     occGlobalIdx   = 0   # global index in occList
-
-    edgeInfoList   = []  # List: [FEMEdgeID  , offsetIndEdgeConnect  , lastIndEdgeConnect]
-    edgeConnList   = []  # List: [[nbElemID, nbLocEdgeID]]
-    # edgeOffset     = 0
-    edgGlobalIdx   = 0   # global edge index
 
     for elemID, elem in enumerate(elems):
         # Process vertex occurrences for the current element
@@ -204,8 +204,14 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
         FEMElemInfo[elemID, 3] = vertexOffset + len(elem.vertexInfo)
         vertexOffset += len(elem.vertexInfo)
 
+    # Edge   connectivity info ---------------------------------------------------
+    edgeInfoList   = []  # List: [FEMEdgeID  , offsetIndEdgeConnect  , lastIndEdgeConnect]
+    edgeConnList   = []  # List: [[nbElemID, nbLocEdgeID]]
+    edgGlobalIdx   = 0   # global edge index
+
+    for elemID, elem in enumerate(elems):
         # Process edge occurrences for the current element
-        for iEdge, (locEdge, edgeIdx, edge) in enumerate(elem.edgeInfo.values()):
+        for iEdge, (locEdge, edgeIdx, edge, edgeNodes) in enumerate(elem.edgeInfo.values()):
             # Get the elements connected to both edge nodes
             groupOcc  = [groups[e] for e in edge]
             offset    = len(edgeConnList)
@@ -214,75 +220,76 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
             edgeElems = set([e[1]  for g in groupOcc for e in g])  # noqa: E272
 
             # Build connectivity list for current element, excluding the current edge
-            connections = [(nbElem, nbEdgeIdx, nbLocEdge, nbEdge) for nbElem                         in edgeElems  # noqa: E272
-                                                                  for (nbLocEdge, nbEdgeIdx, nbEdge) in elems[nbElem].edgeInfo.values()
+            connections = [(nbElem, nbEdgeIdx, nbLocEdge, nbEdge, nbEdgeNodes)
+                           for nbElem                                      in edgeElems                            # noqa: E272
+                           for (nbLocEdge, nbEdgeIdx, nbEdge, nbEdgeNodes) in elems[nbElem].edgeInfo.values()      # noqa: E272
                            if set(nbEdge) == set(edge) and (nbLocEdge != locEdge or nbElem != elem.elemID)]
 
             if connections:
                 # Sanity check, all edge should have the same global index
-                if edgeIdx is None:
-                    if any(e is not None for (_, e, _, _) in connections):
+                if ((edgeIdx is     None and any(     e  is not None for (_, e, _, _, _) in connections)) or       # noqa: E271, E272
+                    (edgeIdx is not None and len({abs(e)             for (_, e, _, _, _) in connections}) != 1)):  # noqa: E271, E272
+                    hopout.warning('FEMConnect: Inconsistent edge global index')
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit(1)
+
+            # Check if the edges already have an global index
+            if edgeIdx is not None:
+                # Check if the current edge is the master edge
+                if edgeIdx > 0:  # master edge
+                    masterID, masterEdge, masterEdgeNodes = -1, edge, edgeNodes
+                else:            # slave edge
+                    # Find the master edge among the connections
+                    masterID = [i for i in range(len(connections)) if connections[i][1] > 0]
+                    if len(masterID) != 1:
                         hopout.warning('FEMConnect: Inconsistent edge global index')
                         traceback.print_stack(file=sys.stdout)
                         sys.exit(1)
+                    masterID = masterID[0]
+                    masterID, masterEdge, masterEdgeNodes = masterID, *connections[masterID][3:5]
+            # Otherwise, the current edge is the master edge and the others are slave edges
+            else:
+                edgGlobalIdx   +=  1
+                edgeIdx         = edgGlobalIdx
+                masterID, masterEdge, masterEdgeNodes = -1, edge, edgeNodes
+                # Set the current edge as master edge
+                elem.edgeInfo[iEdge] = (locEdge, edgGlobalIdx, edge, edgeNodes)
+                # Set the global index for the other edges
+                for nbElem, _, nbLocEdge, _, _ in connections:
+                    e = list(elems[nbElem].edgeInfo[nbLocEdge])
+                    e[1] = -edgGlobalIdx
+                    elems[nbElem].edgeInfo[nbLocEdge] = tuple(e)
+
+            # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
+            orientation =  1 if masterEdgeNodes[0] < masterEdgeNodes[1] else -1
+            # Current edge is a slave edge, check our relative orientation
+            if masterID != -1:
+                # Check if the edge is oriented in the same direction
+                orientation = orientation if masterEdge[0] == edge[0] else -orientation
+
+            edgeConn = []
+            for iConn, (nbElem, nbEdgeIdx, nbLocEdge, nbEdge, nbEdgeNodes) in enumerate(connections):
+                # The current edge is the master
+                if masterID == -1:
+                    orientedElemID  = -(nbElem   +1)
+                    orientedLocEdge =   nbLocEdge+1 if nbEdge   == masterEdge               else -(nbLocEdge+1)  # noqa: E272
+
+                # The master edge is one of the connections, indicated by masterID
                 else:
-                    if len(set(abs(e) for (_, e, _, _) in connections)) != 1:
-                        hopout.warning('FEMConnect: Inconsistent edge global index')
-                        traceback.print_stack(file=sys.stdout)
-                        sys.exit(1)
+                    orientedElemID  =   nbElem   +1 if masterID == iConn                    else -(nbElem   +1)  # noqa: E272
+                    orientedLocEdge =   nbLocEdge+1 if nbEdge   == connections[masterID][3] else -(nbLocEdge+1)
 
-                # Check if the edges already have an global index
-                if edgeIdx is not None:
-                    # Check if the current edge is the master edge
-                    if edgeIdx > 0:  # master edge
-                        masterID   = -1
-                        masterEdge = edge
-                    else:            # slave edge
-                        # Find the master edge among the connections
-                        masterID   = [i for i in range(len(connections)) if connections[i][1] > 0]
-                        if len(masterID) != 1:
-                            hopout.warning('FEMConnect: Inconsistent edge global index')
-                            traceback.print_stack(file=sys.stdout)
-                            sys.exit(1)
-                        masterID   = masterID[0]
-                        masterEdge = connections[masterID][3]
-                # Otherwise, the current edge is the master edge and the others are slave edges
-                else:
-                    edgGlobalIdx +=  1
-                    masterID      = -1
-                    masterEdge    = edge
-                    # Set the current edge as master edge
-                    elem.edgeInfo[iEdge] = (locEdge, edgGlobalIdx, edge)
-                    # Set the global index for the other edges
-                    for nbElem, _, nbLocEdge, _ in connections:
-                        e = list(elems[nbElem].edgeInfo[nbLocEdge])
-                        e[1] = -edgGlobalIdx
-                        elems[nbElem].edgeInfo[nbLocEdge] = tuple(e)
+                # Append the edge connectivity
+                edgeConn.append([orientedElemID, orientedLocEdge])
 
-                # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
-
-                edgeConn = []
-                for iConn, (nbElem, nbEdgeIdx, nbLocEdge, nbEdge) in enumerate(connections):
-                    # The current edge is the master
-                    if masterID == -1:
-                        orientedElemID  = -(nbElem+1)
-                        orientedLocEdge =   nbLocEdge if nbEdge == masterEdge               else -nbLocEdge  # noqa: E272
-
-                    # The master edge is one of the connections, indicated by masterID
-                    else:
-                        orientedElemID  =   nbElem+1 if masterID == iConn else -(nbElem+1)
-                        orientedLocEdge =   nbLocEdge if nbEdge == connections[masterID][3] else -nbLocEdge
-
-                    # Append the edge connectivity
-                    edgeConn.append([orientedElemID, orientedLocEdge])
-
+            if connections:
                 lastIndex = offset + len(edgeConn)
                 edgeConnList.extend(edgeConn)
             else:  # No connections
                 lastIndex = offset
 
             # Append edge information
-            edgeInfoList.append([edge, offset, lastIndex])
+            edgeInfoList.append([copysign_int(edgeIdx, orientation), offset, lastIndex])
 
     # INFO: Same output as above but looping over the occurrences
     # for occIdx, (FEMVertexId, elemID, locNode) in enumerate(occList):
@@ -314,4 +321,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
     vertexInfo = np.array(vertexInfoList, dtype=np.int32)
     vertexConn = np.array(vertexConnList, dtype=np.int32) if vertexConnList else np.array((0, 2), dtype=np.int32)
 
-    return FEMElemInfo, vertexInfo, vertexConn
+    edgeInfo   = np.array(edgeInfoList, dtype=np.int32)
+    edgeConn   = np.array(edgeConnList, dtype=np.int32)   if edgeConnList   else np.array((0, 2), dtype=np.int32)  # noqa: E272
+
+    return FEMElemInfo, vertexInfo, vertexConn, edgeInfo, edgeConn

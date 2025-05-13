@@ -104,7 +104,7 @@ def IO() -> None:
             fname = '{}_mesh.h5'.format(pname)
 
             elemInfo, sideInfo, nodeInfo, nodeCoords, \
-            FEMElemInfo, vertexInfo, vertexConnectInfo, \
+            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
             elemCounter = getMeshInfo()
 
             # Print the final output
@@ -137,6 +137,8 @@ def IO() -> None:
                     _ = f.create_dataset('FEMElemInfo'       , data=FEMElemInfo)
                     _ = f.create_dataset('VertexInfo'        , data=vertexInfo)
                     _ = f.create_dataset('VertexConnectInfo' , data=vertexConnectInfo)
+                    _ = f.create_dataset('EdgeInfo'          , data=edgeInfo)
+                    _ = f.create_dataset('EdgeConnectInfo'   , data=edgeConnectInto)
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
@@ -205,6 +207,8 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray | None,  # Optional[FEMElemInfo]
                            np.ndarray | None,  # Optional[VertexInfo]
                            np.ndarray | None,  # Optional[VertexConnectInfo]
+                           np.ndarray | None,  # Optional[EdgeInfo]
+                           np.ndarray | None,  # Optional[EdgeConnectInfo]
                            dict[int, int]
                           ]:
     # Local imports ----------------------------------------
@@ -358,10 +362,10 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         nodeCount += nElemNodes
 
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
-        FEMElemInfo, vertexInfo, vertexConnectInfo = getFEMInfo(nodeInfo)
+        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = getFEMInfo(nodeInfo)
     else:
-        FEMElemInfo, vertexInfo, vertexConnectInfo = None, None, None
+        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = None, None, None
 
     return elemInfo, sideInfo, nodeInfo, nodeCoords, \
-           FEMElemInfo, vertexInfo, vertexConnectInfo, \
+           FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
            elemCounter
