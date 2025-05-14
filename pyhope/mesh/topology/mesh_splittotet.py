@@ -54,10 +54,10 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
-    from pyhope.mesh.mesh_vars import nGeo,ELEMTYPE
+    from pyhope.mesh.mesh_vars import nGeo
     # ------------------------------------------------------
 
-    if not GetLogical('doSplitToTet') and nGeo!=2:
+    if not GetLogical('doSplitToTet'):  # and nGeo!=2:
         return mesh
 
     if not any(key.startswith('pyramid') for key in mesh.cells_dict):
@@ -113,74 +113,100 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     faceMaper = {5: lambda x: 0 if x == 0 else 1}
     nFace     = (nGeo+1)*(nGeo+2)/2
     faceMap   = faceMaper.get(5, None)
+    # Sanity check
+    if faceMap is None:
+        sys.exit(1)
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
     csets_lst = {}
 
+    # Hardcode element types
     ElemType = 'tetra'
     ElemType += '' if nGeo == 1 else str(NDOFperElemType('tetra', nGeo))
-    oldFIdxs = {ftype: [] for ftype in ELEMTYPE.type.keys()}
+
+    # Prepare face-index functions based on the cell type
+    faceIdxFuncs = {
+        'hexahedron': lambda: hexa_faces( order=nGeo),  # noqa: E272
+        'wedge':      lambda: prism_faces(order=nGeo),  # noqa: E272
+        'pyramid':    lambda: pyram_faces(order=nGeo),  # noqa: E272
+        'tetra':      lambda: tetra_faces(order=nGeo)   # noqa: E272
+    }
+
+    # Build an inverted index to map each node to all face keys (from csets_old) that contain it
+    # nodeToFace = defaultdict(set)
+    # for subFace in csets_old:
+    #     for node in subFace:
+    #         nodeToFace[node].add(subFace)
+
+    # Build old face indices for each cell type based on mesh.cells_dict
+    oldFIdxs = {}
     for key in mesh.cells_dict:
-      if key.startswith('hexahedron'):
-        oldFIdxs[key] = hexa_faces(order=nGeo)
-      if key.startswith('wedge'):
-        oldFIdxs[key] = prism_faces(order=nGeo)
-      if key.startswith('pyramid'):
-        oldFIdxs[key] = pyram_faces(order=nGeo)
-      if key.startswith('tetra'):
-        ElemType = key
-        oldFIdxs[key] = tetra_faces(order=nGeo)
+        for etype, func in faceIdxFuncs.items():
+            if key.startswith(etype):
+                oldFIdxs[key] = func()
+                break
+
+    # Build an inverted index to map each node to all face keys (from csets_old) that contain it
+    nodeToFace = defaultdict(set)
+    for subFace in csets_old:
+        for node in subFace:
+            nodeToFace[node].add(subFace)
 
     # Sort out all pyramids
-    for cell in mesh.cells:
+    for cell in elems_old:
         ctype, cdata = cell.type, cell.data
 
-        if ctype[:8] == 'triangle' or ctype[:4] == 'quad':
-            continue
-
-        if ctype[:7] == 'pyramid':
+        if ctype.startswith('triangle') or ctype.startswith('quad'):
             continue
 
         # Iterate over element types
         for elem in cdata:
-            nodes    = np.array(elem.tolist(), dtype=int)
+            # For pyramids that are meant to be split later, skip elements with all first 4 points having y==1 or 2
+            if ctype.startswith('pyramid'):
+                pts = np.array(points[elem])
+                if np.all(pts[:4, 1] == 1.) or np.all(pts[:4, 1] == 2.):
+                    continue
 
-            if ctype not in elems_lst:
-                elems_lst[ctype] = []
-            elems_lst[ctype].append(elem)
+            nodes = np.array(elem.tolist(), dtype=int)
+            elems_lst.setdefault(ctype, []).append(elem)
 
             oldFaces = [nodes[oldFIdx] for oldFIdx in oldFIdxs[ctype]]
+
+            # Compute the boundary faces for the element using precomputed face indices
+            currentFaceIdxs = oldFIdxs[ctype]
+            oldFaces = [nodes[idx] for idx in currentFaceIdxs]
 
             for subFace in oldFaces:
                 faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                 faceSet = frozenset(subFace)
 
-                for cnodes, cname in csets_old.items():
-                    # Face is not a subset of an existing boundary face
-                    if not faceSet.issubset(cnodes):
-                        continue
-
-                    # For the first side on the BC, the dict does not exist
-                    if cname[0] not in csets_lst:
-                        csets_lst[cname[0]] = [[], []]
-                    csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
-
+                # Use the inverted index to efficiently narrow down candidate boundary face definitions.
+                candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+                if candidate_sets:
+                    common_candidates = set.intersection(*candidate_sets)
+                    for candidate in common_candidates:
+                        if faceSet.issubset(candidate):
+                            for name in csets_old[candidate]:
+                                csets_lst.setdefault(name, [[], []])
+                                csets_lst[name][faceVal].append(nFaces[faceVal])
                 elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
                 nFaces[faceVal] += 1
 
     # Create the element sets
-    meshcells   = [(k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('pyramid') for key in v.keys())]
-    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    meshcells = [cell for cell in mesh.cells if cell.type.startswith('pyramid')]
+    nTotalElems = sum(cell.data.shape[0] for cell in meshcells)
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
+
+    elemSplitter = {'pyramid': (pyram_to_tet_split, pyram_to_tet_faces)}
 
     for cell in mesh.cells:
         ctype, cdata = cell.type, cell.data
 
-        if ctype[:7] != 'pyramid':
+        # Only process pyramids for splitting
+        if not ctype.startswith('pyramid'):
             continue
 
-        elemSplitter = {ctype: (pyram_to_tet_split, pyram_to_tet_faces)}
         splitElems, splitFaces = elemSplitter.get(ctype, (None, None))
 
         # Only process valid splits
@@ -191,37 +217,54 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
         subIdxs  = splitElems(order=nGeo)
         subFIdxs = splitFaces(order=nGeo)
 
-        # Iterate over element types
+        # Process each element in cell data
         for elem in cdata:
+            # Skip elements whose first 4 points do not meet the criteria
+            if not (np.all(np.array(points[elem])[:4, 1] == 1.) or np.all(np.array(points[elem])[:4, 1] == 2.)):
+                continue
+
             # Split each element into sub-elements
             subElems = elem[subIdxs]
 
+            # Initialize lists to collect deferred updates and new face indices
+            newBCFaces = []   # List of tuples (faceSet, cname, faceVal)
+            subFaces   = []   # List of tuples (faceSet, faceIndex) corresponding to new faces
+
+            # Process each sub-element
             for subElem in subElems:
+                # The new faces for this sub-element based on subFIdxs
                 newFaces = [subElem[face] for face in subFIdxs]
 
                 for subFace in newFaces:
+                    # Determine face type based on length criteria
                     faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     faceSet = frozenset(subFace)
+                    # Record the current index of the new face
+                    currentFaceIndex = nFaces[faceVal]
+                    # Save the face key and its index for later deferred update merging
+                    subFaces.append((faceSet, currentFaceIndex))
 
+                    # Instead of immediately updating csets_lst, collect deferred updates
                     for cnodes, cname in csets_old.items():
-                        # Face is not a subset of an existing boundary face
-                        if not faceSet.issubset(cnodes):
-                            continue
+                        if faceSet.issubset(cnodes):
+                            # Defer the update for this face: note the combined name from csets_old
+                            newBCFaces.append((faceSet, cname[0], faceVal))
 
-                        # For the first side on the BC, the dict does not exist
-                        if cname[0] not in csets_lst:
-                            csets_lst[cname[0]] = [[], []]
-                        csets_lst[cname[0]][faceVal].append(nFaces[faceVal])
-
+                    # Add the new face to the appropriate element list and bump the face count
                     elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
                     nFaces[faceVal] += 1
 
-            if not any(key.startswith('tetra') for key in elems_lst):
-                elems_lst[ElemType] = []
-            # Append all rows from subElems
-            elems_lst[ElemType].extend(subElems)
+            # After processing all sub-elements, merge the deferred BC face updates
+            for newFace, faceName, faceVal in newBCFaces:
+                for subFace, faceIndex in subFaces:
+                    if subFace == newFace:
+                        csets_lst.setdefault(faceName, [[], []])
+                        csets_lst[faceName][faceVal].append(faceIndex)
 
-            # Update the progress bar
+            # Append the split tetrahedral sub-elements.
+            elems_lst.setdefault(ElemType, []).extend(subElems)
+
+            # Update the progress bar after processing this element
             bar.step()
 
     # Close the progress bar
@@ -252,6 +295,7 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.sep()
 
     return mesh
+
 
 @cache
 def hexa_faces(order: int) -> list[np.ndarray]:
@@ -292,6 +336,7 @@ def hexa_faces(order: int) -> list[np.ndarray]:
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
 
+
 @cache
 def tetra_faces(order: int) -> list[np.ndarray]:
     """
@@ -317,6 +362,7 @@ def tetra_faces(order: int) -> list[np.ndarray]:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
+
 
 @cache
 def pyram_faces(order: int) -> list[np.ndarray]:
@@ -352,6 +398,7 @@ def pyram_faces(order: int) -> list[np.ndarray]:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
+
 
 @cache
 def prism_faces(order: int) -> list[np.ndarray]:
@@ -431,6 +478,7 @@ def pyram_to_tet_split(order: int) -> list[tuple]:
             print('Order {} not supported for element splitting'.format(order))
             traceback.print_stack(file=sys.stdout)
             sys.exit(1)
+
 
 @cache
 def NDOFperElemType(elemType: str, nGeo: int) -> int:

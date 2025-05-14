@@ -212,7 +212,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 # v[0] is origin, v[1] is local x-direction, v[2] is local y-direction, v[3] is local z-direction
                 # > This only works for trapezoidal elements
                 v        = [vertices[0], vertices[1]-vertices[0], vertices[3]-vertices[0], vertices[4]-vertices[0]]
-
                 # Compute the element center
                 center   = np.mean(np.array([pointl[i] for i in elem]), axis=0)
 
@@ -262,7 +261,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Split each element into sub-elements
             subElems = elem[elemSplit]
-
             for subElem in subElems:
                 subFaces = tuple(np.array(subElem)[face] for face in faces(nGeo))
 
@@ -303,7 +301,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     csets_new = {}
 
     for key in elems_lst:
-        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
+        if isinstance(elems_lst[key], list) and elems_lst[key]:
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
         elif isinstance(elems_lst[key], list) and not elems_lst[key]:
