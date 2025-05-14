@@ -86,7 +86,7 @@ class CommandLine:
                 self.helpjoin(separator())
                 continue
 
-            if config.prms[key]['default']:
+            if config.prms[key]['default'] is not None:
                 default = config.prms[key]['default']
             else:
                 default = ''
