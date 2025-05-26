@@ -7,12 +7,29 @@ PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.co
 This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
 
 # Installation
-PyHOPE is built using standard Python packages. It is recommended to use a virtual environment for installation. The following commands create a virtual environment, here called `venv`, and install all required packages.
-```
-python -m venv venv
-source venv/bin/activate
-python -m pip install pyhope
-```
+PyHOPE is built using standard Python packages. You can install PyHOPE by following these steps. 
+
+1.  **Optional: Create and activate a virtual environment**  
+    Creating a virtual environment is a recommended practice to manage project dependencies. It isolates the packages required for PyHOPE and prevents potential conflicts between different package versions. To create and activate a virtual environment named `venv`, use the following commands.
+    ```bash
+    python -m venv venv
+    source venv/bin/activate
+    ```
+    If you choose not to use a virtual environment, skip this step and proceed directly to the installation of PyHOPE.
+
+2.  **Install PyHOPE**  
+    PyHOPE is installed using `pip`, the Python package installer. This command fetches the PyHOPE package and its dependencies from PyPI (Python Package Index) and installs them.
+    ```bash
+    python -m pip install pyhope
+    ```
+
+3. **Run PyHOPE**
+    PyHOPE is available as a command-line tool. After installation, its functionalities can be accessed directly from the terminal.
+    ```bash
+    pyhope --help
+    ```
+
+    > 🛈 Remark: For new shell sessions, the virtual environment must be re-sourced using `source venv/bin/activate` before using `pyhope` commands.
 
 # Usage
 PyHOPE is invoked from the command line. Run parameters are read from a configuration file. The following output is obtained when running the example configuration file `tutorials/1-01-cartbox/parameter.ini`.
