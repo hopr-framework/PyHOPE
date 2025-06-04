@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import multiprocessing
+import os
 import subprocess
 import sys
 import time
@@ -69,8 +70,11 @@ def main() -> None:
             raise
 
     tStart  = time.time()
-    process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
-                                                                                     stderr=subprocess.DEVNULL)
+    process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+                               shell=False,
+                               cwd=os.path.dirname(os.path.realpath(__file__)),
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL)
 
     common  = Common()
     program = common.program
