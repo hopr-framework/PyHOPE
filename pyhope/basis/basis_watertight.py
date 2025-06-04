@@ -84,7 +84,9 @@ def check_sides(elem,
     sides   = mesh_vars.sides
     nGeo    = mesh_vars.nGeo
 
-    elemType   = elem.type
+    # Calculate the cube root of the element volume
+    elemTol  = np.cbrt(np.prod(np.ptp(points[elem.nodes], axis=0)))
+    elemType = elem.type
 
     for SideID in elem.sides:
         # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
@@ -106,7 +108,10 @@ def check_sides(elem,
             # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
             idx     = elem.nodes[face_to_nodes(side.face, elemType, nGeo)]
             nSurf   = eval_nsurf(np.transpose(points[idx], axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
-            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolInternal
+
+            # Calculate the L2 norm of the side and take the maximum
+            sideTol = np.linalg.norm(nSurf, ord=2)
+            tol     = np.max((elemTol, sideTol)) * mesh_vars.tolInternal
             # checked[SideID] = True
 
             # Mortar sides are the following virtual sides
@@ -136,7 +141,10 @@ def check_sides(elem,
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             idx     = elem.nodes[face_to_nodes(side.face, elemType, nGeo)]
             nSurf   = eval_nsurf(np.transpose(points[idx]), VdmEqToGP, DGP, weights)
-            tol     = np.linalg.norm(nSurf, ord=2) * mesh_vars.tolInternal
+
+            # Calculate the L2 norm of the side and take the maximum
+            sideTol = np.linalg.norm(nSurf, ord=2)
+            tol     = np.max((elemTol, sideTol)) * mesh_vars.tolInternal
             # checked[SideID] = True
 
             # Connected side
