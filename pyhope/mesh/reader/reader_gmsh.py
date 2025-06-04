@@ -90,6 +90,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common import IsDisplay
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.topology.mesh_serendipity import convertSerendipityToFullLagrange
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
@@ -165,7 +166,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     gmsh.model.mesh.reclassifyNodes()
     gmsh.model.occ.synchronize()
 
-    if debugvisu:
+    if debugvisu and IsDisplay():
         gmsh.fltk.run()
 
     # Convert Gmsh object to meshio object
