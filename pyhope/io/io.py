@@ -293,9 +293,22 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                 usedSideIDs.remove(reclaimedID)
                 heapq.heappush(availableSideIDs, reclaimedID)
 
-            # Set the negative globalSideID of the slave  side
+            # Set the negative globalSideID of the slave side
             # sides[nbSideID].update(globalSideID=-(globalSideID))
             sides[nbSideID].globalSideID = -(globalSideID)
+
+    # If there are any gaps in the side IDs, fill them by reassigning consecutive values
+    if availableSideIDs:
+        # Collect all master sides (globalSideID > 0) and sort them by their current IDs
+        masters = sorted((side for side in sides if side.globalSideID > 0), key=lambda side: side.globalSideID)
+
+        # Build a mapping from old master ID to new consecutive IDs (starting at 1)
+        mapping = {side.globalSideID: newID for newID, side in enumerate(masters, start=1)}
+
+        # Update the sides based on the mapping
+        for side in sides:
+            # For slave sides, update to the negative of the mapped master ID
+            side.globalSideID = mapping[side.globalSideID] if side.globalSideID > 0 else -mapping[-side.globalSideID]
 
     # Fill the SideInfo
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
