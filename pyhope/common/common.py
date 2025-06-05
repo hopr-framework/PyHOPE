@@ -126,15 +126,12 @@ def IsInteractive() -> bool:
 def IsDisplay() -> bool:
     """ Check if the program is running in a display environment
     """
-    if 'DISPLAY' in os.environ:
-        # If DISPLAY is set, we are likely in a X11 graphical environment
-        return os.environ['DISPLAY'] != ''
-    if 'WAYLAND_DISPLAY' in os.environ:
-        # If WAYLAND_DISPLAY is set, we are likely in a Wayland graphical environment
-        return os.environ['WAYLAND_DISPLAY'] != ''
-    else:
-        # If neither is set, we assume a non-graphical environment
-        return False
+    # Check if running on Linux, otherwise assume a display
+    if not sys.platform.startswith('linux'):
+        return True
+
+    # Check for environment variables that indicate a graphical display
+    return bool(os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'))
 
 
 # > https://stackoverflow.com/a/5419576/23851165
