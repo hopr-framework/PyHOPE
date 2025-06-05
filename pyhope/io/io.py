@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+from collections import OrderedDict
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -126,8 +127,11 @@ def IO() -> None:
                 f.attrs['nElems'        ] = nElems
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
+                f.attrs['nUniqueSides'  ] = np.max(sideInfo[:, 1])
+                f.attrs['nUniqueNodes'  ] = np.max(nodeInfo)
 
                 _ = f.create_dataset('ElemInfo'     , data=elemInfo)
+                _ = f.create_dataset('ElemCounter'  , data=np.array(list(elemCounter.items()), dtype=np.int32))
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
@@ -228,7 +232,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     nNodes: Final[int] = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
-    elemCounter = dict()
+    elemCounter = OrderedDict()
     for elemType in ELEM.TYPES:
         elemCounter[elemType] = 0
 
