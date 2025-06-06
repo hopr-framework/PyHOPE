@@ -223,8 +223,10 @@ def SortMeshByIJK() -> None:
         nElemsIJK[non_structured_dir] = 1
         nElemsIJK[~structDir] = nElemsIJK[~structDir][::-1]
     else:
-        nElemsIJK[0] = int(np.sqrt(nElemsIJK[1] * nElemsIJK[2] / nElemsIJK[0]))
-        nElemsIJK[1:3] = nElemsIJK[2:4] // nElemsIJK[0]
+        tIJK = np.copy(nElemsIJK)
+        nElemsIJK[0] = round(np.sqrt(tIJK[1] * tIJK[2] / tIJK[0]))
+        nElemsIJK[1] = round(np.sqrt(tIJK[0] * tIJK[2] / tIJK[1]))
+        nElemsIJK[2] = round(np.sqrt(tIJK[0] * tIJK[1] / tIJK[2]))
 
     # Check for consistency in the number of elements
     if np.prod(nElemsIJK) != nElems:
