@@ -325,26 +325,33 @@ def ConnectMesh() -> None:
                     # traceback.print_stack(file=sys.stdout)
                     sys.exit(1)
 
-                # Boundary faces are unique
+                # Boundary faces are unique, except for inner sides
                 if len(corner_side[corners]) == 0:
                     continue
 
-                # sideID  = find_key(face_corners, corners)
-                sideID = corner_side[corners][0]
-                # sides[sideID].update(bcid=bcID)
-                sides[sideID].bcid = bcID
+                # sideID  = find_keys(face_corners, corners)
+                sideIDs = corner_side[corners]
+                # Multiple sides with the same corners are only allowed for inner sides
+                if bcs[bcID].type[0] != 100 and len(sideIDs) > 1:
+                    hopout.warning('Found multiple sides with the same corners, exiting...')
+                    traceback.print_stack(file=sys.stdout)
+                    sys.exit(1)
 
-                # Add the periodic nodes of the periodic sides to the side_corners
-                # > Only negative BC_alpha allowed here
-                if bcs[bcID].type[0] == 1 and bcs[bcID].type[3] > 0:
-                    pNodes = np.fromiter((mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners]), dtype=int)
-                    pNodes = hash(np.sort(pNodes).tobytes())
-                    peri_corners[sideID] = pNodes
-                    # Update the reverse dictionary immediately
-                    corner_side[pNodes].append(sideID)
+                for sideID in sideIDs:
+                    # sides[sideID].update(bcid=bcID)
+                    sides[sideID].bcid = bcID
 
-                if bcs[bcID].type[0] != 1:
-                    bar.step()
+                    # Add the periodic nodes of the periodic sides to the side_corners
+                    # > Only negative BC_alpha allowed here
+                    if bcs[bcID].type[0] == 1 and bcs[bcID].type[3] > 0:
+                        pNodes = np.fromiter((mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners]), dtype=int)
+                        pNodes = hash(np.sort(pNodes).tobytes())
+                        peri_corners[sideID] = pNodes
+                        # Update the reverse dictionary immediately
+                        corner_side[pNodes].append(sideID)
+
+                    if bcs[bcID].type[0] != 1:
+                        bar.step()
 
     # Try to connect the inner / periodic sides
     passedTypes = {}
@@ -385,7 +392,7 @@ def ConnectMesh() -> None:
                 if not doPeriodicCorrect:
                     continue     # Periodic correction not enabled
 
-                # At this point, we know both sides have periodic BCs.
+                # At this point, we know both sides have periodic BCs
                 iVV = bcs[side0.bcid].type[3]
                 VV  = vvs[np.abs(iVV) - 1]['Dir'] * np.sign(iVV)
                 locSides = tuple(sides[s]        for s in sideIDs)  # noqa: E272
@@ -457,21 +464,23 @@ def ConnectMesh() -> None:
     nsides             = len(sides)
     sides_conn         = np.empty(nsides, dtype=bool)
     sides_bc           = np.empty(nsides, dtype=bool)
+    sides_periodic     = np.empty(nsides, dtype=bool)
     sides_mortar_big   = np.empty(nsides, dtype=bool)
     sides_mortar_small = np.empty(nsides, dtype=bool)
 
     for i, s in enumerate(sides):
         sides_conn[        i] = s.connection is not None
-        sides_bc[          i] = s.bcid       is not None  # noqa: E272
+        sides_bc[          i] = s.bcid       is not None and bcs[s.bcid].type[0] != 100  # noqa: E272
+        sides_periodic[    i] = s.bcid       is not None and bcs[s.bcid].type[0] == 1    # noqa: E272
         sides_mortar_big[  i] = s.connection is not None and s.connection < 0
-        sides_mortar_small[i] = s.locMortar  is not None  # noqa: E272
+        sides_mortar_small[i] = s.locMortar  is not None                                 # noqa: E272
 
     # Count each type of side
-    ninnersides        = np.sum( sides_conn & ~sides_bc & ~sides_mortar_small & ~sides_mortar_big)
-    nperiodicsides     = np.sum( sides_conn &  sides_bc & ~sides_mortar_small & ~sides_mortar_big)
-    nbcsides           = np.sum(~sides_conn &  sides_bc & ~sides_mortar_small & ~sides_mortar_big)
-    nmortarbigsides    = np.sum(                                                 sides_mortar_big)
-    nmortarsmallsides  = np.sum(                           sides_mortar_small                    )
+    ninnersides        = np.sum( sides_conn & ~sides_bc       & ~sides_mortar_small & ~sides_mortar_big)
+    nperiodicsides     = np.sum( sides_conn &  sides_periodic & ~sides_mortar_small & ~sides_mortar_big)
+    nbcsides           = np.sum(~sides_conn &  sides_bc       & ~sides_mortar_small & ~sides_mortar_big)
+    nmortarbigsides    = np.sum(                                                       sides_mortar_big)
+    nmortarsmallsides  = np.sum(                                 sides_mortar_small                    )
     nsides             = len(sides) - nmortarsmallsides
 
     hopout.sep()
