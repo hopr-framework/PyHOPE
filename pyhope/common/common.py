@@ -123,6 +123,17 @@ def IsInteractive() -> bool:
     return cast(TextIOWrapper, sys.__stdin__).isatty()
 
 
+def IsDisplay() -> bool:
+    """ Check if the program is running in a display environment
+    """
+    # Check if running on Linux, otherwise assume a display
+    if not sys.platform.startswith('linux'):
+        return True
+
+    # Check for environment variables that indicate a graphical display
+    return bool(os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'))
+
+
 # > https://stackoverflow.com/a/5419576/23851165
 # def object_meth(object) -> list:
 #     methods = [method_name for method_name in dir(object)

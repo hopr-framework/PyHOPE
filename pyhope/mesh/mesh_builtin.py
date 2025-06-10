@@ -50,7 +50,7 @@ def MeshCartesian() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.common.common import find_index, find_indices
+    from pyhope.common.common import find_index, find_indices, IsDisplay
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
@@ -335,7 +335,7 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.model.mesh.setOrder(mesh_vars.nGeo)
     gmsh.model.geo.synchronize()
 
-    if debugvisu:
+    if debugvisu and IsDisplay():
         gmsh.fltk.run()
 
     # Convert Gmsh object to meshio object
