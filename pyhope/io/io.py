@@ -103,7 +103,9 @@ def IO() -> None:
             pname = io_vars.projectname
             fname = '{}_mesh.h5'.format(pname)
 
-            elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter = getMeshInfo()
+            elemInfo, sideInfo, nodeInfo, nodeCoords, \
+            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
+            elemCounter = getMeshInfo()
 
             # Print the final output
             hopout.sep()
@@ -129,6 +131,14 @@ def IO() -> None:
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
+
+                if FEMElemInfo is not None:
+                    f.attrs['FEMconnect'] = 'ON'
+                    _ = f.create_dataset('FEMElemInfo'       , data=FEMElemInfo)
+                    _ = f.create_dataset('VertexInfo'        , data=vertexInfo)
+                    _ = f.create_dataset('VertexConnectInfo' , data=vertexConnectInfo)
+                    _ = f.create_dataset('EdgeInfo'          , data=edgeInfo)
+                    _ = f.create_dataset('EdgeConnectInfo'   , data=edgeConnectInto)
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
@@ -190,9 +200,20 @@ def IO() -> None:
     # hopout.info('OUTPUT MESH DONE!')
 
 
-def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[int, int]]:
+def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
+                           np.ndarray,         # SideInfo
+                           np.ndarray,         # NodeInfo
+                           np.ndarray,         # NodeCoords
+                           np.ndarray | None,  # Optional[FEMElemInfo]
+                           np.ndarray | None,  # Optional[VertexInfo]
+                           np.ndarray | None,  # Optional[VertexConnectInfo]
+                           np.ndarray | None,  # Optional[EdgeInfo]
+                           np.ndarray | None,  # Optional[EdgeConnectInfo]
+                           dict[int, int]
+                          ]:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.fem.fem import getFEMInfo
     from pyhope.mesh.mesh_common import LINTEN
     from pyhope.io.io_vars import ELEM, SIDE
     # ------------------------------------------------------
@@ -340,4 +361,11 @@ def getMeshInfo() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict[
 
         nodeCount += nElemNodes
 
-    return elemInfo, sideInfo, nodeInfo, nodeCoords, elemCounter
+    if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
+        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = getFEMInfo(nodeInfo)
+    else:
+        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = [None for _ in range(5)]
+
+    return elemInfo, sideInfo, nodeInfo, nodeCoords, \
+           FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
+           elemCounter

@@ -56,6 +56,7 @@ def main() -> None:
     from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
+    from pyhope.mesh.fem.fem import FEMConnect
     from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
@@ -131,6 +132,9 @@ def main() -> None:
     SortMesh()
     ConnectMesh()
     TransformMesh()
+
+    # Generate edge/vertex connectivity
+    FEMConnect()
 
     # Perform the mesh checks
     CheckWatertight()

@@ -56,7 +56,7 @@ def DefineMesh() -> None:
     # Internal mesh generator
     CreateInt(      'nZones',                              help='Number of mesh zones')
     CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
-                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
+                                                                                         '... ,, x_8,y_8,z_8/)')
     CreateRealArray('X0',              3,   multiple=True, help='Origin of a zone. Equivalent to a corner node.')
     CreateRealArray('DX',              3,   multiple=True, help='Extension of the zone in each spatial direction ' +
                                                                  'starting from the origin X0 corner node')
@@ -103,12 +103,15 @@ def DefineMesh() -> None:
     # Stretching
     CreateSection('Stretching')
     CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
-                                                                                             'zone per spatial direction.')  # noqa: E127
+                                                                                             'zone per spatial direction.')
     CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
-                                                                                                 'each spatial direction.')  # noqa: E127
-    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')  # noqa: E127
+                                                                                                 'each spatial direction.')
+    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')
     CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
-                                                                                                               'direction')  # noqa: E127
+                                                                                                               'direction')
+    # Edge connectivity
+    CreateSection('Finite Element Method (FEM) Connectivity')
+    CreateLogical(  'doFEMConnect',         default=False, help='Generate finite element method (FEM) connectivity')
 
 
 def InitMesh() -> None:
