@@ -325,17 +325,25 @@ def ConnectMesh() -> None:
                     # traceback.print_stack(file=sys.stdout)
                     sys.exit(1)
 
-                # Boundary faces are unique, except for inner sides
+                # Boundary faces are unique, except for inner/periodic sides
                 if len(corner_side[corners]) == 0:
                     continue
 
                 # sideID  = find_keys(face_corners, corners)
                 sideIDs = corner_side[corners]
-                # Multiple sides with the same corners are only allowed for inner sides
-                if bcs[bcID].type[0] != 100 and len(sideIDs) > 1:
-                    hopout.warning('Found multiple sides with the same corners, exiting...')
-                    traceback.print_stack(file=sys.stdout)
-                    sys.exit(1)
+                # Multiple sides with the same corners are only allowed for inner [0,100] and periodic [1] BCs
+                match bcs[bcID].type[0]:
+                    case 0 | 100:  # Inner side
+                        pass
+                    case 1:        # Periodic side
+                        # Only take the first (positive BC_alpha) side
+                        sideIDs = [sideIDs[0]]
+                    case _:        # Boundary side
+                        # Abort if there are multiple sides with the same corners
+                        if len(sideIDs) > 1:
+                            hopout.warning('Found multiple sides with the same corners, exiting...')
+                            traceback.print_stack(file=sys.stdout)
+                            sys.exit(1)
 
                 for sideID in sideIDs:
                     # sides[sideID].update(bcid=bcID)
