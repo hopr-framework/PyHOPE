@@ -162,12 +162,6 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
 
         # Iterate over element types
         for elem in cdata:
-            # For pyramids that are meant to be split later, skip elements with all first 4 points having y==1 or 2
-            if ctype.startswith('pyramid'):
-                pts = np.array(points[elem])
-                if np.all(pts[:4, 1] == 1.) or np.all(pts[:4, 1] == 2.):
-                    continue
-
             nodes = np.array(elem.tolist(), dtype=int)
             elems_lst.setdefault(ctype, []).append(elem)
 
