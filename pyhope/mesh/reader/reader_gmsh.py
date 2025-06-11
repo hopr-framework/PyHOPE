@@ -78,7 +78,7 @@ def compatibleGMSH(file: str) -> bool:
                 41: '.celum',
                 42: '.su2',
                 47: '.tochnog',
-                49: '.neu',
+                # 49: '.neu',
                 50: '.matlab'}
 
     # get file extension
