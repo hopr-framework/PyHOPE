@@ -209,3 +209,27 @@ def find_indices(seq, item) -> tuple[int, ...]:
             locs.append(loc)
             start_at = loc
     return tuple(locs)
+
+
+def lines_that_equal(     string: str, fp: list, start_idx=0) -> list[int]:
+    """ Find all occurrences of a string in a file-like object
+    """
+    return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
+
+
+def lines_that_contain(   string: str, fp: list, start_idx=0) -> list[int]:
+    """ Find all occurrences of a string in a file-like object
+    """
+    return [num for num, line in enumerate(fp[start_idx:], start=start_idx) if string in line]
+
+
+def lines_that_start_with(string: str, fp: list, start_idx=0) -> list[int]:
+    """ Find all occurrences of a string at the start of a line in a file-like object
+    """
+    return [num for num, line in enumerate(fp[start_idx:]) if line.startswith(string)]
+
+
+def lines_that_end_with(  string: str, fp: list, start_idx=0) -> list[int]:
+    """ Find all occurrences of a string at the end of a line in a file-like object
+    """
+    return [num for num, line in enumerate(fp[start_idx:]) if line.rstrip().endswith(string)]

@@ -25,17 +25,11 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-# import copy
+import copy
 import gc
-# import itertools
-# import os
-# import shutil
-# import sys
-# import tempfile
-# from dataclasses import dataclass, field
-# from functools import cache
-# from string import digits
-from typing import cast
+import sys
+from functools import cache
+from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,35 +40,93 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Instantiate ELEMTYPE
+elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
 
-def lines_that_equal(     string, fp, start_idx=0) -> list[int]:
-    return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
+@cache
+def NDOFperElemType(elemType: str, nGeo: int) -> int:
+    """ Calculate the number of degrees of freedom for a given element type
+    """
+    match elemType:
+        case _ if elemType.startswith('triangle'):
+            return round((nGeo+1)*(nGeo+2)/2.)
+        case _ if elemType.startswith('quad'):
+            return round((nGeo+1)**2)
+        case _ if elemType.startswith('tetra'):
+            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
+        case _ if elemType.startswith('pyramid'):
+            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
+        case _ if elemType.startswith('wedge'):
+            return round((nGeo+1)**2 *(nGeo+2)/2.)
+        case _ if elemType.startswith('hexahedron'):
+            return round((nGeo+1)**3)
+        case _:
+            raise ValueError(f'Unknown element type {elemType}')
 
 
-def lines_that_contain(   string, fp, start_idx=0) -> list[int]:
-    return [num for num, line in enumerate(fp[start_idx:], start=start_idx) if string in line]
+@cache
+def gambit_faces(elemType: Union[int, str]) -> list[str]:
+    """ Return a list of all sides of an element
+    """
+    faces_map = {  # Tetrahedron
+                   # 4: ['z-', 'y-', 'x+', 'x-'            ],
+                   # Pyramid
+                   # 5: ['z-', 'y-', 'x+', 'y+', 'x-'      ],
+                   # Wedge / Prism
+                   # 6: ['y-', 'x+', 'x-', 'z-', 'z+'      ],
+                   # Hexahedron
+                   8: ['z-', 'x+', 'z+', 'x-', 'y-', 'y+']
+                }
+
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
+
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in faces: elemType {elemType} is not supported')
+
+    return faces_map[elemType % 100]
 
 
-def lines_that_start_with(string, fp, start_idx=0) -> list[int]:
-    return [num for num, line in enumerate(fp[start_idx:]) if line.startswith(string)]
-
-
-def lines_that_end_with(string, fp, start_idx=0) -> list[int]:
-    return [num for num, line in enumerate(fp[start_idx:]) if line.rstrip().endswith(string)]
+# @cache
+# def gambit_face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
+#     """ GMSH: Get points on faces in the given direction
+#     """
+#     faces_map = {  # Hexahedron
+#                    8: {  'z-': np.array((  0,  1,   5,   4), dtype=dtype),
+#                          'y-': np.array((  1,  3,   7,   5), dtype=dtype),
+#                          'x+': np.array((  3,  2,   6,   7), dtype=dtype),
+#                          'y+': np.array((  2,  0,   4,   6), dtype=dtype),
+#                          'x-': np.array((  1,  0,   2,   3), dtype=dtype),
+#                          'z+': np.array((  4,  5,   7,   6), dtype=dtype)}
+#                 }
+#
+#     if isinstance(elemType, str):
+#         elemType = elemTypeClass.name[elemType]
+#
+#     if elemType % 100 not in faces_map:
+#         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
+#
+#     try:
+#         return faces_map[elemType % 100][face]
+#     except KeyError:
+#         raise KeyError(f'Error in face_to_corner: face {face} is not supported')
 
 
 def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
-    # import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.mesh.mesh_vars as mesh_vars
     # from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
+    from pyhope.common.common import lines_that_contain
     # from pyhope.mesh.mesh_common import LINTEN
-    # from pyhope.mesh.mesh_common import faces, face_to_nodes
+    # from pyhope.mesh.mesh_common import faces
+    from pyhope.mesh.mesh_common import face_to_nodes
     # from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
@@ -84,11 +136,11 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
     cells    = mesh.cells_dict
-    # cellsets = {}
+    cellsets = {}
 
     nodeCoords   = mesh.points
     # offsetnNodes = nodeCoords.shape[0]
-    # nSides       = np.zeros(2, dtype=int)
+    nSides       = np.zeros(2, dtype=int)
 
     # Instantiate ELEMTYPE
     # elemTypeClass = ELEMTYPE()
@@ -102,8 +154,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 content   = f.readlines()
                 useBinary = not any('CONTROL INFO' in line for line in content)
             except UnicodeDecodeError:
-                content   = None  # FIXME
-                useBinary = True
+                raise ValueError(f'File {fname} is not a valid ASCII file.')
+                # content   = None  # FIXME
+                # useBinary = True
 
             # Cache the mapping here, so we consider the mesh order
             # linCache   = {}
@@ -112,7 +165,17 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # Search for the line containing the number of elements
                 elemLine = lines_that_contain('NUMNP'            , content)[0] + 1
                 # Read and unpack the number of elements
-                npoints, nelems, _, nbcs, _, _ = map(int, content[elemLine].strip().split())
+                npoints, nelems, _, nbcs, nDim, _ = map(int, content[elemLine].strip().split())
+
+                # PyHOPE currently only supports 3D meshes
+                if nDim != 3:
+                    raise ValueError(f'Unsupported mesh dimension {nDim}. Only 3D meshes are supported.')
+
+                # Check if the number of boundary conditions match the parameter file
+                if nbcs > len(mesh_vars.bcs):
+                    hopout.warning(f'Number of boundary conditions in the mesh ({nbcs}) ' +
+                                   f'does not match the parameter file ({len(mesh_vars.bcs)})')
+                    sys.exit(1)
 
                 # Search for the line starting the node coordinates
                 nodeLine = lines_that_contain('NODAL COORDINATES', content)[0]
@@ -156,24 +219,150 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     #     _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
                     #     mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
                     #     linCache[elemNum] = mapLin
-                    mapLin = np.asarray([0, 1, 5, 4, 2, 3, 7, 6])
+                    # mapLin = np.asarray([0, 1, 5, 4, 2, 3, 7, 6])
+                    # WARNING: GAMBIT USES INWARD POINTING NORMAL VECTORS, HENCE WE NEED TO RUN IN THE OPPOSITE DIRECTION
+                    # mapLin = np.asarray([0, 4, 5, 1, 2, 6, 7, 3])
+                    # WARNING: ATTEMPT TO MAP DIRECTLY TO MESHIO
+                    mapLin = np.asarray([0, 2, 6, 4, 1, 3, 7, 6])
 
                     # Convert elemNodes to a numpy array of integers
                     elemNodes = np.array(elemNodes, dtype=np.uint64)
                     elemNodes = elemNodes[mapLin] - 1
+                    # print(elemNodes)
+                    # print([pointl[s] for s in elemNodes])
+                    # stop
 
                     if elemType in cells:
                         cells[elemType].append(elemNodes.astype(np.uint64))
                     else:
                         cells[elemType] = [elemNodes.astype(np.uint64)]
 
+                # Check if the number of elements match the header
+                if nelems != sum(len(cells[key]) for key in cells):
+                    raise ValueError('Failed to obtain the correct number of elements.')
+
+                # Search for the line starting the boundary conditions
+                bcsLine  = lines_that_contain('BOUNDARY CONDITIONS', content)[0] + 1
+                bcsIter  = iter(content[bcsLine:])
+                bcsCount = 0
+
+                # Iterate and unpack the boundary conditions
+                for line in bcsIter:
+                    # Iterate until the number of boundary conditions is reached
+                    if 'ENDOFSECTION' in line:
+                        bcsCount += 1
+                        if bcsCount >= nbcs:
+                            break
+
+                    tokens = line.strip().split()
+                    if not tokens:
+                        continue
+
+                    try:
+                        bcName, bcType, bcnData, bcnVal, _ = tokens
+                        bcName, bcType, bcnData, bcnVal    = bcName, int(bcType), int(bcnData), int(bcnVal)
+                    except ValueError:
+                        continue
+
+                    BCName = bcName.strip().lower()
+
+                    match bcType:
+                        # Nodal Data (ITYPE=0)
+                        case 0:
+                            raise NotImplementedError('Nodal data boundary conditions are not supported yet.')
+                        # Element/Cell Data (ITYPE=1)
+                        case 1:
+                            # Read the next bcnData lines
+                            bcnNodes = []
+                            for _ in range(bcnData):
+                                bcnNodes.extend(next(bcsIter).strip().split())
+                            # bcnNodes is in format [ELEM, ELEMTYPE, FACE, (VALUES)]
+                            bcnNodes = np.array(bcnNodes, dtype=np.uint64).reshape(bcnData, -1)
+
+                            # Attach the boundary sides
+                            for elemID, elemType, faceID in bcnNodes[:, :3]:
+                                # TODO: Get the number of corners
+                                nCorners  = 4
+
+                                # TODO: Map gType to the meshio cell type
+                                if elemType != 4:
+                                    raise ValueError(f'Elem type {elemType} currently not supported.')
+                                elemType = 'hexahedron'
+
+                                sideNum   = 0      if nCorners == 4 else 1           # noqa: E272
+                                sideBase  = 'quad' if nCorners == 4 else 'triangle'  # noqa: E272
+                                sideHO    = '' if mesh_vars.nGeo == 1 else str(NDOFperElemType(sideBase, mesh_vars.nGeo))
+                                sideName  = sideBase + sideHO
+
+                                elem = cells[elemType][elemID-1]
+
+                                # Get the face corners
+                                # face    = faces(elemType)[faceID-1]
+                                face    = gambit_faces(elemType)[faceID-1]
+                                corners = elem[face_to_nodes(face, elemType, mesh_vars.nGeo)]
+                                # corners   = corners.flatten()[order]
+                                sideNodes = np.expand_dims(corners, axis=0)
+
+                                # Add the side to the cells
+                                if sideName in cells:
+                                    cells[sideName].append(sideNodes.astype(np.uint64))
+                                else:
+                                    cells[sideName] = [sideNodes.astype(np.uint64)]
+
+                                # Increment the side counter
+                                nSides[sideNum] += 1
+
+                                # Add the side to the cellset
+                                # > CS1: We create a dictionary of the BC sides and types that we want
+                                if BCName not in cellsets:
+                                    cellsets[BCName] = {}
+                                if sideName not in cellsets[BCName]:
+                                    cellsets[BCName][sideName] = []
+                                cellsets[BCName][sideName].append(nSides[sideNum]-1)
+
+    # After processing all elements, convert each list of arrays to one array
+    # > Convert the list of cells to numpy arrays
+    for cell_type in cells:
+        cells[cell_type] = np.concatenate([a if a.ndim == 2 else a.reshape(1, -1) for a in cells[cell_type]], axis=0)
+
+    # Convert the list of cellsets to numpy arrays
+    for bc in cellsets:
+        for side in cellsets[bc]:
+            cellsets[bc][side] = np.array(cellsets[bc][side], dtype=np.uint64)
+
     # Convert points_list back to a NumPy array
     points = np.array(pointl)
 
+    # > CS2: We create a meshio.Mesh object without cell_sets
+    mesh   = meshio.Mesh(points    = points,    # noqa: E251
+                         cells     = cells)     # noqa: E251
+                         # cell_sets = cellsets)  # noqa: E114, E116, E251
+
+    # > CS3: We build the cell sets depending on the cells
+    cell_sets  = mesh.cell_sets
+    cell_types = [s for s in mesh.cells_dict.keys()]
+    cell_list  = [None for _ in cell_types]
+
+    for key, val in cellsets.items():
+        for v_key, v_val in val.items():
+            if key in cell_sets.keys():
+                entry = cell_sets[key]
+            else:
+                entry = copy.copy(cell_list)
+
+            # Find matching cell type and populate the corresponding entry
+            if entry[cell_types.index(v_key)] is not None:
+                entry[cell_types.index(v_key)] = np.append(cast(np.ndarray, entry[cell_types.index(v_key)]), v_val)  # type: ignore
+            else:
+                entry[cell_types.index(v_key)] = v_val
+
+            # Assign the entry to the cell set
+            cell_sets[key] = entry  # type: ignore
+
     # > CS4: We create the final meshio.Mesh object with cell_sets
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
-                         cells     = cells)      # noqa: E251
-                         # cell_sets = cell_sets)  # noqa: E251
+                         cells     = cells,      # noqa: E251
+                         cell_sets = cell_sets)  # noqa: E251
 
     # Run garbage collector to release memory
     gc.collect()
