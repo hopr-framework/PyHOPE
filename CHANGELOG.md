@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2025-06-12
+
+### Added
+- FEMConnect: Edge and vertex connectivity [5b72caa4]
+- Reader: Support for Gambit mesh format [d1e8eec5]
+- Support for ElemCounter, nUniqueSides, nUniqueNodes with HOPR format [9304460a]
+
+### Changed
+- Improve performance during topology changes [e6245f4f]
+- Take the element volume into account when calculating the watertightness tolerance [27620b59]
+- Reword the error message for malformed comma-separated arrays [c7751b88]
+- Reword the readme to clarify installation steps using venv [8e818d6a]
+- Only open GMSH GUI when running with Display attached [8718ec3e]
+
+### Fixed
+- Fix checking PyHOPE directory instead of current directory for git commit [a56ba0b8]
+- Fix several issues in the readintools (default, DEFVAR) [b9e5d431]
+
 ## [0.0.8] - 2025-03-07
 
 ### Added
@@ -23,7 +41,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - Fix extra offset for simplex/splitToHex [2191fa60]
 - Several bugfixes improving overall stability [63354530]
-
 
 ## [0.0.7-1] - 2025-02-13
 
