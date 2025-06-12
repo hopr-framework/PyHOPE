@@ -48,6 +48,7 @@ def MeshExternal() -> meshio.Mesh:
     from pyhope.config.config import prmfile
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH, BCCGNS
+    from pyhope.mesh.reader.reader_gambit import ReadGambit
     from pyhope.mesh.reader.reader_hopr import ReadHOPR
     from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
@@ -107,6 +108,12 @@ def MeshExternal() -> meshio.Mesh:
         mesh = ReadGMSH(fgmsh)
     fnames = list(filter(lambda x: not compatibleGMSH(x), fnames))
 
+    # Gambit meshes can extend the Gmsh mesh
+    fgambit = [s for s in fnames if s.endswith('.neu')]
+    if len(fgambit) > 0:
+        mesh = ReadGambit(fgambit, mesh)
+    fnames = list(filter(lambda x: x not in fgambit, fnames))
+
     # HOPR meshes can extend the Gmsh mesh
     fhopr  = [s for s in fnames if s.endswith('.h5')]
     if len(fhopr) > 0:
@@ -140,6 +147,7 @@ def MeshExternal() -> meshio.Mesh:
 
     return mesh
 
+
 def recontruct_periodicity(mesh: meshio.Mesh) -> list:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -164,7 +172,7 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
         mean_coords = tuple(
             np.mean(mesh.points[
                 np.array(sorted({
-                    node for iBlock, cell_block in enumerate(mesh.cells)
+                    node for iBlock, _ in enumerate(mesh.cells)
                     if (mesh.cell_sets[bc] and mesh.cell_sets[bc][iBlock] is not None)
                     for node in mesh.cells[iBlock].data[mesh.cell_sets[bc][iBlock]].flatten()
                 }))
