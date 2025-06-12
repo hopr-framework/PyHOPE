@@ -33,10 +33,8 @@ from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-# import h5py
 import meshio
 import numpy as np
-# from alive_progress import alive_bar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -75,13 +73,10 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron
-                   # 4: ['z-', 'y-', 'x+', 'x-'            ],
                    # Pyramid
-                   # 5: ['z-', 'y-', 'x+', 'y+', 'x-'      ],
                    # Wedge / Prism
-                   # 6: ['y-', 'x+', 'x-', 'z-', 'z+'      ],
                    # Hexahedron
-                   8: ['z-', 'x+', 'z+', 'x-', 'y-', 'y+']
+                   8: ['x-', 'z+', 'x+', 'z-', 'y-', 'y+']
                 }
 
     if isinstance(elemType, str):
@@ -93,41 +88,13 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
     return faces_map[elemType % 100]
 
 
-# @cache
-# def gambit_face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
-#     """ GMSH: Get points on faces in the given direction
-#     """
-#     faces_map = {  # Hexahedron
-#                    8: {  'z-': np.array((  0,  1,   5,   4), dtype=dtype),
-#                          'y-': np.array((  1,  3,   7,   5), dtype=dtype),
-#                          'x+': np.array((  3,  2,   6,   7), dtype=dtype),
-#                          'y+': np.array((  2,  0,   4,   6), dtype=dtype),
-#                          'x-': np.array((  1,  0,   2,   3), dtype=dtype),
-#                          'z+': np.array((  4,  5,   7,   6), dtype=dtype)}
-#                 }
-#
-#     if isinstance(elemType, str):
-#         elemType = elemTypeClass.name[elemType]
-#
-#     if elemType % 100 not in faces_map:
-#         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
-#
-#     try:
-#         return faces_map[elemType % 100][face]
-#     except KeyError:
-#         raise KeyError(f'Error in face_to_corner: face {face} is not supported')
-
-
 def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
-    # from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
     from pyhope.common.common import lines_that_contain
-    # from pyhope.mesh.mesh_common import LINTEN
-    # from pyhope.mesh.mesh_common import faces
-    from pyhope.mesh.mesh_common import face_to_nodes
-    # from pyhope.mesh.mesh_vars import ELEMTYPE
+    from pyhope.mesh.mesh_common import face_to_nodes, face_to_cgns
+    from pyhope.meshio.meshio_ordering import NodeOrdering
     # ------------------------------------------------------
 
     hopout.sep()
@@ -139,11 +106,10 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     cellsets = {}
 
     nodeCoords   = mesh.points
-    # offsetnNodes = nodeCoords.shape[0]
     nSides       = np.zeros(2, dtype=int)
 
-    # Instantiate ELEMTYPE
-    # elemTypeClass = ELEMTYPE()
+    # Initialize the node ordering
+    node_ordering = NodeOrdering()
 
     for fname in fnames:
         # Check if the file is using ASCII format internally
@@ -154,12 +120,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 content   = f.readlines()
                 useBinary = not any('CONTROL INFO' in line for line in content)
             except UnicodeDecodeError:
-                raise ValueError(f'File {fname} is not a valid ASCII file.')
-                # content   = None  # FIXME
-                # useBinary = True
-
-            # Cache the mapping here, so we consider the mesh order
-            # linCache   = {}
+                raise ValueError('Gambit binary files are not implemented yet')
 
             if not useBinary:
                 # Search for the line containing the number of elements
@@ -204,38 +165,23 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     except ValueError:
                         continue
 
+                    # Map gambit element type to meshio element type
+                    elemType  = node_ordering.typing_gambit_to_meshio(gType)
+
+                    # Check if the number of nodes matched the expected number
+                    if nNodes != NDOFperElemType(elemType, mesh_vars.nGeo):
+                        hopout.warning(f'Number of element nodes ({nNodes}) does not match expectation for NGeo={mesh_vars.nGeo}')
+                        sys.exit(1)
+
                     # Keep extending the element connectivity until elemNodes is reached
                     while len(elemNodes) < nNodes:
                         elemNodes.extend(next(elemIter).strip().split())
 
-                    # TODO: Map gType to the meshio cell type
-                    elemType = 'hexahedron'
-                    # elemNum = 108
-
-                    # ChangeBasis currently only supported for hexahedrons
-                    # if elemNum in linCache:
-                    #     mapLin = linCache[elemNum]
-                    # else:
-                    #     _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
-                    #     mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
-                    #     linCache[elemNum] = mapLin
-                    # mapLin = np.asarray([0, 1, 5, 4, 2, 3, 7, 6])
-                    # WARNING: GAMBIT USES INWARD POINTING NORMAL VECTORS, HENCE WE NEED TO RUN IN THE OPPOSITE DIRECTION
-                    # mapLin = np.asarray([0, 4, 5, 1, 2, 6, 7, 3])
-                    # WARNING: ATTEMPT TO MAP DIRECTLY TO MESHIO
-                    mapLin = np.asarray([0, 2, 6, 4, 1, 3, 7, 6])
-
                     # Convert elemNodes to a numpy array of integers
                     elemNodes = np.array(elemNodes, dtype=np.uint64)
-                    elemNodes = elemNodes[mapLin] - 1
-                    # print(elemNodes)
-                    # print([pointl[s] for s in elemNodes])
-                    # stop
+                    elemNodes = node_ordering.ordering_gambit_to_meshio(elemType, elemNodes) - 1
 
-                    if elemType in cells:
-                        cells[elemType].append(elemNodes.astype(np.uint64))
-                    else:
-                        cells[elemType] = [elemNodes.astype(np.uint64)]
+                    cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
 
                 # Check if the number of elements match the header
                 if nelems != sum(len(cells[key]) for key in cells):
@@ -277,48 +223,38 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                             for _ in range(bcnData):
                                 bcnNodes.extend(next(bcsIter).strip().split())
                             # bcnNodes is in format [ELEM, ELEMTYPE, FACE, (VALUES)]
-                            bcnNodes = np.array(bcnNodes, dtype=np.uint64).reshape(bcnData, -1)
+                            bcnNodes = np.array(bcnNodes, dtype=int).reshape(bcnData, -1)
 
                             # Attach the boundary sides
-                            for elemID, elemType, faceID in bcnNodes[:, :3]:
-                                # TODO: Get the number of corners
-                                nCorners  = 4
+                            for elemID, gType, faceID in bcnNodes[:, :3]:
+                                # Map gambit element type to meshio element type
+                                elemType  = node_ordering.typing_gambit_to_meshio(gType)
 
-                                # TODO: Map gType to the meshio cell type
-                                if elemType != 4:
-                                    raise ValueError(f'Elem type {elemType} currently not supported.')
-                                elemType = 'hexahedron'
+                                # Get the face
+                                elem      = cells[elemType][elemID-1]
+                                face      = gambit_faces(elemType)[faceID-1]
 
+                                # Get the face corners
+                                nCorners  = len(face_to_cgns(face, elemType))
+                                corners   = elem[face_to_nodes(face, elemType, mesh_vars.nGeo)]
+                                # corners   = corners.flatten()[order]
+                                sideNodes = np.expand_dims(corners, axis=0)
+
+                                # Determine the side name and number
                                 sideNum   = 0      if nCorners == 4 else 1           # noqa: E272
                                 sideBase  = 'quad' if nCorners == 4 else 'triangle'  # noqa: E272
                                 sideHO    = '' if mesh_vars.nGeo == 1 else str(NDOFperElemType(sideBase, mesh_vars.nGeo))
                                 sideName  = sideBase + sideHO
 
-                                elem = cells[elemType][elemID-1]
-
-                                # Get the face corners
-                                # face    = faces(elemType)[faceID-1]
-                                face    = gambit_faces(elemType)[faceID-1]
-                                corners = elem[face_to_nodes(face, elemType, mesh_vars.nGeo)]
-                                # corners   = corners.flatten()[order]
-                                sideNodes = np.expand_dims(corners, axis=0)
-
                                 # Add the side to the cells
-                                if sideName in cells:
-                                    cells[sideName].append(sideNodes.astype(np.uint64))
-                                else:
-                                    cells[sideName] = [sideNodes.astype(np.uint64)]
+                                cells.setdefault(sideName, []).append(sideNodes.astype(np.uint64))
 
                                 # Increment the side counter
                                 nSides[sideNum] += 1
 
                                 # Add the side to the cellset
                                 # > CS1: We create a dictionary of the BC sides and types that we want
-                                if BCName not in cellsets:
-                                    cellsets[BCName] = {}
-                                if sideName not in cellsets[BCName]:
-                                    cellsets[BCName][sideName] = []
-                                cellsets[BCName][sideName].append(nSides[sideNum]-1)
+                                cellsets.setdefault(BCName, {}).setdefault(sideName, []).append(nSides[sideNum] - 1)
 
     # After processing all elements, convert each list of arrays to one array
     # > Convert the list of cells to numpy arrays
@@ -336,7 +272,6 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # > CS2: We create a meshio.Mesh object without cell_sets
     mesh   = meshio.Mesh(points    = points,    # noqa: E251
                          cells     = cells)     # noqa: E251
-                         # cell_sets = cellsets)  # noqa: E114, E116, E251
 
     # > CS3: We build the cell sets depending on the cells
     cell_sets  = mesh.cell_sets

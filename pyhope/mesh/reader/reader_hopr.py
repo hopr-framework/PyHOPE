@@ -320,10 +320,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         except UnboundLocalError:
                             raise UnboundLocalError('Something went wrong with the change basis')
 
-                    if elemType in cells:
-                        cells[elemType].append(elemNodes.astype(np.uint64))
-                    else:
-                        cells[elemType] = [elemNodes.astype(np.uint64)]
+                    cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
 
                     # Attach the boundary sides
                     sCounter = 0
@@ -353,10 +350,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         sideNodes = np.expand_dims(corners, axis=0)
 
                         # Add the side to the cells
-                        if sideName in cells:
-                            cells[sideName].append(sideNodes.astype(np.uint64))
-                        else:
-                            cells[sideName] = [sideNodes.astype(np.uint64)]
+                        cells.setdefault(sideName, []).append(sideNodes.astype(np.uint64))
 
                         # Increment the side counter
                         sCounter        += 1
@@ -374,11 +368,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                         # Add the side to the cellset
                         # > CS1: We create a dictionary of the BC sides and types that we want
-                        if BCName not in cellsets:
-                            cellsets[BCName] = {}
-                        if sideName not in cellsets[BCName]:
-                            cellsets[BCName][sideName] = []
-                        cellsets[BCName][sideName].append(nSides[sideNum]-1)
+                        cellsets.setdefault(BCName, {}).setdefault(sideName, []).append(nSides[sideNum] - 1)
 
                     # Update progress bar
                     bar()
@@ -409,7 +399,6 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # > CS2: We create a meshio.Mesh object without cell_sets
     mesh   = meshio.Mesh(points    = points,    # noqa: E251
                          cells     = cells)     # noqa: E251
-                         # cell_sets = cellsets)  # noqa: E114, E116, E251
 
     # > CS3: We build the cell sets depending on the cells
     cell_sets  = mesh.cell_sets

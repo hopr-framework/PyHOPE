@@ -110,6 +110,13 @@ class NodeOrdering:
     #                                 }
     # )
 
+    # Dictionary for translation of  gambit types to gmsh codes
+    _gambit_typing: Dict[int, str] = field(
+            default_factory=lambda: { 1  : 'line'          , 2  : 'quad'          , 3  : 'triangle'      , 4  : 'hexahedron'    ,
+                                      5  : 'wedge'         , 6  : 'tetrahedron'   , 7  : 'pyramid'                              ,
+                                    }
+    )
+
     # Dictionary for conversion of Gambit to meshIO
     _gambit_ordering: Dict[str, List[int]] = field(
             default_factory=lambda: {  # 0D elements
@@ -117,7 +124,7 @@ class NodeOrdering:
                                        # 2D elements
                                        # 3D elements
                                        # > Hexahedron
-                                       'hexahedron':   [0, 1, 5, 4, 2, 3, 7, 6],
+                                       'hexahedron':   [0, 2, 6, 4, 1, 3, 7, 5],
                                     }
     )
 
@@ -260,12 +267,21 @@ class NodeOrdering:
     #
     #     return mapping
 
-    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+    def typing_gambit_to_meshio(self, elemType: Union[int, str, np.uint]) -> str:
         """
-        Return the meshIO node ordering for a given element type.
+        Return the meshIO element type for a given Gambit element type
         """
         if isinstance(elemType, (int, np.integer)):
-            elemType = self._gmsh_typing[int(elemType)]
+            return self._gambit_typing[int(elemType)]
+
+        raise ValueError(f'Unknown element type {elemType}')
+
+    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+        """
+        Return the meshIO node ordering for a given element type
+        """
+        if isinstance(elemType, (int, np.integer)):
+            elemType = self._gambit_typing[int(elemType)]
 
         # 0D/1D/2D elements
         if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
@@ -273,6 +289,6 @@ class NodeOrdering:
 
         # Check if we have a fixed ordering
         if elemType in self._gambit_ordering:
-            return cast(np.ndarray, idx[:, self._gambit_ordering[elemType]])
+            return cast(np.ndarray, idx[self._gambit_ordering[elemType]])
 
         raise ValueError(f'Unknown element type {elemType}')
