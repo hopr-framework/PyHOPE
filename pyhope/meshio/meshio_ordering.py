@@ -249,7 +249,7 @@ class NodeOrdering:
     # Dictionary for translation of  gambit types to gmsh codes
     _gambit_typing: dict[int, str] = field(
             default_factory=lambda: { 1  : 'line'          , 2  : 'quad'          , 3  : 'triangle'      , 4  : 'hexahedron'    ,
-                                      5  : 'wedge'         , 6  : 'tetrahedron'   , 7  : 'pyramid'                              ,
+                                      5  : 'wedge'         , 6  : 'tetra'         , 7  : 'pyramid'                              ,
                                     }
     )
 
@@ -260,7 +260,7 @@ class NodeOrdering:
                                        # 2D elements
                                        # 3D elements
                                        # > Hexahedron
-                                       'hexahedron':   [0, 1, 3, 2, 4, 5, 7, 6],
+                                       'hexahedron':   [ 0, 1, 3, 2, 4, 5, 7, 6],
                                     }
     )
 

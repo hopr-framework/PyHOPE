@@ -130,6 +130,10 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 elemLine = lines_that_contain('ELEMENTS/CELLS', content)[0] + 1
                 elemIter = iter(content[elemLine:])
 
+                # Initialize counter for different element types
+                elemCnt  = dict.fromkeys(elemTypeClass.name.values(), 0)
+                elemMap  = [0 for _ in range(nelems)]
+
                 # Iterate and unpack the element connectivity
                 for line in elemIter:
                     if 'ENDOFSECTION' in line:
@@ -163,9 +167,15 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
 
+                    # Increment the element counter
+                    elemCnt[elemTypeClass.name[elemType]] += 1
+                    elemMap[elemID-1] = elemCnt[elemTypeClass.name[elemType]]
+
+
                 # Clean-up for memory safety
                 del elemLine
                 del elemIter
+                del elemCnt
 
                 # Check if the number of elements match the header
                 if nelems != sum(len(cells[key]) for key in cells):
@@ -267,6 +277,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                                 # Map gambit element type to meshio element type
                                 elemType  = node_ordering.typing_gambit_to_meshio(gType)
 
+                                # Map the element ID to the meshio element ID
+                                elemID    = elemMap[elemID-1]
+
                                 # Get the face
                                 elem      = cells[elemType][elemID-1]
                                 face      = gambit_faces(elemType)[faceID-1]
@@ -305,6 +318,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Convert points_list back to a NumPy array
     points = np.array(pointl)
+    del pointl
 
     # > CS2: We build the cell sets depending on the cells
     cell_sets:  dict[str, list] = mesh.cell_sets
