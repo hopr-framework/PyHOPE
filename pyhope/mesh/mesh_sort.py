@@ -86,6 +86,8 @@ def SortMeshBySFC() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     import numpy as np
+    # INFO: Alternative Hilbert curve sorting (not on PyPI)
+    # from hilsort import hilbert_sort
     # ------------------------------------------------------
 
     hopout.routine('Sorting elements along space-filling curve')
@@ -117,6 +119,13 @@ def SortMeshBySFC() -> None:
 
     distances      = np.array(hc.distances_from_points(elem_disc))  # bottleneck
     sorted_indices = np.argsort(distances)
+
+    # INFO: Alternative Hilbert curve sorting (not on PyPI)
+    # distances      = np.array(hilbert_sort(8, elem_bary))
+    # Find the new sorting with the old elem_bary
+    # value_to_index = {tuple(value.tolist()): idx for idx, value in enumerate(distances)}
+    # Now, create an array that maps each element to the new sorting
+    # sorted_indices = np.array([value_to_index[tuple(val.tolist())] for val in elem_bary])
 
     # Initialize sorted cells
     sorted_elems   = tuple(elems[i] for i in sorted_indices)
@@ -223,8 +232,10 @@ def SortMeshByIJK() -> None:
         nElemsIJK[non_structured_dir] = 1
         nElemsIJK[~structDir] = nElemsIJK[~structDir][::-1]
     else:
-        nElemsIJK[0] = int(np.sqrt(nElemsIJK[1] * nElemsIJK[2] / nElemsIJK[0]))
-        nElemsIJK[1:3] = nElemsIJK[2:4] // nElemsIJK[0]
+        tIJK = np.copy(nElemsIJK)
+        nElemsIJK[0] = round(np.sqrt(tIJK[1] * tIJK[2] / tIJK[0]))
+        nElemsIJK[1] = round(np.sqrt(tIJK[0] * tIJK[2] / tIJK[1]))
+        nElemsIJK[2] = round(np.sqrt(tIJK[0] * tIJK[1] / tIJK[2]))
 
     # Check for consistency in the number of elements
     if np.prod(nElemsIJK) != nElems:

@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
+from collections import OrderedDict
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -126,8 +127,11 @@ def IO() -> None:
                 f.attrs['nElems'        ] = nElems
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
+                f.attrs['nUniqueSides'  ] = np.max(sideInfo[:, 1])
+                f.attrs['nUniqueNodes'  ] = np.max(nodeInfo)
 
                 _ = f.create_dataset('ElemInfo'     , data=elemInfo)
+                _ = f.create_dataset('ElemCounter'  , data=np.array(list(elemCounter.items()), dtype=np.int32))
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
@@ -228,7 +232,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     nNodes: Final[int] = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
-    elemCounter = dict()
+    elemCounter = OrderedDict()
     for elemType in ELEM.TYPES:
         elemCounter[elemType] = 0
 
@@ -289,9 +293,22 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                 usedSideIDs.remove(reclaimedID)
                 heapq.heappush(availableSideIDs, reclaimedID)
 
-            # Set the negative globalSideID of the slave  side
+            # Set the negative globalSideID of the slave side
             # sides[nbSideID].update(globalSideID=-(globalSideID))
             sides[nbSideID].globalSideID = -(globalSideID)
+
+    # If there are any gaps in the side IDs, fill them by reassigning consecutive values
+    if availableSideIDs:
+        # Collect all master sides (globalSideID > 0) and sort them by their current IDs
+        masters = sorted((side for side in sides if side.globalSideID > 0), key=lambda side: side.globalSideID)
+
+        # Build a mapping from old master ID to new consecutive IDs (starting at 1)
+        mapping = {side.globalSideID: newID for newID, side in enumerate(masters, start=1)}
+
+        # Update the sides based on the mapping
+        for side in sides:
+            # For slave sides, update to the negative of the mapped master ID
+            side.globalSideID = mapping[side.globalSideID] if side.globalSideID > 0 else -mapping[-side.globalSideID]
 
     # Fill the SideInfo
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
@@ -325,7 +342,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
             else:
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10 + side.flip
 
-            # Periodic sides still have a BCID
+            # Periodic/inner sides still have a BCID
             if side.bcid is not None:
                 sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
             else:

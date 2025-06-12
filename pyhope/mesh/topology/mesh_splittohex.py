@@ -53,19 +53,24 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
-    from pyhope.readintools.readintools import GetLogical, CountOption
+    from pyhope.readintools.readintools import CreateLogical, GetLogical, CountOption
     # ------------------------------------------------------
 
-    if CountOption('doSplitToHex') == 0:
+    # Create logical here to avoid it showing up in the help
+    CreateLogical('SplitToHex', multiple=False, default=False)
+
+    if CountOption('doSplitToHex') == 0 and CountOption('SplitToHex') == 0:
         return mesh
 
     hopout.separator()
     hopout.info('SPLITTING ELEMENTS TO HEXAHEDRA...')
     hopout.sep()
 
-    splitToHex = GetLogical('doSplitToHex')
+    splitToHex = GetLogical('doSplitToHex') or \
+                 GetLogical(  'SplitToHex')
     if not splitToHex:
         hopout.separator()
+        return mesh
 
     # Native meshio data
     cdict: Final[dict] = mesh.cells_dict
