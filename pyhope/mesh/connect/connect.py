@@ -28,7 +28,6 @@
 # import copy
 import gc
 import sys
-import traceback
 from collections import defaultdict
 from typing import Final, Optional, cast
 # from multiprocessing import Pool
@@ -113,9 +112,7 @@ def find_closest_side(points: np.ndarray, stree: spatial.KDTree, tol: float, msg
         if doMortars:
             return -1
 
-        hopout.warning(f'Could not find {msg} side within tolerance {tol}, exiting...')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error(f'Could not find {msg} side within tolerance {tol}, exiting...', traceback=True)
     return cast(int, trSide[1])
 
 
@@ -165,8 +162,7 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     #     # Sanity check if the periodic vector matches
     #     if not np.allclose(vv['Dir'], mesh_vars.mesh.points[nbNode] - mesh_vars.mesh.points[node],
     #                        rtol=mesh_vars.tolPeriodic, atol=mesh_vars.tolPeriodic):
-    #         hopout.warning('Error in periodic update, periodic vector does not match!')
-    #         sys.exit(1)
+    #         hopout.error('Error in periodic update, periodic vector does not match!')
     #
     #     # Center between both points
     #     center = 0.5 * (mesh_vars.mesh.points[node] + mesh_vars.mesh.points[nbNode])
@@ -187,8 +183,7 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
 
     # Check if periodic vector matches using vectorized np.allclose
     if not np.allclose(points[nodes] + vv, points[nbNodes], rtol=tol, atol=tol):
-        hopout.warning('Error in periodic update, periodic vector does not match!')
-        sys.exit(1)
+        hopout.error('Error in periodic update, periodic vector does not match!')
 
     # Calculate the center for both points
     centers = 0.5 * (points[nodes] + points[nbNodes])
@@ -293,8 +288,7 @@ def ConnectMesh() -> None:
             continue
 
         if bcID is None:
-            hopout.warning(f'Could not find BC {key} in list, exiting...')
-            sys.exit(1)
+            hopout.error(f'Could not find BC {key} in list, exiting...')
 
         # Get the list of sides
         for iMap in csetMap[key]:
@@ -341,9 +335,7 @@ def ConnectMesh() -> None:
                     case _:        # Boundary side
                         # Abort if there are multiple sides with the same corners
                         if len(sideIDs) > 1:
-                            hopout.warning('Found multiple sides with the same corners, exiting...')
-                            traceback.print_stack(file=sys.stdout)
-                            sys.exit(1)
+                            hopout.error('Found multiple sides with the same corners, exiting...', traceback=True)
 
                 for sideID in sideIDs:
                     # sides[sideID].update(bcid=bcID)
@@ -395,8 +387,7 @@ def ConnectMesh() -> None:
                 if bcs[side0.bcid].type[0] != 1:
                     continue     # Not a periodic BC on first side
                 if bcs[side1.bcid].type[0] != 1:
-                    hopout.warning('Found internal side with inconsistent BC types, exiting...')
-                    sys.exit(1)  # Inconsistent BC types
+                    hopout.error('Found internal side with inconsistent BC types, exiting...')
                 if not doPeriodicCorrect:
                     continue     # Periodic correction not enabled
 
@@ -414,9 +405,7 @@ def ConnectMesh() -> None:
                     periodic_update(locSides, locElems, VV)
 
             case _:  # Zero or more than 2 sides
-                hopout.warning('Found internal side with more than two adjacent elements, exiting...')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error('Found internal side with more than two adjacent elements, exiting...', traceback=True)
 
     if passedTypes:
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
@@ -432,8 +421,7 @@ def ConnectMesh() -> None:
     if doMortars:
         # Mortar connections are not supported between mismatching side types
         if any(len(s.corners) != len(nConnSide[0].corners) for s in nConnSide):
-            hopout.warning('Mortar connections are not supported between mixed side types, exiting...')
-            sys.exit(1)
+            hopout.error('Mortar connections are not supported between mixed side types, exiting...')
 
         # Connect the mortar sides
         elems, sides = ConnectMortar(nConnSide, nConnCenter, elems, sides, bar)
@@ -459,8 +447,7 @@ def ConnectMesh() -> None:
                     print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in node) + ']'))
                 if side is not nConnSide[-1]:
                     print()  # Empty line for spacing
-        hopout.warning('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
-        sys.exit(1)
+        hopout.error('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
 
     # Close the progress bar
     bar.close()

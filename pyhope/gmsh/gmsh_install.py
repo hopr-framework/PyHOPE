@@ -97,8 +97,7 @@ def PkgsCheckGmsh() -> None:
                     PkgsInstallGmsh(system, arch, version='pypi')
                     return None
         else:
-            hopout.warning('Gmsh is not installed, exiting...')
-            sys.exit(1)
+            hopout.error('Gmsh is not installed, exiting...')
 
     gmsh_version = cast(str, gmsh_version)
     # Assume that newer versions have updated CGNS
@@ -185,8 +184,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
                 hopout.info('Hash matches, installing Gmsh wheel...')
             else:
-                hopout.warning('Hash mismatch, exiting...')
-                sys.exit(1)
+                hopout.error('Hash mismatch, exiting...')
 
             # Remove the old version
             try:

@@ -31,10 +31,8 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
-import traceback
 from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -176,8 +174,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     if not mesh_vars.already_curved or mesh_vars.nGeo == 1:
         for elemtype in mesh.cells_dict.keys():
             if elemtype in mesh_vars.ELEMTYPE.name and mesh_vars.ELEMTYPE.name[elemtype] > 200:
-                hopout.warning('High-order elements detected in the mesh but MeshIsAlreadyCurved=F or nGeo is set to 1, exiting...')
-                sys.exit(1)
+                hopout.error('High-order elements detected in the mesh but MeshIsAlreadyCurved=F or nGeo is set to 1, exiting...')
 
     # If the mesh contains second-order incomplete elements, fix them
     mesh = convertSerendipityToFullLagrange(mesh)
@@ -281,22 +278,18 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
         with h5py.File(fname, mode='r') as f:
             if 'CGNSLibraryVersion' not in f.keys():
-                hopout.warning('CGNS file does not contain library version header')
-                sys.exit(1)
+                hopout.error('CGNS file does not contain library version header')
 
             key = [s for s in f.keys() if "base" in s.lower()]
             match len(key):
                 case 0:
-                    hopout.warning('Object [Base] does not exist in CGNS file')
-                    sys.exit(1)
+                    hopout.error('Object [Base] does not exist in CGNS file')
                 case 1:
                     if not isinstance(f[key[0]], h5py.Group):
-                        hopout.warning('Object [Base] is not a group in CGNS file')
-                        sys.exit(1)
+                        hopout.error('Object [Base] is not a group in CGNS file')
                     base = cast(h5py.Group, f[key[0]])
                 case _:
-                    hopout.warning('More than one object [Base] exists in CGNS file')
-                    sys.exit(1)
+                    hopout.error('More than one object [Base] exists in CGNS file')
 
             for baseZone in base.keys():
                 # Ignore the base dataset
@@ -319,8 +312,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                         mesh = BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
-                        hopout.warning('Unsupported number of dimensions')
-                        sys.exit(1)
+                        hopout.error('Unsupported number of dimensions')
 
         # Cleanup temporary file
         if tfile is not None:
@@ -349,9 +341,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
     # trSide contains the Euclidean distance and the index of the
     # opposing side in the nbFaceSet
     if trSide[0] > tol:
-        hopout.warning('Could not find a boundary side within tolerance {}, exiting...'.format(tol))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Could not find a boundary side within tolerance {}, exiting...'.format(tol), traceback=True)
 
     sideID   = int(trSide[1])
     # All BC are lower-case
@@ -429,8 +419,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
             # Identify how surface elements are stored
             surface_key = 'GridShells' if 'GridShells' in zone else 'SurfaceElements' if 'SurfaceElements' in zone else None
             if not surface_key:
-                hopout.warning('Format of BC implementation for FaceCenters not recognized, exiting...')
-                sys.exit(1)
+                hopout.error('Format of BC implementation for FaceCenters not recognized, exiting...')
 
             cgnsShells  =     zone[surface_key]['ElementConnectivity'][' data']
             nShells     = int(zone[surface_key]['ElementRange'       ][' data'][0])
@@ -495,8 +484,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                             case 12:  # quad
                                 cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
                             case _:
-                                hopout.warning('Unsupported number of corners for shell elements, exiting...')
-                                sys.exit(1)
+                                hopout.error('Unsupported number of corners for shell elements, exiting...')
 
                         del BCpoints
 
@@ -552,8 +540,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             cgnsPointRange = np.array(bcData['PointRange'][' data'], dtype=int) - 1
             # Sanity check the CGNS point range
             if any(cgnsPointRange[1, :] - cgnsPointRange[0, :] < 0):
-                hopout.warning(f'Point range is not monotonically increasing on BC "{cgnsName}", exiting...')
-                sys.exit(1)
+                hopout.error(f'Point range is not monotonically increasing on BC "{cgnsName}", exiting...')
 
             # Calculate the ranges of the indices
             iStart, iEnd = cgnsPointRange[:, 0]
@@ -590,8 +577,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
                                                                                                              for k in range(jDimNGeo - 1)])  # noqa: E501
 
         except KeyError:
-            hopout.warning(f'ZoneBC "{zoneBC}" does not have a PointRange. PointLists are currently not supported.')
-            sys.exit(1)
+            hopout.error(f'ZoneBC "{zoneBC}" does not have a PointRange. PointLists are currently not supported.')
 
         # Loop over all elements
         for quad in quads:

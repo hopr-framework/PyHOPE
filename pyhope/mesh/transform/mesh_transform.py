@@ -28,7 +28,6 @@
 import importlib.util
 import os
 import sys
-import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -67,9 +66,7 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
         print(hopout.warn('Both l0 and a stretching factor are provided. ' +
                           'The number of elements will be adapted to account for both parameters.'))
     if stretchingType is None:
-        hopout.warning('Streching parameters not defined properly. Check whether l0 and/or Factor are defined nZone-times.')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Streching parameters not defined properly. Check whether l0 and/or Factor are defined nZone-times.', traceback=True)
 
     # Calculate the stretching parameter for meshing the current zone
     stretchingHandlers = {
@@ -132,9 +129,7 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
                 iter          += 1
 
             if iter == 1000:
-                hopout.warning('Newton iteration for computing the stretching function has failed.')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error('Newton iteration for computing the stretching function has failed.', traceback=True)
 
             progFac[iDim] = progFac[iDim]**np.sign(l0[iDim])
             print(hopout.warn(f'New stretching factor [dir {iDim}]: {progFac[iDim]}'))
@@ -241,8 +236,7 @@ def TransformMesh() -> None:
         for file in os.listdir(os.path.join(os.path.dirname(__file__), 'templates')):
             if file.endswith('.py'):
                 templist.append(f'  {file[:-3]}')
-        hopout.warning('Available default transformation templates:' + ','.join(templist))
-        sys.exit(1)
+        hopout.error('Available default transformation templates:' + ','.join(templist))
 
     # Perform actual post-deformation
     mesh.points = PostDeformMod.PostDeform(mesh.points)

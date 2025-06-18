@@ -30,7 +30,6 @@ import gc
 import itertools
 import os
 import shutil
-import sys
 import tempfile
 # from dataclasses import dataclass, field
 from functools import cache
@@ -194,8 +193,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     for fname in fnames:
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
-            hopout.warning('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
-            sys.exit(1)
+            hopout.error('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
 
         # Create a temporary directory and keep it existing until manually cleaned
         tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -206,8 +204,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
         with h5py.File(tname, mode='r') as f:
             # Check if file contains the Hopr version
             if 'HoprVersion' not in f.attrs:
-                hopout.warning('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
-                sys.exit(1)
+                hopout.error('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
 
             # Read the globalNodeIDs
             nodeInfo   = np.array(f['GlobalNodeIDs'])

@@ -85,15 +85,12 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Sanity check
     # > Check if the requested polynomial order is 1
     if nGeo > 1:
-        hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('nGeo = {} not supported for element splitting'.format(nGeo), traceback=True)
 
     # > Check if the mesh contains any pyramids or hexahedra
     if any(s.startswith(x) for x in ['pyramid', 'hexahedron'] for s in cdict.keys()):
         unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in ['pyramid', 'hexahedron'])]
-        hopout.warning('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
-        sys.exit(1)
+        hopout.error('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
 
     faceType = ['triangle'  , 'quad'  ]
     faceNum  = [          3 ,       4 ]

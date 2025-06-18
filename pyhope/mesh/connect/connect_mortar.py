@@ -28,8 +28,6 @@
 import bisect
 import copy
 import itertools
-import sys
-import traceback
 from collections import defaultdict
 from functools import lru_cache
 from itertools import combinations
@@ -246,9 +244,7 @@ def connect_mortar_sides( sideIDs    : tuple
                  points_exist_in_target((masterCorners[0], masterCorners[3]), slaveCorners):
                 mortarType = 3
             else:
-                hopout.warning('Could not determine mortar type, exiting...')
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error('Could not determine mortar type, exiting...', traceback=True)
 
             del slaveSide
             del slaveCorners
@@ -264,15 +260,11 @@ def connect_mortar_sides( sideIDs    : tuple
                                  for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
 
         case _:
-            hopout.warning('Found invalid number of sides for mortar side, exiting...')
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Found invalid number of sides for mortar side, exiting...', traceback=True)
 
     # Sanity check
     if len(slaveSides) != nMortars:
-        hopout.warning('Could not determine mortar type, exiting...')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Could not determine mortar type, exiting...', traceback=True)
 
     # Update the master side
     masterSide.MS          = 1            # noqa: E251

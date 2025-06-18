@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
 from collections import OrderedDict
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -197,8 +196,7 @@ def IO() -> None:
             mesh.write(fname, file_format='gmsh')
 
         case _:  # Default
-            hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))
-            sys.exit(1)
+            hopout.error('Unknown output format {}, exiting...'.format(io_vars.outputformat))
 
     # hopout.sep()
     # hopout.info('OUTPUT MESH DONE!')

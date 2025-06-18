@@ -32,6 +32,7 @@ from contextlib import redirect_stdout, redirect_stderr, ExitStack
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import h5py
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -73,6 +74,19 @@ def Mesh(*args, stdout=False, stderr=True):
     # ------------------------------------------------------
 
     try:
+        # Check if the arguments provided are valid mesh files
+        if not args:
+            raise ValueError('No mesh file provided.')
+
+        for arg in args:
+            # Check if the argument is a valid file path
+            if not os.path.isfile(arg):
+                raise FileNotFoundError(f'Mesh file not found: {arg}')
+
+            # Check if the argument is a valid HDF5 file
+            if not h5py.is_hdf5(arg):
+                raise ValueError(f'Mesh file not a valid HDF5 file: {arg}')
+
         # Suppress output to standard output
         with ExitStack() as stack:
             with open(os.devnull, 'w') as null:

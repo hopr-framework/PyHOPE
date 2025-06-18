@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import sys
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -94,8 +94,7 @@ def MeshExternal() -> meshio.Mesh:
             fnames[iFile] = os.path.abspath(os.path.join(os.path.dirname(prmfile), fname))
             print(hopout.warn('Mesh not found in the CWD, but found in the prmfile directory.'))
         else:
-            hopout.warning('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
-            sys.exit(1)
+            hopout.error('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
 
     if not all(compatibleGMSH(fname) for fname in fnames):
         if any(compatibleGMSH(fname) for fname in fnames):
@@ -122,8 +121,7 @@ def MeshExternal() -> meshio.Mesh:
 
     # If there are still files left, we have an unknown format
     if len(fnames) > 0:
-        hopout.warning('Unknown file format {}, exiting...'.format(fnames))
-        sys.exit(1)
+        hopout.error('Unknown file format {}, exiting...'.format(fnames))
 
     # Regenerate the boundary conditions
     if mesh_vars.CGNS.regenerate_BCs:
@@ -164,8 +162,7 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
         for bc in [s for s in bcs if abs(s.type[3]) == iVV + 1]:
             sign = np.sign(bc.type[3])
             if boundaries[sign] is not None:
-                hopout.warning("Multiple periodic boundaries found for the same direction. Exiting...")
-                sys.exit(1)
+                hopout.error("Multiple periodic boundaries found for the same direction. Exiting...")
             boundaries[sign] = bc.name
 
         # Compute mean coordinates for both boundaries as a tuple

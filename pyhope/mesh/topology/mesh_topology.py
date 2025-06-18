@@ -68,8 +68,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     # Simplex elements requested
     if any(elemType % 100 != 8 for elemType in elemTypes):
         if mesh_vars.nGeo > 4:
-            hopout.warning('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
-            sys.exit(1)
+            hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
 
     hopout.info('Converting hexahedral elements to simplex elements')
 
@@ -96,8 +95,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 else:                          # tetrahedra
                     elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
             except IndexError:
-                hopout.warning('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
-                sys.exit(1)
+                hopout.error('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
 
     # Copy original points
     pointl    = cast(list, mesh.points.tolist())
@@ -155,8 +153,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             faceType = ['triangle15', 'quad25']
             faceNum  = [         15 ,      25 ]
         case _:
-            hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
-            sys.exit(1)
+            hopout.error('nGeo = {} not supported for element splitting'.format(nGeo))
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
@@ -195,9 +192,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         cdata = mesh.get_cells_type(mtype)[mcell]
 
         if split is None or faces is None:
-            hopout.warning('Element type {} not supported for splitting'.format(elemTypes[iElem]))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Element type {} not supported for splitting'.format(elemTypes[iElem]), traceback=True)
 
         elemSplit = split(nGeo)
 

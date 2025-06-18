@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
 import gc
-import sys
 from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -80,8 +79,7 @@ def EliminateDuplicates() -> None:
             continue
 
         if bcID is None:
-            hopout.warning(f'Could not find BC {bc_key} in list, exiting...')
-            sys.exit(1)
+            hopout.error(f'Could not find BC {bc_key} in list, exiting...')
 
         # Only process periodic boundaries in the positive direction
         if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
