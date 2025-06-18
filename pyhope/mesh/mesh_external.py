@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+# import sys
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -127,17 +128,21 @@ def MeshExternal() -> meshio.Mesh:
     if mesh_vars.CGNS.regenerate_BCs:
         mesh = BCCGNS(mesh, fgmsh)
 
+    # Check if mesh has any boundary conditions
+    if len(bcs) == 0:
+        hopout.error('No boundary conditions defined in the parameter file.')
+
     # Reconstruct periodicity vectors from mesh
-    hasPeriodic = np.any([bcs[s].type[0] == 1 for s in range(nBCs)])
+    hasPeriodic = np.any([cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)])
     if len(mesh_vars.vvs) == 0 and hasPeriodic:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))
         # Get max number of periodic alphas
-        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(bc.type[3]) for bc in bcs])))]
+        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
-            hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'RECOVER')
+            hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
         hopout.sep()
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
