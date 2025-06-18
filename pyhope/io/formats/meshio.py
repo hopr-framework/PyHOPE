@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from functools import cache
 from typing import Tuple
-import sys
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import numpy as np
@@ -144,7 +143,7 @@ def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> np.ndarray:
         case 11:
             return np.array((start         , end   , node   ), dtype=int)
         case _:
-            sys.exit(1)
+            raise ValueError(f'Invalid edge index: {edge}.')
 
 
 @cache
@@ -171,7 +170,7 @@ def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
             index = facePointMatrix(end-start-1, pos, orient=False)
             return np.array((start+index[0]+1 , start+index[1]+1 , end             ), dtype=int)
         case _:
-            sys.exit(1)
+            raise ValueError(f'Invalid face index: {face}.')
 
 
 @cache

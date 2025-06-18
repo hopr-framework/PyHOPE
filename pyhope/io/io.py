@@ -30,7 +30,6 @@ from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
-import heapq
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -213,6 +212,8 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray | None,  # Optional[EdgeConnectInfo]
                            dict[int, int]
                           ]:
+    # Standard libraries -----------------------------------
+    import heapq
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.fem.fem import getFEMInfo

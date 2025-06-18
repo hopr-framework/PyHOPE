@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import math
 from collections import defaultdict
 from itertools import chain
 from typing import Dict, Tuple, cast
@@ -45,6 +44,9 @@ import numpy as np
 def copysign_int(x: int, y: int) -> int:
     """ Return a int with the magnitude (absolute value) of x but the sign of y
     """
+    # Standard libraries -----------------------------------
+    import math
+    # ------------------------------------------------------
     return int(math.copysign(x, y))
 
 

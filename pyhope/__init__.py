@@ -26,13 +26,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import os
 from contextlib import contextmanager
-from contextlib import redirect_stdout, redirect_stderr, ExitStack
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import h5py
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -62,6 +59,11 @@ def Mesh(*args, stdout=False, stderr=True):
         Yields:
             Mesh: An object containing the generated mesh and its properties
     """
+    # Standard libraries -----------------------------------
+    import os
+    # Third-party libraries --------------------------------
+    import h5py
+    from contextlib import redirect_stdout, redirect_stderr, ExitStack
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.mesh.mesh_vars as mesh_vars

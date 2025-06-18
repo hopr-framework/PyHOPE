@@ -25,8 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
-import traceback
 from collections import defaultdict
 from functools import cache
 from typing import cast
@@ -185,9 +183,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
         split, faces = elemSplitter.get(elemType, (None, None))
         faceMap      = faceMaper.get(elemType, None)
+
         # Sanity check
         if faceMap is None:
-            sys.exit(1)
+            raise ValueError('Missing faceMap for element type {}'.format(elemType))
 
         cdata = mesh.get_cells_type(mtype)[mcell]
 
@@ -387,9 +386,9 @@ def split_hex_to_tets(order: int) -> list[tuple]:
 
             return [tetra1, tetra2, tetra3, tetra4, tetra5, tetra6]
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            # Lazy-load local import
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
 
 
 @cache
@@ -414,9 +413,8 @@ def tetra_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  0,  2,  3,  *reversed(range(10, 13)), *range(19, 22), *reversed(range(13, 16)), *range(28, 31)), dtype=int),  # noqa: E501
                     np.array((  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)), dtype=int))  # noqa: E501
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
 
 
 @cache
@@ -424,6 +422,9 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
     """
     Given the indices of a single hexahedral element, return a list of new pyramid element connectivity lists
     """
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
     match order:
         case 1:
             # Perform the 6-pyramid split of the cube-like cell
@@ -475,9 +476,8 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
                      101, 150, 140, 100, 151, 187, 186, 112, 169, 153, 117, 139, 138,
                      108, 172, 156, 116,  74,  73,  72,  71,  77,  76,  75,  78,  79, 171, 170, 154, 155, 121)]
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
 
 
 @cache
@@ -511,9 +511,8 @@ def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
                     # Quadrilateral face
                     np.array(( 0,  1,  2,  3, *range(5, 17), *range(41, 50)), dtype=int))
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
 
 
 @cache
@@ -574,9 +573,8 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
             return [prism1, prism2]
 
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
 
 
 @cache
@@ -610,9 +608,8 @@ def prism_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  1, 2, 5, 4, *range( 9, 12), *range(30, 33), *reversed(range(18, 21)), *reversed(range(27, 30)), *range(42, 51)), dtype=int),  # noqa: E501
                     np.array((  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)), dtype=int))  # noqa: E501
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
 
 
 # Dummy function for hexahedral elements
@@ -657,6 +654,5 @@ def hex_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  0,  4,  7,  3, *range(32, 35), *range(29, 32), *reversed(range(41, 44)), *reversed(range(17, 20)), 44,          *range(45, 48) , 48,          *range(49, 52) , 52), dtype=int),  # noqa: E501
                     np.array((  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97), dtype=int))  # noqa: E501
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)

@@ -29,7 +29,6 @@ import os
 import shutil
 import platform
 import subprocess
-import sys
 from importlib import metadata
 from packaging.version import Version
 from typing import Optional, cast
@@ -131,9 +130,11 @@ def PkgsCheckGmsh() -> None:
 
 
 def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
-    # Local imports ----------------------------------------
+    # Standard libraries -----------------------------------
+    import sys
     import hashlib
     import tempfile
+    # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Gitlab
     # ------------------------------------------------------

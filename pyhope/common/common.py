@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import sys
 from io import TextIOWrapper
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -104,6 +103,9 @@ def DebugEnabled() -> bool:
     """ Check if program runs with debugger attached
         > https://stackoverflow.com/a/77627075/23851165
     """
+    # Standard libraries -----------------------------------
+    import sys
+    # ------------------------------------------------------
     try:
         if sys.gettrace() is not None:
             return True
@@ -120,12 +122,20 @@ def DebugEnabled() -> bool:
 
 
 def IsInteractive() -> bool:
+    """ Check if the program is running in an interactive terminal
+    """
+    # Standard libraries -----------------------------------
+    import sys
+    # ------------------------------------------------------
     return cast(TextIOWrapper, sys.__stdin__).isatty()
 
 
 def IsDisplay() -> bool:
     """ Check if the program is running in a display environment
     """
+    # Standard libraries -----------------------------------
+    import sys
+    # ------------------------------------------------------
     # Check if running on Linux, otherwise assume a display
     if not sys.platform.startswith('linux'):
         return True

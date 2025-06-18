@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
 from dataclasses import dataclass
 from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -102,5 +101,5 @@ def ELEMTYPE(elemType: int) -> str:
         case 208:
             return '        Curved Hexahedra  '
         case _:  # Default
-            print('Error in ELEMTYPE, unknown elemType')
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Error in ELEMTYPE, unknown elemType')

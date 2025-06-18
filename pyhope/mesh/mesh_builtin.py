@@ -32,7 +32,6 @@ from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import gmsh
 import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -45,6 +44,8 @@ import numpy as np
 
 
 def MeshCartesian() -> meshio.Mesh:
+    # Third-party libraries --------------------------------
+    import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout

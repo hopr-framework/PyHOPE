@@ -25,8 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
-import traceback
 from collections import defaultdict
 from functools import cache
 from typing import Final, Tuple, cast
@@ -293,9 +291,8 @@ def tet_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
                       np.arange(  0,  4, dtype=int)                # index 14
                    )
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order))
 
 
 @cache
@@ -362,9 +359,8 @@ def prism_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
                       np.array((  3,  4,  5), dtype=int),           # index 13
                    )
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order))
 
 
 @cache

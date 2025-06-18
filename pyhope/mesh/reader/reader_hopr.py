@@ -30,7 +30,6 @@ import gc
 import itertools
 import os
 import shutil
-import tempfile
 # from dataclasses import dataclass, field
 from functools import cache
 from string import digits
@@ -162,6 +161,8 @@ def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
 
 
 def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
+    # Standard libraries -----------------------------------
+    import tempfile
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars

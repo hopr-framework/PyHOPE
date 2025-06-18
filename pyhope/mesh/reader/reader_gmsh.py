@@ -31,13 +31,11 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 import time
 from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import gmsh
 import h5py
 import meshio
 import numpy as np
@@ -85,6 +83,8 @@ def compatibleGMSH(file: str) -> bool:
 
 
 def ReadGMSH(fnames: list) -> meshio.Mesh:
+    # Third-party libraries --------------------------------
+    import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -195,6 +195,8 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """ Some CGNS files setup their boundary conditions in a different way than gmsh expects
         > Add them here manually to the meshIO object
     """
+    # Standard libraries -----------------------------------
+    import tempfile
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars

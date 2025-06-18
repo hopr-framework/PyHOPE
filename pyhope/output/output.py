@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
-import textwrap
 from dataclasses import dataclass
 from typing import Final, Optional, NoReturn
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -102,6 +101,9 @@ def warn(string: str, length: int = STD_LENGTH) -> str:
                 string (str): String to be printed in banner
                 length (int): (Optional.) Number of characters in each line
     """
+    # Standard libraries -----------------------------------
+    import textwrap
+    # ------------------------------------------------------
     prefix   = Colors.WARN + '│  WARNING  ┃ '  + Colors.END
     lprefix  = len('│  WARNING  ┃ ')
     wrap_msg = textwrap.fill(string, width=length - lprefix)
