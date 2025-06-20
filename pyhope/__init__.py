@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from collections import namedtuple
 from contextlib import contextmanager
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -33,18 +34,36 @@ from contextlib import contextmanager
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.basis.basis_basis import legendre_gauss_nodes, legendre_gauss_lobatto_nodes
+from pyhope.basis.basis_basis import barycentric_weights, polynomial_derivative_matrix
+from pyhope.basis.basis_basis import lagrange_interpolation_polys, calc_vandermonde
+from pyhope.basis.basis_basis import change_basis_3D, change_basis_2D
+from pyhope.basis.basis_basis import evaluate_jacobian
 # ==================================================================================================================================
 
 
-class MeshContainer:
-    """ A simple container to hold the mesh result
+class Basis:
+    """ Basis class to hold all basis related functions and variables
     """
-    def __init__(self, mesh, nGeo, bcs, elems, sides) -> None:
-        self.mesh  = mesh
-        self.nGeo  = nGeo
-        self.bcs   = bcs
-        self.elems = elems
-        self.sides = sides
+    legendre_gauss_nodes         = staticmethod(legendre_gauss_nodes)
+    legendre_gauss_lobatto_nodes = staticmethod(legendre_gauss_lobatto_nodes)
+    barycentric_weights          = staticmethod(barycentric_weights)
+    polynomial_derivative_matrix = staticmethod(polynomial_derivative_matrix)
+    lagrange_interpolation_polys = staticmethod(lagrange_interpolation_polys)
+    calc_vandermonde             = staticmethod(calc_vandermonde)
+    change_basis_3D              = staticmethod(change_basis_3D)
+    change_basis_2D              = staticmethod(change_basis_2D)
+    evaluate_jacobian            = staticmethod(evaluate_jacobian)
+
+
+# Define a named tuple to hold the mesh data
+MeshContainer = namedtuple('Mesh',
+                          ['mesh',   # The generated mesh object
+                           'nGeo',   # Polynomial order
+                           'bcs',    # Boundary conditions
+                           'elems',  # Elements
+                           'sides'   # Sides
+                          ])
 
 
 @contextmanager
@@ -128,15 +147,12 @@ def Mesh(*args, stdout=False, stderr=True):
         elems = mesh_vars.elems
         sides = mesh_vars.sides
 
-        # yield {
-        #     'mesh':  mesh,
-        #     'nGeo':  nGeo,
-        #     'bcs':   bcs,
-        #     'elems': elems,
-        #     'sides': sides,
-        # }
-
-        yield MeshContainer(mesh, nGeo, bcs, elems, sides)
+        yield MeshContainer(mesh  = mesh,   # noqa: E251
+                            nGeo  = nGeo,   # noqa: E251
+                            bcs   = bcs,    # noqa: E251
+                            elems = elems,  # noqa: E251
+                            sides = sides   # noqa: E251
+                           )
 
     finally:
         # Cleanup resources after exiting the context
