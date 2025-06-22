@@ -75,7 +75,7 @@ def DefineMesh() -> None:
     CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
     # Periodicity
     CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
-    CreateLogical(  'doPeriodicCorrect',    default=True,  help='Enables periodic correction')
+    CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
     # Connections
     CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
