@@ -183,6 +183,11 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
 
     # Check if periodic vector matches using vectorized np.allclose
     if not np.allclose(points[nodes] + vv, points[nbNodes], rtol=tol, atol=tol):
+        # Print coordinates of the nodes and their periodic neighbors
+        for inode, node in enumerate(nodes.flatten()):
+            print()
+            print(hopout.warn(f' - Coordinates (-): {points[node] + vv}'))
+            print(hopout.warn(f' - Coordinates (+): {points[nbNodes.flatten()[inode]]}'))
         hopout.error('Error in periodic update, periodic vector does not match!')
 
     # Calculate the center for both points
