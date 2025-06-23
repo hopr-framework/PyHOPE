@@ -75,7 +75,12 @@ def EliminateDuplicates() -> None:
         bcID = find_bc_index(bcs, bc_key)
 
         # Ignore the volume zones
-        if 'Zone' in bc_key:
+        volumeBC = False
+        for iMap in csetMap[bc_key]:
+            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
+                volumeBC = True
+                break
+        if volumeBC:
             continue
 
         if bcID is None:

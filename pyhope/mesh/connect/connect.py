@@ -284,7 +284,12 @@ def ConnectMesh() -> None:
         bcID = find_bc_index(bcs, key)
 
         # Ignore the volume zones
-        if 'Zone' in key:
+        volumeBC = False
+        for iMap in csetMap[key]:
+            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
+                volumeBC = True
+                break
+        if volumeBC:
             continue
 
         if bcID is None:
