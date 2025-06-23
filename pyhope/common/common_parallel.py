@@ -58,6 +58,7 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------
+    from pyhope.common.common import IsInteractive
     from pyhope.common.common_vars import np_mtp
     # ------------------------------------------------------
 
@@ -65,8 +66,11 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
     total_elements = len(elems)
     progress_queue = Queue()
 
+    # Create a progress bar target
+    target = update_progress if IsInteractive() else None
+
     # Use a separate thread for the progress bar
-    progress_thread = threading.Thread(target=update_progress, args=(progress_queue, total_elements))
+    progress_thread = threading.Thread(target=target, args=(progress_queue, total_elements))
     progress_thread.start()
 
     # Use multiprocessing Pool for parallel processing

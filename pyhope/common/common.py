@@ -127,7 +127,7 @@ def IsInteractive() -> bool:
     # Standard libraries -----------------------------------
     import sys
     # ------------------------------------------------------
-    return cast(TextIOWrapper, sys.__stdin__).isatty()
+    return cast(TextIOWrapper, sys.__stdin__).isatty() and cast(TextIOWrapper, sys.__stdout__).isatty()
 
 
 def IsDisplay() -> bool:
