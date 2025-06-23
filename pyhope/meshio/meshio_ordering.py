@@ -124,7 +124,7 @@ class NodeOrdering:
                                        # 2D elements
                                        # 3D elements
                                        # > Hexahedron
-                                       'hexahedron':   [0, 2, 6, 4, 1, 3, 7, 5],
+                                       'hexahedron':   [0, 1, 3, 2, 4, 5, 7, 6],
                                     }
     )
 

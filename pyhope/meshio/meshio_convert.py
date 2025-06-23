@@ -78,7 +78,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
         # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)
         _, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
         offset = min(elem_tags[0])
-        
+
         name = gmsh.model.getPhysicalName(dim, tag)
         cell_sets[name] = [[] for _ in range(len(cells))]
         for e in gmsh.model.getEntitiesForPhysicalGroup(dim, tag):

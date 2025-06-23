@@ -75,7 +75,7 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: ['x-', 'z+', 'x+', 'z-', 'y-', 'y+']
+                   8: ['y-', 'x+', 'y+', 'x-', 'z-', 'z+']
                 }
 
     if isinstance(elemType, str):
@@ -92,7 +92,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common import lines_that_contain
-    from pyhope.mesh.mesh_common import face_to_nodes, face_to_cgns
+    from pyhope.mesh.mesh_common import face_to_cgns
+    from pyhope.mesh.mesh_common import FaceOrdering
     from pyhope.meshio.meshio_ordering import NodeOrdering
     # ------------------------------------------------------
 
@@ -207,6 +208,10 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     except ValueError:
                         continue
 
+                    # Ignore invalid (empty) boundary conditions
+                    if bcnData <= 0:
+                        continue
+
                     BCName = bcName.strip().lower()
 
                     match bcType:
@@ -231,17 +236,18 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                                 elem      = cells[elemType][elemID-1]
                                 face      = gambit_faces(elemType)[faceID-1]
 
-                                # Get the face corners
-                                nCorners  = len(face_to_cgns(face, elemType))
-                                corners   = elem[face_to_nodes(face, elemType, mesh_vars.nGeo)]
-                                # corners   = corners.flatten()[order]
-                                sideNodes = np.expand_dims(corners, axis=0)
-
                                 # Determine the side name and number
+                                nCorners  = len(face_to_cgns(face, elemType))
                                 sideNum   = 0      if nCorners == 4 else 1           # noqa: E272
                                 sideBase  = 'quad' if nCorners == 4 else 'triangle'  # noqa: E272
                                 sideHO    = '' if mesh_vars.nGeo == 1 else str(NDOFperElemType(sideBase, mesh_vars.nGeo))
                                 sideName  = sideBase + sideHO
+
+                                # Map the face ordering from tensor-product to meshio
+                                order     = FaceOrdering(sideBase, mesh_vars.nGeo)
+                                corners   = elem[face_to_cgns(face, elemType)]
+                                corners   = corners.flatten()[order]
+                                sideNodes = np.expand_dims(corners, axis=0)
 
                                 # Add the side to the cells
                                 cells.setdefault(sideName, []).append(sideNodes.astype(np.uint64))
