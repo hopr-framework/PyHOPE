@@ -253,7 +253,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         sideName  = sideBase + sideHO
 
                         # Map the face ordering from tensor-product to meshio
-                        order     = FaceOrdering(sideBase, mesh_vars.nGeo)
+                        order     = FaceOrdering(sideBase, order=1)
                         corners   = elemNodes[0][face_to_cgns(face, elemType)]
                         corners   = corners.flatten()[order]
                         sideNodes = np.expand_dims(corners, axis=0)

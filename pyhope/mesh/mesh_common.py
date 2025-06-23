@@ -262,7 +262,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
 #
 #     def compute_ordering(self) -> np.ndarray:
 @cache
-def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
+def FaceOrdering(side_type: str, order: int) -> np.ndarray:
     """
     Compute the permutation ordering to convert from tensor-product ordering
     to meshio ordering for a face of a given type ('quad' or 'triangle')
@@ -288,10 +288,10 @@ def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
     """
     if side_type.lower() == 'quad':
         # Total nodes on face: (nGeo+1)**2
-        if nGeo == 1:
+        if order == 1:
             return np.arange(4)
         else:
-            n           = nGeo
+            n           = order
             grid        = np.arange((n+1)**2).reshape(n+1, n+1)
             # Corners: bottom-left, bottom-right, top-right, top-left
             corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
@@ -306,16 +306,16 @@ def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
             # Interior nodes: remaining nodes in row-major order
             interior    = grid[1:n, 1:n].flatten()
             # Assemble ordering: corners, edges, interior
-            # order       = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            order       = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            return order
+            # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
+            ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
+            return ordering
 
     elif side_type.lower() == 'triangle':
         # Total nodes on face: (nGeo+1)*(nGeo+2)//2
-        if nGeo == 1:
+        if order == 1:
             return np.arange(3)
         else:
-            p           = nGeo
+            p           = order
             # Build the tensor ordering as a list of (i, j) for which i+j <= p.
             nodes       = []
             for i in range(p+1):
@@ -334,8 +334,8 @@ def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
             interior    = [node for node in nodes if node not in boundary]
             # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
             desired     = vertices + edge01 + edge12 + edge20 + interior
-            order       = [nodes.index(nd) for nd in desired]
-            return np.array(order)
+            ordering    = [nodes.index(nd) for nd in desired]
+            return np.array(ordering)
     else:
         raise ValueError(f'Unsupported side type: {side_type}')
 
