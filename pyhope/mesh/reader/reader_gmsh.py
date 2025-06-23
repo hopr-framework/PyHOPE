@@ -39,7 +39,7 @@ from typing import Final, cast
 import h5py
 import meshio
 import numpy as np
-from scipy import spatial
+from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -74,7 +74,7 @@ def compatibleGMSH(file: str) -> bool:
                 41: '.celum',
                 42: '.su2',
                 47: '.tochnog',
-                # 49: '.neu',
+                # 49: '.neu',   # Cubit/Gambit reader is broken beyond repair
                 50: '.matlab'}
 
     # get file extension
@@ -218,7 +218,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     # Now, for quadrilateral elements
     nConnLen  = 0
     nConnNum  = 0
-    stree     = spatial.KDTree([[0.0]])
+    stree     = KDTree([[0.0]])
 
     if any('quad' in key for key in mesh.cells_dict):
         nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
@@ -234,12 +234,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del nbCorners
 
         # Build a k-dimensional tree of all points on the opposing side
-        stree = spatial.KDTree(nbPoints)
+        stree = KDTree(nbPoints)
 
     # Now, the same thing for triangular elements
     tConnLen  = 0
     tConnNum  = 0
-    ttree     = spatial.KDTree([[0.0]])
+    ttree     = KDTree([[0.0]])
 
     if any('triangle' in key for key in mesh.cells_dict):
         tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
@@ -253,7 +253,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         tbPoints  = tbPoints.reshape(tbPoints.shape[0], tbPoints.shape[1]*tbPoints.shape[2])
         del tbCorners
 
-        ttree = spatial.KDTree(tbPoints)
+        ttree = KDTree(tbPoints)
 
     tol: Final[float] = mesh_vars.tolExternal
 
@@ -306,12 +306,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 zonedata = cast(h5py.Dataset, zone[' data'])
                 match len(zonedata[0]):
                     case 1:  # Unstructured mesh, 1D arrays
-                        mesh = BCCGNS_Unstructured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen,  # noqa: E501
+                        mesh = BCCGNS_Unstructured(mesh, points, cells, cast(KDTree, stree), zone, tol, nConnNum, nConnLen,  # noqa: E501
                                                    # Support for triangular elements
-                                                   cast(spatial.KDTree, ttree), tConnNum, tConnLen)
+                                                   cast(KDTree, ttree), tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
                         # Structured grid can only contain tensor-product elements
-                        mesh = BCCGNS_Structured(mesh, points, cells, cast(spatial.KDTree, stree), zone, tol, nConnNum, nConnLen)
+                        mesh = BCCGNS_Structured(mesh, points, cells, cast(KDTree, stree), zone, tol, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
                         hopout.error('Unsupported number of dimensions')
@@ -331,7 +331,7 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
                  cellsets,
                  nConnLen: int,
                  nConnNum: int,
-                 stree:    spatial.KDTree,
+                 stree:    KDTree,
                  tol:      float,
                  BCName:   str) -> dict:
     # Local imports ----------------------------------------
@@ -365,13 +365,13 @@ def BCCGNS_SetBC(BCpoints: np.ndarray,
 def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                           points:   np.ndarray,
                           cells:    list,
-                          stree:    spatial.KDTree,
+                          stree:    KDTree,
                           zone,     # CGNS zone
                           tol:      float,
                           nConnNum: int,
                           nConnLen: int,
                           # Triangular elements
-                          ttree:    spatial.KDTree,
+                          ttree:    KDTree,
                           tConnNum: int,
                           tConnLen: int) -> meshio.Mesh:
     """ Set the CGNS boundary conditions for uncurved (unstructured) grids
@@ -508,7 +508,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
-                      stree:    spatial.KDTree,
+                      stree:    KDTree,
                       zone,     # CGNS zone
                       tol:      float,
                       nConnNum: int,

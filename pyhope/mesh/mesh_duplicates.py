@@ -32,7 +32,7 @@ from typing import Final, cast
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from scipy import spatial
+from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def EliminateDuplicates() -> None:
     # Also, remove near duplicate points
     # Create a KDTree for the mesh points
     mesh_vars.mesh.points = points
-    tree   = spatial.KDTree(points)
+    tree   = KDTree(points)
 
     # Filter the valid three-dimensional cell types
     valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))

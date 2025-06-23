@@ -38,7 +38,7 @@ from typing import Optional, Final
 # import meshio
 import numpy as np
 from numpy.linalg import norm
-from scipy import spatial
+from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -84,8 +84,8 @@ def ConnectMortar( nConnSide  : list
     vvs: Final[list             ] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree:     Final[spatial.KDTree] = spatial.KDTree(np.array(nConnCenter))
-    indexList: Final[IndexedLists  ] = IndexedLists()
+    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter))
+    indexList: Final[IndexedLists] = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
         targetSide   = side

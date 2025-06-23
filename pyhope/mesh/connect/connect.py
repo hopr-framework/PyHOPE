@@ -36,7 +36,7 @@ from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
-from scipy import spatial
+from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
     return None
 
 
-def find_closest_side(points: np.ndarray, stree: spatial.KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
+def find_closest_side(points: np.ndarray, stree: KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
     """ Query the tree for the closest side
     """
     trSide = stree.query(points)
