@@ -219,6 +219,7 @@ def ConnectMesh() -> None:
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
     from pyhope.mesh.mesh_common import face_to_nodes
+    from pyhope.mesh.mesh_common import flip_s2m
     # ------------------------------------------------------
 
     match io_vars.outputformat:
@@ -235,6 +236,11 @@ def ConnectMesh() -> None:
     mesh_vars.doMortars         = GetLogical('doMortars')
     doPeriodicCorrect = mesh_vars.doPeriodicCorrect
     doMortars         = mesh_vars.doMortars
+
+    # Sanity check
+    hopout.sep()
+    checkSideConnect  = GetLogical('CheckSideConnect')
+    hopout.sep()
 
     mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
@@ -376,6 +382,26 @@ def ConnectMesh() -> None:
                     nbcorners = np.fromiter((mesh_vars.periNodes[(s, bcs[side1.bcid].name)] for s in side1.corners), dtype=int)
 
                 flipID    = flip_analytic(corners[0], nbcorners) + 1
+
+                if checkSideConnect:
+                    # Sanity check the flip with the other nodes
+                    elem0   = elems[side0.elemID]
+                    elem1   = elems[side1.elemID]
+                    nodes   = elem0.nodes[face_to_nodes(side0.face, elem0.type, nGeo)].flatten()
+                    indices = flip_s2m(nGeo+1, 1 if flipID <= 2 else flipID)
+
+                    # Extract relevant indices from the mesh
+                    nbNodes = elem1.nodes[face_to_nodes(side1.face, elem1.type, nGeo)]
+                    nbNodes = nbNodes[indices[:, :, 0], indices[:, :, 1]].flatten()
+
+                    # Translate to periodic nodes if required
+                    if side0.bcid is not None and side1.bcid is not None and bcs[side1.bcid].type[0] == 1:
+                        nbNodes = np.fromiter((mesh_vars.periNodes[(s, bcs[side1.bcid].name)] for s in nbNodes), dtype=int)
+
+                    # Check if the node IDs match
+                    if not np.array_equal(nodes, nbNodes):
+                        hopout.error('Error in periodic update, node IDs do not match!', traceback=True)
+
                 # Connect the sides
                 connect_sides(sideIDs, sides, flipID)
                 # Update the progress bar
