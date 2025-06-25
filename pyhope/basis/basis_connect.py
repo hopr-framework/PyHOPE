@@ -32,6 +32,7 @@ from typing import Final
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,10 +45,14 @@ from pyhope.mesh.mesh_common import face_to_nodes
 def check_sides(elem,
                 ) -> list[bool | int | np.ndarray]:
     results = []
-    elems   = mesh_vars.elems
-    sides   = mesh_vars.sides
-    nGeo    = mesh_vars.nGeo
-    bcs     = mesh_vars.bcs
+    elems:  Final[list]  = mesh_vars.elems
+    sides:  Final[list]  = mesh_vars.sides
+    nGeo:   Final[int]   = mesh_vars.nGeo
+    bcs:    Final[list]  = mesh_vars.bcs
+    # Tolerance for physical comparison
+    tol:    Final[float] = mesh_vars.tolPeriodic
+    vvs:    Final[list]  = mesh_vars.vvs
+    points: Final[npt.NDArray] = mesh_vars.mesh.points
 
     for SideID in elem.sides:
         master = sides[SideID]
@@ -75,12 +80,20 @@ def check_sides(elem,
         elemType = elem0.type
         nodes    = elem0.nodes[sidetovol2(nGeo, 0           , side[0].face, elemType)]
         nbNodes  = elem1.nodes[sidetovol2(nGeo, side[1].flip, side[1].face, elemType)]
-        # Translate to periodic nodes if required
-        if side[0].bcid is not None and side[1].bcid is not None and bcs[side[1].bcid].type[0] == 1:
-            nbNodes = np.vectorize(lambda s: mesh_vars.periNodes[(s, bcs[side[1].bcid].name)], otypes=[int])(nbNodes)
 
-        # Check if the node IDs match
-        success = np.array_equal(nodes, nbNodes)
+        # INFO: THIS CURRENTLY MIGHT NOT WORK SINCE WE POTENTIALLY ONLY HAVE THE CORNER NODES AVAILABLE
+        try:
+            # Translate to periodic nodes if required
+            if side[0].bcid is not None and side[1].bcid is not None and bcs[side[1].bcid].type[0] == 1:
+                nbNodes = np.vectorize(lambda s: mesh_vars.periNodes[(s, bcs[side[1].bcid].name)], otypes=[int])(nbNodes)
+            # Check if the node IDs match
+            success = np.array_equal(nodes, nbNodes)
+        # Fallback to comparison of physical coordinates
+        except KeyError:
+            # Check if periodic vector matches using vectorized np.allclose
+            iVV = bcs[side[0].bcid].type[3]
+            vv  = vvs[np.abs(iVV) - 1]['Dir'] * np.sign(iVV)
+            success = np.allclose(points[nodes] + vv, points[nbNodes], rtol=tol, atol=tol)
 
         results.append((success, SideID))
     return results
@@ -174,5 +187,5 @@ def CheckConnect() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
-        hopout.warning(f'Watertightness check failed for {len(results)} / {nconn} connections!')
+        hopout.warning(f'Connectivity check failed for {len(results)} / {nconn} connections!')
         sys.exit(1)

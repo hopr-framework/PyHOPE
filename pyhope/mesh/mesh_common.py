@@ -369,7 +369,7 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
 
 @cache
 def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
-    """ Transform coordinates from RHS of sie into volme
+    """ Transform coordinates from RHS of side into volume
     """
     faces_map = {  # Tetrahedron
                    # Pyramid
@@ -397,6 +397,11 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
 
 @cache
 def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int]) -> np.ndarray:
+    """ Transform coordinates from RHS of side into volume
+    """
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
+
     # Get the reordering of the element nodes
     mapLin = LINMAP(elemType, order=N)
     # Build the (p,q) grid as arrays of shape (0:N, 0:N)

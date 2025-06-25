@@ -36,6 +36,7 @@ from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+import numpy.typing as npt
 from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -149,8 +150,9 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     if elems[0].type % 100 != 8 or elems[1].type % 100 != 8:
         return
 
-    nGeo   = mesh_vars.nGeo
-    points = mesh_vars.mesh.points
+    nGeo:   Final[int]         = mesh_vars.nGeo
+    points: Final[npt.NDArray] = mesh_vars.mesh.points
+    tol:    Final[float]       = mesh_vars.tolPeriodic
 
     # for iy, ix in np.ndindex(nodes.shape[:2]):
     #     node   = nodes[ix, iy]
@@ -178,17 +180,25 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     nodes    = elems[0].nodes[sidetovol2(nGeo, 0            , sides[0].face, elemType)]
     nbNodes  = elems[1].nodes[sidetovol2(nGeo, sides[1].flip, sides[1].face, elemType)]
 
-    # Translate to periodic nodes
-    nbCheck = np.vectorize(lambda s: mesh_vars.periNodes[(s, mesh_vars.bcs[sides[1].bcid].name)], otypes=[int])(nbNodes)
+    # INFO: THIS CURRENTLY MIGHT NOT WORK SINCE WE POTENTIALLY ONLY HAVE THE CORNER NODES AVAILABLE
+    try:
+        # Translate to periodic nodes
+        nbCheck = np.vectorize(lambda s: mesh_vars.periNodes[(s, mesh_vars.bcs[sides[1].bcid].name)], otypes=[int])(nbNodes)
 
-    # Check if the node IDs match
-    if not np.array_equal(nodes, nbCheck):
-        # Print the node IDs
-        print(hopout.warn(f'NodeIDs side1: {nodes}'))
-        print(hopout.warn(f'NodeIDs side2: {nbCheck}'))
-        hopout.warning('Error in connectivity check, node IDs do not match!')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        # Check if the node IDs match
+        if not np.array_equal(nodes, nbCheck):
+            # Print the node IDs
+            print(hopout.warn(f'NodeIDs side[-]: {nodes  }'))
+            print(hopout.warn(f'NodeIDs side[+]: {nbCheck}'))
+            hopout.error('Error in periodic update, node IDs do not match!')
+    # Fallback to comparison of physical coordinates
+    except KeyError:
+        # Check if periodic vector matches using vectorized np.allclose
+        if not np.allclose(points[nodes] + vv, points[nbNodes], rtol=tol, atol=tol):
+            # Print the node coordinates
+            print(hopout.warn(f'Coordinates side[-]: {points[nodes]  }'))
+            print(hopout.warn(f'Coordinates side[+]: {points[nbNodes]}'))
+            hopout.error('Error in periodic update, periodic vector does not match!')
 
     # Calculate the center for both points
     centers = 0.5 * (points[nodes] + points[nbNodes])
@@ -404,11 +414,9 @@ def ConnectMesh() -> None:
                 #     # Check if the node IDs match
                 #     if not np.array_equal(nodes, nbNodes):
                 #         # Print the node IDs
-                #         print(hopout.warn(f'NodeIDs side1: {nodes}'))
-                #         print(hopout.warn(f'NodeIDs side2: {nbNodes}'))
-                #         hopout.warning('Error in connectivity check, node IDs do not match!')
-                #         traceback.print_stack(file=sys.stdout)
-                #         sys.exit(1)
+                #         print(hopout.warn(f'NodeIDs side[-]: {nodes  }'))
+                #         print(hopout.warn(f'NodeIDs side[+]: {nbNodes}'))
+                #         hopout.error('Error in connectivity check, node IDs do not match!')
 
                 # Connect the sides
                 connect_sides(sideIDs, sides, flipID)
