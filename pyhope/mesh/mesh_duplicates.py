@@ -32,7 +32,7 @@ from typing import Final, cast
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from scipy import spatial
+from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -75,7 +75,12 @@ def EliminateDuplicates() -> None:
         bcID = find_bc_index(bcs, bc_key)
 
         # Ignore the volume zones
-        if 'Zone' in bc_key:
+        volumeBC = False
+        for iMap in csetMap[bc_key]:
+            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
+                volumeBC = True
+                break
+        if volumeBC:
             continue
 
         if bcID is None:
@@ -140,7 +145,7 @@ def EliminateDuplicates() -> None:
     # Also, remove near duplicate points
     # Create a KDTree for the mesh points
     mesh_vars.mesh.points = points
-    tree   = spatial.KDTree(points)
+    tree   = KDTree(points)
 
     # Filter the valid three-dimensional cell types
     valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))

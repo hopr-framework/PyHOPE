@@ -75,8 +75,6 @@ def check_sides(elem,
                 weights  : np.ndarray,
                 # sides    : list
                 ) -> list[bool | int | np.ndarray]:
-    # Local imports ----------------------------------------
-    # ------------------------------------------------------
     results = []
     points  = mesh_vars.mesh.points
     elems   = mesh_vars.elems

@@ -75,7 +75,7 @@ def DefineMesh() -> None:
     CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
     # Periodicity
     CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
-    CreateLogical(  'doPeriodicCorrect',    default=True,  help='Enables periodic correction')
+    CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
     # Connections
     CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
@@ -89,6 +89,7 @@ def DefineMesh() -> None:
     # Checking
     CreateSection('Mesh Checks')
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckConnectivity'  ,  default=True,  help='Check if the side connectivity, including correct flip')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
     # Transformation

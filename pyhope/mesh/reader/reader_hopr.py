@@ -71,95 +71,6 @@ def NDOFperElemType(elemType: str, nGeo: int) -> int:
             raise ValueError(f'Unknown element type {elemType}')
 
 
-# @dataclass
-# class FaceOrdering:
-#     side_type: str
-#     nGeo     : int
-#     order    : np.ndarray = field(init=False)
-#
-#     def __post_init__(self):
-#         self.order = self.compute_ordering()
-#
-#     def compute_ordering(self) -> np.ndarray:
-@cache
-def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
-    """
-    Compute the permutation ordering to convert from tensor-product ordering
-    to meshio ordering for a face of a given type ('quad' or 'triangle')
-    and polynomial order nGeo.
-
-    For quadrilaterals, total nodes = (nGeo+1)**2.
-      - For nGeo==1, the natural ordering is [0, 1, 2, 3].
-      - For nGeo>1, the ordering is:
-          * Corners: bottom-left, bottom-right, top-right, top-left;
-          * Then the bottom edge (excluding corners, left-to-right);
-          * Then the right  edge (excluding corners, bottom-to-top);
-          * Then the top    edge (excluding corners, right-to-left);
-          * Then the left   edge (excluding corners, top-to-bottom);
-          * Finally, the interior nodes in row-major order.
-
-    For triangles, total nodes = (nGeo+1)*(nGeo+2)//2.
-      - For nGeo==1, the natural ordering is [0, 1, 2].
-      - For nGeo>1, we generate the tensor ordering as all (i,j) pairs
-        with i+j <= nGeo (in lexicographical order) and then reorder so that:
-          * Vertices come first: (0,0), (nGeo,0), (0,nGeo);
-          * Followed by edge nodes (in order along each edge);
-          * And then the interior nodes in their natural order.
-    """
-    if side_type.lower() == 'quad':
-        # Total nodes on face: (nGeo+1)**2
-        if nGeo == 1:
-            return np.arange(4)
-        else:
-            n           = nGeo
-            grid        = np.arange((n+1)**2).reshape(n+1, n+1)
-            # Corners: bottom-left, bottom-right, top-right, top-left
-            corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
-            # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
-            bottom_edge = grid[0, 1:n]
-            # Right edge: column n, rows 1 to n-1 (bottom-to-top)
-            right_edge  = grid[1:n, n]
-            # Top edge: row n, columns n-1 to 1 (right-to-left)
-            top_edge    = grid[n, n-1:0:-1]
-            # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
-            left_edge   = grid[n-1:0:-1, 0]
-            # Interior nodes: remaining nodes in row-major order
-            interior    = grid[1:n, 1:n].flatten()
-            # Assemble ordering: corners, edges, interior
-            # order       = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            order       = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            return order
-
-    elif side_type.lower() == 'triangle':
-        # Total nodes on face: (nGeo+1)*(nGeo+2)//2
-        if nGeo == 1:
-            return np.arange(3)
-        else:
-            p           = nGeo
-            # Build the tensor ordering as a list of (i, j) for which i+j <= p.
-            nodes       = []
-            for i in range(p+1):
-                for j in range(p+1 - i):
-                    nodes.append((i, j))
-            # Define vertices in the reference triangle:
-            vertices    = [(0, 0), (p, 0), (0, p)]
-            # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
-            edge01      = [(i, 0) for i in range(1, p)]
-            # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
-            edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
-            # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
-            edge20      = [(0, j) for j in range(1, p)]
-            # Interior nodes: those not on the boundary
-            boundary    = set(vertices + edge01 + edge12 + edge20)
-            interior    = [node for node in nodes if node not in boundary]
-            # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
-            desired     = vertices + edge01 + edge12 + edge20 + interior
-            order       = [nodes.index(nd) for nd in desired]
-            return np.array(order)
-    else:
-        raise ValueError(f'Unsupported side type: {side_type}')
-
-
 def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Standard libraries -----------------------------------
     import tempfile
@@ -167,8 +78,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
-    from pyhope.mesh.mesh_common import LINTEN
-    from pyhope.mesh.mesh_common import faces, face_to_nodes
+    from pyhope.mesh.mesh_common import LINTEN, FaceOrdering
+    from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
@@ -230,7 +141,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     hopout.sep()
                     hopout.routine('The following vectors were found:')
                     for iVV, vv in enumerate(mesh_vars.vvs):
-                        hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'READ IN')
+                        hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'READ IN')
                     hopout.sep()
                 # old hopr files might not contain the VV
                 except KeyError:
@@ -342,8 +253,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         sideName  = sideBase + sideHO
 
                         # Map the face ordering from tensor-product to meshio
-                        order     = FaceOrdering(sideBase, mesh_vars.nGeo)
-                        corners   = elemNodes[0][face_to_nodes(face, elemType, mesh_vars.nGeo)]
+                        order     = FaceOrdering(sideBase, order=1)
+                        corners   = elemNodes[0][face_to_cgns(face, elemType)]
                         corners   = corners.flatten()[order]
                         sideNodes = np.expand_dims(corners, axis=0)
 

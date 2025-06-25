@@ -47,6 +47,7 @@ def main() -> None:
     import pyhope.output.output as hopout
     from pyhope.common.common import DefineCommon, InitCommon
     from pyhope.common.common_vars import Common
+    from pyhope.basis.basis_connect import CheckConnect
     from pyhope.basis.basis_jacobian import CheckJacobians
     from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.io.io import IO, DefineIO, InitIO
@@ -137,6 +138,7 @@ def main() -> None:
     FEMConnect()
 
     # Perform the mesh checks
+    CheckConnect()
     CheckWatertight()
     CheckJacobians()
 

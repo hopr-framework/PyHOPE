@@ -49,7 +49,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├─────────────────────────────────────────────
 │ INIT MESH...
 │                            Mode │ 1 [Internal]                    │ *CUSTOM │
-│                            NGeo │ 4                               │ *CUSTOM │
+│                            NGeo │ 9                               │ *CUSTOM │
 ├─────────────────────────────────────────────
 │ GENERATE MESH...
 ├────
@@ -57,6 +57,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├── Generating zone 1
 │                          Corner │ (/0.,0.,0. ,,1.,0.,0. ,,1.,1... │ *CUSTOM │
 │                          nElems │ (/8,8,8/)                       │ *CUSTOM │
+│                        ElemType │ 108 [hexahedron]                │ *CUSTOM │
 │                     StretchType │ (/0,0,0/)                       │ DEFAULT │
 │                         BCIndex │ (/1,2,3,4,5,6/)                 │ *CUSTOM │
 ├────
@@ -79,8 +80,6 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │                              vv │ (/0., 1., 0./)                  │ *CUSTOM │
 │                              vv │ (/0., 0., 1./)                  │ *CUSTOM │
 ├────
-│                        ElemType │ 108 [hexahedron]                │ *CUSTOM │
-├────
 ├── Generated mesh with 512 cells
 ├─────────────────────────────────────────────
 ├── BUILD DATA STRUCTURE...
@@ -101,7 +100,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├─────────────────────────────────────────────
 │ CONNECT MESH...
 ├────
-│               doPeriodicCorrect │ True                            │ DEFAULT │
+│               doPeriodicCorrect │ False                           │ DEFAULT │
 │                       doMortars │ True                            │ DEFAULT │
 ├────
 │  Number of sides                :         3072
@@ -110,6 +109,11 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │  Number of mortar sides (small) :            0
 │  Number of boundary sides       :          384
 │  Number of periodic sides       :            0
+├─────────────────────────────────────────────
+│ CHECK CONNECTIVITY...
+├────
+│               CheckConnectivity │ True                            │ DEFAULT │
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
 ├─────────────────────────────────────────────
 │ CHECK WATERTIGHTNESS...
 ├────
