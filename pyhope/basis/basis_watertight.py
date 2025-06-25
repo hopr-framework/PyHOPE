@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import re
-import sys
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -276,5 +275,4 @@ def CheckWatertight() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
-        hopout.warning(f'Watertightness check failed for {len(results)} / {nconn} connections!')
-        sys.exit(1)
+        hopout.error(f'Watertightness check failed for {len(results)} / {nconn} connections!')

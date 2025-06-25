@@ -24,6 +24,7 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
+# image: ${CI_REGISTRY_NAME}/nrg-python:3.13.2-bookworm-x86_64
 image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.2-bookworm-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
@@ -33,16 +34,27 @@ variables:
   DOCKER_DRIVER: overlay2
 
 # https://pip.pypa.io/en/stable/topics/caching/
-cache:
-  paths:
-    - venv
-    - .cache/pip
+# .venv_cache: &venv_cache
+#   key: "venv"
+#   paths:
+#     - venv
+#   policy: pull
+
+# Cache pip packages to speed up the build process
+# .pip_cache: &pip_cache
+#   key: "pip"
+#   paths:
+#     - .cache/pip
+#   policy: pull-push
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Templates ("hidden jobs")
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 .defaults: &defaults
   tags: [dockertag]
+  # cache:
+  #   - *venv_cache
+  #   - *pip_cache
 
 .defaults_coverage: &defaults_coverage
   <<: *defaults
@@ -64,25 +76,11 @@ cache:
   - ulimit -s unlimited
   # - module list || true
   - python3 --version
-  # Setup required packages
-  # - | # Literal YAML multiline block scalar indicator
-  #   if command -v apt-get >/dev/null 2>&1; then
-  #     apt-get update
-  #     apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1
-  #   fi
-  # - | # Literal YAML multiline block scalar indicator
-  #   if command -v dnf >/dev/null 2>&1; then
-  #     dnf makecache
-  #     dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama
-  #   fi
   # Setup uv
   - uv --version
   # Setup Python virtual environment
-  - rm -rf venv
   - uv venv venv
   - source venv/bin/activate
-  # # Cleanup previous installs
-  # - pip freeze | xargs pip uninstall -y --root-user-action=ignore
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
   # Regression checks needs NRG Gmsh

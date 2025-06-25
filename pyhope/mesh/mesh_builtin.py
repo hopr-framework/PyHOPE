@@ -28,13 +28,10 @@
 import copy
 import gc
 import math
-import sys
-import traceback
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import gmsh
 import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -47,6 +44,8 @@ import numpy as np
 
 
 def MeshCartesian() -> meshio.Mesh:
+    # Third-party libraries --------------------------------
+    import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -103,8 +102,7 @@ def MeshCartesian() -> meshio.Mesh:
                                 np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2])),
                                 np.array((X0[0],       X0[1]+DX[1], X0[2]+DX[2]))))
         else:
-            hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
-            sys.exit(1)
+            hopout.error('No corners or DX vector given for zone {}'.format(zone+1))
 
         nElems = GetIntArray(  'nElems'  , number=zone)
         # Store the requested element types
@@ -283,9 +281,7 @@ def MeshCartesian() -> meshio.Mesh:
             if cast(np.ndarray, bcs[iBC].type)[3] > 0:
                 pass
             elif cast(np.ndarray, bcs[iBC].type)[3] == 0:
-                hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1), traceback=True)
             else:
                 continue
 

@@ -25,13 +25,11 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
 from collections import OrderedDict
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
-import heapq
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -197,8 +195,7 @@ def IO() -> None:
             mesh.write(fname, file_format='gmsh')
 
         case _:  # Default
-            hopout.warning('Unknown output format {}, exiting...'.format(io_vars.outputformat))
-            sys.exit(1)
+            hopout.error('Unknown output format {}, exiting...'.format(io_vars.outputformat))
 
     # hopout.sep()
     # hopout.info('OUTPUT MESH DONE!')
@@ -215,6 +212,8 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray | None,  # Optional[EdgeConnectInfo]
                            dict[int, int]
                           ]:
+    # Standard libraries -----------------------------------
+    import heapq
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.fem.fem import getFEMInfo

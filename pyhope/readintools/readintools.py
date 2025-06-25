@@ -26,8 +26,6 @@
 # Standard libraries
 import os
 import subprocess
-import sys
-import traceback
 from typing import Optional, Union, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -109,14 +107,10 @@ def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
     # - multiple parameter
     if init:
         if name in config.prms and not multiple:
-            hopout.warning('Parameter "{}" already define and not a multiple option, exiting...'.format(name))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Parameter "{}" already define and not a multiple option, exiting...'.format(name), traceback=True)
     else:
         if name not in config.prms:
-            hopout.warning('Parameter "{}" is not defined, exiting...'.format(name))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Parameter "{}" is not defined, exiting...'.format(name), traceback=True)
 
 
 def CheckUsed(name: str) -> None:
@@ -126,9 +120,7 @@ def CheckUsed(name: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['counter'] > 1 and not config.prms[name]['multiple']:
-        hopout.warning('Parameter "{}" already used and not a multiple option, exiting...'.format(name))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Parameter "{}" already used and not a multiple option, exiting...'.format(name), traceback=True)
 
 
 def CheckType(name: str, calltype: str) -> None:
@@ -138,9 +130,7 @@ def CheckType(name: str, calltype: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['type'] is not calltype:
-        hopout.warning('Call type of parameter "{}" does not match definition, exiting...'.format(name))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Call type of parameter "{}" does not match definition, exiting...'.format(name), traceback=True)
 
 
 def CheckDimension(name: str, result: int) -> None:
@@ -150,9 +140,7 @@ def CheckDimension(name: str, result: int) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['number'] != result:
-        hopout.warning('Parameter "{}" has array length mismatch, exiting...'.format(name))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Parameter "{}" has array length mismatch, exiting...'.format(name), traceback=True)
 
 
 def CreateSection(string: str) -> None:
@@ -310,17 +298,13 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
 
             input = [s for s in config.params.get('general', name).split('\n') if s != '']
             if num >= len(input):
-                hopout.warning(f'Index {num+1} is out of range for option "{name}"')
-                # traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error(f'Index {num+1} is out of range for option "{name}"', traceback=False)
             value = input[num]
         else:
             value = config.params.get('general', name)
             # Single values cannot contain spaces
             if '\n' in value:
-                hopout.warning(f'Option "{name}" is already set, but is not a multiple option!')
-                # traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error(f'Option "{name}" is already set, but is not a multiple option!', traceback=False)
 
         # int2str has custom output
         if calltype != 'int2str':
@@ -342,9 +326,7 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
                     else:
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
-                hopout.warning(f'Keyword "{name}" not found in file and no default given, exiting...')
-                # traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error(f'Keyword "{name}" not found in file and no default given, exiting...', traceback=False)
     return value
 
 
@@ -384,9 +366,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
         if not value.isdigit():
             value = [s for s, v in mapping.items() if v.lower() == value.lower()]
             if len(value) == 0:
-                hopout.warning('Unknown value for parameter {}, exiting...'.format(name))
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error('Unknown value for parameter {}, exiting...'.format(name), traceback=True)
             else:
                 value = int(value[0])
                 hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
@@ -414,8 +394,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
         except ValueError as e:
             print()
             print(hopout.warn(f'{e}'))
-            hopout.warning(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
-            sys.exit(1)
+            hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
     else:
         value = value.split(',')
         try:
@@ -423,8 +402,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
         except ValueError as e:
             print()
             print(hopout.warn(f'{e}'))
-            hopout.warning(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
-            sys.exit(1)
+            hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
     CheckDimension(name, value.size)
     return value
 
@@ -491,8 +469,7 @@ class ReadConfig():
                 # For legacy reasons also support such variable definition constructs
                 if line.strip().startswith('DEFVAR='):
                     if ':' not in line:
-                        hopout.warning('DEFVAR= syntax error while parsing parameter file. Missing ":"')
-                        sys.exit(1)
+                        hopout.error('DEFVAR= syntax error while parsing parameter file. Missing ":"')
                     parts = line.split(':')
 
                     var_type_part = parts[0].replace('DEFVAR=', '').strip()
@@ -517,21 +494,18 @@ class ReadConfig():
                     if '=' in var_def_part:
                         var_name, var_value = [s.strip() for s in var_def_part.split('=', 1)]
                     else:
-                        hopout.warning(f'DEFVAR= syntax error while parsing "{var_def_part}"')
-                        sys.exit(1)
+                        hopout.error(f'DEFVAR= syntax error while parsing "{var_def_part}"')
 
                     # Ensure unique variable names
                     for existing_var in variables:
                         if var_name in set(existing_var):
-                            hopout.warning(f'Variable "{var_name}" is ambiguous')
-                            sys.exit(1)
+                            hopout.error(f'Variable "{var_name}" is ambiguous')
 
                     # Convert values to proper types
                     if arr_size:  # Handle array
                         values = [float(v) if '.' in v else int(v) for v in var_value.split(',')]
                         if len(values) != arr_size:
-                            hopout.warning(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
-                            sys.exit(1)
+                            hopout.error(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
                         variables[var_name] = values
                     else:  # Single value
                         variables[var_name] = float(var_value) if '.' in var_value else int(var_value)
@@ -585,8 +559,7 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.warning('No parameter or mesh file given')
-            sys.exit(1)
+            hopout.error('No parameter or mesh file given')
 
         # Check if file exists on drive
         if not os.path.isfile(self.input):
@@ -597,8 +570,7 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.warning('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
-            sys.exit(1)
+            hopout.error('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
 
         # Check if input is mesh or parameter file
         parameter_mode = False
@@ -613,8 +585,7 @@ class ReadConfig():
                     f.read()
                 parameter_mode = True
             except UnicodeDecodeError:
-                hopout.warning('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
-                sys.exit(1)
+                hopout.error('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
 
         # Handle parameter data
         if parameter_mode:
@@ -687,7 +658,7 @@ class ReadConfig():
         #                 try:
         #                     str_int = int(parser.get('general', key))
         #                 except ValueError:
-        #                     hopout.warning('Keywords {} cannot be converted to integer'.format(key))
+        #                     hopout.error('Keywords {} cannot be converted to integer'.format(key))
         #
         #         hopout.printoption(key, parser.get('general', key),
         #                            '*CUSTOM', std_length)
@@ -697,7 +668,7 @@ class ReadConfig():
         #             hopout.printoption(key, value['default'],
         #                                'DEFAULT', std_length)
         #         else:
-        #             hopout.warning('Keyword "{}" not found in file, exiting...'
+        #             hopout.error('Keyword "{}" not found in file, exiting...'
         #                            .format(key))
 
         return parser

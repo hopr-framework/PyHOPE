@@ -25,9 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import math
-import sys
-import traceback
 from collections import defaultdict
 from itertools import chain
 from typing import Dict, Tuple, cast
@@ -47,6 +44,9 @@ import numpy as np
 def copysign_int(x: int, y: int) -> int:
     """ Return a int with the magnitude (absolute value) of x but the sign of y
     """
+    # Standard libraries -----------------------------------
+    import math
+    # ------------------------------------------------------
     return int(math.copysign(x, y))
 
 
@@ -230,9 +230,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
                 # Sanity check, all edge should have the same global index
                 if ((edgeIdx is     None and any(     e  is not None for (_, e, _, _, _) in connections)) or       # noqa: E271, E272
                     (edgeIdx is not None and len({abs(e)             for (_, e, _, _, _) in connections}) != 1)):  # noqa: E271, E272
-                    hopout.warning('FEMConnect: Inconsistent edge global index')
-                    traceback.print_stack(file=sys.stdout)
-                    sys.exit(1)
+                    hopout.error('FEMConnect: Inconsistent edge global index', traceback=True)
 
             # Check if the edges already have an global index
             if edgeIdx is not None:
@@ -243,9 +241,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
                     # Find the master edge among the connections
                     masterID = [i for i in range(len(connections)) if connections[i][1] > 0]
                     if len(masterID) != 1:
-                        hopout.warning('FEMConnect: Inconsistent edge global index')
-                        traceback.print_stack(file=sys.stdout)
-                        sys.exit(1)
+                        hopout.error('FEMConnect: Inconsistent edge global index', traceback=True)
                     masterID = masterID[0]
                     masterID, masterEdge, masterEdgeNodes = masterID, *connections[masterID][3:5]
             # Otherwise, the current edge is the master edge and the others are slave edges

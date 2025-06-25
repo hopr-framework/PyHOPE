@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import copy
 import gc
-import sys
 from functools import cache
 from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -134,9 +133,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                 # Check if the number of boundary conditions match the parameter file
                 if nbcs > len(mesh_vars.bcs):
-                    hopout.warning(f'Number of boundary conditions in the mesh ({nbcs}) ' +
-                                   f'does not match the parameter file ({len(mesh_vars.bcs)})')
-                    sys.exit(1)
+                    hopout.error(f'Number of boundary conditions in the mesh ({nbcs}) ' +
+                                 f'does not match the parameter file ({len(mesh_vars.bcs)})')
 
                 # Search for the line starting the node coordinates
                 nodeLine = lines_that_contain('NODAL COORDINATES', content)[0]
@@ -170,8 +168,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Check if the number of nodes matched the expected number
                     if nNodes != NDOFperElemType(elemType, mesh_vars.nGeo):
-                        hopout.warning(f'Number of element nodes ({nNodes}) does not match expectation for NGeo={mesh_vars.nGeo}')
-                        sys.exit(1)
+                        hopout.error(f'Number of element nodes ({nNodes}) does not match expectation for NGeo={mesh_vars.nGeo}')
 
                     # Keep extending the element connectivity until elemNodes is reached
                     while len(elemNodes) < nNodes:

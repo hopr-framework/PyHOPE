@@ -26,7 +26,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import sys
+# import sys
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -94,8 +95,7 @@ def MeshExternal() -> meshio.Mesh:
             fnames[iFile] = os.path.abspath(os.path.join(os.path.dirname(prmfile), fname))
             print(hopout.warn('Mesh not found in the CWD, but found in the prmfile directory.'))
         else:
-            hopout.warning('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
-            sys.exit(1)
+            hopout.error('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
 
     if not all(compatibleGMSH(fname) for fname in fnames):
         if any(compatibleGMSH(fname) for fname in fnames):
@@ -122,24 +122,27 @@ def MeshExternal() -> meshio.Mesh:
 
     # If there are still files left, we have an unknown format
     if len(fnames) > 0:
-        hopout.warning('Unknown file format {}, exiting...'.format(fnames))
-        sys.exit(1)
+        hopout.error('Unknown file format {}, exiting...'.format(fnames))
 
     # Regenerate the boundary conditions
     if mesh_vars.CGNS.regenerate_BCs:
         mesh = BCCGNS(mesh, fgmsh)
 
+    # Check if mesh has any boundary conditions
+    if len(bcs) == 0:
+        hopout.error('No boundary conditions defined in the parameter file.')
+
     # Reconstruct periodicity vectors from mesh
-    hasPeriodic = np.any([bcs[s].type[0] == 1 for s in range(nBCs)])
+    hasPeriodic = np.any([cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)])
     if len(mesh_vars.vvs) == 0 and hasPeriodic:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))
         # Get max number of periodic alphas
-        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(bc.type[3]) for bc in bcs])))]
+        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
-            hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'RECOVER')
+            hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
         hopout.sep()
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
@@ -164,8 +167,7 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
         for bc in [s for s in bcs if abs(s.type[3]) == iVV + 1]:
             sign = np.sign(bc.type[3])
             if boundaries[sign] is not None:
-                hopout.warning("Multiple periodic boundaries found for the same direction. Exiting...")
-                sys.exit(1)
+                hopout.error("Multiple periodic boundaries found for the same direction. Exiting...")
             boundaries[sign] = bc.name
 
         # Compute mean coordinates for both boundaries as a tuple

@@ -25,8 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
-import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -135,8 +133,7 @@ def InitMesh() -> None:
     if not NGeo and not BCOrder:
         mesh_vars.nGeo = 1
     elif NGeo and BCOrder and NGeo != BCOrder - 1:
-        hopout.warning('NGeo / BoundaryOrder must be equal to NGeo + 1!')
-        sys.exit(1)
+        hopout.error('NGeo / BoundaryOrder must be equal to NGeo + 1!')
     else:
         if NGeo is not None:
             mesh_vars.nGeo = NGeo
@@ -144,15 +141,13 @@ def InitMesh() -> None:
             mesh_vars.nGeo = BCOrder - 1
 
         if mesh_vars.nGeo < 1:
-            hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
-            sys.exit(1)
+            hopout.error('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
 
     # Check if the requested output format can supported the requested polynomial order
     match io_vars.outputformat:
         case io_vars.MeshFormat.FORMAT_VTK:
             if mesh_vars.nGeo > 2:
-                hopout.warning('Output format VTK does not support polynomial order > 2!')
-                sys.exit(1)
+                hopout.error('Output format VTK does not support polynomial order > 2!')
 
     # hopout.info('INIT MESH DONE!')
 
@@ -181,9 +176,7 @@ def GenerateMesh() -> None:
         case MeshMode.MODE_EXT:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
-            hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode), traceback=True)
 
     # Split hexahedral elements if requested
     mesh = MeshChangeElemType(mesh)
