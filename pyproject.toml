@@ -37,6 +37,7 @@ classifiers = [
 [project.urls]
 homepage = "https://numericsresearchgroup.org"
 repository = "https://gitlab.iag.uni-stuttgart.de/flexi/codes/pyhope"
+documentation = "https://hopr.readthedocs.io"
 
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"

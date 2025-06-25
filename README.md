@@ -149,3 +149,9 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ┃ PyHOPE completed in [0.25 sec]
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+# Paper
+A markdown file for the publication in [Journal of Open Source Software](https://joss.theoj.org) is included as `paper.md`. You can convert it to PDF with the following docker command.
+```bash
+docker run --rm -it -v $PWD:/data -u $(id -u):$(id -g) openjournals/inara -o pdf,crossref paper.md
+```
