@@ -341,28 +341,81 @@ def FaceOrdering(side_type: str, order: int) -> np.ndarray:
 
 
 @cache
-def flip_s2m(N: int, flip: int) -> np.ndarray:
-    # Create grid index arrays for the rows and columns
-    p = np.arange(N)
-    q = np.arange(N)
+def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=int) -> np.ndarray:
+    """ Transform coordinates from RHS of slave to RHS of master
+    """
+    flip_map = {  # Tetrahedron
+                  # Pyramid
+                  # Wedge / Prism
+                  # Hexahedron
+                  8: {0: np.array((p    ,     q), dtype=dtype),
+                      1: np.array((q    ,     p), dtype=dtype),
+                      2: np.array((N - p,     q), dtype=dtype),
+                      3: np.array((N - q, N - p), dtype=dtype),
+                      4: np.array((p    , N - q), dtype=dtype)}
+               }
 
-    # Create a meshgrid of row (p) and column (q) indices
-    p_grid, q_grid = np.meshgrid(p, q)
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
 
-    # Map row and column indices based on flip logic
-    # WARNING: FOR SOME REASON, ONLY FLIP 1,3,4 IS USED WITH FACE_TO_NODES
-    if flip == 0:
-        return np.stack((q_grid        , p_grid        ), axis=-1)
-    elif flip == 1:
-        return np.stack((p_grid        , q_grid        ), axis=-1)
-    elif flip == 2:
-        return np.stack((N - p_grid - 1, q_grid        ), axis=-1)
-    elif flip == 3:
-        return np.stack((N - p_grid - 1, N - q_grid - 1), axis=-1)
-    elif flip == 4:
-        return np.stack((N - q_grid - 1, p_grid        ), axis=-1)
-    else:
-        raise ValueError('Flip must be an integer between 0 and 4')
+    if elemType % 100 not in flip_map:
+        raise ValueError(f'Error in flip_s2m: elemType {elemType} is not supported')
+
+    try:
+        return flip_map[elemType % 100][flip]
+    except KeyError:
+        raise KeyError(f'Error in flip_s2m: face {flip} is not supported')
+
+
+@cache
+def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+    """ Transform coordinates from RHS of sie into volme
+    """
+    faces_map = {  # Tetrahedron
+                   # Pyramid
+                   # Wedge / Prism
+                   # Hexahedron
+                   8: {'x-': np.array((r    , q    , p    ), dtype=dtype),
+                       'x+': np.array((N - r, p    , q    ), dtype=dtype),
+                       'y-': np.array((p    , r    , q    ), dtype=dtype),
+                       'y+': np.array((N - p, N - r, q    ), dtype=dtype),
+                       'z-': np.array((q    , p    , r    ), dtype=dtype),
+                       'z+': np.array((p    , q    , N - r), dtype=dtype)}
+                }
+
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
+
+    if elemType % 100 not in faces_map:
+        raise ValueError(f'Error in cgns_sidetovol: elemType {elemType} is not supported')
+
+    try:
+        return faces_map[elemType % 100][face]
+    except KeyError:
+        raise KeyError(f'Error in cgns_sidetovol: face {face} is not supported')
+
+
+@cache
+def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int]) -> np.ndarray:
+    # Get the reordering of the element nodes
+    mapLin = LINMAP(elemType, order=N)
+    # Build the (p,q) grid as arrays of shape (0:N, 0:N)
+    P, Q = np.meshgrid(np.arange(N+1, dtype=int),
+                       np.arange(N+1, dtype=int), indexing='ij')
+    # Build (r) vector for flat surface
+    R    = np.zeros_like(P, dtype=int)
+    # Vectorize flip_s2m to get the flipped (p, q) values
+    vec_flip = (np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[0], otypes=[int]),
+                np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[1], otypes=[int]))
+    pq       = tuple([vec_flip[s](P, Q) for s in (0, 1)])
+    # Vectorize the cgns_sidetovol function
+    vec_cgns =  np.vectorize(lambda r, p, q: cgns_sidetovol(N, r, int(p), int(q), face, elemType), otypes=[int],
+                                    signature='(),(),()->(n)')
+    # idx_arr will have shape (0:N, 0:N, 3)
+    idx_arr = vec_cgns(R, pq[0], pq[1])
+    # Use the computed indices from idx_arr to index mapLin
+    map = mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
+    return map
 
 
 @cache

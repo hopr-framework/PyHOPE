@@ -143,17 +143,14 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.mesh.mesh_common import face_to_nodes
-    from pyhope.mesh.mesh_common import flip_s2m
+    from pyhope.mesh.mesh_common import sidetovol2
     # ------------------------------------------------------
-    nGeo     = mesh_vars.nGeo
-    # nodes    = np.array(tuple(elems[0].nodes[s] for s in face_to_nodes(sides[0].face, elems[0].type, nGeo)))
-    # nbNodes  = np.array(tuple(elems[1].nodes[s] for s in face_to_nodes(sides[1].face, elems[1].type, nGeo)))
-    nodes    = elems[0].nodes[face_to_nodes(sides[0].face, elems[0].type, nGeo)]
-    nbNodes  = elems[1].nodes[face_to_nodes(sides[1].face, elems[1].type, nGeo)]
+    # Periodic corrections are only supported for hexahedral elements
+    if elems[0].type % 100 != 8 or elems[1].type % 100 != 8:
+        return
 
-    # Get the flip map
-    indices = flip_s2m(nGeo+1, 1 if sides[0].flip <= 2 else sides[0].flip)
+    nGeo   = mesh_vars.nGeo
+    points = mesh_vars.mesh.points
 
     # for iy, ix in np.ndindex(nodes.shape[:2]):
     #     node   = nodes[ix, iy]
@@ -176,19 +173,22 @@ def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
     #     mesh_vars.mesh.points[  node] = lowerP
     #     mesh_vars.mesh.points[nbNode] = upperP
 
-    # Extract relevant indices from the mesh
-    nbNodes = nbNodes[indices[:, :, 0], indices[:, :, 1]]
-    points: Final[np.ndarray] = mesh_vars.mesh.points
-    tol:    Final[float]      = mesh_vars.tolPeriodic
+    # Map the meshio nodes to the tensor-product nodes
+    elemType = elems[0].type
+    nodes    = elems[0].nodes[sidetovol2(nGeo, 0            , sides[0].face, elemType)]
+    nbNodes  = elems[1].nodes[sidetovol2(nGeo, sides[1].flip, sides[1].face, elemType)]
 
-    # Check if periodic vector matches using vectorized np.allclose
-    if not np.allclose(points[nodes] + vv, points[nbNodes], rtol=tol, atol=tol):
-        # Print coordinates of the nodes and their periodic neighbors
-        for inode, node in enumerate(nodes.flatten()):
-            print()
-            print(hopout.warn(f' - Coordinates (-): {points[node] + vv}'))
-            print(hopout.warn(f' - Coordinates (+): {points[nbNodes.flatten()[inode]]}'))
-        hopout.error('Error in periodic update, periodic vector does not match!')
+    # Translate to periodic nodes
+    nbCheck = np.vectorize(lambda s: mesh_vars.periNodes[(s, mesh_vars.bcs[sides[1].bcid].name)], otypes=[int])(nbNodes)
+
+    # Check if the node IDs match
+    if not np.array_equal(nodes, nbCheck):
+        # Print the node IDs
+        print(hopout.warn(f'NodeIDs side1: {nodes}'))
+        print(hopout.warn(f'NodeIDs side2: {nbCheck}'))
+        hopout.warning('Error in connectivity check, node IDs do not match!')
+        traceback.print_stack(file=sys.stdout)
+        sys.exit(1)
 
     # Calculate the center for both points
     centers = 0.5 * (points[nodes] + points[nbNodes])
@@ -223,6 +223,7 @@ def ConnectMesh() -> None:
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     from pyhope.readintools.readintools import GetLogical
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
+    # from pyhope.mesh.mesh_common import sidetovol2
     from pyhope.mesh.mesh_common import face_to_nodes
     # ------------------------------------------------------
 
@@ -385,7 +386,30 @@ def ConnectMesh() -> None:
                 if side0.bcid is not None and side1.bcid is not None and bcs[side1.bcid].type[0] == 1:
                     nbcorners = np.fromiter((mesh_vars.periNodes[(s, bcs[side1.bcid].name)] for s in side1.corners), dtype=int)
 
-                flipID    = flip_analytic(corners[0], nbcorners) + 1
+                flipID = flip_analytic(corners[0], nbcorners) + 1
+
+                # Sanity check the flip with the other nodes
+                # > INFO: MOVED TO OWN CHECKCONNECT ROUTINE
+                # elem   = (elems[side0.elemID], elems[side1.elemID])
+                # if elem[0].type % 100 == 8 and elem[1].type % 100 == 8:
+                #     # Map the meshio nodes to the tensor-product nodes
+                #     elemType = elem[0].type
+                #     nodes    = elem[0].nodes[sidetovol2(nGeo, 0     , side0.face, elemType)]
+                #     nbNodes  = elem[1].nodes[sidetovol2(nGeo, flipID, side1.face, elemType)]
+                #
+                #     # Translate to periodic nodes if required
+                #     if side0.bcid is not None and side1.bcid is not None and bcs[side1.bcid].type[0] == 1:
+                #         nbNodes = np.vectorize(lambda s: mesh_vars.periNodes[(s, bcs[side1.bcid].name)], otypes=[int])(nbNodes)
+                #
+                #     # Check if the node IDs match
+                #     if not np.array_equal(nodes, nbNodes):
+                #         # Print the node IDs
+                #         print(hopout.warn(f'NodeIDs side1: {nodes}'))
+                #         print(hopout.warn(f'NodeIDs side2: {nbNodes}'))
+                #         hopout.warning('Error in connectivity check, node IDs do not match!')
+                #         traceback.print_stack(file=sys.stdout)
+                #         sys.exit(1)
+
                 # Connect the sides
                 connect_sides(sideIDs, sides, flipID)
                 # Update the progress bar
@@ -442,6 +466,7 @@ def ConnectMesh() -> None:
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem  = elems[side.elemID]
+            # nodes = elem.nodes[sidetovol2(nGeo, 0     , side.face, elem.type)]
             nodes = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, nGeo)]))
             if elem.type % 100 == 8:
                 nodes = np.transpose(points[nodes]         , axes=(2, 0, 1))

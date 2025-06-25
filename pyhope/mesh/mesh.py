@@ -89,6 +89,7 @@ def DefineMesh() -> None:
     # Checking
     CreateSection('Mesh Checks')
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckConnectivity'  ,  default=True,  help='Check if the side connectivity, including correct flip')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
     # Transformation
