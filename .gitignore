@@ -41,6 +41,7 @@ core
 *.old
 *.out
 *.txt
+paper.*
 
 # Other system specfic files
 .DS_Store

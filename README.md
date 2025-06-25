@@ -185,3 +185,9 @@ with Mesh('1-01-cartbox_mesh.h5') as m:
     elems = m.elems
     lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
 ```
+
+# Paper
+A markdown file for the publication in [Journal of Open Source Software](https://joss.theoj.org) is included as `paper.md`. You can convert it to PDF with the following docker command.
+```bash
+docker run --rm -it -v $PWD:/data -u $(id -u):$(id -g) openjournals/inara -o pdf,crossref paper.md
+```
