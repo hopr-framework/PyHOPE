@@ -103,7 +103,6 @@ def process_chunk(chunk) -> np.ndarray:
     """Process a chunk of elements by checking surface normal orientation
     """
     chunk_results    = np.empty(len(chunk), dtype=object)
-    # elem, VdmEqToGP, DGP, weights = elem_data
     chunk_results[:] = [check_sides(elem_data) for elem_data in chunk]
     return chunk_results
 
@@ -170,7 +169,7 @@ def CheckConnect() -> None:
 
             print()
             # Check if side is oriented inwards
-            errStr = 'Side connectivity does not match the calulated neighbour side'
+            errStr = 'Side connectivity does not match the calculated neighbour side'
             print(hopout.warn(errStr, length=len(errStr)+16))
 
             # Print the information
