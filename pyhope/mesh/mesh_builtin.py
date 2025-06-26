@@ -334,6 +334,19 @@ def MeshCartesian() -> meshio.Mesh:
     if debugvisu and IsDisplay():
         gmsh.fltk.run()
 
+    # Re-set the order for newly created elements
+    gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+    gmsh.model.geo.synchronize()
+
+    # Sanity check if the mesh contains volume elements
+    # > User might have modified the mesh inside the FLTK GUI
+    gmsh_elems = np.asarray((gmsh.option.getNumber('Mesh.NbTetrahedra'),
+                             gmsh.option.getNumber('Mesh.NbPrisms'    ),
+                             gmsh.option.getNumber('Mesh.NbPyramids'  ),
+                             gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
+    if not np.any(gmsh_elems):
+        hopout.error('Generated mesh does not contain volume elements, exiting...')
+
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)
 
