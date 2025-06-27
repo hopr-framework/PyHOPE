@@ -298,7 +298,7 @@ convergence:
         for N in {1..4}; do
           echo ""
           echo "=== Running Convergence Test N=$N ===" | tee -a ../convergence.log
-          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
         done
         cd ..
         # Merge convergence.log for artifacts
