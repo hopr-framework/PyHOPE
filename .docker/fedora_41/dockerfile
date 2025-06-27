@@ -4,19 +4,29 @@ FROM fedora:41
 # Numerics research group
 LABEL maintainer="numerics@iag.uni-stuttgart.de"
 
+# Disable weak dependencies
+RUN echo 'install_weak_deps=False' >> /etc/dnf/dnf.conf
+
 # Setup required packages
 RUN dnf makecache && \
     dnf update -y && \
     dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama && \
-    dnf install -y git cmake gcc-c++ gcc-gfortran mpich-devel zlib-ng-devel openblas-devel hdf5-mpich-devel && \
+    dnf install -y git-core cmake gcc-c++ gcc-gfortran mpich-devel zlib-ng-devel openblas-devel hdf5-mpich-devel && \
     dnf install -y python3 uv && \
-    dnf clean all
+    dnf autoremove            && \
+    dnf clean all             && \
+    rm -rf /var/log/dnf5.*
 
 # Set architecture argument
 ARG ARCH
 
 # Setup uv
 ENV UV_LINK_MODE=copy
+
+# Setup standard paths
+ENV LD_LIBRARY_PATH="/usr/lib64"
+ENV MANPATH="/usr/share/man"
+ENV PKG_CONFIG_PATH="/usr/lib64/pkgconfig"
 
 # Setup MPI
 # RUN source /etc/profile && module load mpi
@@ -33,10 +43,10 @@ ENV MPI_PYTHON3_SITEARCH=/usr/lib64/python3.13/site-packages/mpich
 ENV MPI_COMPILER=mpich-${ARCH}
 ENV MPI_SUFFIX=_mpich
 ENV MPI_HOME=/usr/lib64/mpich
-ENV PATH="/usr/lib64/mpich/bin:$PATH"
-ENV LD_LIBRARY_PATH="/usr/lib64/mpich/lib:$LD_LIBRARY_PATH"
-ENV MANPATH="/usr/share/man/mpich-${ARCH}:$MANPATH"
-ENV PKG_CONFIG_PATH="/usr/lib64/mpich/lib/pkgconfig:PKG_CONFIG_PATH"
+ENV PATH="/usr/lib64/mpich/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/lib64/mpich/lib:${LD_LIBRARY_PATH}"
+ENV MANPATH="/usr/share/man/mpich-${ARCH}:${MANPATH}"
+ENV PKG_CONFIG_PATH="/usr/lib64/mpich/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 # Setup FLEXI
 # ADD --keep-git-dir=true "https://github.com/flexi-framework/flexi.git" /flexi
