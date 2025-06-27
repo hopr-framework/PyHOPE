@@ -81,11 +81,10 @@ variables:
   # Setup Python virtual environment
   - uv venv venv
   - source venv/bin/activate
+  # Regression checks needs NRG Gmsh, pre-install it
+  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1.post1-py3-none-linux_x86_64.whl
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
-  # Regression checks needs NRG Gmsh
-  - uv pip uninstall gmsh
-  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1.post1-py3-none-linux_x86_64.whl
   # Install coverage
   - uv pip install --no-cache-dir coverage
 
