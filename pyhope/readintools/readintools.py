@@ -78,6 +78,16 @@ def strtobool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
         raise ValueError('invalid truth value %r' % (val,))
 
 
+def is_numeric(var_value: str) -> bool:
+    """ Check if a string can be converted to a float
+    """
+    try:
+        float(var_value)
+        return True
+    except ValueError:
+        return False
+
+
 # ==================================================================================================================================
 @final
 class DefineConfig:
@@ -508,7 +518,11 @@ class ReadConfig():
                             hopout.error(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
                         variables[var_name] = values
                     else:  # Single value
-                        variables[var_name] = float(var_value) if '.' in var_value else int(var_value)
+                        if is_numeric(var_value):
+                            try:
+                                variables[var_name] = int(var_value)
+                            except ValueError:
+                                variables[var_name] = float(var_value)
 
                     # We have to sort the variables according to the length of the keys in order to avoid
                     # substring replacement in the parameter file. This way it can be assured that long strings
