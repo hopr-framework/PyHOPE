@@ -105,13 +105,21 @@ class Gitlab():
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
-    LIB_VERSION: str = '4.13.1.post1'
-    LIB_SUPPORT: dict[str, dict[str, str]] = {
-        "linux": {
-            "x86_64" : "6d96f1f0a3a3d96f942a6cb62deaf959380d94bbe329d61fdcf3b1dd9762981d",
-            "aarch64": "104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da"
+    LIB_VERSION: dict[str, dict[str, str]] = {
+        'linux': {
+            'x86_64' : '4.14.0.post1',
+            'aarch64': '4.13.1.post1'
         },
-        "darwin": {
-            "arm64"  : "cf91a48a6207c3eae9321a3c97df105320a8c3777b6b5d7411ca7343ebddf187"
+        'darwin': {
+            'arm64'  : '4.13.1.post1'
+        },
+    }
+    LIB_SUPPORT: dict[str, dict[str, str]] = {
+        'linux': {
+            'x86_64' : 'e4d29f8ea4bf3f04ba4e86405c9b90046383f8c870c25fd804581e6eec5bbdee',
+            'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'
+        },
+        'darwin': {
+            'arm64'  : 'cf91a48a6207c3eae9321a3c97df105320a8c3777b6b5d7411ca7343ebddf187'
         }
     }

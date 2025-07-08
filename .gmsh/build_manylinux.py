@@ -28,7 +28,7 @@
 import os
 import sys
 import build
-import errno
+# import errno
 import multiprocessing
 import platform
 import shutil
@@ -100,6 +100,10 @@ def configure(configure_cmd: list, cwd: Optional[str] = None, env: Optional[dict
         print_step('Configuring with: {}'.format(configure_cmd))
         subprocess.run(configure_cmd, check=True, cwd=cwd, env=env, stderr=sys.stderr, stdout=sys.stdout)
 
+    else:
+        print('Unknown configure command')
+        sys.exit(1)
+
 
 def compile(install_cmd: Optional[list] = None, ncores: int = 1, cwd: Optional[str] = None, env: Optional[dict] = None) -> None:
     # Build the software
@@ -110,6 +114,7 @@ def compile(install_cmd: Optional[list] = None, ncores: int = 1, cwd: Optional[s
     if install_cmd:
         print_step('Installing...')
         subprocess.run(install_cmd, check=True, cwd=cwd, stderr=sys.stderr, stdout=sys.stdout)
+
 
 # Get systemc architecture
 arch = platform.machine()
@@ -122,23 +127,23 @@ Doxygen_DIR  = os.path.join(WORK_DIR, 'doxygen')
 
 # HDF5
 HDF5_DIR     = os.path.join(WORK_DIR, 'hdf5')
-HDF5_VERSION = '1.14.5'
+HDF5_VERSION = '1.14.6'
 
 # TK
 TK_DIR       = os.path.join(WORK_DIR, 'tk')
-TK_VERSION = '8.6.15'
+TK_VERSION = '8.6.16'
 
 # TCL
 TCL_DIR      = os.path.join(WORK_DIR, 'tcl')
-TCL_VERSION = '8.6.14'
+TCL_VERSION = '8.6.16'
 
 # CGNS
 CGNS_DIR     = os.path.join(WORK_DIR, 'CGNS')
-CGNS_VERSION = 'v4.4.0'
+CGNS_VERSION = 'v4.5.0'
 
 # OpenCASCADE
 OCC_DIR      = os.path.join(WORK_DIR, 'occt')
-OCC_VERSION  = 'V7_8_1'
+OCC_VERSION  = 'V7_9_1'
 
 # FreeType
 FREETYPE_VERSION = '2.13.3'
@@ -146,37 +151,34 @@ FREETYPE_DIR = os.path.join(WORK_DIR, 'freetype')
 
 # libXFT
 LIBXFT_DIR     = os.path.join(WORK_DIR, 'libxft')
-LIBXFT_VERSION = '2.3.8'
+LIBXFT_VERSION = '2.3.9'
 
 # libPNG
 LIBPNG_DIR     = os.path.join(WORK_DIR, 'libpng')
-LIBPNG_VERSION = '1.6.44'
+LIBPNG_VERSION = '1.6.50'
 
 # libJPEG
 LIBJPEG_TURBO_DIR     = os.path.join(WORK_DIR, 'libjpeg-turbo')
-LIBJPEG_TURBO_VERSION = '3.0.4'
+LIBJPEG_TURBO_VERSION = '3.1.1'
 
 # FLTK
 FLTK_DIR     = os.path.join(WORK_DIR, 'fltk')
-FLTK_VERSION = '1.3.9'
+FLTK_VERSION = '1.3.11'
 # FLTK_VERSION = '1.4.0'  # Currently broken, produces segfault
 
 # gperf
 GPERF_VERSION = "3.1"
 
 # Fontconfig
-FONTCONFIG_VERSION = '2.14.2'
+FONTCONFIG_VERSION = '2.17.1'
 FONTCONFIG_DIR = os.path.join(WORK_DIR, 'fontconfig')
-
-# LIBXFT
-LIBXFT_VERSION = '2.3.8'
 
 # GLU
 # GLU_DIR      = os.path.join(WORK_DIR, 'glu')
 # GLU_VERSION  = '9.0.3'
 
 # Gmsh
-GMSH_VERSION = '4.13.1'
+GMSH_VERSION = '4.14.0'
 GMSH_PATCH   = '1'
 GMSH_FULLVER = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
@@ -332,7 +334,8 @@ def build_freetype():
 
     freetype_src_dir = os.path.join(BUILD_DIR, f'freetype-{FREETYPE_VERSION}')
 
-    url = f'https://download.savannah.gnu.org/releases/freetype/freetype-{FREETYPE_VERSION}.tar.gz'
+    # url = f'https://download.savannah.gnu.org/releases/freetype/freetype-{FREETYPE_VERSION}.tar.gz'
+    url = f'https://deac-riga.dl.sourceforge.net/project/freetype/freetype2/{FREETYPE_VERSION}/freetype-{FREETYPE_VERSION}.tar.xz'
     file = download(url, BUILD_DIR)
     extract(file, BUILD_DIR)
 
@@ -484,7 +487,8 @@ def build_libxft():
 # ------------------------------------------------------------------------
 def build_fontconfig():
     print_header('Building Fontconfig...')
-    fontconfig_url = f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{FONTCONFIG_VERSION}.tar.gz'
+    # fontconfig_url = f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{FONTCONFIG_VERSION}.tar.gz'
+    fontconfig_url = f'https://gitlab.freedesktop.org/api/v4/projects/890/packages/generic/fontconfig/{FONTCONFIG_VERSION}/fontconfig-{FONTCONFIG_VERSION}.tar.xz'
 
     # Download and extract Fontconfig
     fontconfig_file = download(fontconfig_url, BUILD_DIR)
@@ -551,7 +555,8 @@ def build_fltk():
     if os.path.exists(fltk_src_dir):
         shutil.rmtree(fltk_src_dir)
 
-    url  = f'https://www.fltk.org/pub/fltk/{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
+    # url  = f'https://www.fltk.org/pub/fltk/{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
+    url  = f'https://github.com/fltk/fltk/releases/download/release-{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
     # url  = 'https://www.fltk.org/pub/fltk/snapshots/fltk-1.4.x-20241011-013e939c.tar.gz'
     file = download(url, BUILD_DIR)
     extract(file, BUILD_DIR)
@@ -574,6 +579,18 @@ def build_fltk():
         '--enable-localjpeg=no',
         '--enable-localzlib=no',
     ]
+    # conf_cmd = [
+    #     'cmake',
+    #     '-B build',
+    #     '-D CMAKE_INSTALL_PREFIX=/usr',
+    #     '-D CMAKE_BUILD_TYPE=None',
+    #     '-D FLTK_LIBDIR=/usr/lib',
+    #     '-D OPTION_BUILD_SHARED_LIBS=ON',
+    #     '-D OPTION_BUILD_HTML_DOCUMENTATION=ON',
+    #     '-D OPTION_INSTALL_HTML_DOCUMENTATION=ON',
+    #     '-S $pkgbase-release-$pkgver',
+    #     '-W no-dev',
+    # ]
     conf_env = os.environ.copy()
     conf_env['CFLAGS']   = '-fPIC'
     conf_env['CXXFLAGS'] = '-fPIC'
@@ -610,10 +627,12 @@ def build_fltk():
                                                   conf_env['PKG_CONFIG_PATH'])
 
     build_cmd = ['make', 'install']
+    # build_cmd = ['cmake', '--build', 'build', 'install']
 
     if os.path.exists(FLTK_DIR):
         shutil.rmtree(FLTK_DIR)
 
+    # subprocess.run('./automake',     env=conf_env, cwd=fltk_src_dir, check=True, stderr=sys.stderr, stdout=sys.stdout)
     configure(conf_cmd,              env=conf_env, cwd=fltk_src_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=fltk_src_dir)
 
@@ -969,8 +988,8 @@ def build_gmsh() -> None:
 
     print_step('Stripping generated libraries')
 
-    subprocess.run(['strip', os.path.join('bin'  , 'gmsh'             ) ], check=True, cwd=INSTALL_DIR)
-    subprocess.run(['strip', os.path.join('lib64', 'libgmsh.so.4.13.1') ], check=True, cwd=INSTALL_DIR)
+    subprocess.run(['strip', os.path.join('bin'  ,  'gmsh'                     )], check=True, cwd=INSTALL_DIR)
+    subprocess.run(['strip', os.path.join('lib64', f'libgmsh.so.{GMSH_VERSION}')], check=True, cwd=INSTALL_DIR)
 
 
 def package() -> None:
@@ -987,8 +1006,8 @@ def package() -> None:
     os.makedirs(python_gmsh_dir, exist_ok=True)
 
     # Strip the Gmsh files
-    subprocess.run(['strip', 'bin/gmsh'               ], check=True, cwd=INSTALL_DIR)
-    subprocess.run(['strip', 'lib64/libgmsh.so.4.13.1'], check=True, cwd=INSTALL_DIR)
+    subprocess.run(['strip', os.path.join('bin'  ,  'gmsh'                     )], check=True, cwd=INSTALL_DIR)
+    subprocess.run(['strip', os.path.join('lib64', f'libgmsh.so.{GMSH_VERSION}')], check=True, cwd=INSTALL_DIR)
 
     # Copy the CGNS adf2hdf executable
     CGNS_ADF2HDF = os.path.join(WORK_DIR   , 'CGNS', 'install', 'bin', 'adf2hdf')
@@ -1040,20 +1059,21 @@ def package() -> None:
     print_step('Running setup to build the Python wheel...')
 
     # Write pyproject.toml file
-    pyproject = """[build-system]
+    pyproject = f"""[build-system]
     requires      = ['setuptools>=42', 'wheel']
     build-backend = 'setuptools.build_meta'
 
     [project]
     name        = 'gmsh'
-    version     = '4.13.1-1'
+    version     = '{GMSH_VERSION}-1'
     description = 'Gmsh with updated CGNS, OpenCASCADE, and local static libraries'
     readme      = 'README.md'
     authors     = [
-                    { name='Patrick Kopper', email='kopper@iag.uni-stuttgart.de' }
+                    {{ name='Patrick Kopper', email='kopper@iag.uni-stuttgart.de' }},
+                    {{ name='Marcel Blind',   email='blind@iag.uni-stuttgart.de'  }}
     ]
     requires-python = '>=3.6'
-    license     = { text = 'GNU General Public License v2 (GPLv2)' }
+    license     = {{ text = 'GNU General Public License v2 (GPLv2)' }}
     classifiers = [
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
@@ -1068,7 +1088,7 @@ def package() -> None:
     [tool.setuptools]
     packages    = ['gmsh']
     py-modules  = ['gmsh']
-    package-dir = { 'gmsh' = 'gmsh' }
+    package-dir = {{ 'gmsh' = 'gmsh' }}
 
     [tool.setuptools.package-data]
     gmsh = [
@@ -1089,8 +1109,8 @@ def package() -> None:
     ]
     'lib' = [
         'gmsh_install/lib64/libgmsh.so',
-        'gmsh_install/lib64/libgmsh.so.4.13',
-        'gmsh_install/lib64/libgmsh.so.4.13.1',
+        'gmsh_install/lib64/libgmsh.so.{GMSH_VERSION.rsplit('.', 1)[0]}',
+        'gmsh_install/lib64/libgmsh.so.{GMSH_VERSION}',
         # 'gmsh_install/lib64/libjpeg.so',
         # 'gmsh_install/lib64/libjpeg.so.62',
         # 'gmsh_install/lib64/libjpeg.so.62.4.0'
