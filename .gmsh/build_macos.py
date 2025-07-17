@@ -28,7 +28,7 @@
 import os
 import sys
 import build
-import errno
+# import errno
 import multiprocessing
 import platform
 import shutil
@@ -100,6 +100,10 @@ def configure(configure_cmd: list, cwd: Optional[str] = None, env: Optional[dict
         print_step('Configuring with: {}'.format(configure_cmd))
         subprocess.run(configure_cmd, check=True, cwd=cwd, env=env, stderr=sys.stderr, stdout=sys.stdout)
 
+    else:
+        print('Unknown configure command')
+        sys.exit(1)
+
 
 def compile(install_cmd: Optional[list] = None, ncores: int = 1, cwd: Optional[str] = None, env: Optional[dict] = None) -> None:
     # Build the software
@@ -167,9 +171,6 @@ GPERF_VERSION = "3.1"
 # Fontconfig
 FONTCONFIG_VERSION = '2.14.2'
 FONTCONFIG_DIR = os.path.join(WORK_DIR, 'fontconfig')
-
-# LIBXFT
-LIBXFT_VERSION = '2.3.8'
 
 # GLU
 # GLU_DIR      = os.path.join(WORK_DIR, 'glu')
@@ -332,7 +333,8 @@ def build_freetype():
 
     freetype_src_dir = os.path.join(BUILD_DIR, f'freetype-{FREETYPE_VERSION}')
 
-    url = f'https://download.savannah.gnu.org/releases/freetype/freetype-{FREETYPE_VERSION}.tar.gz'
+    # url = f'https://download.savannah.gnu.org/releases/freetype/freetype-{FREETYPE_VERSION}.tar.gz'
+    url = f'https://deac-riga.dl.sourceforge.net/project/freetype/freetype2/{FREETYPE_VERSION}/freetype-{FREETYPE_VERSION}.tar.xz'
     file = download(url, BUILD_DIR)
     extract(file, BUILD_DIR)
 
@@ -484,7 +486,8 @@ def build_libxft():
 # ------------------------------------------------------------------------
 def build_fontconfig():
     print_header('Building Fontconfig...')
-    fontconfig_url = f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{FONTCONFIG_VERSION}.tar.gz'
+    # fontconfig_url = f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{FONTCONFIG_VERSION}.tar.gz'
+    fontconfig_url = f'https://gitlab.freedesktop.org/api/v4/projects/890/packages/generic/fontconfig/{FONTCONFIG_VERSION}/fontconfig-{FONTCONFIG_VERSION}.tar.xz'
 
     # Download and extract Fontconfig
     fontconfig_file = download(fontconfig_url, BUILD_DIR)
@@ -525,7 +528,8 @@ def build_fltk():
     if os.path.exists(fltk_src_dir):
         shutil.rmtree(fltk_src_dir)
 
-    url  = f'https://www.fltk.org/pub/fltk/{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
+    # url  = f'https://www.fltk.org/pub/fltk/{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
+    url  = f'https://github.com/fltk/fltk/releases/download/release-{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
     # url  = 'https://www.fltk.org/pub/fltk/snapshots/fltk-1.4.x-20241011-013e939c.tar.gz'
     file = download(url, BUILD_DIR)
     extract(file, BUILD_DIR)
@@ -584,10 +588,12 @@ def build_fltk():
                                                   conf_env['PKG_CONFIG_PATH'])
 
     build_cmd = ['make', 'install']
+    # build_cmd = ['cmake', '--build', 'build', 'install']
 
     if os.path.exists(FLTK_DIR):
         shutil.rmtree(FLTK_DIR)
 
+    # subprocess.run('./automake',     env=conf_env, cwd=fltk_src_dir, check=True, stderr=sys.stderr, stdout=sys.stdout)
     configure(conf_cmd,              env=conf_env, cwd=fltk_src_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=fltk_src_dir)
 
@@ -873,21 +879,21 @@ def package() -> None:
     print_step('Running setup to build the Python wheel...')
 
     # Write pyproject.toml file
-    pyproject = """[build-system]
+    pyproject = f"""[build-system]
     requires      = ['setuptools>=42', 'wheel']
     build-backend = 'setuptools.build_meta'
 
     [project]
     name        = 'gmsh'
-    version     = '4.13.1-1'
+    version     = '{GMSH_VERSION}-1'
     description = 'Gmsh with updated CGNS, OpenCASCADE, and local static libraries'
     readme      = 'README.md'
     authors     = [
-                    { name='Patrick Kopper', email='kopper@iag.uni-stuttgart.de' },
-                    { name='Marcel Blind',   email='blind@iag.uni-stuttgart.de' }
+                    {{ name='Patrick Kopper', email='kopper@iag.uni-stuttgart.de' }},
+                    {{ name='Marcel Blind',   email='blind@iag.uni-stuttgart.de'  }}
     ]
     requires-python = '>=3.6'
-    license     = { text = 'GNU General Public License v2 (GPLv2)' }
+    license     = {{ text = 'GNU General Public License v2 (GPLv2)' }}
     classifiers = [
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
@@ -902,7 +908,7 @@ def package() -> None:
     [tool.setuptools]
     packages    = ['gmsh']
     py-modules  = ['gmsh']
-    package-dir = { 'gmsh' = 'gmsh' }
+    package-dir = {{ 'gmsh' = 'gmsh' }}
 
     [tool.setuptools.package-data]
     gmsh = [
@@ -923,8 +929,8 @@ def package() -> None:
     ]
     'lib' = [
         'gmsh_install/lib/libgmsh.dylib',
-        'gmsh_install/lib/libgmsh.4.13.dylib',
-        'gmsh_install/lib/libgmsh.4.13.1.dylib',
+        'gmsh_install/lib/libgmsh.{GMSH_VERSION.rsplit('.', 1)[0]}.dylib',
+        'gmsh_install/lib/libgmsh.{GMSH_VERSION}.dylib',
     ]
     """
 
