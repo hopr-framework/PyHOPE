@@ -102,7 +102,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Instantiate ELEMTYPE
     elemTypeClass = ELEMTYPE()
 
-    for fname in fnames:
+    for fnum, fname in enumerate(fnames):
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
             hopout.error('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
@@ -230,6 +230,13 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                             raise UnboundLocalError('Something went wrong with the change basis')
 
                     cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
+
+                    # When merging grids with zoneID = 1, we want them to have separate IDs after the merge
+                    zoneName: str = str(max(fnum+1, elem[1]))
+
+                    # Add the elem to the cellset
+                    # > CS1: We create a dictionary of the zones and types that we want
+                    cellsets.setdefault(zoneName, {}).setdefault(elemType, []).append(len(cells[elemType]) - 1)
 
                     # Attach the boundary sides
                     sCounter = 0
