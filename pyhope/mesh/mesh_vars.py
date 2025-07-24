@@ -178,6 +178,7 @@ class ELEM:
     #     self.sides       : Optional[list] = sides
     #     self.nodes       : Optional[list] = nodes
     type        : Optional[int]  = None
+    zone        : Optional[int]  = None
     elemID      : Optional[int]  = None
     sides       : Optional[Union[list, np.ndarray]] = None
     nodes       : Optional[            np.ndarray]  = None

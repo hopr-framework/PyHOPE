@@ -84,6 +84,27 @@ def GenerateSides() -> None:
         nIOElems = ioelems.shape[0]
         nIOSides = len(faces(elemType))
 
+        # Map volume cell sets to elements
+        iocsets  = mesh.cell_sets_dict
+        elemSet  = [None for _ in range(nIOElems)]
+
+        for key, val in iocsets.items():
+            if elemType not in val.keys():
+                continue
+
+            # Extract the zoneID
+            if key.isdigit():
+                zoneID  = key
+            else:
+                # Get a list of the valid zone names
+                zoneIDs = [k for k, v in iocsets.items() if set(v.keys()).issubset(set(mesh_vars.ELEMTYPE.name.keys()))]
+                # Build a dictionary mapping each zone name to an index
+                zoneIDs = {name: i for i, name in enumerate(zoneIDs, 1)}
+                zoneID  = zoneIDs[key]
+
+            for elemID in val[elemType]:
+                elemSet[elemID] = zoneID
+
         # Create non-unique sides
         # mesh_vars.elems += tuple(ELEM() for _ in range(nIOElems         ))
         # mesh_vars.sides += tuple(SIDE() for _ in range(nIOElems*nIOSides))
@@ -107,6 +128,11 @@ def GenerateSides() -> None:
             elems[iElem].elemID = iElem                         # noqa: E251
             elems[iElem].sides  = []                            # noqa: E251
             elems[iElem].nodes  = nodes                         # noqa: E251
+
+            # Create the zone
+            # > Account for different elemTypes in the index
+            if elemSet[iElem-nElems] is not None:
+                elems[iElem].zone = elemSet[iElem-nElems]
 
             # Create the sides
             for key, val in enumerate(corner_faces):

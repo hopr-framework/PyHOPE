@@ -82,7 +82,7 @@ def FEMConnect() -> None:
     # Build mapping of each node -> set of element indices that include that node.
     nodeToElements = defaultdict(set)
     for idx, elem in enumerate(elems):
-        for n in elem.nodes:
+        for n in elem.nodes[:elem.type % 10]:
             nodeToElements[int(n)].add(idx)
 
     # Precompute combined connectivity for each node
@@ -94,7 +94,7 @@ def FEMConnect() -> None:
     # Collect all unique canonical vertices from every element
     # > The canonical vertex is the minimum of the node and its periodic counterpart
     canonicalSet = { min(int(node), periDict.get(int(node), int(node))) for elem in elems
-                                                                        for node in elem.nodes[:(elem.type % 100)]}
+                                                                        for node in elem.nodes[:(elem.type % 10)]}
 
     # Create a mapping from each canonical vertex to a unique index
     # > FEMVertexID starts at 1
@@ -104,7 +104,7 @@ def FEMConnect() -> None:
     # Build the vertex connectivity
     for idx, elem in enumerate(elems):
         vertexInfo: Dict[int, Tuple[int, Tuple[int, ...]]] = {}
-        for locNode, node in enumerate(int(n) for n in elem.nodes[:elem.type % 100]):
+        for locNode, node in enumerate(int(n) for n in elem.nodes[:elem.type % 10]):
             # Determine canonical vertex id
             canonical   = min(node, periDict.get(node, node))
             FEMVertexID = FEMNodeMapping[canonical]

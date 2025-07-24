@@ -609,11 +609,6 @@ def calc_elem_bary(elems: list) -> np.ndarray:
     Returns:
         elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
     """
-    # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
-    import numpy as np
-    # ------------------------------------------------------
-
     elem_bary = []
     for elem in elems:
         # Calculate barycenters
