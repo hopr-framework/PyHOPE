@@ -92,7 +92,7 @@ def MeshCartesian() -> meshio.Mesh:
             # read in origin of the zone
             X0 = GetRealArray( 'X0'  , number=zone)
 
-            # reconstruct points from DX and X0 such that all coreners are defined
+            # reconstruct points from DX and X0 such that all corners are defined
             corners = np.array((np.array((X0[0],       X0[1],       X0[2]      )),
                                 np.array((X0[0]+DX[0], X0[1],       X0[2]      )),
                                 np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]      )),
