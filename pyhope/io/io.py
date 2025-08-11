@@ -80,6 +80,7 @@ def IO() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
+    from pyhope.io.io_xdmf import xdmfCreate
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     # ------------------------------------------------------
 
@@ -103,6 +104,7 @@ def IO() -> None:
             fname = '{}_mesh.h5'.format(pname)
 
             elemInfo, sideInfo, nodeInfo, nodeCoords, \
+            xdmfConnect, \
             FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
             elemCounter = getMeshInfo()
 
@@ -133,6 +135,9 @@ def IO() -> None:
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
+
+                # XDMF format
+                xdmfCreate(f, elemInfo, xdmfConnect)
 
                 if FEMElemInfo is not None:
                     f.attrs['FEMconnect'] = 'ON'
@@ -205,6 +210,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray,         # SideInfo
                            np.ndarray,         # NodeInfo
                            np.ndarray,         # NodeCoords
+                           tuple[list[int]],   # XDMF connectivity
                            np.ndarray | None,  # Optional[FEMElemInfo]
                            np.ndarray | None,  # Optional[VertexInfo]
                            np.ndarray | None,  # Optional[VertexConnectInfo]
@@ -354,8 +360,12 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
     nodeCount  = 0
 
+    # Fill the XDMF connectivity
+    elemTypes   = np.unique(elemInfo[:, 0])
+    xdmfconnect = tuple([list() for _ in range(len(elemTypes))])
+
     # Cache the mapping
-    linCache   = {}
+    linCache    = {}
 
     for iElem, elem in enumerate(elems):
         # Mesh coordinates are stored in meshIO sorting
@@ -371,6 +381,10 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         nElemNodes = elemNodes.size
         indices    = nodeCount + mapLin[:nElemNodes]
 
+        # Assign the indices to XDMF
+        elemType = np.where(elemTypes == elem.type)[0][0]
+        xdmfconnect[elemType].append(indices)
+
         # Assign nodeInfo and nodeCoords in vectorized fashion
         nodeInfo[  indices   ] = elemNodes + 1
         nodeCoords[indices, :] = points[elemNodes]
@@ -382,6 +396,10 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     else:
         FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = [None for _ in range(5)]
 
+    # Convert XDMF to numpy array
+    # xdmfconnect = np.array(xdmfconnect, dtype=np.int32)
+
     return elemInfo, sideInfo, nodeInfo, nodeCoords, \
+           xdmfconnect, \
            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
            elemCounter
