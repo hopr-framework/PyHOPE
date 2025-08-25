@@ -60,11 +60,11 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         return mesh
 
     # Fully hexahedral mesh
-    if all(elemType % 100 == 8 for elemType in elemTypes):
+    if all(elemType % 10 == 8 for elemType in elemTypes):
         return mesh
 
     # Simplex elements requested
-    if any(elemType % 100 != 8 for elemType in elemTypes):
+    if any(elemType % 10 != 8 for elemType in elemTypes):
         if mesh_vars.nGeo > 4:
             hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
 
@@ -84,11 +84,11 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Get the element name and skip the entries for incomplete 2nd order elements
             try:
-                if elemTypes[i] % 100 == 5:    # pyramids (skip 1)
+                if elemTypes[i] % 10 == 5:     # pyramids (skip 1)
                     elemNames[i] = elemTypeInam[elemTypes[i]][1]
-                elif elemTypes[i] % 100 == 6:  # prisms (skip 1)
+                elif elemTypes[i] % 10 == 6:   # prisms (skip 1)
                     elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
-                elif elemTypes[i] % 100 == 8:  # hexahedra (skip 2)
+                elif elemTypes[i] % 10 == 8:   # hexahedra (skip 2)
                     elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
                 else:                          # tetrahedra
                     elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
@@ -198,7 +198,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         # Hex block: Iterate over each element
         for elem in cdata:
             # Pyramids need a center node
-            if elemType % 100 == 5:
+            if elemType % 10 == 5:
                 # Find the element orientation
                 # > The first 8 points (indices) in elem are the CGNS-ordered vertices
                 vertices = np.array([pointl[i] for i in elem[:8]])
@@ -322,7 +322,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 @cache
 def split_hex_to_tets(order: int) -> list[tuple]:
     """
-    Given the indices of a single hexahedral element, return a list of new tetra element connectivity lists
+    Given the indices of a single hexahedral element, return a list of new tetra element connectivity tuples
 
     The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
           7-------6
@@ -420,7 +420,7 @@ def tetra_faces(order: int) -> tuple[np.ndarray, ...]:
 @cache
 def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
     """
-    Given the indices of a single hexahedral element, return a list of new pyramid element connectivity lists
+    Given the indices of a single hexahedral element, return a list of new pyramid element connectivity tuples
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -483,7 +483,7 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
 @cache
 def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
     """
-    Given the pyramid corner indices, return the 4 triangular faces and 1 quadrilateral face as tuples
+    Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
     """
     match order:
         case 1:
@@ -518,7 +518,7 @@ def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
 @cache
 def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
     """
-    Given the indices of a single hexahedral element, return a list of new prism element connectivity lists
+    Given the indices of a single hexahedral element, return a list of new prism element connectivity tuples
     """
     match order:
         case 1:
@@ -580,7 +580,7 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 @cache
 def prism_faces(order: int) -> tuple[np.ndarray, ...]:
     """
-    Given the 6 prism corner indices, return the 2 triangular and 3 quadrilateral faces as tuples.
+    Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
     match order:
         case 1:
@@ -622,7 +622,7 @@ def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
 # Dummy function for hexahedral elements
 @cache
 def hex_faces(order: int) -> tuple[np.ndarray, ...]:
-    """ Given the indices of a hexahedral element, return the 6 faces as tuples
+    """ Given the indices of a hexahedral element, return a tuple with the 6 faces as arrays
     """
     match order:
         case 1:
