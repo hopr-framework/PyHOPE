@@ -371,7 +371,7 @@ def ConnectMesh() -> None:
                         # Update the reverse dictionary immediately
                         corner_side[pNodes].append(sideID)
 
-                    if bcs[bcID].type[0] != 1:
+                    if bcs[bcID].type[0] not in (1, 100):
                         bar.step()
 
     # Try to connect the inner / periodic sides
