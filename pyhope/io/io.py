@@ -242,7 +242,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
 
     for iElem, elem in enumerate(elems):
         elemInfo[iElem, ELEM.TYPE     ] = elem.type
-        elemInfo[iElem, ELEM.ZONE     ] = 1  # FIXME
+        elemInfo[iElem, ELEM.ZONE     ] = elem.zone if elem.zone is not None else 1
 
         elemInfo[iElem, ELEM.FIRSTSIDE] = sideCount
         elemInfo[iElem, ELEM.LASTSIDE ] = sideCount + len(elem.sides)

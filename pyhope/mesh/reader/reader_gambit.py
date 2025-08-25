@@ -107,11 +107,12 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     nodeCoords   = mesh.points
     nSides       = np.zeros(2, dtype=int)
+    elemTypes    = []
 
     # Initialize the node ordering
     node_ordering = NodeOrdering()
 
-    for fname in fnames:
+    for fnum, fname in enumerate(fnames):
         # Check if the file is using ASCII format internally
         with open(fname, 'r') as f:
             # Check if the file is in ASCII format
@@ -166,6 +167,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Map gambit element type to meshio element type
                     elemType  = node_ordering.typing_gambit_to_meshio(gType)
+                    elemTypes.append(elemType)
 
                     # Check if the number of nodes matched the expected number
                     if nNodes != NDOFperElemType(elemType, mesh_vars.nGeo):
@@ -181,21 +183,74 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
 
+                # Clean-up for memory safety
+                del elemLine
+                del elemIter
+
                 # Check if the number of elements match the header
                 if nelems != sum(len(cells[key]) for key in cells):
                     raise ValueError('Failed to obtain the correct number of elements.')
 
+                # Search for the line starting the element groups
+                grsLine  = lines_that_contain('ELEMENT GROUP', content)[0] + 1
+                grsIter  = iter(content[grsLine:])
+                lnum     = 0
+
+                # Iterate and unpack the boundary conditions
+                for line in grsIter:
+                    lnum += 1
+                    # Iterate until the number of boundary conditions is reached
+                    if 'ENDOFSECTION' in line:
+                        # Check if the next sections is also an element group
+                        if 'ELEMENT GROUP' not in content[grsLine+lnum]:
+                            break
+
+                    tokens = line.strip().split()
+                    if not tokens:
+                        continue
+
+                    try:
+                        _, zoneNum, _, zoneNElems, _, zoneMat, _, zoneFlags = tokens
+                        zoneNum, zoneNElems, zoneMat, zoneFlags = int(zoneNum), int(zoneNElems), int(zoneMat), int(zoneFlags)
+                    except ValueError:
+                        continue
+
+                    # When merging grids with zoneID = 1, we want them to have separate IDs after the merge
+                    # FIXME: GAMBIT allows own volume zone, we should read them here
+                    zoneName: str = str(max(fnum+1, zoneNum))
+
+                    # Keep extending the element connectivity until elemNodes is reached
+                    _     = next(grsIter)
+                    lnum += 1
+                    zoneElems = []
+                    while len(zoneElems) < zoneNElems:
+                        lnum += 1
+                        zoneElems.extend(next(grsIter).strip().split())
+
+                    # Convert elemNodes to a numpy array of integers
+                    zoneElems = np.array(zoneElems, dtype=np.uint64)
+
+                    # Add the elem to the cellset
+                    # > CS1: We create a dictionary of the zones and types that we want
+                    for zoneElem in zoneElems:
+                        cellsets.setdefault(zoneName, {}).setdefault(elemTypes[zoneElem-1], []).append(zoneElem-1)
+
+                # Clean-up for memory safety
+                del grsLine
+                del grsIter
+
                 # Search for the line starting the boundary conditions
                 bcsLine  = lines_that_contain('BOUNDARY CONDITIONS', content)[0] + 1
                 bcsIter  = iter(content[bcsLine:])
-                bcsCount = 0
+                lnum     = 0
 
                 # Iterate and unpack the boundary conditions
                 for line in bcsIter:
                     # Iterate until the number of boundary conditions is reached
+                    lnum += 1
                     if 'ENDOFSECTION' in line:
-                        bcsCount += 1
-                        if bcsCount >= nbcs:
+                        # Check if the next sections is also a boundary condition
+                        if bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]:
                             break
 
                     tokens = line.strip().split()
@@ -224,6 +279,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                             bcnNodes = []
                             for _ in range(bcnData):
                                 bcnNodes.extend(next(bcsIter).strip().split())
+                                lnum += 1
                             # bcnNodes is in format [ELEM, ELEMTYPE, FACE, (VALUES)]
                             bcnNodes = np.array(bcnNodes, dtype=int).reshape(bcnData, -1)
 
@@ -258,6 +314,10 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                                 # Add the side to the cellset
                                 # > CS1: We create a dictionary of the BC sides and types that we want
                                 cellsets.setdefault(BCName, {}).setdefault(sideName, []).append(nSides[sideNum] - 1)
+
+                # Clean-up for memory safety
+                del bcsLine
+                del bcsIter
 
     # After processing all elements, convert each list of arrays to one array
     # > Convert the list of cells to numpy arrays
