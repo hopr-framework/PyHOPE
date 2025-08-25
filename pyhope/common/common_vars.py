@@ -26,10 +26,12 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import importlib.metadata
+import os
 import pathlib
 import re
+import subprocess
 from functools import cache
-from typing import Callable, Final, final
+from typing import Callable, Final, Optional, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -62,8 +64,9 @@ def singleton(cls) -> Callable:
 @singleton
 class Common():
     def __init__(self: Self) -> None:
-        self._version: Final      = self.__version__
         self._program: Final[str] = self.__program__
+        self._version: Final      = self.__version__
+        self._commit:  Final      = self.__commit__
 
     @property
     @cache
@@ -87,6 +90,23 @@ class Common():
         return Version(version)
 
     @property
+    @cache
+    def __commit__(self) -> Optional[str]:
+        # Retrieve commit from git
+        process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+                                   shell=False,
+                                   cwd=os.path.dirname(os.path.realpath(__file__)),
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.DEVNULL)
+
+        commit = process.communicate()[0].strip().decode('ascii')
+
+        # Return the commit if valid
+        if process.returncode != 0:
+            return None
+        return commit
+
+    @property
     def __program__(self) -> str:
         return 'PyHOPE'
 
@@ -97,6 +117,10 @@ class Common():
     @property
     def version(self) -> str:
         return str(self._version)
+
+    @property
+    def commit(self) -> str:
+        return str(self._commit)
 
 
 @final

@@ -42,6 +42,13 @@ STD_LENGTH: Final[int] = 79  # Standard length for output to console
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
+class Symbols:
+    OK:      Final[str] = '✅ OK'
+    WARN:    Final[str] = '⚠️ WARNING'
+    ERR:     Final[str] = '❌ ERROR'
+
+
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Colors:
     """ Define colors used throughout this framework
 
@@ -89,9 +96,9 @@ def small_banner(string: str, length: int = STD_LENGTH) -> None:
             string (str): String to be printed in banner
             length (int): (Optional.) Number of characters in each line
     """
-    print(Colors.BANNERB + '\n' + '-'*length)
-    print(Colors.BANNERB + ' '+string)
-    print(Colors.BANNERB + '-'*length + Colors.END)
+    print(Colors.BANNERB + '├' + '─'*(length-1))
+    print(Colors.BANNERB + '│ '+string)
+    print(Colors.BANNERB + '├' + '─'*(length-1) + Colors.END)
 
 
 def warn(string: str, length: int = STD_LENGTH) -> str:
@@ -167,7 +174,7 @@ def info(string: str, newline: bool = False, end: Optional[str] = None) -> None:
         print('│ '  + string, end=end)
 
 
-def routine(string: str, newline=False) -> None:
+def routine(string: str, newline: bool = False) -> None:
     """ Print the input `string` as generic output without special formatting
 
         Args:

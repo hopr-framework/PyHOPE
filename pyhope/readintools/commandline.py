@@ -112,6 +112,9 @@ class CommandLine:
         _ = parser.add_argument('-V', '--version',
                                 action='store_true',
                                 help='display the version number and exit')
+        _ = parser.add_argument('--checkhealth',
+                                action='store_true',
+                                help='check health and (optional) dependencies')
         _ = parser.add_argument('input',
                                 nargs='?',
                                 metavar='<parameter.ini / mesh.h5>',

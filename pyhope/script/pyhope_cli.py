@@ -26,8 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import multiprocessing
-import os
-import subprocess
 import sys
 import time
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -61,6 +59,7 @@ def main() -> None:
     from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
+    from pyhope.check.check import Check
     # ------------------------------------------------------
 
     # Always spawn with "fork" method to inherit the address space of the parent process
@@ -72,18 +71,11 @@ def main() -> None:
             raise
 
     tStart  = time.time()
-    process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
-                               shell=False,
-                               cwd=os.path.dirname(os.path.realpath(__file__)),
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL)
 
     common  = Common()
     program = common.program
     version = common.version
-    commit = process.communicate()[0].strip().decode('ascii')
-    if process.returncode != 0:
-        commit = None
+    commit  = common.commit
 
     with DefineConfig() as dc:
         config.prms = dc
@@ -101,6 +93,10 @@ def main() -> None:
         print(f'{program} version {version}' + (f' [commit {commit}]' if commit else ''))
         sys.exit(0)
 
+    # Exit with checks if requested
+    if args.checkhealth:
+        Check(args)
+        sys.exit(0)
     # Check if there are unrecognized arguments
     if len(argv) >= 1:
         print('{} expects exactly one parameter or HDF5-mesh file! Exiting ...'
