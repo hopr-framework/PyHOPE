@@ -101,7 +101,10 @@ def small_banner(string: str, length: int = STD_LENGTH) -> None:
     print(Colors.BANNERB + '├' + '─'*(length-1) + Colors.END)
 
 
-def warn(string: str, length: int = STD_LENGTH) -> str:
+def warn(string:   str,
+         length:   int  = STD_LENGTH,
+         prefix:   str  = Colors.WARN + '│  WARNING  ┃ '  + Colors.END,
+         warnonce: bool = False) -> str:
     """ Format the input `string` as a warning with the corresponding color
 
         Args:
@@ -109,15 +112,31 @@ def warn(string: str, length: int = STD_LENGTH) -> str:
                 length (int): (Optional.) Number of characters in each line
     """
     # Standard libraries -----------------------------------
+    import re
     import textwrap
     # ------------------------------------------------------
-    prefix   = Colors.WARN + '│  WARNING  ┃ '  + Colors.END
-    lprefix  = len('│  WARNING  ┃ ')
-    wrap_msg = textwrap.fill(string, width=length - lprefix)
+    # Remove ANSI escape codes for accurate visible-length calculation
+    ansiEscape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    lprefix    = len(ansiEscape.sub('', prefix))
+    # Wrap the message to account for the visible prefix width
+    wrap_msg   = textwrap.fill(string, width=length - lprefix)
 
-    # Add prefix to each line
-    format_msg = '\n'.join(f'{prefix}{line}' for line in wrap_msg.splitlines())
-    return format_msg
+    # Split into lines and format
+    lines = wrap_msg.splitlines()
+    if not lines:
+        # If there's nothing to print, return just the prefix (trim trailing spaces)
+        return prefix.rstrip()
+
+    if not warnonce:
+        # Add prefix to every wrapped line
+        formatted_lines = [f'{prefix}{line}' for line in lines]
+    else:
+        # Add full prefix only to the first line, pad subsequent lines with spaces
+        formatted_lines = [f'{prefix}{lines[0]}']
+        indent = '│' + ' ' * (lprefix-1)
+        formatted_lines.extend(f'{indent}{line}' for line in lines[1:])
+
+    return '\n'.join(formatted_lines)
 
 
 def warning(string: str, file=sys.stdout) -> None:
