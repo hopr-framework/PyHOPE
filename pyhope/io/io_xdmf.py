@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import os
 from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -95,11 +96,11 @@ def xdmfElems(elemType: int, nGeo: int) -> tuple[str, int]:
 
     match elemType % 10:
         case 4:  # Tetrahedron
-            ndofs = np.floor((nGeo+1)*(nGeo+2)*(nGeo+3  )/6)
+            ndofs = np.floor((nGeo+1)*(nGeo+2)*(nGeo+3  )/6).astype(int)
         case 5:  # Pyramid
-            ndofs = np.floor((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6)
+            ndofs = np.floor((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6).astype(int)
         case 6:  # Prism / Wedge
-            ndofs = np.floor((nGeo+1)**2      *(nGeo+2  )/2)
+            ndofs = np.floor((nGeo+1)**2      *(nGeo+2  )/2).astype(int)
         case 8:  # Hexahedron
             ndofs = (nGeo+1)**3
         case _:
@@ -116,17 +117,18 @@ def xdmfCreate(f:           h5py.File,
                ElemInfo:    np.ndarray,
                xdmfConnect: tuple[list[int]]) -> None:
     # Local imports ----------------------------------------
-    import pyhope.io.io_vars as io_vars
+    import pyhope.output.output as hopout
     from pyhope.mesh.mesh_vars import nGeo
     # ------------------------------------------------------
 
-    # Currently, only first order is supported by XDMF
-    if nGeo > 1:
+    # Currently, only first/second order is supported by XDMF
+    if nGeo > 2:
+        print(hopout.warn('XDMF only supports linear/quadratic elements, skipping...'))
         return None
 
-    pname = io_vars.projectname
-    hname = '{}_mesh.h5' .format(pname)
-    fname = '{}_mesh.xmf'.format(pname)
+    hname = f.filename
+    h5nam, _ = os.path.splitext(hname)
+    fname = '{}.xmf'.format(h5nam)
 
     # Start assembling the XDMF data
     xdmf = [
@@ -140,6 +142,11 @@ def xdmfCreate(f:           h5py.File,
     # Find number of unique element types
     elemTypes  = np.unique(ElemInfo[:, 0])
     nElemTypes = np.zeros(elemTypes.size, dtype=int)
+
+    # Currently, pyramids are only supported with first order
+    if any(elemTypes % 10 == 5) and nGeo > 1:
+        print(hopout.warn('XDMF only supports linear pyramidal elements, skipping...'))
+        return None
 
     # Count the number of elements per type
     for elem in ElemInfo:
@@ -175,6 +182,8 @@ def xdmfCreate(f:           h5py.File,
         '  </Domain>',
         '</Xdmf>'
     ]
+
+    hopout.routine('Writing XDMF data to "{}"'.format(fname))
 
     # Write the XDMF file
     with open(fname, 'w') as x:

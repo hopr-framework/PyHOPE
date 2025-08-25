@@ -49,11 +49,12 @@ def DefineIO() -> None:
 
     CreateSection('Output')
     CreateStr('ProjectName', help='Name of output files')
-    CreateIntFromString('OutputFormat', default='HDF5', help='Mesh output format')
-    CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_HDF5, name='HDF5')
-    CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_VTK , name='VTK')
-    CreateIntOption(    'OutputFormat', number=MeshFormat.FORMAT_GMSH, name='GMSH')
-    CreateLogical(      'DebugVisu'   , default=False , help='Launch the GMSH GUI to visualize the mesh')
+    CreateIntFromString('OutputFormat'  , default='HDF5', help='Mesh output format')
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_HDF5, name='HDF5')
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_VTK , name='VTK')
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_GMSH, name='GMSH')
+    CreateLogical(      'OutputMetadata', default=True  , help='Mesh output metadata (if supported by OutputFormat)')  # noqa: E271
+    CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
 
 def InitIO() -> None:
@@ -68,6 +69,7 @@ def InitIO() -> None:
 
     io_vars.projectname  = GetStr('ProjectName')
     io_vars.outputformat = GetIntFromStr('OutputFormat')
+    io_vars.outputmeta   = GetLogical('OutputMetadata')
 
     io_vars.debugvisu    = GetLogical('DebugVisu')
 
@@ -113,6 +115,7 @@ def IO() -> None:
             for elemType in ELEM.TYPES:
                 if elemCounter[elemType] > 0:
                     hopout.info( ELEMTYPE(elemType) + ': {:12d}'.format(elemCounter[elemType]))
+
             hopout.sep()
             hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
 
@@ -137,7 +140,8 @@ def IO() -> None:
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
 
                 # XDMF format
-                xdmfCreate(f, elemInfo, xdmfConnect)
+                if io_vars.outputmeta:
+                    xdmfCreate(f, elemInfo, xdmfConnect)
 
                 if FEMElemInfo is not None:
                     f.attrs['FEMconnect'] = 'ON'
