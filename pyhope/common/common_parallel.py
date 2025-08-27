@@ -25,8 +25,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import threading
-from multiprocessing import Pool, Queue
+import sys
+import traceback
+from multiprocessing import Pool, Queue, Process
 from typing import Callable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -70,19 +71,29 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
     target = update_progress if IsInteractive() else None
 
     # Use a separate thread for the progress bar
-    progress_thread = threading.Thread(target=target, args=(progress_queue, total_elements))
+    progress_thread = Process(target=target, args=(progress_queue, total_elements))
     progress_thread.start()
 
     # Use multiprocessing Pool for parallel processing
     with Pool(processes=np_mtp) as pool:
         # Map work across processes in chunks
         results = []
-        for chunk_result in pool.imap_unordered(process_chunk, chunks):
-            results.extend(chunk_result)
-            # Update progress for each processed element in the chunk
-            for _ in chunk_result:
-                progress_queue.put(1)
+        try:
+            for chunk_result in pool.imap_unordered(process_chunk, chunks):
+                results.extend(chunk_result)
+                # Update progress for each processed element in the chunk
+                for _ in chunk_result:
+                    progress_queue.put(1)
+        except Exception:
+            # Terminate processes and print traceback (exception only contains the error message)
+            pool.terminate()
+            progress_thread.terminate()
+            print(traceback.format_exc())
+            sys.exit(1)
 
-    # Wait for the progress bar thread to finish
+    # Wait for the process and progress threads to finish and synchronize
+    pool.join()
+    pool.close()
     progress_thread.join()
+    progress_thread.close()
     return results
