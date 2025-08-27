@@ -80,7 +80,7 @@ class tBox:
 def SortMeshBySFC() -> None:
     # Local imports ----------------------------------------
     from hilbertcurve.hilbertcurve import HilbertCurve
-    from pyhope.common.common_vars import np_mtp, Common
+    from pyhope.common.common_vars import np_mtp
     from pyhope.mesh.mesh_common import calc_elem_bary
     from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -115,9 +115,7 @@ def SortMeshBySFC() -> None:
     elem_disc      = Coords2Int(elem_bary, spacing, xmin)
 
     # Generate the space-filling curve and order elements along it
-    common         = Common()
-    mtp            = np_mtp if common.isSafeMTP else 0
-    hc             = HilbertCurve(p=nbits, n=3, n_procs=mtp)
+    hc             = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
 
     distances      = np.array(hc.distances_from_points(elem_disc))  # bottleneck
     sorted_indices = np.argsort(distances)

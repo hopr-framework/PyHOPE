@@ -100,10 +100,6 @@ def main() -> None:
         Check(args)
         sys.exit(0)
 
-    # Checks might be unsafe for multiprocessing
-    if args.skip_checks:
-        common._safeMTP = False
-
     # Check if there are unrecognized arguments
     if len(argv) >= 1:
         print('{} expects exactly one parameter or HDF5-mesh file! Exiting ...'

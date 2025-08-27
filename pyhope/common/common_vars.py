@@ -67,8 +67,6 @@ class Common():
         self._program: Final[str] = self.__program__
         self._version: Final      = self.__version__
         self._commit:  Final      = self.__commit__
-        #
-        self._safeMTP: bool       = True
 
     @property
     @cache
@@ -123,10 +121,6 @@ class Common():
     @property
     def commit(self) -> str:
         return str(self._commit)
-
-    @property
-    def isSafeMTP(self) -> bool:
-        return self._safeMTP
 
 
 @final
