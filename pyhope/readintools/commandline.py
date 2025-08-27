@@ -133,7 +133,8 @@ class CommandLine:
                                       help    = 'verify the installation and exit')           # noqa: E251
         _ = verifyParser.add_argument('--skip-checks',
                                       action  = 'store_true',                                 # noqa: E251
-                                      help    = '[hidden: Disable checks for verification]')  # noqa: E251
+                                      # Hidden: Disable checks for verification
+                                      help    = argparse.SUPPRESS)                            # noqa: E251
         _ = parser.add_argument('input',
                                 nargs   = '?',                                                # noqa: E251
                                 metavar = '<parameter.ini / mesh.h5>',                        # noqa: E251
