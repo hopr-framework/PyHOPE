@@ -289,7 +289,10 @@ def CountOption(string: str) -> int:
     return counter
 
 
-def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Optional[int] = None):
+def GetParam(name    : str,
+             calltype: str,
+             default : Optional[str] = None,
+             number  : Optional[int] = None):
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout

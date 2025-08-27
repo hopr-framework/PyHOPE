@@ -94,7 +94,9 @@ def main() -> None:
         sys.exit(0)
 
     # Exit with checks if requested
-    if args.checkhealth:
+    if args.verify        \
+    or args.verify_health \
+    or args.verify_install:
         Check(args)
         sys.exit(0)
     # Check if there are unrecognized arguments
