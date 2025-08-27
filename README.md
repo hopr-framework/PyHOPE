@@ -17,19 +17,37 @@ PyHOPE is built using standard Python packages. You can install PyHOPE by follow
     ```
     If you choose not to use a virtual environment, skip this step and proceed directly to the installation of PyHOPE.
 
+> [!IMPORTANT]  
+> For new shell sessions, the virtual environment must be re-sourced using `source venv/bin/activate` before using `pyhope` commands.
+
 2.  **Install PyHOPE**  
     PyHOPE is installed using `pip`, the Python package installer. This command fetches the PyHOPE package and its dependencies from PyPI (Python Package Index) and installs them.
     ```bash
     python -m pip install pyhope
     ```
 
-3. **Run PyHOPE**
-    PyHOPE is available as a command-line tool. After installation, its functionalities can be accessed directly from the terminal.
+3.  **Optional: Verify PyHOPE installation**  
+    PyHOPE features internal health checks. The checks can be invoked directly from the terminal.
     ```bash
-    pyhope --help
+    pyhope --verify [tutorials]           # Run all health checks
+    pyhope --verify-health                # Run Python health checks
+    pyhope --verify-install [tutorialss]  # Run PyHOPE mesh generation checks
     ```
 
-    > 🛈 Remark: For new shell sessions, the virtual environment must be re-sourced using `source venv/bin/activate` before using `pyhope` commands.
+> [!NOTE]  
+>  By default, PyHOPE looks for the `tutorials` directory relative to the current working directory or the git root. If neither exists, PyHOPE downloads the tests from GitHub while using available authentication methods.
+
+4. **Run PyHOPE**  
+    PyHOPE is available as a command-line tool. After installation, its functionalities can be accessed directly from the terminal by passing a valid configuration file.
+    ```bash
+    pyhope [parameter.ini]
+    ```
+
+> [!TIP]
+> PyHOPE help output is formatted to serve as self-hosting INI format. A list of all options and the default values can be accessed by running the following command.
+> ```bash
+> pyhope --help
+> ```
 
 # Usage
 PyHOPE is invoked from the command line. Run parameters are read from a configuration file. The following output is obtained when running the example configuration file `tutorials/1-01-cartbox/parameter.ini`.
