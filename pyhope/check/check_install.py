@@ -427,9 +427,10 @@ def CheckInstall(path: Optional[str] = None) -> None:
             tmpDir.cleanup()
 
         # Close the progress bar
-        hopout.sep()
-        bar.title('│          Finished running tests')
-        bar.close()
+        if bar is not None:
+            hopout.sep()
+            bar.title('│          Finished running tests')
+            bar.close()
         hopout.info('')
 
         # Print the final output
