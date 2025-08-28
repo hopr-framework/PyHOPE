@@ -43,72 +43,90 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
     This function applies a deformation transformation to the input points based on the given Fortran logic.
     The transformation maps a 2D square region to a cylindrical or toroidal coordinate system.
     """
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from pyhope.readintools.readintools import CreateReal, GetReal
+    # ------------------------------------------------------
 
-    # TODO: Readin parameters from a configuration file
-    PostDeform_R0 = 1.0       # Define appropriate values
-    PostDeform_Rtorus = -1.0  # Adjust as needed
-    PostDeform_Lz = 1.0       # Cylinder height scale
-    PostDeform_sq = 0.0       # Spiral rotation parameter
-    MeshPostDeform = 1        # Deformation mode
+    hopout.sep()
+    CreateReal('PostDeform_R0',     default= 1.0, help='Scaling factor for the cylinder/torus radius')                         # noqa: E251
+    CreateReal('PostDeform_sq',     default= 0.0, help='Spiral factor along z. 0: no spiral, 1: one rotation for z in [0,1]')  # noqa: E251
+    CreateReal('PostDeform_Rtorus', default=-1.0, help='>0 for torus major radius (around z); <0 for cylinder mode')           # noqa: E251
+    CreateReal('PostDeform_Lz',     default= 1.0, help='Axial scaling for cylinder mode')                                      # noqa: E251
+
+    PostDeform_R0     = GetReal('PostDeform_R0')
+    PostDeform_sq     = GetReal('PostDeform_sq')
+    PostDeform_Rtorus = GetReal('PostDeform_Rtorus')
+    PostDeform_Lz     = GetReal('PostDeform_Lz')
 
     nTotal = points.shape[0]
-    X_out = np.zeros_like(points)
+    X_out  = np.zeros_like(points)
+    Pi     = np.pi
 
     for i in range(nTotal):
-        x = points[i, :].copy()
+        x  = points[i, :].copy()
         rr = max(abs(x[0]), abs(x[1]))
 
         if rr < 0.5:
-            dx1 = np.array([
-                0.5 * np.sqrt(2) * np.cos(0.25 * np.pi * x[1] / 0.5) - 0.5,
-                0.5 * np.sqrt(2) * np.sin(0.25 * np.pi * x[1] / 0.5) - x[1]
-            ])
-            dx2 = np.array([
-                0.5 * np.sqrt(2) * np.sin(0.25 * np.pi * x[0] / 0.5) - x[0],
-                0.5 * np.sqrt(2) * np.cos(0.25 * np.pi * x[0] / 0.5) - 0.5
-            ])
+            # inside [-0.5,0.5]^2
+            # right side at x=0.5
+            dx1_0 = 0.5 * np.sqrt(2.0) * np.cos(0.25 * Pi * x[1] / 0.5) - 0.5
+            dx1_1 = 0.5 * np.sqrt(2.0) * np.sin(0.25 * Pi * x[1] / 0.5) - x[1]
+            dx1 = np.array([dx1_0, dx1_1])
+
+            # upper side at y=0.5
+            dx2_0 = 0.5 * np.sqrt(2.0) * np.sin(0.25 * Pi * x[0] / 0.5) - x[0]
+            dx2_1 = 0.5 * np.sqrt(2.0) * np.cos(0.25 * Pi * x[0] / 0.5) - 0.5
+            dx2 = np.array([dx2_0, dx2_1])
+
             alpha = 0.35
-            dx = alpha * (dx1 * np.array([2 * x[0], 1.]) + dx2 * np.array([1., 2 * x[1]]))
+            # coons mapping of edges, dx=0 at the corners
+            dx = alpha * (dx1 * np.array([2.0 * x[0], 1.0]) + dx2 * np.array([1.0, 2.0 * x[1]]))
         else:
-            if abs(x[1]) < abs(x[0]):
-                dx = np.array([
-                    x[0] * np.sqrt(2) * np.cos(0.25 * np.pi * x[1] / x[0]) - x[0],
-                    x[0] * np.sqrt(2) * np.sin(0.25 * np.pi * x[1] / x[0]) - x[1]
-                ])
-            else:
-                dx = np.array([
-                    x[1] * np.sqrt(2) * np.sin(0.25 * np.pi * x[0] / x[1]) - x[0],
-                    x[1] * np.sqrt(2) * np.cos(0.25 * np.pi * x[0] / x[1]) - x[1]
-                ])
-            alpha = min(1., 2. * rr - 1.)
-            alpha = np.sin(0.5 * np.pi * alpha)
-            alpha = 1.0 * alpha + 0.35 * (1. - alpha)
+            # outside [-0.5,0.5]^2
+            if abs(x[1]) < abs(x[0]):  # left and right quarter
+                dx0 = x[0] * np.sqrt(2.0) * np.cos(0.25 * Pi * x[1] / x[0]) - x[0]
+                dx1 = x[0] * np.sqrt(2.0) * np.sin(0.25 * Pi * x[1] / x[0]) - x[1]
+                dx = np.array([dx0, dx1])
+            else:  # upper and lower quarter (ABS(x(2)).GE.ABS(x(1)))
+                dx0 = x[1] * np.sqrt(2.0) * np.sin(0.25 * Pi * x[0] / x[1]) - x[0]
+                dx1 = x[1] * np.sqrt(2.0) * np.cos(0.25 * Pi * x[0] / x[1]) - x[1]
+                dx = np.array([dx0, dx1])
+
+            # maps [0.5,1] --> [0,1] and alpha=1 outside [-1,1]^2
+            alpha = min(1.0, 2.0 * rr - 1.0)
+            # smooth transition at the outer boundary max(|x|,|y|)=1
+            alpha = np.sin(0.5 * Pi * alpha)
+            # alpha=1 at max(|x|,|y|)=1, and alpha=0.35 at max(|x|,|y|)=0.5
+            alpha = 1.0 * alpha + 0.35 * (1.0 - alpha)
             dx *= alpha
 
-        xout = PostDeform_R0 * np.sqrt(0.5) * (x[:2] + dx)
+        xout     = np.zeros(3, dtype=points.dtype)
+        xout[:2] = PostDeform_R0 * np.sqrt(0.5) * (x[:2] + dx)
 
-        if MeshPostDeform == 1:
-            arg = 2. * np.pi * x[2] * PostDeform_sq
-        elif MeshPostDeform == 11:
-            arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2)
-        elif MeshPostDeform == 12:
-            arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2) * (1 + 0.5 * xout[0])
+        # Spiral rotation along z sq=0. no spiral, sq=1: 1 rotation along z [0,1]
+        arg = 2.0 * Pi * x[2] * PostDeform_sq
+
+        # Rotation matrix
+        c = np.cos(arg)
+        s = np.sin(arg)
+        rotmat   = np.array([[c, -s],
+                             [s,  c]], dtype=xout.dtype)
+        xout[:2] = rotmat @ xout[:2]
+
+        if PostDeform_Rtorus < 0.0:
+            # cylinder
+            xout[2] = x[2] * PostDeform_Lz
         else:
-            arg = 0
-
-        rotmat = np.array([
-            [np.cos(arg), -np.sin(arg)],
-            [np.sin(arg),  np.cos(arg)]
-        ])
-        xout = np.matmul(rotmat, xout)
-
-        if PostDeform_Rtorus < 0:
-            xout = np.append(xout, x[2] * PostDeform_Lz)
-        else:
-            temp_z = xout[1]
-            xout[1] = -(xout[0] + PostDeform_Rtorus) * np.sin(2 * np.pi * x[2])
-            xout[0] = (xout[0] + PostDeform_Rtorus) * np.cos(2 * np.pi * x[2])
-            xout = np.append(xout, temp_z)
+            # torus, z_in must be [0,1] and periodic
+            # torus around z axis ,x =R*cos(phi), y=-R*sin(phi)
+            # store Z
+            z_val = xout[1]
+            R_minor = xout[0] + PostDeform_Rtorus
+            phi = 2.0 * Pi * x[2]
+            xout[2] = z_val
+            xout[1] = -R_minor * np.sin(phi)
+            xout[0] =  R_minor * np.cos(phi)
 
         X_out[i, :] = xout
 

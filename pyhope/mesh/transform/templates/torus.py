@@ -103,7 +103,7 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             alpha = np.sin(0.5 * Pi * alpha)
             # alpha=1 at max(|x|,|y|)=1, and alpha=0.35 at max(|x|,|y|)=0.5
             alpha = 1.0 * alpha + 0.35 * (1.0 - alpha)
-            dx = alpha * dx
+            dx *= alpha
 
         xout     = np.zeros(3, dtype=points.dtype)
         xout[:2] = PostDeform_R0 * np.sqrt(0.5) * (x[:2] + dx)
