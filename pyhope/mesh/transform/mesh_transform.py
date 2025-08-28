@@ -158,6 +158,7 @@ def TransformMesh() -> None:
 
     # Read in the mesh post-deformation flag
     meshPostDeform = GetStr('MeshPostDeform') if CountOption('MeshPostDeform') != 0 else 'none'
+    meshPostDeform = meshPostDeform.lower()
 
     # Leave if no transformation is required
     if all(x == 0 for x in [nMeshScale, nMeshTrans, nMeshRot]) and meshPostDeform == 'none':

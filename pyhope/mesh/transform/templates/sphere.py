@@ -44,17 +44,21 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
     3D box, x,y in [-1,1]^3, to Sphere with radius PostDeform_R0
     all points outside [-1,1]^4 will be mapped directly to a sphere
     """
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from pyhope.readintools.readintools import CreateReal, GetReal
+    # ------------------------------------------------------
 
-    # TODO: Readin parameters from a configuration file
-    PostDeform_R0 = 1.0  # Define based on the expected scaling factor
-
+    hopout.sep()
+    CreateReal('PostDeform_R0', default=1.0, help='Scaling factor for the radius of the sphere')
+    PostDeform_R0 = GetReal('PostDeform_R0')
 
     nTotal = points.shape[0]
-    X_out = np.zeros_like(points)
-    Pi = np.pi
+    X_out  = np.zeros_like(points)
+    Pi     = np.pi
 
     for i in range(nTotal):
-        x = points[i, :].copy()
+        x  = points[i, :].copy()
         rr = max(abs(x[0]), abs(x[1]), abs(x[2]))
 
         if rr <= 0.5:
