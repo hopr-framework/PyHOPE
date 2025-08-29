@@ -43,14 +43,37 @@ def Check(args: argparse.Namespace
     """ Check routine of PyHOPE
     """
     # Local imports ----------------------------------------
-    from pyhope.check.check_health import CheckHealth
-    from pyhope.common.common_vars import Common
     import pyhope.output.output as hopout
+    from pyhope.check.check_health import CheckHealth
+    from pyhope.check.check_install import CheckInstall
+    from pyhope.common.common_vars import Common
+    from pyhope.gmsh.gmsh_install import PkgsCheckGmsh
     # ------------------------------------------------------
 
     # Print banner
     common  = Common()
     hopout.header(common.program, common.version, common.commit)
 
-    if args.checkhealth:
+    # Check if we are using the NRG Gmsh version and install it if not
+    PkgsCheckGmsh()
+
+    # Attempt to extract the directory
+    directory = None
+    if   isinstance(args.verify        , str):  # noqa: E271
+        directory = args.verify
+    elif isinstance(args.verify_install, str):
+        directory = args.verify_install
+
+    # Return all checks and return
+    if args.verify:
         CheckHealth()
+        hopout.info('')
+        CheckInstall(directory)
+
+    # Run only health check
+    elif args.verify_health:
+        CheckHealth()
+
+    # Run only install check
+    elif args.verify_install:
+        CheckInstall(directory)

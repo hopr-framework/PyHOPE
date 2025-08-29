@@ -106,19 +106,40 @@ class CommandLine:
 
     def __enter__(self) -> tuple[Namespace, list]:
         # Setup an argument parser and add know arguments
-        _ = parser = argparse.ArgumentParser(prog=self.name,
-                                             formatter_class=argparse.RawDescriptionHelpFormatter,
-                                             epilog=self.help)
+        _ = parser = argparse.ArgumentParser(prog   = self.name,                              # noqa: E251
+                                             epilog = self.help,                              # noqa: E251
+                                             usage  ='PyHOPE [-h] [-V] ' +                    # noqa: E251
+                                                     '[--verify[-install] [tutorials] | --verify-health] ' +
+                                                     '[<parameter.ini / mesh.h5>]',
+                                             formatter_class=argparse.RawDescriptionHelpFormatter)
+
         _ = parser.add_argument('-V', '--version',
-                                action='store_true',
-                                help='display the version number and exit')
-        _ = parser.add_argument('--checkhealth',
-                                action='store_true',
-                                help='check health and (optional) dependencies')
+                                action = 'store_true',                                        # noqa: E251
+                                help   = 'display the version number and exit')               # noqa: E251
+
+        verifyParser = parser.add_argument_group('Verification options')
+        _ = verifyParser.add_argument('--verify',
+                                      nargs   = '?',                                          # noqa: E251
+                                      const   = True,                                         # noqa: E251
+                                      metavar = 'tutorials',                                  # noqa: E251
+                                      help    = 'verify the installation and exit')           # noqa: E251
+        _ = verifyParser.add_argument('--verify-health',
+                                      action  = 'store_true',                                 # noqa: E251
+                                      help    = 'check health and (optional) dependencies')   # noqa: E251
+        _ = verifyParser.add_argument('--verify-install',
+                                      nargs   = '?',                                          # noqa: E251
+                                      const   = True,                                         # noqa: E251
+                                      metavar = 'tutorials',                                  # noqa: E251
+                                      help    = 'verify the installation and exit')           # noqa: E251
+        _ = verifyParser.add_argument('--skip-checks',
+                                      action  = 'store_true',                                 # noqa: E251
+                                      # Hidden: Disable checks for verification
+                                      help    = argparse.SUPPRESS)                            # noqa: E251
         _ = parser.add_argument('input',
-                                nargs='?',
-                                metavar='<parameter.ini / mesh.h5>',
-                                help='PyHOPE parameter or mesh file')
+                                nargs   = '?',                                                # noqa: E251
+                                metavar = '<parameter.ini / mesh.h5>',                        # noqa: E251
+                                help    = 'PyHOPE parameter or mesh file')                    # noqa: E251
+
         # Parse known arguments and return other flags for further processing
         args, argv = parser.parse_known_args()
         return args, argv

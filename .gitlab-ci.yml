@@ -55,6 +55,8 @@ variables:
   # cache:
   #   - *venv_cache
   #   - *pip_cache
+  # CI/CD has no dependencies
+  dependencies: []
 
 .defaults_coverage: &defaults_coverage
   <<: *defaults
@@ -95,7 +97,7 @@ before_script: *global-before-script
 stages:
   - lint
   - compatibility
-  - coverage
+  - verification
   - convergence
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -157,7 +159,7 @@ python:3.13:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 coverage:
   extends: .defaults_coverage
-  stage: coverage
+  stage: verification
   script:
     # Store the base directory
     - basedir=$(pwd)
@@ -254,6 +256,12 @@ coverage:
       else
         echo "All examples passed.";
       fi
+
+healthcheck:
+  extends: .defaults_coverage
+  stage: verification
+  script:
+    pyhope --verify
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # FLEXI convergence tests

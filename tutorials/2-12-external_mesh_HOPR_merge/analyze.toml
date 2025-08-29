@@ -1,0 +1,24 @@
+[ElemInfo]
+min = 0.0
+max = 64000.0
+mean = 11213.583333333334
+stddev = 18177.54980948722
+
+[GlobalNodeIDs]
+min = 1.0
+max = 35937.0
+mean = 17971.38890625
+stddev = 10103.299180073034
+_atol = 0.1  # Rounding issues
+
+[NodeCoords]
+min = -1.0
+max = 1.0
+mean = -9.804542363175036e-14
+stddev = 0.5796011559684662
+
+[SideInfo]
+min = -1536.0
+max = 1536.0
+mean = 59.545833333333334
+stddev = 414.42747403211445

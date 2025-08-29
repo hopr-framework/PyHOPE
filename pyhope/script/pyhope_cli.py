@@ -94,9 +94,12 @@ def main() -> None:
         sys.exit(0)
 
     # Exit with checks if requested
-    if args.checkhealth:
+    if args.verify        \
+    or args.verify_health \
+    or args.verify_install:
         Check(args)
         sys.exit(0)
+
     # Check if there are unrecognized arguments
     if len(argv) >= 1:
         print('{} expects exactly one parameter or HDF5-mesh file! Exiting ...'
@@ -122,7 +125,8 @@ def main() -> None:
     hopout.sep()
 
     EliminateDuplicates()
-    OrientMesh()
+    if not args.skip_checks:
+        OrientMesh()
 
     # Build our data structures
     GenerateSides()
@@ -134,9 +138,10 @@ def main() -> None:
     FEMConnect()
 
     # Perform the mesh checks
-    CheckConnect()
-    CheckWatertight()
-    CheckJacobians()
+    if not args.skip_checks:
+        CheckConnect()
+        CheckWatertight()
+        CheckJacobians()
 
     # Output the mesh
     IO()
