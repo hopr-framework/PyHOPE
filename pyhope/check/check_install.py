@@ -235,6 +235,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
         tmpDir = tempfile.TemporaryDirectory(delete=False)  # pyright: ignore[reportCallIssue]
         downloadGitDir('hopr-framework', 'PyHOPE', testDir, tmpDir.name, token)
         path = tmpDir.name
+        hopout.sep()
 
     # Final check, are there tutorials at the given path
     if not path:
