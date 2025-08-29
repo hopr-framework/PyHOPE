@@ -47,7 +47,10 @@ pyhope --help
 PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [HOPR documentation](https://hopr.readthedocs.io).
 
 # Usage
-PyHOPE is invoked from the command line. After installation, its functionalities can be accessed directly from the terminal by passing a valid configuration file.
+PyHOPE can either be invoked directly from the command line or used as a Python library.
+
+## Command Line Usage
+PyHOPE can be invoked from the command line. After installation, its functionalities can be accessed directly from the terminal by passing a valid configuration file.
 ```bash
 pyhope [parameter.ini]
 ```
@@ -167,6 +170,15 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ┢━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ PyHOPE completed in [0.25 sec]
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+## Python Library Usage
+PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [source code](pyhope/__init__.py).
+```python
+from pyhope import Basis, Mesh
+with Mesh('1-01-cartbox_mesh.h5') as m:
+    elems = m.elems
+    lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
 ```
 
 # Licence
