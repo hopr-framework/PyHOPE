@@ -60,6 +60,7 @@ variables:
 
 .defaults_coverage: &defaults_coverage
   <<: *defaults
+  coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
   artifacts:
     paths:
       - coverage.xml
@@ -228,7 +229,7 @@ coverage:
     # Generate the coverage report in XML format
     - echo "Generating coverage report..."
     - coverage xml
-    - coverage report --skip-empty
+    - coverage report --skip-empty --precision=2
 
     # Output the final sorted report as a UTF-8 box-drawing table
     - | # Literal YAML multiline block scalar indicator
@@ -257,8 +258,11 @@ coverage:
         echo "All examples passed.";
       fi
 
+    # Repeat the coverage report for Gitlab CI/CD to pick up
+    - coverage report --skip-empty --precision=2 | grep TOTAL
+
 healthcheck:
-  extends: .defaults_coverage
+  extends: .defaults
   stage: verification
   script:
     pyhope --verify
