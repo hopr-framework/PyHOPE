@@ -54,6 +54,7 @@ def DefineIO() -> None:
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_VTK , name='VTK')
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_GMSH, name='GMSH')
     CreateLogical(      'OutputMetadata', default=True  , help='Mesh output metadata (if supported by OutputFormat)')  # noqa: E271
+    CreateLogical(      'DebugMesh'     , default=False , help='Mesh output debug mesh in VTK format')
     CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
 
@@ -71,6 +72,7 @@ def InitIO() -> None:
     io_vars.outputformat = GetIntFromStr('OutputFormat')
     io_vars.outputmeta   = GetLogical('OutputMetadata')
 
+    io_vars.debugmesh    = GetLogical('DebugMesh')
     io_vars.debugvisu    = GetLogical('DebugVisu')
 
     # hopout.info('INIT OUTPUT DONE!')
@@ -82,6 +84,7 @@ def IO() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
+    from pyhope.io.io_debug import DebugIO
     from pyhope.io.io_xdmf import xdmfCreate
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     # ------------------------------------------------------
@@ -168,6 +171,10 @@ def IO() -> None:
                     for iVV, vv in enumerate(mesh_vars.vvs):
                         vvs[iVV, :] = vv['Dir']
                     _ = f.create_dataset('VV', data=vvs)
+
+                # Write a low-order debug mesh if requested
+                if io_vars.debugmesh:
+                    DebugIO()
 
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh

@@ -197,3 +197,15 @@ def CheckJacobians() -> None:
     # Plot the histogram of the Jacobians
     if len(jacs) > 0:
         plot_histogram(np.array(jacs))
+
+    # Append the Jacobians to the elements
+    jacIter = iter(jacs)
+    for elem in elems:
+        elemType = elem.type
+
+        # Only consider hexahedrons
+        if int(elemType) % 100 != 8:
+            elem.jacobian = 1
+            continue
+
+        elem.jacobian = next(jacIter)
