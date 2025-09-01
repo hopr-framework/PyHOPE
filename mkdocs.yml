@@ -1,0 +1,92 @@
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of PyHOPE
+#
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+#
+# PyHOPE is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
+# ==================================================================================================================================
+# Mesh generation library
+# ==================================================================================================================================
+
+# General settings
+site_name: PyHOPE
+site_url: https://hopr-framework.github.io/PyHOPE
+repo_url: https://github.com/hopr-framework/PyHOPE
+site_description: PyHOPE documentation
+site_author: Numerics Research Group (NRG), University of Stuttgart
+copyright: Copyright &copy; 2025, <a href="https://numericsresearchgroup.org/team.html">Numerics Research Group</a>
+
+# Visual settings
+theme:
+  name: mkdocs
+  user_color_mode_toggle: true
+  locale: en
+  highlightjs: true
+
+# Navigation settings
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - User Guide:
+    - Introduction: user-guide/index.md
+    - Mesh Generators:
+      - Internal: user-guide/mesh-generators/internal.md
+      - External: user-guide/mesh-generators/external.md
+    - Parameter File Format: user-guide/parameter-file.md
+  # - Issue Tracker: 'https://github.com/hopr-framework/PyHOPE/issues'
+  - Mesh Format: mesh-format.md
+  - About:
+    - Authors: 'AUTHORS.md'
+    - Changelog: 'CHANGELOG.md'
+    - License: 'LICENSE.md'
+
+# CSS settings
+extra_css:
+  - css/extra.css
+
+# Plugin settings
+plugins:
+  - search
+  # - autorefs
+
+# Markdown settings
+markdown_extensions:
+  # Footnotes
+  - footnotes
+  # Table of contents (links to headings)
+  - toc:
+      permalink: true
+  # Tables (enabled by default)
+  - tables
+  # Code blocks
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  # Math equations
+  - pymdownx.arithmatex:
+      generic: true
+  # Adminition (callouts)
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
