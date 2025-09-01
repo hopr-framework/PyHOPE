@@ -1,6 +1,7 @@
 # Authors
 
-PyHOPE's development is coordinated by Patrick Kopper, who is the *principal developer*
+PyHOPE's development is coordinated by the Numerics Research Group (NRG) at 
+University of Stuttgart. The primary contact is Patrick Kopper, who is the *principal developer*
 and main contributor. In addition, there are *contributors* who have
 provided substantial additions or modifications. Together, these two groups form
 authors as mentioned in the [LICENSE.md](LICENSE.md) file.

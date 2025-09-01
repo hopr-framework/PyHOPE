@@ -310,7 +310,5 @@ def CheckHealth() -> None:
     # Warn if we know that Gmsh uses an outdated CGNS
     if gmshp.strip() != 'NRG':
         print(hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). ' +
-                          'For compatibility, replace with the updated NRG version',
-                          prefix=f'├── {hopout.Symbols.WARN} ',
-                          warnonce=True))
+                          'For compatibility, replace with the updated NRG version'))
     DependencyHealth('ParaView', version=DependencyVersion('paraview'), info=' (optional)')
