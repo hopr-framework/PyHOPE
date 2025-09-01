@@ -1,3 +1,4 @@
+<div class="no-extra-css"></div>
 # Authors
 
 PyHOPE's development is coordinated by the Numerics Research Group (NRG) at 

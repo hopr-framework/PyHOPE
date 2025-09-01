@@ -32,8 +32,12 @@ div.col-md-9 h1:first-of-type {
 }
 
 /* First text centered */
-body.homepage:not([data-md-page^="AUTHORS.md"]):not([data-md-page^="LICENSE.md"]):not([data-md-page^="CHANGELOG.md"]) div.col-md-9>p:first-of-type {
+div.col-md-9>p:first-of-type {
     text-align: center;
+}
+
+div.col-md-9 > div.no-extra-css + h1:first-of-type + p:first-of-type {
+    text-align: left;
 }
 
 /* == FOOTNOTES == */
