@@ -100,7 +100,7 @@ stages:
   - lint
   - compatibility
   - verification
-  - convergence
+  - documentation
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Linter
@@ -165,7 +165,7 @@ python:3.13:
 #   <<: *compatibility-script
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# Reggie
+# Verification
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 examples:
   extends: .defaults_coverage
@@ -304,7 +304,7 @@ coverage:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 convergence:
   extends: .defaults
-  stage: convergence
+  stage: verification
   image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:42-x86_64
   artifacts:
     paths:
@@ -428,3 +428,28 @@ convergence:
         # Clean-up the log file
         rm -f convergence.log
       done
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# PyHOPE documentation
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+documentation:
+  extends: .defaults
+  stage: documentation
+  artifacts:
+    paths:
+      - site
+  before_script:
+    # Setup system
+    - ulimit -s unlimited
+    # - module list || true
+    - python3 --version
+    # Setup uv
+    - uv --version
+    # Setup Python virtual environment
+    - uv venv venv
+    - source venv/bin/activate
+  script:
+    # Install MkDocs
+    - uv pip install --no-cache-dir mkdocs-material mkdocs-autorefs
+    # Build documentation
+    - mkdocs build
