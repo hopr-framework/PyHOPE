@@ -1,15 +1,19 @@
 # Introduction
 
-Scope and Features of PyHOPE
+Scope and features of PyHOPE
 
 ---
 
 High-order numerical methods surch as Discontinuous Galerkin, Spectral Element Methods, or pFEM, require unstructured high-order meshes in order to retain their accuracy if the computational domain includes curved boundaries. The HOPR HDF5 curved mesh format is specifically designed to specifically designed for parallel read-in of unstructured three-dimensional meshes of arbitrary order, including tetrahedra, pyramids, prisms, and hexahedra. Information stored in HOPR format facilitates non-overlapping input output (I/O) through collocation of the required mesh information, including the vertex and side information together with element connectivity, in per-element packages. Each package is assigned a unique identifier via ordering along structured dimensions or a space-filling curve.
 
-PyHOPE is a Python library for reading, writing, and manipulating HOPR HDF5 curved mesh files. At the current state, it features two modes for mesh generation:
+PyHOPE is a Python library for reading, writing, and manipulating HOPR HDF5 curved mesh files. 
+
+- [Installation](../getting-started.md): Installation and verification of the local installation of PyHOPE
+
+At the current state, it features two modes for mesh generation:
 
 - [Internal mesh generator](mesh-generators/internal.md): A simple mesh generator for generating curved meshes of basic block-structured geometries 
-- [External mesh generator](mesh-generators/external.md): An interface to read and convert meshes generated with external mesh generators such as ANSA, Gmsh, or Cubit
+- [External mesh generator](mesh-generators/external.md): Read and convert meshes generated with external mesh generators such as ANSA, Gmsh, or Cubit
 
 PyHOPE is controlled via a parameter file in INI format. The parameter file specifies the mesh generation mode, the geometry and mesh parameters, and the output file name.
 

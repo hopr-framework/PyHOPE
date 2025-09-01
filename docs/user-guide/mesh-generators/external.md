@@ -1,6 +1,6 @@
 # External Mesh Generator
 
-An interface to read and convert meshes generated with external mesh generators
+Read and convert meshes generated with external mesh generators
 
 ---
 
