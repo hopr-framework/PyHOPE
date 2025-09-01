@@ -45,6 +45,46 @@ pyhope = "pyhope.script.pyhope_cli:main"
 [tool.setuptools]
 packages = ["pyhope"]
 
+# Code coverage
+[tool.coverage.report]
+exclude_also = [
+  # Exclude if code block with abort
+  'if .+(?s:...)*?hopout\.error',
+  'if .+(?s:...)*?raise',
+  'if .+(?s:...)*?sys\.exit',
+  # Exclude if code block with continue/return
+  # 'if .+(?s:...)*?continue',
+  # 'if .+(?s:...)*?return',
+
+  # Exclude else code block with abort
+  'else .+(?s:...)*?hopout\.error',
+  'else .+(?s:...)*?raise',
+  'else .+(?s:...)*?sys\.exit',
+  # Exclude else code block with continue/return
+  # 'else .+(?s:...)*?continue',
+  # 'else .+(?s:...)*?return',
+
+  # Exclude except code block with abort
+  'except .+(?s:...)*?hopout\.error',
+  'except .+(?s:...)*?raise',
+  'except .+(?s:...)*?sys\.exit',
+  # Exclude except code block with continue/return
+  # 'except .+(?s:...)*?continue',
+  # 'except .+(?s:...)*?return',
+
+  # Exclude blank lines with abort
+  'hopout\.error',
+  'raise .+Error',
+  'sys\.exit',
+
+  # Exclude disabled blocks
+  'if 0:',
+  'if False:',
+
+  # Exclude multiprocessing blocks
+  'if np_mtp > 0:',
+]
+
 # Code linters
 [tool.pyright]
 stubPath                        = "./.typings"
