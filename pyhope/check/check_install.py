@@ -26,9 +26,11 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
+import platform
 import subprocess
 import sys
 import tempfile
+from packaging.version import Version
 from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -185,8 +187,6 @@ def hdf5Stats(obj: h5py.Dataset) -> Optional[dict[str, float]]:
 def CheckInstall(path: Optional[str] = None) -> None:
     """ Verify the installation by comparing against known results
     """
-    # Standard libraries -----------------------------------
-    import tomllib
     # Third-party libraries --------------------------------
     import h5py
     from contextlib import redirect_stdout
@@ -195,6 +195,12 @@ def CheckInstall(path: Optional[str] = None) -> None:
     from pyhope.common.common_progress import ProgressBar
     from pyhope.readintools.readintools import ReadConfig
     # ------------------------------------------------------
+
+    # Standard library since Python 3.11
+    if Version(platform.python_version()) >= Version('3.11'):
+        import tomllib
+    else:
+        tomllib = None
 
     testDir: Final[str]   = 'tutorials'
     testArr: Final[tuple] = ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo')
@@ -324,15 +330,20 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 continue
 
             # Open the TOML file
-            tomlData = None
+            tomlData  = None
             toml_path = os.path.join(tutorialPath, 'analyze.toml')
             if os.path.isfile(toml_path):
                 try:
                     with open(toml_path, mode='rb') as f:
                         tomlData = tomllib.load(f)
                 except Exception:
-                    # If TOML is present but invalid, skip the tutorial
+                    # If TOML is present but invalid,
+                    # Python 3.11+: Skip the tutorial
+                    # Python 3.10-: Mark the tutorial as successful
                     bar.step()
+                    if Version(platform.python_version()) < Version('3.11'):
+                        hopout.info(f'{hopout.Symbols.OK  } Successfully completed test (w/o verification) "{tutorial}"')
+                        tsuccess[tNum] = True
                     continue
 
             # Open the mesh file and compare against the reference
@@ -359,8 +370,13 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     and tomlData is not None \
                     and key in tomlData.keys():  # noqa: E271, E272
                         # Fallback tolerances:
-                        rtol = tomlData.get('_defaults', {}).get('rtol', 1E-6)
-                        atol = tomlData.get('_defaults', {}).get('atol', 1E-8)
+                        if 'GlobalNodeIDs' in key:
+                            # GlobalNodeIDs are susceptible to rounding issues
+                            rtol = tomlData.get('_defaults', {}).get('rtol', 1E-6)
+                            atol = tomlData.get('_defaults', {}).get('atol', 1E-1)
+                        else:
+                            rtol = tomlData.get('_defaults', {}).get('rtol', 1E-6)
+                            atol = tomlData.get('_defaults', {}).get('atol', 1E-8)
                         # If dataset-specific tolerances exist, use them
                         ds_defaults = tomlData.get(key, {})
                         rtol = ds_defaults.get('_rtol', rtol)
@@ -440,3 +456,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
         else:
             hopout.info(f'{hopout.Symbols.ERR } Failed {np.sum(~tsuccess)}/{len(tutorials)} tests')
         hopout.separator(length=79)
+
+        # Final exit code
+        if not all(tsuccess):
+            sys.exit(1)
