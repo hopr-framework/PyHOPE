@@ -43,6 +43,7 @@ nav:
   - Getting Started: getting-started.md
   - User Guide:
     - Introduction: user-guide/index.md
+    - Installation: user-guide/installation.md
     - Mesh Generators:
       - Internal: user-guide/mesh-generators/internal.md
       - External: user-guide/mesh-generators/external.md
