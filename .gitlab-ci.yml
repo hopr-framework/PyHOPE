@@ -277,6 +277,8 @@ convergence:
   artifacts:
     paths:
       - convergence_artifacts.log
+  # Reggie can sometimes be too busy
+  retry: 2
   script:
     - | # Literal YAML multiline block scalar indicator
       artifact_file="convergence_artifacts.log"
