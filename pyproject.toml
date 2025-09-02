@@ -37,7 +37,7 @@ classifiers = [
 [project.urls]
 homepage = "https://numericsresearchgroup.org"
 repository = "https://github.com/hopr-framework/pyhope"
-documentation = "https://hopr.readthedocs.io"
+documentation = "https://hopr-framework.github.io/PyHOPE"
 
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"

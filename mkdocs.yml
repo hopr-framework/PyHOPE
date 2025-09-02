@@ -28,6 +28,7 @@ repo_url: https://github.com/hopr-framework/PyHOPE
 site_description: PyHOPE documentation
 site_author: Numerics Research Group (NRG), University of Stuttgart
 copyright: Copyright &copy; 2025, <a href="https://numericsresearchgroup.org/team.html">Numerics Research Group</a>
+edit_uri: ""  # Disable "Edit on GitHub", just link to the repository
 
 # Visual settings
 theme:

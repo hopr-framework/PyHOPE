@@ -40,6 +40,11 @@ div.col-md-9 > div.no-extra-css + h1:first-of-type + p:first-of-type {
     text-align: left;
 }
 
+/* == BUTTONS == */
+.btn-spacing {
+  margin-right: 15px; /* Adjust the value to increase or decrease the spacing */
+}
+
 /* == FOOTNOTES == */
 /* .md-typeset .footnote { */
 /*   font-size: 12px; */
