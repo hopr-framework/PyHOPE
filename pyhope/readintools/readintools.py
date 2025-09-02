@@ -343,7 +343,7 @@ def GetParam(name    : str,
     return value
 
 
-def GetPiMultiplies(helpstr: str) -> float:
+def ParseFloatAndPi(helpstr: str) -> float:
     # split string at case-insensitive 'pi'
     splitstr = helpstr.lower().split('pi')
     if len(splitstr)==2:
@@ -367,7 +367,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return GetPiMultiplies(value)
+    return ParseFloatAndPi(value)
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -422,7 +422,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     else:
         value = value.split(',')
     try:
-        value = np.vectorize(GetPiMultiplies)(value)
+        value = np.vectorize(ParseFloatAndPi)(value)
     except ValueError as e:
         print()
         print(hopout.warn(f'{e}'))
