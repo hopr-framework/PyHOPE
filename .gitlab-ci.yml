@@ -191,6 +191,9 @@ coverage:
     - box_width=$((max_dir_length + 10))  # Add padding for aesthetics
     - col_width=$((max_dir_length + 2))   # Add padding for the table
 
+    # Run internal health checks
+    - coverage run -m pyhope --verify
+
     # Iterate over all directories, run tests, and collect results
     - echo "Running PyHOPE with coverage for each parameter.ini file..."
 
