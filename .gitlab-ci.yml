@@ -60,10 +60,11 @@ variables:
 
 .defaults_coverage: &defaults_coverage
   <<: *defaults
-  coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
+  # coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
   artifacts:
     paths:
       - coverage.xml
+      - .coverage.*
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -158,7 +159,7 @@ python:3.13:
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Reggie
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-coverage:
+examples:
   extends: .defaults_coverage
   stage: verification
   script:
@@ -224,7 +225,7 @@ coverage:
 
     # Combine coverage reports from all example directories
     - echo "Combining coverage reports..."
-    - coverage combine
+    - coverage combine --keep
 
     # Generate the coverage report in XML format
     - echo "Generating coverage report..."
@@ -262,10 +263,33 @@ coverage:
     - coverage report --skip-empty --precision=2 | grep TOTAL
 
 healthcheck:
-  extends: .defaults
+  extends: .defaults_coverage
   stage: verification
   script:
-    pyhope --verify
+    # Run the internal health check
+    - coverage run --data-file=".coverage.verify" -m pyhope --verify
+
+coverage:
+  extends: .defaults_coverage
+  stage: verification
+  coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
+  dependencies:
+    - examples
+    - healthcheck
+  needs:
+    - job: examples
+      artifacts: true
+    - job: healthcheck
+      artifacts: true
+  script:
+    # Combine coverage reports from all example directories
+    - echo "Combining coverage reports..."
+    - coverage combine --keep
+
+    # Generate the coverage report in XML format
+    - echo "Generating coverage report..."
+    - coverage xml
+    - coverage report --skip-empty --precision=2
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # FLEXI convergence tests
