@@ -343,6 +343,23 @@ def GetParam(name    : str,
     return value
 
 
+def ParseFloatAndPi(helpstr: str) -> float:
+    # split string at case-insensitive 'pi'
+    splitstr = helpstr.lower().split('pi')
+    if len(splitstr)==2:
+      # determine prefactor of pi, interpreting empty string as one
+      if splitstr[0]:
+        value = float(splitstr[0])*np.pi
+      else:
+        value = np.pi
+    elif len(splitstr)==1:
+      # no 'pi' found in helpstr, parse as float
+      value = float(splitstr[0])
+    else:
+      raise ValueError('Failed to parse input string %s' % (helpstr))
+    return value
+
+
 def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> str:
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
@@ -350,7 +367,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return float(value)
+    return ParseFloatAndPi(value)
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -402,20 +419,14 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     # Commas separate 1st dimension, double commas separate 2nd dimension
     if ',,' in value:
         value = [s.split(',') for s in value.split(',,')]
-        try:
-            value = np.array(value).astype(float)
-        except ValueError as e:
-            print()
-            print(hopout.warn(f'{e}'))
-            hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
     else:
         value = value.split(',')
-        try:
-            value = np.array(value).astype(float)
-        except ValueError as e:
-            print()
-            print(hopout.warn(f'{e}'))
-            hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
+    try:
+        value = np.vectorize(ParseFloatAndPi)(value)
+    except ValueError as e:
+        print()
+        print(hopout.warn(f'{e}'))
+        hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
     CheckDimension(name, value.size)
     return value
 
@@ -423,7 +434,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
 def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
-    # Split the array definitiosn
+    # Split the array definition
     value = value.split('(/')[1]
     value = value.split('/)')[0]
 
