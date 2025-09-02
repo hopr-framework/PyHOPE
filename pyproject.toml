@@ -128,3 +128,13 @@ target-version = "py310"
 [tool.ruff.format]
 quote-style  = "single"
 indent-style = "space"
+
+# Dead code
+[tool.vulture]
+ignore_names = [
+    # Exclude context manager
+    "Basis",
+    # Exclude debug function
+    "time_function",
+               ]
+sort_by_size = true

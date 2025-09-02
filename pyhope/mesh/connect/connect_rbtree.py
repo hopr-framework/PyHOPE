@@ -140,14 +140,15 @@ class SideNode:
         self.value = value
         self.link  = link   # This is the base (stored) connection value
 
-    def effective_link(self,
-                       offset_manager: LinkOffsetManager) -> Optional[int]:
-        """
-        Compute the effective connection (link) by adding the current offset
-        """
-        if self.link is None:
-            return None
-        return cast(int, self.link) + offset_manager.get_offset(self.link)
+    # INFO: This is the original implementation
+    # def effective_link(self,
+    #                    offset_manager: LinkOffsetManager) -> Optional[int]:
+    #     """
+    #     Compute the effective connection (link) by adding the current offset
+    #     """
+    #     if self.link is None:
+    #         return None
+    #     return cast(int, self.link) + offset_manager.get_offset(self.link)
 
 
 # ----- Red-Black Tree Helpers ---------------------------------------------------------------------------

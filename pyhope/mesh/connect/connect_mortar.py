@@ -270,7 +270,7 @@ def connect_mortar_sides( sideIDs    : tuple
     masterSide.MS          = 1            # noqa: E251
     masterSide.connection  = -mortarType  # noqa: E251
     masterSide.flip        = 0            # noqa: E251
-    masterSide.nbLocSide   = 0            # noqa: E251
+    # masterSide.nbLocSide   = 0            # noqa: E251
 
     flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
 
@@ -305,7 +305,7 @@ def connect_mortar_sides( sideIDs    : tuple
                   MS         = 1,                   # noqa: E251
                   flip       = flipID,              # noqa: E251
                   connection = slave.sideID,        # noqa: E251
-                  nbLocSide  = slave.locSide        # noqa: E251
+                  # nbLocSide  = slave.locSide        # noqa: E251
                 )
         new_sides  .append(side)
         new_sideIDs.append(newID)

@@ -42,6 +42,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
+# pragma: no cover
 def time_function(func, *args, **kwargs) -> float:
     """ A helper function to measure the execution time of an arbitrary function.
 

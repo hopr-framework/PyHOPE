@@ -151,32 +151,32 @@ def IsDisplay() -> bool:
 #     return methods
 
 
-def find_key(dict: dict[int, str], item) -> int | None:
-    """ Find the first occurrence of a key in dictionary
-    """
-    if type(item) is np.ndarray:
-        for key, val in dict.items():
-            if np.all(val == item):
-                return key
-    else:
-        for key, val in dict.items():
-            if        val == item :  # noqa: E271
-                return key
-    return None
+# def find_key(dict: dict[int, str], item) -> int | None:
+#     """ Find the first occurrence of a key in dictionary
+#     """
+#     if type(item) is np.ndarray:
+#         for key, val in dict.items():
+#             if np.all(val == item):
+#                 return key
+#     else:
+#         for key, val in dict.items():
+#             if        val == item :  # noqa: E271
+#                 return key
+#     return None
 
 
-def find_keys(dict: dict[int, str], item) -> tuple[int, ...] | None:
-    """ Find all occurrence of a key in dictionary
-    """
-    if type(item) is np.ndarray:
-        keys = tuple(key for key, val in dict.items() if np.all(val == item))
-        if len(keys) > 0:
-            return keys
-    else:
-        keys = tuple(key for key, val in dict.items() if        val == item )  # noqa: E271
-        if len(keys) > 0:
-            return keys
-    return None
+# def find_keys(dict: dict[int, str], item) -> tuple[int, ...] | None:
+#     """ Find all occurrence of a key in dictionary
+#     """
+#     if type(item) is np.ndarray:
+#         keys = tuple(key for key, val in dict.items() if np.all(val == item))
+#         if len(keys) > 0:
+#             return keys
+#     else:
+#         keys = tuple(key for key, val in dict.items() if        val == item )  # noqa: E271
+#         if len(keys) > 0:
+#             return keys
+#     return None
 
 
 # def find_value(dict, item):
@@ -221,10 +221,10 @@ def find_indices(seq, item) -> tuple[int, ...]:
     return tuple(locs)
 
 
-def lines_that_equal(     string: str, fp: list, start_idx=0) -> list[int]:
-    """ Find all occurrences of a string in a file-like object
-    """
-    return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
+# def lines_that_equal(     string: str, fp: list, start_idx=0) -> list[int]:
+#     """ Find all occurrences of a string in a file-like object
+#     """
+#     return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
 
 
 def lines_that_contain(   string: str, fp: list, start_idx=0) -> list[int]:
@@ -233,13 +233,13 @@ def lines_that_contain(   string: str, fp: list, start_idx=0) -> list[int]:
     return [num for num, line in enumerate(fp[start_idx:], start=start_idx) if string in line]
 
 
-def lines_that_start_with(string: str, fp: list, start_idx=0) -> list[int]:
-    """ Find all occurrences of a string at the start of a line in a file-like object
-    """
-    return [num for num, line in enumerate(fp[start_idx:]) if line.startswith(string)]
+# def lines_that_start_with(string: str, fp: list, start_idx=0) -> list[int]:
+#     """ Find all occurrences of a string at the start of a line in a file-like object
+#     """
+#     return [num for num, line in enumerate(fp[start_idx:]) if line.startswith(string)]
 
 
-def lines_that_end_with(  string: str, fp: list, start_idx=0) -> list[int]:
-    """ Find all occurrences of a string at the end of a line in a file-like object
-    """
-    return [num for num, line in enumerate(fp[start_idx:]) if line.rstrip().endswith(string)]
+# def lines_that_end_with(  string: str, fp: list, start_idx=0) -> list[int]:
+#     """ Find all occurrences of a string at the end of a line in a file-like object
+#     """
+#     return [num for num, line in enumerate(fp[start_idx:]) if line.rstrip().endswith(string)]

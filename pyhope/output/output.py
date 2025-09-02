@@ -77,16 +77,16 @@ def header(program: str, version: str, commit: Optional[str], length: int = STD_
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
 
 
-def banner(string: str, length: int = STD_LENGTH) -> None:
-    """ Print the input `string` in a banner-like output
-
-        Args:
-            string (str): String to be printed in banner
-            length (int): (Optional.) Number of characters in each line
-    """
-    print(Colors.BANNERA + '\n' + '='*length)
-    print(Colors.BANNERA + ' '+string)
-    print(Colors.BANNERA + '='*length + Colors.END)
+# def banner(string: str, length: int = STD_LENGTH) -> None:
+#     """ Print the input `string` in a banner-like output
+#
+#         Args:
+#             string (str): String to be printed in banner
+#             length (int): (Optional.) Number of characters in each line
+#     """
+#     print(Colors.BANNERA + '\n' + '='*length)
+#     print(Colors.BANNERA + ' '+string)
+#     print(Colors.BANNERA + '='*length + Colors.END)
 
 
 def small_banner(string: str, length: int = STD_LENGTH) -> None:

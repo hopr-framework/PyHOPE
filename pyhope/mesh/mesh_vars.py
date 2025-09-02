@@ -142,7 +142,7 @@ class SIDE:
     MS          : Optional[int] = None
     connection  : Optional[int] = None
     flip        : Optional[int] = None
-    nbLocSide   : Optional[int] = None
+    # nbLocSide   : Optional[int] = None
     # Boundary Conditions
     bcid        : Optional[int] = None
     # Mortar
