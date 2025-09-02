@@ -14,6 +14,7 @@ authors as mentioned in the [LICENSE.md](LICENSE.md) file.
 The following people contributed major additions or modifications to PyHOPE and
 are listed in alphabetical order:
 
+* Daniel Appel
 * Marcel Blind
 * Stephen Copplestone
 * Patrick Kopper
