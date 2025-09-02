@@ -41,8 +41,29 @@ div.col-md-9 > div.no-extra-css + h1:first-of-type + p:first-of-type {
 }
 
 /* == BUTTONS == */
+.btn {
+  height: 2.3em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn img {
+  align-self: center;
+  position: relative;
+  top: 5px;
+  border:     none !important;
+  outline:    none !important;
+  box-shadow: none !important;
+  background: none !important;
+}
+
 .btn-spacing {
-  margin-right: 15px; /* Adjust the value to increase or decrease the spacing */
+  margin-right: 15px;
+}
+
+.btn-hopr {
+  background: #c8c8c8;
+  border-color: #ececec;
 }
 
 /* == FOOTNOTES == */

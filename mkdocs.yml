@@ -87,6 +87,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  # Attribute lists
+  - attr_list
 
 extra_javascript:
   - javascripts/mathjax.js

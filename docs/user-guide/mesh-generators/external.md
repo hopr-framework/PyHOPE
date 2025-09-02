@@ -16,7 +16,7 @@ An external mesh is specified via the `3`/`external` mesh generation `Mode` in t
 | File Format                             | Extension                            | Reader                                   |
 | ----------------------------------------| -------------------------------------| ---------------------------------------- |
 | GMSH ASCII/Binary                       | `.msh`                               | Gmsh                                     |
-| CFD General Notation System (CGNS)      | `.cgns`                              | Gmsh<a href="#fn1" id="fnref1">¹</a>     |
+| CFD General Notation System (CGNS)      | `.cgns`                              | Gmsh + Internal<a href="#fn1" id="fnref1">¹</a>     |
 | High Order Preprocessor (HOPR)          | `.h5`                                | Internal                                 |
 | Gambit Neutral File (GNF)               | `.neu`                               | Internal<a href="#fn2" id="fnref2">²</a> |
 
