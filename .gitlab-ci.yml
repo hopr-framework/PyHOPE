@@ -119,6 +119,8 @@ ruff:
 .compatibility-script: &compatibility-script
   script:
     - cd tutorials
+    # Check internal health
+    # - pyhope --verify
     # Check internal meshing
     - pyhope 1-04-cartbox_multiple_stretch/parameter.ini
     # Check external meshing
@@ -148,7 +150,7 @@ python:3.13:
   stage: compatibility
   # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.7-trixie-x86_64 # default version at the moment
   <<: *compatibility-script
-# # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
+# Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
 # python_314:
 #   extends: .defaults
 #   stage: compatibility
@@ -262,10 +264,14 @@ coverage:
     - coverage report --skip-empty --precision=2 | grep TOTAL
 
 healthcheck:
-  extends: .defaults
+  extends: .defaults_coverage
   stage: verification
   script:
-    pyhope --verify
+    - coverage run -m pyhope --verify
+    # Generate the coverage report in XML format
+    - echo "Generating coverage report..."
+    - coverage xml
+    - coverage report --skip-empty --precision=2
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # FLEXI convergence tests
