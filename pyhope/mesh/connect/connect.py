@@ -37,7 +37,7 @@ from typing import Final, Optional, cast
 import meshio
 import numpy as np
 import numpy.typing as npt
-from scipy.spatial import KDTree
+# from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -80,11 +80,11 @@ def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
     sides[sideIDs[0]].MS         = 1                          # noqa: E251
     sides[sideIDs[0]].connection = sideIDs[1]                 # noqa: E251
     sides[sideIDs[0]].flip       = flipID                     # noqa: E251
-    sides[sideIDs[0]].nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    # sides[sideIDs[0]].nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
     sides[sideIDs[1]].MS         = 0                          # noqa: E251
     sides[sideIDs[1]].connection = sideIDs[0]                 # noqa: E251
     sides[sideIDs[1]].flip       = flipID                     # noqa: E251
-    sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
+    # sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
 
 
 def find_bc_index(bcs: list, key: str) -> Optional[int]:
@@ -100,28 +100,28 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
     return None
 
 
-def find_closest_side(points: np.ndarray, stree: KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
-    """ Query the tree for the closest side
-    """
-    trSide = stree.query(points)
+# def find_closest_side(points: np.ndarray, stree: KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
+#     """ Query the tree for the closest side
+#     """
+#     trSide = stree.query(points)
+#
+#     # Check if the found side is within tolerance
+#     # trSide contains the Euclidean distance and the index of the
+#     # opposing side in the nbFaceSet
+#     if trSide[0] > tol:
+#         # Mortar sides are allowed to be not connected
+#         if doMortars:
+#             return -1
+#
+#         hopout.error(f'Could not find {msg} side within tolerance {tol}, exiting...', traceback=True)
+#     return cast(int, trSide[1])
 
-    # Check if the found side is within tolerance
-    # trSide contains the Euclidean distance and the index of the
-    # opposing side in the nbFaceSet
-    if trSide[0] > tol:
-        # Mortar sides are allowed to be not connected
-        if doMortars:
-            return -1
 
-        hopout.error(f'Could not find {msg} side within tolerance {tol}, exiting...', traceback=True)
-    return cast(int, trSide[1])
-
-
-def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
-    """ Get sorted corners and hash them to get the side ID
-    """
-    corners_hash = hash(np.sort(corners).tobytes())
-    return side_dict[corners_hash][0]
+# def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
+#     """ Get sorted corners and hash them to get the side ID
+#     """
+#     corners_hash = hash(np.sort(corners).tobytes())
+#     return side_dict[corners_hash][0]
 
 
 def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:

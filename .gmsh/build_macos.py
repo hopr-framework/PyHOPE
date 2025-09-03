@@ -122,7 +122,7 @@ os.makedirs(WORK_DIR, exist_ok=True)
 
 BUILD_DIR    = os.path.join(WORK_DIR, 'build')
 INSTALL_DIR  = os.path.join(WORK_DIR, 'gmsh_install')
-Doxygen_DIR  = os.path.join(WORK_DIR, 'doxygen')
+# Doxygen_DIR  = os.path.join(WORK_DIR, 'doxygen')
 
 # HDF5
 HDF5_DIR     = os.path.join(WORK_DIR, 'hdf5')

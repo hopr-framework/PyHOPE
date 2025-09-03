@@ -98,9 +98,9 @@ def PkgsCheckGmsh() -> None:
         else:
             hopout.error('Gmsh is not installed, exiting...')
 
-    gmsh_version = cast(str, gmsh_version)
     # Assume that newer versions have updated CGNS
-    gmsh_expected = '4.14'
+    gmsh_version  = cast(str, gmsh_version)
+    gmsh_expected = '5.0'
     if Version(gmsh_version) > Version(gmsh_expected):
         return None
 

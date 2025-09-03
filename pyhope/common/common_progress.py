@@ -58,8 +58,6 @@ class ProgressBar:
             return None
 
         self._cm   : Final         = alive_bar(title=title, total=value, length=length, enrich_print=enrich_print)
-        self._title: Optional[str] = title
-        self._len  : int           = length
 
         # Initialize the progress bar
         self.bar = self._cm.__enter__()
