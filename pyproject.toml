@@ -24,14 +24,14 @@ dependencies = [
 ]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Operating System :: POSIX :: Linux",
-  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13"
+    "Development Status :: 3 - Alpha",
+    "Operating System :: POSIX :: Linux",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13"
 ]
 
 [project.urls]
@@ -46,44 +46,58 @@ pyhope = "pyhope.script.pyhope_cli:main"
 packages = ["pyhope"]
 
 # Code coverage
+[tool.coverage.run]
+omit = [
+    # Multiprocessing is disabled for code coverage
+    '*/pyhope/common/common_parallel.py',
+    # Gmsh does not get re-installed when running non-interactively
+    '*/pyhope/gmsh/gmsh_install.py',
+    ]
+
 [tool.coverage.report]
+omit = [
+    # Multiprocessing is disabled for code coverage
+    '*/pyhope/common/common_parallel.py',
+    # Gmsh does not get re-installed when running non-interactively
+    '*/pyhope/gmsh/gmsh_install.py',
+    ]
 exclude_also = [
-  # Exclude if code block with abort
-  'if .+(?s:...)*?hopout\.error',
-  'if .+(?s:...)*?raise',
-  'if .+(?s:...)*?sys\.exit',
-  # Exclude if code block with continue/return
-  # 'if .+(?s:...)*?continue',
-  # 'if .+(?s:...)*?return',
+    # Exclude if code block with abort
+    'if .+(?s:...)*?hopout\.error',
+    'if .+(?s:...)*?raise',
+    'if .+(?s:...)*?sys\.exit',
+    # Exclude if code block with continue/return
+    # 'if .+(?s:...)*?continue',
+    # 'if .+(?s:...)*?return',
 
-  # Exclude else code block with abort
-  'else .+(?s:...)*?hopout\.error',
-  'else .+(?s:...)*?raise',
-  'else .+(?s:...)*?sys\.exit',
-  # Exclude else code block with continue/return
-  # 'else .+(?s:...)*?continue',
-  # 'else .+(?s:...)*?return',
+    # Exclude else code block with abort
+    'else .+(?s:...)*?hopout\.error',
+    'else .+(?s:...)*?raise',
+    'else .+(?s:...)*?sys\.exit',
+    # Exclude else code block with continue/return
+    # 'else .+(?s:...)*?continue',
+    # 'else .+(?s:...)*?return',
 
-  # Exclude except code block with abort
-  'except .+(?s:...)*?hopout\.error',
-  'except .+(?s:...)*?raise',
-  'except .+(?s:...)*?sys\.exit',
-  # Exclude except code block with continue/return
-  # 'except .+(?s:...)*?continue',
-  # 'except .+(?s:...)*?return',
+    # Exclude except code block with abort
+    'except .+(?s:...)*?hopout\.error',
+    'except .+(?s:...)*?raise',
+    'except .+(?s:...)*?sys\.exit',
+    # Exclude except code block with continue/return
+    # 'except .+(?s:...)*?continue',
+    # 'except .+(?s:...)*?return',
 
-  # Exclude blank lines with abort
-  'hopout\.error',
-  'raise .+Error',
-  'sys\.exit',
+    # Exclude blank lines with abort
+    'hopout\.error',
+    'raise .+Error',
+    'sys\.exit',
 
-  # Exclude disabled blocks
-  'if 0:',
-  'if False:',
+    # Exclude disabled blocks
+    'if 0:',
+    'if False:',
 
-  # Exclude multiprocessing blocks
-  'if np_mtp > 0:',
-]
+    # Exclude multiprocessing blocks
+    'if np_mtp > 0:',
+    ]
 
 # Code linters
 [tool.pyright]
@@ -113,15 +127,16 @@ enableExperimentalFeatures      = false
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
-exclude = [ ".git",
-            ".pyenv",
-            ".venv",
-            ".vscode",
-            "dist",
-            "node_modules",
-            "site-packages",
-            "venv"
-          ]
+exclude = [
+    ".git",
+    ".pyenv",
+    ".venv",
+    ".vscode",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv"
+    ]
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 
