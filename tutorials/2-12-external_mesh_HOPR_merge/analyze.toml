@@ -9,12 +9,11 @@ min = 1.0
 max = 35937.0
 mean = 17971.38890625
 stddev = 10103.299180073034
-_atol = 0.1  # Rounding issues
 
 [NodeCoords]
 min = -1.0
 max = 1.0
-mean = -9.804542363175036e-14
+mean = -9.805489753489383e-14
 stddev = 0.5796011559684662
 
 [SideInfo]

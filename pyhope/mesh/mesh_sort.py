@@ -26,11 +26,12 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
-from typing import cast, final
+from typing import Final, cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -43,8 +44,7 @@ import numpy as np
 def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.ndarray:
     """ Compute the integer discretization in each direction
     """
-    disc = np.round((coords - xmin) * spacing)
-    return np.asarray(disc)
+    return np.round((coords - xmin) * spacing).astype(np.int64)
 
 
 def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, np.ndarray]:
@@ -53,7 +53,7 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, n
     """
     blen    = xmax - xmin
     nbits   = (kind*8 - 1)  # / 3.
-    intfact = cast(int, 2**nbits-1)
+    intfact = (1 << nbits) - 1
     spacing = np.ceil(intfact/blen)
 
     return np.ceil(nbits).astype(int), spacing
@@ -61,6 +61,8 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, n
 
 @final
 class tBox:
+    __slots__ = ('mini', 'intfact', 'spacing')
+
     def __init__(self, mini: int, maxi: int):
         self.mini = mini
         self.intfact = 0
@@ -71,10 +73,7 @@ class tBox:
         blen = maxi - mini
         nbits = (np.iinfo(np.int64).bits - 1) // 3
         self.intfact = 2 ** nbits - 1
-        if np.all(blen > 0):
-            self.spacing = self.intfact / blen
-        else:
-            self.spacing = self.intfact
+        self.spacing = np.where(blen > 0, self.intfact / blen, self.intfact)
 
 
 def SortMeshBySFC() -> None:
@@ -85,7 +84,6 @@ def SortMeshBySFC() -> None:
     from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    import numpy as np
     # INFO: Alternative Hilbert curve sorting (not on PyPI)
     # from hilsort import hilbert_sort
     # ------------------------------------------------------
@@ -97,12 +95,13 @@ def SortMeshBySFC() -> None:
     sides = mesh_vars.sides
 
     totalElems = len(elems)
+    totalSides = len(sides)
     bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
 
     # Global bounding box
     points = mesh.points
-    xmin = np.min(points, axis=0)
-    xmax = np.max(points, axis=0)
+    xmin = points.min(axis=0)
+    xmax = points.max(axis=0)
 
     # Calculate the element barycenters and associated element offsets
     elem_bary  = calc_elem_bary(elems)
@@ -117,7 +116,7 @@ def SortMeshBySFC() -> None:
     # Generate the space-filling curve and order elements along it
     hc             = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
 
-    distances      = np.array(hc.distances_from_points(elem_disc))  # bottleneck
+    distances      = cast(npt.ArrayLike, hc.distances_from_points(elem_disc))  # bottleneck
     sorted_indices = np.argsort(distances)
 
     # INFO: Alternative Hilbert curve sorting (not on PyPI)
@@ -128,22 +127,28 @@ def SortMeshBySFC() -> None:
     # sorted_indices = np.array([value_to_index[tuple(val.tolist())] for val in elem_bary])
 
     # Initialize sorted cells
-    sorted_elems   = tuple(elems[i] for i in sorted_indices)
-    sorted_sides   = []
+    sorted_elems = [None] * totalElems
+    sorted_sides = [None] * totalSides
 
     bar.title('│             Processing Elements')
 
-    # Overwrite the elem/side IDs
+    # Initialize the sideID and offset
     offsetSide = 0
-    for elemID, elem in enumerate(sorted_elems):
-        elem.elemID = elemID
+    sideID     = 0
 
+    # Overwrite the elem/side IDs
+    for newElemID, oldElemID in enumerate(sorted_indices):
+        elem        = elems[oldElemID]
+        elem.elemID = newElemID
+        sorted_elems[newElemID] = elem
+
+        # Correct the sideID
         for key, val in enumerate(elem.sides):
             side        = sides[val]
             side.sideID = offsetSide + key
-            side.elemID = elemID
-
-            sorted_sides.append(side)
+            side.elemID = newElemID
+            sorted_sides[sideID] = side
+            sideID     += 1
 
         # Correct the sideID
         nSides      = len(elem.sides)
@@ -177,45 +182,47 @@ def SortMeshByIJK() -> None:
 
     # Calculate bounding box and conversion factor
     ptp_elemBary = np.ptp(elemBary, axis=0)
-    lower        = np.min(np.min(elemBary, axis=0) - 0.1 * np.min(ptp_elemBary, axis=0), axis=0)
-    upper        = np.max(np.max(elemBary, axis=0) + 0.1 * np.max(ptp_elemBary, axis=0), axis=0)
+    lower        = elemBary.min(axis=0)
+    upper        = elemBary.max(axis=0)
+
+    # Add padding to the bounding box
+    padding      = 0.1 * ptp_elemBary
+    lower        = lower - padding
+    upper        = upper + padding
 
     # Convert coordinates to integer space
     box       = tBox(np.floor(lower), np.ceil(upper))
-    intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(int)
+    intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(np.int32)
 
     # Initialize lists
     nElems    = count_elems(mesh)
     nElemsIJK = np.zeros(3, dtype=int)
     structDir = np.zeros(3, dtype=bool)
-    tol       = 1
-    intList   = []
+    tol: Final[float] = 1.
 
-    for dir in range(3):
-        # Sort elements by coordinate directions
-        intList = intCoords[:, dir]
-        sortedIndices = np.argsort(intList)
-        intListSorted = intList[sortedIndices]
+    for dim in range(3):
+        coordValues   = intCoords[:, dim]
+        sortedIndices = np.sort(coordValues)
 
-        # Determine structured directions
-        nElems_min, nElems_max = nElems, 0
-        counter = 1
+        # Find transition points
+        transitions = np.abs(np.diff(sortedIndices)) > tol
 
-        # Count the consecutive matching values to determine structure
-        for iElem in range(1, nElems):
-            if abs(intListSorted[iElem] - intListSorted[iElem - 1]) > tol:
-                nElems_min = min(nElems_min, counter)
-                nElems_max = max(nElems_max, counter)
-                counter = 1
-            else:
-                counter += 1
-
-        if nElems_max != nElems_min:
-            nElemsIJK[dir] = 0  # Not structured
-            structDir[dir] = False
+        if not np.any(transitions):
+            # All elements in same group
+            nElemsIJK[dim] = nElems
+            structDir[dim] = True
         else:
-            nElemsIJK[dir] = nElems_max
-            structDir[dir] = True
+            # Get group boundaries
+            boundaries = np.concatenate(([0], np.where(transitions)[0] + 1, [nElems]))
+            groupSizes = np.diff(boundaries)
+
+            # Determine structured directions
+            if len(np.unique(groupSizes)) == 1:
+                nElemsIJK[dim] = groupSizes[0]
+                structDir[dim] = True
+            else:
+                nElemsIJK[dim] = 0
+                structDir[dim] = False
 
     nStructDirs = np.sum(structDir)
 
@@ -246,29 +253,37 @@ def SortMeshByIJK() -> None:
     hopout.info(' Number of elems [I,J,K]        : {}'.format(nElemsIJK))
 
     totalElems = len(elems)
+    totalSides = len(sides)
     bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
 
     # Now sort the elements based on z, y, then x coordinates
-    intList        = (intCoords[:, 2] * 10000 + intCoords[:, 1]) * 10000 + intCoords[:, 0]
+    intList        = (intCoords[:, 2].astype(np.int64) * 10000 + intCoords[:, 1].astype(np.int64)) * 10000 + \
+                      intCoords[:, 0].astype(np.int64)
     sorted_indices = np.argsort(intList)
 
     # Initialize sorted cells
-    sorted_elems   = [elems[i] for i in sorted_indices]
-    sorted_sides   = []
+    sorted_elems = [None] * totalElems
+    sorted_sides = [None] * totalSides
 
     bar.title('│             Processing Elements')
 
-    # Overwrite the elem/side IDs
+    # Initialize the sideID and offset
     offsetSide = 0
-    for elemID, elem in enumerate(sorted_elems):
-        elem.elemID = elemID
+    sideID     = 0
 
+    # Overwrite the elem/side IDs
+    for newElemID, oldElemID in enumerate(sorted_indices):
+        elem        = elems[oldElemID]
+        elem.elemID = newElemID
+        sorted_elems[newElemID] = elem
+
+        # Correct the sideID
         for key, val in enumerate(elem.sides):
             side        = sides[val]
             side.sideID = offsetSide + key
-            side.elemID = elemID
-
-            sorted_sides.append(side)
+            side.elemID = newElemID
+            sorted_sides[sideID] = side
+            sideID     += 1
 
         # Correct the sideID
         nSides      = len(elem.sides)
@@ -279,6 +294,7 @@ def SortMeshByIJK() -> None:
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
 
+    # Close the progress bar
     bar.close()
 
 
