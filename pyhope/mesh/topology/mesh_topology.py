@@ -39,6 +39,10 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Monkey-patching MeshIO
+meshio._mesh.topological_dimension.update({'wedge15'   : 3,
+                                           'pyramid13' : 3,
+                                           'pyramid55' : 3})
 # ==================================================================================================================================
 
 
@@ -85,7 +89,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             # Get the element name and skip the entries for incomplete 2nd order elements
             try:
                 if elemTypes[i] % 10 == 5:     # pyramids (skip 1)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][1]
+                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
                 elif elemTypes[i] % 10 == 6:   # prisms (skip 1)
                     elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
                 elif elemTypes[i] % 10 == 8:   # hexahedra (skip 2)

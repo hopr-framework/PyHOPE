@@ -26,11 +26,12 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
-from typing import Final, cast
+from typing import Final, List, Iterable, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
 import numpy as np
+from meshio import CellBlock
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -84,6 +85,7 @@ def IO() -> None:
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
     from pyhope.io.io_debug import DebugIO
+    from pyhope.io.io_gmsh import gmshEntityFromBlock, GMSHCELLTYPES
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     # ------------------------------------------------------
 
@@ -195,24 +197,101 @@ def IO() -> None:
             mesh  = mesh_vars.mesh
             fname = '{}_mesh.msh'.format(pname)
 
-            # Mixed elements required gmsh:dim_tags
-            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
-            mesh.point_data.update({'gmsh:dim_tags': np.array([[0, i] for i in range(len(mesh.points))])})
+            # Instantiate the Gmsh cell type mapping
+            gmshCellTypes = GMSHCELLTYPES()
+
+            # Combine volume and surface cells as separate cell blocks
+            volume_cells  = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]
+            surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
+            # all_cells     = volume_cells + surface_cells
+
+            # Create new mesh with volume and surface elements
+            # volume_mesh = type(mesh)(points = mesh.points,  # noqa: E251
+            #                          cells  = all_cells)    # noqa: E251
+
+            # Build new point array with per-entity duplication (3D and 2D)
+            pointl:    List[np.ndarray] = []
+            pointt:    List[List[int] ] = []  # list of [dim, tag] rows parallel to pointl
+
+            celll:     List[CellBlock ] = []
+            celldphys: List[np.ndarray] = []
+            celldgeom: List[np.ndarray] = []
+
+            # Unique geometrical entity ids
+            geom_id:   np.ndarray       = np.zeros((2,), dtype=int)
+
+            # Process each 3D CellBlock: duplicate points, remap connectivity, set tags
+            for cell_block in volume_cells:
+                # TODO: Get the physical region from mesh_vars.elems
+                zone = 1
+
+                cb, phys, geom = gmshEntityFromBlock(points    = mesh.points,  # noqa: E251
+                                                     block     = cell_block,   # noqa: E251
+                                                     dim       = 3,            # noqa: E251
+                                                     geom_id   = geom_id[0],   # noqa: E251
+                                                     zones     = zone,         # noqa: E251
+                                                     uptPoints = pointl,       # noqa: E251
+                                                     uptDimTag = pointt)       # noqa: E251
+
+                # Update the lists
+                geom_id[0] += 1
+                celll    .append(cb)
+                celldphys.append(phys)
+                celldgeom.append(geom)
+
+            # Build a reverse mapping from the cell sets to the cell types
+            cell_type_to_bc   = {s.type: {} for s in surface_cells}
+            cell_type_to_name = [s.type     for s in surface_cells]  # noqa: E272
+            bc_name_to_bc_id  = {bc.name: bc.bcid for bc in mesh_vars.bcs if bc.bcid is not None}
+
+            for set_name, indices in mesh.cell_sets.items():
+                for idx_num, idx_val in enumerate(indices):
+                    cell_name = cell_type_to_name[idx_num]
+
+                    for cell_idx in cast(np.ndarray, idx_val):
+                        bc_id = bc_name_to_bc_id.get(set_name)
+                        # cell_type_to_bc[cell_name].update({int(cell_idx): set_name})
+                        cell_type_to_bc[cell_name].update({int(cell_idx): bc_id})
+
+            # Process each 2D CellBlock: duplicate points, remap connectivity, set BCs
+            for _, cell_block in enumerate(surface_cells):
+                # For each surface cell, find the boundary condition from the cell sets
+                cell_type = cell_block.type
+                # Assign default BC id (0) if not found
+                cell_bc   = [cell_type_to_bc[cell_type].get(int(idx), 0) for idx in range(len(cell_block))]
+
+                cb, phys, geom = gmshEntityFromBlock(points    = mesh.points,  # noqa: E251
+                                                     block     = cell_block,   # noqa: E251
+                                                     dim       = 2,            # noqa: E251
+                                                     geom_id   = geom_id[1],   # noqa: E251
+                                                     zones     = np.array(cell_bc, dtype=int),  # noqa: E251
+                                                     uptPoints = pointl,       # noqa: E251
+                                                     uptDimTag = pointt)       # noqa: E251
+
+                # Update the lists
+                geom_id[1] += 1
+                celll    .append(cb)
+                celldphys.append(phys)
+                celldgeom.append(geom)
+
+            # Create the final arrays
+            new_points = np.concatenate(pointl, axis=0)
+            # new_dimtag = np.asarray(pointt, dtype=int)
+
+            # Create new mesh with duplicated nodes and separate CellBlocks
+            gmshMesh = type(mesh)(points = new_points,  # noqa: E251
+                                     cells  = cast(dict, celll))       # noqa: E251
 
             # Mixed elements require gmsh:physical and gmsh:geometrical
-            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
-            cell_types = mesh.cells_dict.keys()
-            cell_data  = [np.ones(mesh.cells_dict[cell_type].data.shape[1], dtype=int) for cell_type in cell_types
-]
-            mesh.cell_data_dict.update({'gmsh:physical':    cell_data})
-            mesh.cell_data_dict.update({'gmsh:geometrical': cell_data})
+            gmshMesh.cell_data.update(cast(Iterable, {'gmsh:physical'   : celldphys}))
+            gmshMesh.cell_data.update(cast(Iterable, {'gmsh:geometrical': celldgeom}))
+
+            # Provide entity information for nodes
+            gmshMesh.point_data.update({'gmsh:dim_tags': pointt})
 
             hopout.sep()
             hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
-
-            hopout.warning('GMSH output is not yet fully supported, only a point mesh is generated!')
-
-            mesh.write(fname, file_format='gmsh')
+            gmshMesh.write(fname, file_format='gmsh')
 
         case _:  # Default
             hopout.error('Unknown output format {}, exiting...'.format(io_vars.outputformat))
