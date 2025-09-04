@@ -184,9 +184,13 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             elemOrder = 100 if mesh_vars.nGeo == 1 else 200
             elemTypes = tuple([s + elemOrder for s in (4, 5, 6, 8)])
             for elemType in elemTypes:
-                _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
-                mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
-                linCache[elemType] = mapLin
+                try:
+                    _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
+                    mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+                    linCache[elemType] = mapLin
+                # Only hexahedrons supported for specific nGeo
+                except ValueError:
+                    pass
 
             with alive_bar(len(elemInfo), title='│             Processing Elements', length=33) as bar:
                 # Construct the elements, meshio format
