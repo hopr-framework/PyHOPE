@@ -25,10 +25,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import copy
 import gc
+from collections import defaultdict
 from functools import cache
-from typing import Union, cast
+from typing import Any, Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
 def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
-    import pyhope.mesh.mesh_vars as mesh_vars
+    # import pyhope.mesh.mesh_vars as mesh_vars  # Already imported at the top
     from pyhope.common.common import lines_that_contain
     from pyhope.mesh.mesh_common import face_to_cgns
     from pyhope.mesh.mesh_common import FaceOrdering
@@ -103,7 +103,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
     cells    = mesh.cells_dict
-    cellsets = {}
+    cellsets = defaultdict(lambda: defaultdict(list))
 
     nodeCoords   = mesh.points
     nSides       = np.zeros(2, dtype=int)
@@ -233,7 +233,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     # Add the elem to the cellset
                     # > CS1: We create a dictionary of the zones and types that we want
                     for zoneElem in zoneElems:
-                        cellsets.setdefault(zoneName, {}).setdefault(elemTypes[zoneElem-1], []).append(zoneElem-1)
+                        cellsets[zoneName][elemTypes[zoneElem-1]].append(zoneElem-1)
 
                 # Clean-up for memory safety
                 del grsLine
@@ -321,13 +321,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # After processing all elements, convert each list of arrays to one array
     # > Convert the list of cells to numpy arrays
-    for cell_type in cells:
-        cells[cell_type] = np.concatenate([a if a.ndim == 2 else a.reshape(1, -1) for a in cells[cell_type]], axis=0)
-
-    # Convert the list of cellsets to numpy arrays
-    for bc in cellsets:
-        for side in cellsets[bc]:
-            cellsets[bc][side] = np.array(cellsets[bc][side], dtype=np.uint64)
+    cells: dict = {cell_type: np.concatenate([a.reshape(1, -1) if a.ndim == 1 else a for a                      in cell_arrays])  # noqa: E272
+                                                                                     for cell_type, cell_arrays in cells.items()}
 
     # Convert points_list back to a NumPy array
     points = np.array(pointl)
@@ -337,25 +332,32 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                          cells     = cells)     # noqa: E251
 
     # > CS3: We build the cell sets depending on the cells
-    cell_sets  = mesh.cell_sets
-    cell_types = [s for s in mesh.cells_dict.keys()]
-    cell_list  = [None for _ in cell_types]
+    cell_sets:  dict[str, list] = mesh.cell_sets
+    cell_types: list[Any      ] = list(mesh.cells_dict.keys())
+    nCellTypes: int             = len(cell_types)
+    cell_tidx:  dict[Any, int ] = {ctype: idx for idx, ctype in enumerate(cell_types)}
 
-    for key, val in cellsets.items():
-        for v_key, v_val in val.items():
-            if key in cell_sets.keys():
-                entry = cell_sets[key]
-            else:
-                entry = copy.copy(cell_list)
+    # Convert the dict of cellsets to numpy arrays
+    for bc, bc_dict in cellsets.items():
+        # Initialize entry for this BC if not exists
+        if bc not in cell_sets:
+            # Assign the entry to the cell set
+            cell_sets[bc] = [None] * nCellTypes
+
+        entry = cell_sets[bc]
+
+        # Process all cell types for this BC
+        for side, indices in bc_dict.items():
+            BCIndices = np.fromiter(indices, dtype=np.uint64, count=len(indices))
+
+            # Get cell type index
+            type_idx = cell_tidx[side]
 
             # Find matching cell type and populate the corresponding entry
-            if entry[cell_types.index(v_key)] is not None:
-                entry[cell_types.index(v_key)] = np.append(cast(np.ndarray, entry[cell_types.index(v_key)]), v_val)  # type: ignore
+            if entry[type_idx] is not None:
+                entry[type_idx] = np.concatenate([entry[type_idx], BCIndices])
             else:
-                entry[cell_types.index(v_key)] = v_val
-
-            # Assign the entry to the cell set
-            cell_sets[key] = entry  # type: ignore
+                entry[type_idx] = BCIndices
 
     # > CS4: We create the final meshio.Mesh object with cell_sets
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
