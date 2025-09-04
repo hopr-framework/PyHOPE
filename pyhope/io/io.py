@@ -25,8 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from collections import OrderedDict
-from typing import Final
+from collections import defaultdict
+from typing import Final, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -89,20 +89,21 @@ def IO() -> None:
     hopout.separator()
     hopout.info('OUTPUT MESH...')
 
+    pname:  Final[str] = io_vars.projectname
+
     match io_vars.outputformat:
         case MeshFormat.FORMAT_HDF5:
             mesh  = mesh_vars.mesh
-            elems = mesh_vars.elems
-            sides = mesh_vars.sides
+            elems: Final[list] = cast(list, mesh_vars.elems)
+            sides: Final[list] = cast(list, mesh_vars.sides)
+            bcs:   Final[list] = cast(list, mesh_vars.bcs)
 
-            nElems = len(elems)
-            nSides = len(sides)
-            nNodes = sum(s.nodes.size for s in elems)  # number of non-unique nodes
+            nElems: Final[int] = len(elems)
+            nSides: Final[int] = len(sides)
+            # Number of non-unique nodes
+            nNodes: Final[int] = np.array([elem.nodes.size for elem in elems], dtype=np.int32).sum(dtype=int)
+            nBCs:   Final[int] = len(bcs)
 
-            bcs   = mesh_vars.bcs
-            nBCs  = len(bcs)
-
-            pname = io_vars.projectname
             fname = '{}_mesh.h5'.format(pname)
 
             elemInfo, sideInfo, nodeInfo, nodeCoords, \
@@ -112,9 +113,9 @@ def IO() -> None:
 
             # Print the final output
             hopout.sep()
-            for elemType in ELEM.TYPES:
-                if elemCounter[elemType] > 0:
-                    hopout.info( ELEMTYPE(elemType) + ': {:12d}'.format(elemCounter[elemType]))
+            elem_types = [(elemType, count) for elemType in ELEM.TYPES if (count := elemCounter.get(elemType, 0)) > 0]
+            for elemType, count in elem_types:
+                hopout.info(f'{ELEMTYPE(elemType)}: {count:12d}')
 
             hopout.sep()
             hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
@@ -153,10 +154,8 @@ def IO() -> None:
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
-                bcNames = [f'{s.name:<255}' for s in bcs]
-                bcTypes = np.zeros((nBCs, 4), dtype=np.int32)
-                for iBC, bc in enumerate(bcs):
-                    bcTypes[iBC, :] = bc.type
+                bcNames = [f'{bc.name:<255}' for bc in bcs]
+                bcTypes = np.array([bc.type  for bc in bcs], dtype=np.int32).reshape(-1, 4)  # noqa: E272
 
                 _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
                 _ = f.create_dataset('BCType'    , data=bcTypes)
@@ -164,14 +163,11 @@ def IO() -> None:
                 # Check if there is a periodic vector and write it to mesh file
                 nVV = len(mesh_vars.vvs)
                 if nVV > 0:
-                    vvs = np.zeros((nVV, 3), dtype=np.float64)
-                    for iVV, vv in enumerate(mesh_vars.vvs):
-                        vvs[iVV, :] = vv['Dir']
+                    vvs = np.array([[vv['Dir'][i] for i in range(3)] for vv in mesh_vars.vvs], dtype=np.float64)
                     _ = f.create_dataset('VV', data=vvs)
 
         case MeshFormat.FORMAT_VTK:
             mesh  = mesh_vars.mesh
-            pname = io_vars.projectname
             fname = '{}_mesh.vtk'.format(pname)
 
             hopout.sep()
@@ -181,7 +177,6 @@ def IO() -> None:
 
         case MeshFormat.FORMAT_GMSH:
             mesh  = mesh_vars.mesh
-            pname = io_vars.projectname
             fname = '{}_mesh.msh'.format(pname)
 
             # Mixed elements required gmsh:dim_tags
@@ -214,7 +209,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray,         # SideInfo
                            np.ndarray,         # NodeInfo
                            np.ndarray,         # NodeCoords
-                           tuple[list[int]],   # XDMF connectivity
+                           Tuple,              # XDMF connectivity
                            np.ndarray | None,  # Optional[FEMElemInfo]
                            np.ndarray | None,  # Optional[VertexInfo]
                            np.ndarray | None,  # Optional[VertexConnectInfo]
@@ -238,31 +233,41 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
 
     nElems: Final[int] = len(elems)
     nSides: Final[int] = len(sides)
-    nNodes: Final[int] = np.sum([s.nodes.size for s in elems])  # number of non-unique nodes
 
     # Create the ElemCounter
-    elemCounter = OrderedDict()
+    elemCounter = defaultdict(int)
     for elemType in ELEM.TYPES:
         elemCounter[elemType] = 0
 
-    # Fill the ElemInfo
+    # Pre-allocate arrays
     elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=np.int32)
-    sideCount = 0  # elem['Sides'] might work as well
-    nodeCount = 0  # elem['Nodes'] contains the unique nodes
+    # sideCount = 0  # elem['Sides'] might work as well
+    # nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
-    for iElem, elem in enumerate(elems):
-        elemInfo[iElem, ELEM.TYPE     ] = elem.type
-        elemInfo[iElem, ELEM.ZONE     ] = elem.zone if elem.zone is not None else 1
+    # Calculate the ElemInfo
+    elem_types = np.array([elem.type                                 for elem in elems], dtype=np.int32)  # noqa: E272
+    elem_zones = np.array([elem.zone if elem.zone is not None else 1 for elem in elems], dtype=np.int32)  # noqa: E272
+    elem_sides = np.array([len(elem.sides)                           for elem in elems], dtype=np.int32)  # noqa: E272
+    elem_nodes = np.array([elem.nodes.size                           for elem in elems], dtype=np.int32)  # noqa: E272
 
-        elemInfo[iElem, ELEM.FIRSTSIDE] = sideCount
-        elemInfo[iElem, ELEM.LASTSIDE ] = sideCount + len(elem.sides)
-        sideCount += len(elem.sides)
+    # Fill basic element info
+    elemInfo[:, ELEM.TYPE] = elem_types
+    elemInfo[:, ELEM.ZONE] = elem_zones
 
-        elemInfo[iElem, ELEM.FIRSTNODE] = nodeCount
-        elemInfo[iElem, ELEM.LASTNODE ] = nodeCount + len(elem.nodes)
-        nodeCount += len(elem.nodes)
+    # Calculate cumulative sums
+    side_cumsum = np.concatenate([[0], np.cumsum(elem_sides)])
+    node_cumsum = np.concatenate([[0], np.cumsum(elem_nodes)])
 
-        elemCounter[elem.type] += 1
+    # Fill element side info
+    elemInfo[:, ELEM.FIRSTSIDE] = side_cumsum[ :-1]
+    elemInfo[:, ELEM.LASTSIDE ] = side_cumsum[1:]
+    elemInfo[:, ELEM.FIRSTNODE] = node_cumsum[ :-1]
+    elemInfo[:, ELEM.LASTNODE ] = node_cumsum[1:]
+
+    # Update element counter
+    uniq_types, uniq_counts = np.unique(elem_types, return_counts=True)
+    for elemType, elemCount in zip(uniq_types, uniq_counts):
+        elemCounter[elemType] = elemCount
 
     # Set the global side ID
     globalSideID     = 0
@@ -288,11 +293,9 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         # side.update(globalSideID=globalSideID)
         side.globalSideID = globalSideID
 
-        if side.connection is None:         # BC side
+        if side.connection is None or side.connection < 0:  # BC/big mortar side
             pass
-        elif side.connection < 0:           # Big mortar side
-            pass
-        elif side.MS == 1:                  # Internal / periodic side (master side)
+        elif side.MS == 1:                                  # Internal / periodic side (master side)
             # Get the connected slave side
             nbSideID = side.connection
 
@@ -319,12 +322,19 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
             # For slave sides, update to the negative of the mapped master ID
             side.globalSideID = mapping[side.globalSideID] if side.globalSideID > 0 else -mapping[-side.globalSideID]
 
-    # Fill the SideInfo
+    # Pre-allocate arrays
     sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
+    # Calculate the SideInfo
+    side_types = np.array([side.sideType     for side in sides], dtype=np.int32)  # noqa: E272
+    side_gloID = np.array([side.globalSideID for side in sides], dtype=np.int32)  # noqa: E272
+
+    # Fill basic side info
+    sideInfo[:, SIDE.TYPE] = side_types
+    sideInfo[:, SIDE.ID  ] = side_gloID
+
+    # Process side connections
     for iSide, side in enumerate(sides):
-        sideInfo[iSide, SIDE.TYPE     ] = side.sideType
-        sideInfo[iSide, SIDE.ID       ] = side.globalSideID
         # Connected sides
         if side.connection is None:                                # BC side
             sideInfo[iSide, SIDE.NBELEMID      ] = 0
@@ -344,7 +354,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
             nbSideID = side.connection
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
             sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            if side.sideType < 0:  # Small mortar side
+            if side.sideType < 0:    # Small mortar side
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = side.flip
             elif side.flip == 0:     # Master side
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
@@ -357,53 +367,55 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
             else:
                 sideInfo[iSide, SIDE.BCID      ] = 0
 
-    # Fill the NodeInfo
+    # Pre-allocate arrays
+    nNodes: Final[int] = elem_nodes.sum(dtype=int)  # number of non-unique nodes
     nodeInfo   = np.zeros((nNodes)   , dtype=np.int32)
-
-    # Fill the NodeCoords
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
-    nodeCount  = 0
 
     # Fill the XDMF connectivity
     elemTypes   = np.unique(elemInfo[:, 0])
     xdmfconnect = tuple([list() for _ in range(len(elemTypes))])
 
-    # Cache the mapping
+    # Pre-compute LINTEN mappings for all element types
     linCache    = {}
+    for elemType in elemTypes:
+        _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
+        mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+        linCache[elemType] = mapLin
 
-    for iElem, elem in enumerate(elems):
+    # Pre-compute the index mapping
+    elemTypeIndexMap = {elemType: i for i, elemType in enumerate(elemTypes)}
+
+    # Calculate the NodeInfo
+    nodeCount  = 0
+    for elem in elems:
         # Mesh coordinates are stored in meshIO sorting
         elemType = elem.type
-        if elemType in linCache:
-            mapLin = linCache[elemType]
-        else:
-            _, mapLin = LINTEN(elem.type, order=mesh_vars.nGeo)
-            mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
-            linCache[elemType] = mapLin
+        mapLin   = linCache[elemType]
 
         elemNodes  = np.asarray(elem.nodes)
         nElemNodes = elemNodes.size
         indices    = nodeCount + mapLin[:nElemNodes]
 
         # Assign the indices to XDMF
-        elemType = np.where(elemTypes == elem.type)[0][0]
-        xdmfconnect[elemType].append(indices)
+        elemTypeID = elemTypeIndexMap[elemType]
+        xdmfconnect[elemTypeID].append(indices)
 
         # Assign nodeInfo and nodeCoords in vectorized fashion
-        nodeInfo[  indices   ] = elemNodes + 1
-        nodeCoords[indices, :] = points[elemNodes]
+        nodeInfo[  indices] = elemNodes + 1
+        nodeCoords[indices] = points[elemNodes]
 
         nodeCount += nElemNodes
 
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
-        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = getFEMInfo(nodeInfo)
+        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInfo = getFEMInfo(nodeInfo)
     else:
-        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto = [None for _ in range(5)]
+        FEMElemInfo = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
 
     # Convert XDMF to numpy array
     # xdmfconnect = np.array(xdmfconnect, dtype=np.int32)
 
     return elemInfo, sideInfo, nodeInfo, nodeCoords, \
            xdmfconnect, \
-           FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
+           FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInfo, \
            elemCounter
