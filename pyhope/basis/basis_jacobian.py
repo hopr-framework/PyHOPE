@@ -142,8 +142,18 @@ def CheckJacobians() -> None:
     # Prepare elements for parallel processing
     tasks = []
 
-    # Cache the mapping
-    linCache   = {}
+    # Pre-compute LINTEN mappings for all element types
+    linCache  = {}
+    elemOrder = 100 if mesh_vars.nGeo == 1 else 200
+    elemTypes = tuple([s + elemOrder for s in (4, 5, 6, 8)])
+    for elemType in elemTypes:
+        try:
+            _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
+            mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+            linCache[elemType] = mapLin
+        # Only hexahedrons supported for specific nGeo
+        except ValueError:
+            pass
 
     for elem in elems:
         elemType = elem.type
@@ -153,12 +163,7 @@ def CheckJacobians() -> None:
             continue
 
         # Get the mapping
-        if elemType in linCache:
-            mapLin = linCache[elemType]
-        else:
-            _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
-            mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
-            linCache[elemType] = mapLin
+        mapLin = linCache[elemType]
 
         # Fill the NodeCoords
         nodeCoords         = np.empty((nGeo ** 3, 3), dtype=np.float64)
