@@ -26,12 +26,9 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass
-from typing import List, Tuple, Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import numpy as np
-from meshio import CellBlock
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -69,54 +66,3 @@ class GMSHCELLTYPES:
                     'triangle55', 'quad100',                                                                                       # NGeo =  9 # noqa: E501
                     'triangle66', 'quad121'                                                                                        # NGeo = 10 # noqa: E501
                    ]
-
-
-def gmshEntityFromBlock(points:         np.ndarray,
-                        block:          CellBlock,
-                        dim:            int,
-                        geom_id:        int,
-                        zones: Union[int, np.ndarray],
-                        uptPoints:      List[np.ndarray],
-                        uptDimTag:      List[List[int]],
-) -> Tuple[CellBlock, np.ndarray, np.ndarray]:
-    ''' Accepts one meshio CellBlock and builds one Gmsh entity from it
-
-        Steps:
-            - 1) Deduplicate nodes within the block
-            - 2) Append points/dim_tags to global arrays
-            - 3) Remap connectivity and apply node reordering
-
-        Returns:
-            Tuple: (new_cell_block, physical_tags, geometrical_tags)
-    '''
-
-    # 1) Unique point indices used by this block
-    old_ids = np.unique(block.data).astype(np.int64)
-    start   = sum(len(chunk) for chunk in uptPoints)
-
-    # 2) Append points/dim_tags to global arrays
-    uptPoints.append(points[old_ids])
-    uptDimTag.extend([[dim, geom_id]] * len(old_ids))
-
-    # Build mapping only for ids present in this block to avoid large dense arrays
-    mapping = {int(o): int(start + i) for i, o in enumerate(old_ids)}
-
-    # 3) Remap connectivity and apply node reordering
-    flat_old: np.ndarray = cast(np.ndarray, block.data).ravel()
-    flat_new: np.ndarray = np.fromiter((mapping[int(i)] for i in flat_old), dtype=np.int64, count=flat_old.size)
-    remapped: np.ndarray = flat_new.reshape(cast(np.ndarray, block.data).shape)
-
-    # Create CellBlock and tags
-    cell_block = CellBlock(block.type, remapped)
-    nCellBlock = remapped.shape[0]
-    tagGeom    = np.full(nCellBlock, int(geom_id), dtype=int)
-
-    if isinstance(zones, np.ndarray):
-        tagPhys = zones
-        if len(tagPhys) != nCellBlock:
-            raise ValueError('Length of physical_value array must equal number of cells in the block.')
-    else:
-        tagPhys = np.full(nCellBlock, int(zones), dtype=int)
-
-    return cell_block, tagPhys, tagGeom
-
