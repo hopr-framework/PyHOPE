@@ -50,6 +50,7 @@ def MeshCartesian() -> meshio.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common import find_index, find_indices, IsDisplay
+    from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
@@ -59,6 +60,16 @@ def MeshCartesian() -> meshio.Mesh:
     # ------------------------------------------------------
 
     gmsh.initialize()
+
+    # Setup multiprocessing
+    numThreads = np_mtp if np_mtp > 0 else 1
+    gmsh.option.setNumber('General.NumThreads',   numThreads)
+    gmsh.option.setNumber('Geometry.OCCParallel', 1 if np_mtp > 0 else 0)
+
+    # Setup mesh factory
+    # gmsh.option.setString('SetFactory', 'OpenCascade')
+
+    # Setup debug visualization
     if not debugvisu:
         # Hide the GMSH debug output
         gmsh.option.setNumber('General.Terminal', 0)
