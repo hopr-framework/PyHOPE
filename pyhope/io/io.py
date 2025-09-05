@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
-from typing import Final, List, cast, Dict, Set
+from typing import Dict, Final, List, Set, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -87,6 +87,7 @@ def IO() -> None:
     from pyhope.io.io_debug import DebugIO
     from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
+    from pyhope.meshio.meshio_nodes import NumNodesPerCell
     # ------------------------------------------------------
 
     hopout.separator()
@@ -194,6 +195,10 @@ def IO() -> None:
             mesh.write(fname, file_format='vtk42')
 
         case MeshFormat.GMSH.value:
+            if mesh_vars.nGeo > 1:
+                hopout.sep()
+                print(hopout.warn('GMSH output is incomplete for nGeo > 1'))
+
             mesh  = mesh_vars.mesh
             fname = '{}_mesh.msh'.format(pname)
 
@@ -203,6 +208,16 @@ def IO() -> None:
             # Combine volume and surface cells as separate cell blocks
             volume_cells  = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]
             surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
+
+            # Print the final output
+            hopout.sep()
+            numNodes = NumNodesPerCell()
+            for cell in volume_cells:
+                cellType  = ''.join([s for s in cell.type if not s.isdigit()])
+                cellNodes = numNodes[cellType]
+                elemOrder = 100 if not any(s.isdigit() for s in cell.type) else 200
+                elemType  = cellNodes + elemOrder
+                hopout.info(f'{ELEMTYPE(elemType)}: {len(cell):12d}')
 
             # Build new arrays
             celll:      List[CellBlock ] = []
