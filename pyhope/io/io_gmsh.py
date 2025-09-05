@@ -66,3 +66,5 @@ class GMSHCELLTYPES:
                     'triangle55', 'quad100',                                                                                       # NGeo =  9 # noqa: E501
                     'triangle66', 'quad121'                                                                                        # NGeo = 10 # noqa: E501
                    ]
+
+

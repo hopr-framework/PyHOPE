@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Dict, Final, List, Set, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -102,3 +103,169 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
         cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]
 
     return meshio.Mesh(points, cells, cell_sets=cell_sets)
+
+
+def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.io.io_gmsh import GMSHCELLTYPES
+    # ------------------------------------------------------
+
+    # Instantiate the Gmsh cell type mapping
+    gmshCellTypes = GMSHCELLTYPES()
+
+    # Combine volume and surface cells as separate cell blocks
+    volume_cells  = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]
+    surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
+
+    # Build new arrays
+    celll:      List[meshio.CellBlock] = []
+    celldphys:  List[np.ndarray      ] = []
+    celldgeom:  List[np.ndarray      ] = []
+
+    # Unique geometrical entity ids per dimension
+    # > 0: 3D entities, 1: 2D entities
+    geom_id:    np.ndarray       = np.ones((2,), dtype=int)
+    geom_tag:   List[List[int]]  = [[] for _ in range(2)]
+    geom_nodes: List[List[int]]  = [[] for _ in range(2)]
+
+    # Set to keep track of nodes already used to represent an entity in gmsh:dim_tags
+    usedNodes: Set[int] = set()
+
+    # Process each 3D CellBlock: keep shared connectivity, set tags
+    # WARNING: Each 3D CellBlock neets to get its OWN geometrical tag so that
+    #          meshio._write_entities() does not see duplicate (dim, tag) across cell blocks
+    for cell_block in volume_cells:
+        # TODO: Get the physical region from mesh_vars.elems
+        zone = 1
+
+        # Shared nodes, so keep the original connectivity
+        cb     = meshio.CellBlock(cell_block.type, cell_block.data.copy())
+        nCells = len(cell_block.data)
+        # Unique 3D geometrical tag for volume block
+        tag    = int(geom_id[0])
+        phys   = np.full(nCells, int(zone), dtype=int)
+        geom   = np.full(nCells, tag,       dtype=int)
+
+        # Choose a representative node for this 3D entity (unique across all entities)
+        node_cand = cast(np.ndarray, cb.data).ravel().astype(int)
+        node_free = [s for s in node_cand if s not in usedNodes]
+        node_used = int(node_free[0] if node_free else node_cand[0])
+        if not node_free and node_used in usedNodes:
+            # All candidate nodes already used; fall back to the first (still valid, we just can't make it unique)
+            # hopout.routine(f'Note: reusing representative node {rep_node} for 3D entity tag {tag}')
+            hopout.error('All candidate nodes already used for 3D entity tag {tag}')
+
+        geom_nodes[0].append(node_used)
+        usedNodes.add(node_used)
+
+        # Update the lists and next 3D entity ID
+        geom_id[ 0] += 1
+        geom_tag[0].append(tag)
+        celll      .append(cb)
+        celldphys  .append(phys)
+        celldgeom  .append(geom)
+
+    # Build a reverse mapping from the cell sets to the cell types
+    all_cells:      Final[tuple] = tuple(cell_block for cell_block in mesh.cells)
+    cellTypeToBC:   Final[dict]  = {s.type: {} for s in all_cells}
+    cellTypeToName: Final[list]  = [s.type     for s in all_cells]  # noqa: E272
+    BCNameToBCID:   Final[dict]  = {bc.name: bc.bcid for bc in mesh_vars.bcs if bc.bcid is not None}
+    del all_cells
+
+    # Find the mapping from surface to BC for all cell sets
+    for setID, cellSet in mesh.cell_sets.items():
+        for cellID, setCells in enumerate(cellSet):
+            if setCells is None:
+                continue
+
+            cellName = cellTypeToName[cellID]
+
+            for cell_idx in cast(np.ndarray, setCells):
+                BCID = BCNameToBCID.get(setID)
+                cellTypeToBC[cellName].update({int(cell_idx): BCID})
+
+    # Process each 2D CellBlock: keep shared point indices, set BCs
+    # NOTE: Split by BC id so each physical surface becomes its own entity
+    for _, cell_block in enumerate(surface_cells):
+        cell_type = cell_block.type
+        # NOTE: This will assign 0 to faces not found, assuming they are internal faces
+        cellBC = np.asarray([cellTypeToBC[cell_type].get(int(idx), 0) for idx in range(len(cell_block))], dtype=int)
+
+        # Create a separate CellBlock per unique BC id
+        for BCID in np.unique(cellBC):
+            sel = np.where(cellBC == int(BCID))[0]
+            if sel.size == 0:
+                continue
+
+            cb     = meshio.CellBlock(cell_type, cell_block.data[sel].copy())
+            nCells = len(cell_block.data[sel])
+            # Unique 2D geometrical tag for surface block
+            tag    = int(geom_id[1])
+            phys   = np.full(nCells, int(BCID), dtype=int)
+            geom   = np.full(nCells, tag      , dtype=int)
+
+            # Choose a representative node for this 2D entity (unique across all entities)
+            node_cand = cast(np.ndarray, cb.data).ravel().astype(int)
+            node_free = [s for s in node_cand if s not in usedNodes]
+            node_used = int(node_free[0] if node_free else node_cand[0])
+            if not node_free and node_used in usedNodes:
+                # All candidate nodes already used; fall back to the first (still valid, we just can't make it unique)
+                # hopout.routine(f'Note: reusing representative node {rep_node} for 3D entity tag {tag}')
+                hopout.error('All candidate nodes already used for 3D entity tag {tag}')
+
+            geom_nodes[1].append(node_used)
+            usedNodes.add(node_used)
+
+            # Update lists and next 2D entity ID
+            geom_id[ 1] += 1
+            geom_tag[1].append(tag)
+            celll    .append(cb)
+            celldphys.append(phys)
+            celldgeom.append(geom)
+
+    # Create new mesh with separate CellBlocks
+    gmshMesh = type(mesh)(points = mesh.points,        # noqa: E251
+                          cells  = cast(dict, celll))  # noqa: E251
+
+    # Mixed elements require gmsh:physical and gmsh:geometrical
+    gmshMesh.cell_data.update({'gmsh:physical'   : celldphys})   # pyright: ignore[reportArgumentType, reportCallIssue]
+    gmshMesh.cell_data.update({'gmsh:geometrical': celldgeom})   # pyright: ignore[reportArgumentType, reportCallIssue]
+
+    # Provide entity information for nodes (gmsh:dim_tags)
+    # Strategy:
+    #  - Default all nodes to the FIRST 3D entity
+    #  - Override one unique node per 3D entity with (3, tag) to ensure all 3D entities exist in $Entities
+    #  - Override one unique node per 2D entity with (2, tag) to ensure all 2D entities exist in $Entities
+    dim_tags = np.zeros((mesh.points.shape[0], 2), dtype=int)
+    dim_tags[:, 0] = 3
+    dim_tags[:, 1] = int(geom_tag[0][0])
+
+    # Set representatives for ALL 3D entities
+    for tag, node_used in zip(geom_tag[0], geom_nodes[0]):
+        dim_tags[int(node_used), 0] = 3
+        dim_tags[int(node_used), 1] = int(tag)
+
+    # Set representatives for ALL 2D entities
+    for tag, node_used in zip(geom_tag[1], geom_nodes[1]):
+        dim_tags[int(node_used), 0] = 2
+        dim_tags[int(node_used), 1] = int(tag)
+
+    gmshMesh.point_data.update({'gmsh:dim_tags': dim_tags})
+
+    # Add PhysicalNames so groups are not missing in the Gmsh output
+    field_data: Dict[str, np.ndarray] = {}
+
+    # Add volume physical group (3D)
+    if len(geom_tag[0]) > 0:
+        field_data['volume'] = np.array([1, 3], dtype=int)  # id=1, dim=3
+
+    # Add surface physical groups (2D) from boundary conditions
+    field_data.update({ name: np.array([int(BCID), 2], dtype=int) for name, BCID in BCNameToBCID.items()
+                                                                         if BCID is not None })
+
+    # Update or create field_data attribute
+    gmshMesh.field_data = {**getattr(gmshMesh, 'field_data', {}), **field_data}
+
+    return gmshMesh
