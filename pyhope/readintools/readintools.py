@@ -57,7 +57,7 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strtobool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
+def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
         True values  are 'y', 'yes', 't', 'true', 'on', and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
@@ -76,6 +76,30 @@ def strtobool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
         return False
     else:
         raise ValueError('invalid truth value %r' % (val,))
+
+
+def strToFloatOrPi(helpstr: str) -> float:
+    """ Parses a string that may contain 'pi' or a numerical value.
+    """
+    # split string at case-insensitive 'pi'
+    splitstr = helpstr.lower().split('pi')
+
+    match len(splitstr):
+        # Determine prefactor of pi, interpreting empty string as one
+        case 2:
+            if splitstr[0]:
+                value = float(splitstr[0])*np.pi
+            else:
+                value = np.pi
+
+        # No 'pi' found in splitstr, parse as float
+        case 1:
+            value = float(splitstr[0])
+
+        case _:
+            raise ValueError('Failed to parse input string %s' % (helpstr))
+
+    return value
 
 
 def is_numeric(var_value: str) -> bool:
@@ -343,23 +367,6 @@ def GetParam(name    : str,
     return value
 
 
-def ParseFloatAndPi(helpstr: str) -> float:
-    # split string at case-insensitive 'pi'
-    splitstr = helpstr.lower().split('pi')
-    if len(splitstr)==2:
-      # determine prefactor of pi, interpreting empty string as one
-      if splitstr[0]:
-        value = float(splitstr[0])*np.pi
-      else:
-        value = np.pi
-    elif len(splitstr)==1:
-      # no 'pi' found in helpstr, parse as float
-      value = float(splitstr[0])
-    else:
-      raise ValueError('Failed to parse input string %s' % (helpstr))
-    return value
-
-
 def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> str:
     value = GetParam(name=name, default=default, number=number, calltype='str')
     return value
@@ -367,7 +374,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return ParseFloatAndPi(value)
+    return strToFloatOrPi(value)
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -377,7 +384,7 @@ def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetLogical(name: str, default: Optional[str] = None, number: Optional[int] = None) -> bool:
     value = GetParam(name=name, default=default, number=number, calltype='bool')
-    return strtobool(value)
+    return strToBool(value)
 
 
 def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -422,7 +429,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     else:
         value = value.split(',')
     try:
-        value = np.vectorize(ParseFloatAndPi)(value)
+        value = np.vectorize(strToFloatOrPi)(value)
     except ValueError as e:
         print()
         print(hopout.warn(f'{e}'))
