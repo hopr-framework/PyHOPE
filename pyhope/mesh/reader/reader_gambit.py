@@ -313,7 +313,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                                 # Add the side to the cellset
                                 # > CS1: We create a dictionary of the BC sides and types that we want
-                                cellsets.setdefault(BCName, {}).setdefault(sideName, []).append(nSides[sideNum] - 1)
+                                cellsets.setdefault(BCName, defaultdict()).setdefault(sideName, []).append(nSides[sideNum] - 1)
 
                 # Clean-up for memory safety
                 del bcsLine
@@ -327,13 +327,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Convert points_list back to a NumPy array
     points = np.array(pointl)
 
-    # > CS2: We create a meshio.Mesh object without cell_sets
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells)     # noqa: E251
-
-    # > CS3: We build the cell sets depending on the cells
+    # > CS2: We build the cell sets depending on the cells
     cell_sets:  dict[str, list] = mesh.cell_sets
-    cell_types: list[Any      ] = list(mesh.cells_dict.keys())
+    cell_types: list[Any      ] = list(cells.keys())
     nCellTypes: int             = len(cell_types)
     cell_tidx:  dict[Any, int ] = {ctype: idx for idx, ctype in enumerate(cell_types)}
 
@@ -359,7 +355,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             else:
                 entry[type_idx] = BCIndices
 
-    # > CS4: We create the final meshio.Mesh object with cell_sets
+    # > CS3: We create the final meshio.Mesh object with cell_sets
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = cells,      # noqa: E251
                          cell_sets = cell_sets)  # noqa: E251
