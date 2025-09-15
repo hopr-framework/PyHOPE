@@ -146,7 +146,7 @@ OCC_DIR      = os.path.join(WORK_DIR, 'occt')
 OCC_VERSION  = 'V7_9_1'
 
 # FreeType
-FREETYPE_VERSION = '2.13.3'
+FREETYPE_VERSION = '2.14.1'
 FREETYPE_DIR = os.path.join(WORK_DIR, 'freetype')
 
 # libXFT
@@ -159,7 +159,7 @@ LIBPNG_VERSION = '1.6.50'
 
 # libJPEG
 LIBJPEG_TURBO_DIR     = os.path.join(WORK_DIR, 'libjpeg-turbo')
-LIBJPEG_TURBO_VERSION = '3.1.1'
+LIBJPEG_TURBO_VERSION = '3.1.2'
 
 # FLTK
 FLTK_DIR     = os.path.join(WORK_DIR, 'fltk')
@@ -178,7 +178,7 @@ FONTCONFIG_DIR = os.path.join(WORK_DIR, 'fontconfig')
 # GLU_VERSION  = '9.0.3'
 
 # Gmsh
-GMSH_VERSION = '4.14.0'
+GMSH_VERSION = '4.14.1'
 GMSH_PATCH   = '1'
 GMSH_FULLVER = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
@@ -966,6 +966,7 @@ def build_gmsh() -> None:
         '-DENABLE_MPEG_ENCODE=OFF',
         '-DENABLE_OCC=ON',
         '-DENABLE_OCC_STATIC=ON',
+        '-DENABLE_OPENMP=ON',
         '-DENABLE_PETSC=OFF',
         '-DENABLE_PLUGINS=ON',
         '-DENABLE_POPPLER=OFF',
@@ -974,6 +975,7 @@ def build_gmsh() -> None:
         '-DENABLE_TOUCHBAR=OFF',
         '-DENABLE_SYSTEM_CONTRIB=OFF',
         '-DENABLE_PACKAGE_STRIP=ON',
+        '-DGMSH_PACKAGER=NRG',
         '-DX11_ICE_LIB=OFF'  # Force disable libICE support with a very ugly hack
     ]
 
@@ -1058,10 +1060,18 @@ def package() -> None:
     # Run setup to build the Python wheel
     print_step('Running setup to build the Python wheel...')
 
+    # Set the cache to a writable directory
+    env = os.environ.copy()
+    import tempfile
+    tmp_dir = tempfile.mkdtemp()
+    env['UV_CACHE_DIR'] = os.path.join(tmp_dir, '.cache')
+
     # Write pyproject.toml file
     pyproject = f"""[build-system]
-    requires      = ['setuptools>=42', 'wheel']
+    requires      = ['setuptools>=70.1.0']
     build-backend = 'setuptools.build_meta'
+    # requires        = ['uv_build>=0.7.19']
+    # build-backend   = "uv_build"
 
     [project]
     name        = 'gmsh'
@@ -1089,6 +1099,7 @@ def package() -> None:
     packages    = ['gmsh']
     py-modules  = ['gmsh']
     package-dir = {{ 'gmsh' = 'gmsh' }}
+    # include-package-data = true
 
     [tool.setuptools.package-data]
     gmsh = [
@@ -1123,6 +1134,11 @@ def package() -> None:
 
     builder = build.ProjectBuilder(WORK_DIR)
     builder.build('wheel', os.path.join(WORK_DIR, 'dist'))
+
+    # subprocess.run(['uv', 'build', '--wheel', '--out-dir', os.path.join(WORK_DIR, 'dist')],
+    #                env   = env,       # noqa: E251
+    #                check = True,      # noqa: E251
+    #                cwd   = WORK_DIR)  # noqa: E251
 
     # Rename the generated Python wheel
     print_step('Renaming the wheel to {}'.format(PYTHON_WHEEL))

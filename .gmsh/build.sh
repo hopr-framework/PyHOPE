@@ -4,9 +4,11 @@ if [[ "$OSTYPE" == "linux"* ]]; then
   echo '                  RUNNING BUILD_MANYLINUX ON LINUX HOST...                      '
   echo '================================================================================'
   arch=$(uname -m)
+  # Latest version with setuptools available
+  tag='2025.08.15-1'
   mkdir -p build_manylinux
   cp build_manylinux.py build_manylinux/.
-  docker run -u $(id -u ${USER}):$(id -g ${USER}) -e PYTHONUNBUFFERED=1 --rm -v $(pwd)/patches:/patches -v $(pwd)/build_manylinux:/io quay.io/pypa/manylinux2014_${arch} /io/build_manylinux.py
+  docker run -u $(id -u ${USER}):$(id -g ${USER}) -e PYTHONUNBUFFERED=1 --rm -v $(pwd)/patches:/patches -v $(pwd)/build_manylinux:/io quay.io/pypa/manylinux2014_${arch}:${tag} /io/build_manylinux.py
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   echo '================================================================================'
   echo '                    RUNNING BUILD_MACOS ON MACOS HOST...                        '
