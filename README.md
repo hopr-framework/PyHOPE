@@ -44,7 +44,7 @@ pyhope --help
 ```
 
 # Documentation
-PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [HOPR documentation](https://hopr.readthedocs.io).
+PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [documentation](https://hopr-framework.github.io/PyHOPE).
 
 # Usage
 PyHOPE can either be invoked directly from the command line or used as a Python library.
@@ -173,7 +173,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ```
 
 ## Python Library Usage
-PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [source code](pyhope/__init__.py).
+PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [source code](https://github.com/hopr-framework/PyHOPE/blob/main/pyhope/__init__.py).
 ```python
 from pyhope import Basis, Mesh
 with Mesh('1-01-cartbox_mesh.h5') as m:
@@ -182,4 +182,4 @@ with Mesh('1-01-cartbox_mesh.h5') as m:
 ```
 
 # Licence
-PyHOPE is licensed under the GPL-3.0 license (see [LICENSE.md](LICENSE.md)).
+PyHOPE is licensed under the GPL-3.0 license.
