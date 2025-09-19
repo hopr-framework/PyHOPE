@@ -1,0 +1,106 @@
+/* == HOMEPAGE == */
+/* Hide the navigation container */
+body.homepage>div.container>div.row>div.col-md-3 {
+    display: none;
+}
+
+/* Full width */
+body.homepage>div.container>div.row>div.col-md-9 {
+    margin-left: 0;
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+
+/* h1 heading centered */
+/* body.homepage>div.container>div.row>div.col-md-9 h1:first-of-type { */
+/*     text-align: center; */
+/*     font-size: 60px; */
+/*     font-weight: 300; */
+/* } */
+
+/* First text centered */
+/* body.homepage>div.container>div.row>div.col-md-9>p:first-of-type { */
+/*     text-align: center; */
+/* } */
+
+/* == HEADERS == */
+/* h1 heading centered */
+div.col-md-9 h1:first-of-type {
+    text-align: center;
+    font-size: 60px;
+    font-weight: 300;
+}
+
+/* First text centered */
+div.col-md-9>p:first-of-type {
+    text-align: center;
+}
+
+div.col-md-9 > div.no-extra-css + h1:first-of-type + p:first-of-type {
+    text-align: left;
+}
+
+/* == BUTTONS == */
+.btn {
+  height: 2.3em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn img {
+  align-self: center;
+  position: relative;
+  top: 5px;
+  border:     none !important;
+  outline:    none !important;
+  box-shadow: none !important;
+  background: none !important;
+}
+
+.btn-spacing {
+  margin-right: 15px;
+}
+
+.btn-hopr {
+  background: #c8c8c8;
+  border-color: #ececec;
+}
+
+/* == FOOTNOTES == */
+/* .md-typeset .footnote { */
+/*   font-size: 12px; */
+/* } */
+
+/* == ALIGNED LIST == */
+.aligned-list {
+    display: grid;
+    grid-template-columns: min-content 1fr;
+    gap: 0 1em;
+}
+
+.aligned-list dt {
+    text-align: left;
+    font-weight: bold;
+    white-space: nowrap;
+    position: relative;
+    padding-left: 1em; /* Add space for the bullet point */
+}
+
+.aligned-list dt::before {
+    content: "•"; /* The character for a bullet point */
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.aligned-list dd {
+    margin-left: 0;
+    text-align: left;
+}
+
+/* Responsive tweak */
+@media (max-width: 480px) {
+  .aligned-steps > li {
+    column-gap: 0.5rem;
+  }
+}

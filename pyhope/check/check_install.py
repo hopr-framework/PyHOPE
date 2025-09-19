@@ -235,6 +235,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
         tmpDir = tempfile.TemporaryDirectory(delete=False)  # pyright: ignore[reportCallIssue]
         downloadGitDir('hopr-framework', 'PyHOPE', testDir, tmpDir.name, token)
         path = tmpDir.name
+        hopout.sep()
 
     # Final check, are there tutorials at the given path
     if not path:
@@ -306,18 +307,18 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 #     p.terminate()
             except subprocess.CalledProcessError as exc:
                 tsuccess[tNum] = False
-                hopout.routine(f'{hopout.Symbols.ERR } PyHOPE failed for "{tutorial}": ' +
+                hopout.info(f'{hopout.Symbols.ERR } PyHOPE failed for "{tutorial}": ' +
                                f'Return code = {getattr(exc, "returncode", "")}')
                 bar.step()
                 continue
             except subprocess.TimeoutExpired:
                 tsuccess[tNum] = False
-                hopout.routine(f'{hopout.Symbols.ERR } PyHOPE timed out for "{tutorial}"')
+                hopout.info(f'{hopout.Symbols.ERR } PyHOPE timed out for "{tutorial}"')
                 bar.step()
                 continue
             except Exception as exc:
                 tsuccess[tNum] = False
-                hopout.routine(f'{hopout.Symbols.ERR } Unexpected error running PyHOPE for "{tutorial}": {exc}')
+                hopout.info(f'{hopout.Symbols.ERR } Unexpected error running PyHOPE for "{tutorial}": {exc}')
                 bar.step()
                 continue
 
@@ -325,7 +326,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
             if not os.path.isfile(os.path.join(tutorialPath, f'{projectName}_mesh.h5')):
                 # raise ExecError(f'PyHOPE failed to generate mesh for {tutorial}')
                 tsuccess[tNum] = False
-                hopout.routine(f'{hopout.Symbols.ERR } PyHOPE did not produce {projectName}_mesh.h5 for "{tutorial}"')
+                hopout.info(f'{hopout.Symbols.ERR } PyHOPE did not produce {projectName}_mesh.h5 for "{tutorial}"')
                 bar.step()
                 continue
 
