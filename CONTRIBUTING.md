@@ -1,3 +1,4 @@
+<div class="no-extra-css"></div>
 # Contributing
 
 PyHOPE is an open-source project and we are very happy to accept contributions
