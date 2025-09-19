@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-09-19
+### Added
+- Add support for multiple mesh zones [40dc87c]
+- Add support for XDMF output [07319b6]
+- Add documentation on GitHub pages [23c90ae]
+- Add community guidelines [73ecc84]
+- Add consistency check after initial Gmsh mesh creation [e32730a]
+- Add health checks [21e771e][93a094c]
+- Add support for Gitlab code coverage [531fec3][f5fe93a]
+
+### Changed
+- Pre-install Gmsh during CI/CD [ff11bb8]
+- Updated bundled Gmsh to v4.14.1 [0b01a2e][396a71a]
+- General improvements to code performance [1361cfb]
+- Explicitly request OpenMP multithreading in Gmsh [c074aad]
+
+### Fixed
+- Fix inner boundary conditions being counted twice [01deffb]
+- Fix DEFVAR parsing for floats [69ffe11]
+- Remove dead code with vulture [c2d1ec8]
+- Remove unnecessary intermediate meshio.Mesh [744d362]
+- Several bugfixes for GitHub pages [61af0c5][d0addd1][6f2f19c]
+
 ## [0.1.0] - 2025-06-25
 
 ### Added
