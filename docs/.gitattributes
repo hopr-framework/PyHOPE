@@ -1,0 +1,2 @@
+# GitHub pages does not support Git LFS
+*         -filter=lfs -diff=lfs -merge=lfs -text
