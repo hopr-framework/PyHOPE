@@ -11,26 +11,26 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
+  group: github-pages
   cancel-in-progress: false
 
 jobs:
   # Single deploy job
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }} # Retrieved from deploy-pages action
     if: github.event.repository.fork == false
     steps:
       - uses: actions/checkout@v4
-      # Setup the credentials for the github-actions[bot]
-      - name: Configure Git Credentials
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -38,8 +38,15 @@ jobs:
       - uses: actions/cache@v4
         with:
           key: mkdocs-material-${{ env.cache_id }}
-          path: ~/.cache
+          path: .cache
           restore-keys: |
             mkdocs-material-
       - run: pip install mkdocs-material mkdocs-autorefs
-      - run: mkdocs gh-deploy --force
+      - run: pip install mkdocs-material
+      - run: mkdocs build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'site/'
+      - uses: actions/deploy-pages@v4
+        id: deployment
