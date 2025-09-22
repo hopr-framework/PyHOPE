@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -86,7 +87,7 @@ def GenerateSides() -> None:
 
         # Map volume cell sets to elements
         iocsets  = mesh.cell_sets_dict
-        elemSet  = [None for _ in range(nIOElems)]
+        elemSet: list[Union[None, int]]  = [None for _ in range(nIOElems)]
 
         for key, val in iocsets.items():
             if elemType not in val.keys():
@@ -110,8 +111,8 @@ def GenerateSides() -> None:
         # mesh_vars.sides += tuple(SIDE() for _ in range(nIOElems*nIOSides))
         # elems = mesh_vars.elems
         # sides = mesh_vars.sides
-        elems.extend([ELEM() for _ in range(nIOElems         )])
-        sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
+        elems.extend([ELEM() for _ in range(nIOElems         )])  # pyright: ignore[reportArgumentType]
+        sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])  # pyright: ignore[reportArgumentType]
 
         # Create the corner faces
         corner_faces = tuple(face_to_cgns(s, elemType) for s in faces(elemType))  # noqa: E272

@@ -182,6 +182,8 @@ class ELEM:
     elemID      : Optional[int]  = None
     sides       : Optional[Union[list, np.ndarray]] = None
     nodes       : Optional[            np.ndarray]  = None
+    # Jacobian
+    jacobian    : Optional[float] = None
     # FEM connectivity
     edgeInfo    : Optional[Dict[int,                    # locEdgeIdx
                                 Tuple[int,              # locEdge
