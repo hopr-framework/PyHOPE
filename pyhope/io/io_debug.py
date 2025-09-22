@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import Final, Union
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,25 +40,25 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def writeVTM(filename: str,
-             blocks  : Union[list, tuple]) -> None:
-    # Standard libraries -----------------------------------
-    import xml.etree.ElementTree as ET
-    # ------------------------------------------------------
-    # blocks is a list of tuples: (index, name, filepath)
-    vtkfile = ET.Element('VTKFile', attrib={'type'      : 'vtkMultiBlockDataSet',
-                                            'version'   : '1.1',
-                                            'byte_order': 'LittleEndian'})
-
-    multiblock = ET.SubElement(vtkfile, 'vtkMultiBlockDataSet')
-
-    for idx, name, filepath in blocks:
-        ET.SubElement(multiblock, 'DataSet', attrib={'index': str(idx),
-                                                     'name' : name,
-                                                     'file' : filepath})
-
-    tree = ET.ElementTree(vtkfile)
-    tree.write(filename, encoding='utf-8', xml_declaration=True)
+# def writeVTM(filename: str,
+#              blocks  : Union[list, tuple]) -> None:
+#     # Standard libraries -----------------------------------
+#     import xml.etree.ElementTree as ET
+#     # ------------------------------------------------------
+#     # blocks is a list of tuples: (index, name, filepath)
+#     vtkfile = ET.Element('VTKFile', attrib={'type'      : 'vtkMultiBlockDataSet',
+#                                             'version'   : '1.1',
+#                                             'byte_order': 'LittleEndian'})
+#
+#     multiblock = ET.SubElement(vtkfile, 'vtkMultiBlockDataSet')
+#
+#     for idx, name, filepath in blocks:
+#         ET.SubElement(multiblock, 'DataSet', attrib={'index': str(idx),
+#                                                      'name' : name,
+#                                                      'file' : filepath})
+#
+#     tree = ET.ElementTree(vtkfile)
+#     tree.write(filename, encoding='utf-8', xml_declaration=True)
 
 
 def DebugIO() -> None:
