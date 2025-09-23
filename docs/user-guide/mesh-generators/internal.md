@@ -138,5 +138,5 @@ Mesh zones can be deformed after the initial mesh generation using a set of pre-
     <dt><code>sphere</code>:</dt>
     <dd>A spherical mapping. The 3D cubic region is mapped to a spherical coordinate system inside \([-1, 1]^3\).</dd>
     <dt><code>phill</code>:</dt>
-    <dt>Periodic hill mapping. A 2D mapping to generate an extruded periodic hill geometry.</dt>
+    <dd>Periodic hill mapping. A 2D mapping to generate an extruded periodic hill geometry.</dd>
 </dl>

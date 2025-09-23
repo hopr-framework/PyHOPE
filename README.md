@@ -62,7 +62,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ┃ PyHOPE version x.x.x
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 │ INIT PROGRAM...
-│                        nThreads │ 10                              │ DEFAULT │
+│                        nThreads │ nProcs-2                        │ DEFAULT │
 ├─────────────────────────────────────────────
 │ INIT OUTPUT...
 │                     ProjectName │ 1-01-cartbox                    │ *CUSTOM │
@@ -186,6 +186,3 @@ with Mesh('1-01-cartbox_mesh.h5') as m:
     elems = m.elems
     lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
 ```
-
-# Licence
-PyHOPE is licensed under the GPL-3.0 license.

@@ -63,16 +63,16 @@ def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
         Raises ValueError if 'val' is anything else.
     """
-    if type(val) is bool:
+    if isinstance(val, bool):
         return val
-    if type(val) is int:
+    if isinstance(val, int):
         val = str(val)
-    if type(val) is str:
+    if isinstance(val, str):
         val = val.lower()
 
-    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+    if   val in ('y', 'yes', 't', 'true' , 'on' , '1'):  # noqa: E271
         return True
-    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+    elif val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
         return False
     else:
         raise ValueError('invalid truth value %r' % (val,))
@@ -316,7 +316,7 @@ def CountOption(string: str) -> int:
 def GetParam(name    : str,
              calltype: str,
              default : Optional[str] = None,
-             number  : Optional[int] = None):
+             number  : Optional[int] = None) -> str:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout
@@ -397,20 +397,23 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
 
     # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']
-    if type(value) is int:
-        hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
-    else:
-        if not value.isdigit():
-            value = [s for s, v in mapping.items() if v.lower() == value.lower()]
-            if len(value) == 0:
-                hopout.error('Unknown value for parameter {}, exiting...'.format(name), traceback=True)
-            else:
-                value = int(value[0])
-                hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
-        else:
-            hopout.printoption(name, '{} [{}]'.format(value, mapping[int(value)]), source)
+    options = {v.lower(): int(k) for k, v in mapping.items()}
 
-    return int(value)
+    result = None
+    try:
+        result = int(value)
+    except (ValueError, TypeError):
+        result = options.get(str(value).lower())
+
+    if result is None or result not in mapping.keys():  # pragma: no cover
+        outStr = ', '.join([f'{k} [{v}]' for k, v in mapping.items()])
+        print()
+        print(hopout.warn(f'Allowed values for parameter "{name}":'))
+        print(hopout.warn(f'{outStr}'))
+        hopout.error(f'Unknown value "{value}" for parameter "{name}", exiting...')
+
+    hopout.printoption(name, '{} [{}]'.format(result, mapping[result]), source)
+    return result
 
 
 def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
@@ -430,10 +433,11 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
         value = value.split(',')
     try:
         value = np.vectorize(strToFloatOrPi)(value)
-    except ValueError as e:
+    except ValueError as e:  # pragma: no cover
         print()
         print(hopout.warn(f'{e}'))
         hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
+
     CheckDimension(name, value.size)
     return value
 
@@ -486,25 +490,36 @@ class ReadConfig():
                 # Remove all whitespaces
                 line = ''.join(line.split())
 
+                # Skip empty lines early
+                if not line:
+                    continue
+
                 # HOPR supported inline comments as prefix before '%'
                 # For legacy reasons also support such comment constructs
                 if '%' in line:
                     line = line.split('%', 1)[1].strip()
+                    if not line:
+                        continue
 
                 # Split of [#, ;, !] comments
                 for symbol in self.sym_comm:
                     if symbol in line:
                         line = line.split(symbol, 1)[0].strip()
+                        break
+
+                # Skip if line becomes empty after comment removal
+                if not line:
+                    continue
 
                 # HOPR supported inline variable definitions with prefix 'DEFVAR='
                 # For legacy reasons also support such variable definition constructs
                 if line.strip().startswith('DEFVAR='):
-                    if ':' not in line:
+                    if ':' not in line:  # pragma: no cover
                         hopout.error('DEFVAR= syntax error while parsing parameter file. Missing ":"')
-                    parts = line.split(':')
 
-                    var_type_part = parts[0].replace('DEFVAR=', '').strip()
-                    var_def_part  = parts[1].strip()
+                    var_type_part, var_def_part = line.split(':', 1)
+                    var_type_part = var_type_part.replace('DEFVAR=', '').strip()
+                    var_def_part  = var_def_part.strip()
 
                     # Check if comment is in value part
                     for symbol in self.sym_comm:
@@ -513,29 +528,28 @@ class ReadConfig():
                             break  # Stop at the first symbol found
 
                     # Extract variable type and optional array size
+                    arr_size = None
                     if '~' in var_type_part:
                         # Vector
                         _, size_part = var_type_part.split('~')
                         arr_size = int(size_part.strip(')'))  # Convert size to int
-                    else:
-                        # Scalar
-                        arr_size = None
 
                     # Extract variable name and value (handling spaces around `=`)
-                    if '=' in var_def_part:
-                        var_name, var_value = [s.strip() for s in var_def_part.split('=', 1)]
-                    else:
+                    if '=' not in var_def_part:  # pragma: no cover
                         hopout.error(f'DEFVAR= syntax error while parsing "{var_def_part}"')
 
+                    var_name, var_value = var_def_part.split('=', 1)
+                    var_name  = var_name.strip()
+                    var_value = var_value.strip()
+
                     # Ensure unique variable names
-                    for existing_var in variables:
-                        if var_name in set(existing_var):
-                            hopout.error(f'Variable "{var_name}" is ambiguous')
+                    if var_name in set(variables):  # pragma: no cover
+                        hopout.error(f'Variable "{var_name}" is ambiguous')
 
                     # Convert values to proper types
                     if arr_size:  # Handle array
                         values = [float(v) if '.' in v else int(v) for v in var_value.split(',')]
-                        if len(values) != arr_size:
+                        if len(values) != arr_size:  # pragma: no cover
                             hopout.error(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
                         variables[var_name] = values
                     else:  # Single value
@@ -550,12 +564,12 @@ class ReadConfig():
                     # get replaced first.
                     # variables = sorted(variables.items(), key=lambda item: len(item[0]), reverse=True)
                     variables = dict(sorted(variables.items(), key=lambda item: len(item[0]), reverse=True))
-
                     continue  # Skip adding this line to config
 
                 # Replace variables in the parameter file
                 for var, value in variables.items():
-                    if isinstance(value, list):  # Convert arrays to string format
+                    # Convert arrays to string format
+                    if isinstance(value, list):
                         replacement = f'(/{",".join(map(str, value))}/)'
                     else:
                         replacement = str(value)
@@ -653,7 +667,7 @@ class ReadConfig():
             # Get geometric order and boundary conditions
             with h5py.File(self.input, 'r') as f:
                 # Here we use item for legacy reasons as HOPR stores scalars as arrays with one element
-                NGeo    = cast(int, f.attrs['Ngeo'].item())
+                NGeo    = cast(int, cast(np.ndarray, f.attrs['Ngeo']).item())
                 BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
 
