@@ -49,10 +49,14 @@ def update_progress(progress_queue: Queue, total_elements: int) -> None:
     """ Function to update the progress bar from the queue
     """
     with alive_bar(total_elements, title='│             Processing Elements', length=33) as bar:
-        for _ in range(total_elements):
+        processed_count = 0
+        while processed_count < total_elements:
             # Block until we receive a progress update from the queue
-            progress_queue.get()
-            bar()
+            chunk_size = progress_queue.get()
+            if chunk_size is None:  # Sentinel value to stop
+                break
+            bar(chunk_size)
+            processed_count += chunk_size
 
 
 def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10) -> list:
@@ -65,6 +69,11 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
 
     chunks = distribute_work(elems, chunk_size)
     total_elements = len(elems)
+
+    # Return early if there's no work to be done
+    if total_elements == 0:
+        return []
+
     progress_queue = Queue()
 
     # Create a progress bar target
@@ -79,11 +88,11 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
         # Map work across processes in chunks
         results = []
         try:
+            # Using imap_unordered to get results as they complete
             for chunk_result in pool.imap_unordered(process_chunk, chunks):
                 results.extend(chunk_result)
-                # Update progress for each processed element in the chunk
-                for _ in chunk_result:
-                    progress_queue.put(1)
+                # Update progress for each processed chunk
+                progress_queue.put(len(chunk_result))
         except Exception:
             # Terminate processes and print traceback (exception only contains the error message)
             pool.terminate()

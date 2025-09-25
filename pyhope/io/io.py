@@ -282,7 +282,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     usedSideIDs      = set()  # Set to track used side IDs
     availableSideIDs = []     # Min-heap for gap
 
-    for iSide, side in enumerate(sides):
+    for side in sides:
         # Already counted the side
         if side.globalSideID is not None:
             continue
@@ -330,7 +330,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
             side.globalSideID = mapping[side.globalSideID] if side.globalSideID > 0 else -mapping[-side.globalSideID]
 
     # Pre-allocate arrays
-    sideInfo  = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
+    sideInfo   = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
     # Calculate the SideInfo
     side_types = np.array([side.sideType     for side in sides], dtype=np.int32)  # noqa: E272

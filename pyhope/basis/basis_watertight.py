@@ -57,7 +57,12 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.n
 
     # Compute the cross product at each Gauss point
     VDMSize  = Vdm.shape[-1]
-    nVec     = np.cross(dXdxiGP, dXdetaGP, axis=0)  # Shape: (3, N_GP*N_GP)
+    # nVec     = np.cross(dXdxiGP, dXdetaGP, axis=0)  # Shape: (3, N_GP*N_GP)
+    # > Manually compute cross product
+    nVec = np.empty_like(dXdxiGP)
+    nVec[0] = dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]
+    nVec[1] = dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]
+    nVec[2] = dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]
     nVec     = nVec.reshape(3, VDMSize, VDMSize)    # Reshape to (3, N_GP+1, N_GP+1)
 
     # Compute the weighted normals
@@ -86,10 +91,6 @@ def check_sides(elem,
     elemType = elem.type
 
     for SideID in elem.sides:
-        # TODO: THIS IS CURRENTLY IGNORED, MEANING WE CHECK EVERY CONNECTION DOUBLE
-        # if checked[SideID]:
-        #     continue
-
         side   = sides[SideID]
 
         # Only connected sides and not small mortar sides
@@ -109,7 +110,6 @@ def check_sides(elem,
             # Calculate the L2 norm of the side and take the maximum
             sideTol = np.linalg.norm(nSurf, ord=2)
             tol     = np.max((elemTol, sideTol)) * mesh_vars.tolInternal
-            # checked[SideID] = True
 
             # Mortar sides are the following virtual sides
             nMortar = 4 if mortarType == 1 else 2
@@ -122,7 +122,6 @@ def check_sides(elem,
                 nbelem   = elems[nbside.elemID]
                 idx      = nbelem.nodes[face_to_nodes(nbside.face, nbelem.type, nGeo)]
                 nnbSurf += eval_nsurf(np.transpose(points[idx], axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
-                # checked[nbside] = True
 
             # Check if side normals are within tolerance
             nSurfErr = np.sum(np.abs(nnbSurf + nSurf))
@@ -130,6 +129,10 @@ def check_sides(elem,
 
         # Internal side
         elif side.connection >= 0:
+            # Only process the side with the smaller ID
+            if SideID > side.connection:
+                continue
+
             # Ignore the virtual mortar sides
             if side.locMortar is not None:
                 continue
@@ -142,7 +145,6 @@ def check_sides(elem,
             # Calculate the L2 norm of the side and take the maximum
             sideTol = np.linalg.norm(nSurf, ord=2)
             tol     = np.max((elemTol, sideTol)) * mesh_vars.tolInternal
-            # checked[SideID] = True
 
             # Connected side
             nbside  = sides[side.connection]
@@ -151,7 +153,6 @@ def check_sides(elem,
             # nnbSurf = eval_nsurf(np.moveaxis(points[nbnodes], 2, 0), VdmEqToGP, DGP, weights)
             idx     = nbelem.nodes[face_to_nodes(nbside.face, nbelem.type, nGeo)]
             nnbSurf = eval_nsurf(np.transpose(points[idx]), VdmEqToGP, DGP, weights)
-            # checked[nbside] = True
 
             # Check if side normals are within tolerance
             nSurfErr = np.sum(np.abs(nnbSurf + nSurf))

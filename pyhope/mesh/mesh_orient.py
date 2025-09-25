@@ -72,11 +72,16 @@ def check_orientation(ionodes : np.ndarray,
         nVecFace = cElem - cFace
         # nVecFace = nVecFace / np.linalg.norm(nVecFace)
         nVecFace = nVecFace / np.sqrt(np.dot(nVecFace, nVecFace))
+
         vec1 = fpoints[-1, 0, :] - fpoints[0, 0, :]
         vec2 = fpoints[0, -1, :] - fpoints[0, 0, :]
-        normal = np.cross(vec1, vec2)
-        # normal /= np.linalg.norm(normal)
-        normal /= np.sqrt(np.dot(normal, normal))
+
+        # normal = np.cross(vec1, vec2)
+        # > Manually compute cross product
+        normal = np.empty_like(vec1)
+        normal[0] = vec1[1] * vec2[2] - vec1[2] * vec2[1]
+        normal[1] = vec1[2] * vec2[0] - vec1[0] * vec2[2]
+        normal[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0]
 
         # Dot product and check if normal points outwards
         dotprod = np.dot(nVecFace, normal)
