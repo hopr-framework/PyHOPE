@@ -57,71 +57,73 @@ A crucial aspect of DGSEM is the mapping of the equations to be solved from refe
 At the same time, DGSEM features a highly local stencil since grid elements are connected solely via the numerical flux through adjacent element faces.
 Providing mesh and solution data in an on-disc data format which facilitates non-overlapping I/O is key to efficient parallel data access, thereby minimizing execution time.
 While HOPR has traditionally served as a reference implementation of a mesh generator for this process, PyHOPE is a modern alternative that enhances readability and extensibility.
-Designed with excellent scaling and parallel computing capabilities in mind, PyHOPE offers a more user-friendly and adaptable solution for researchers and engineers working on high-order mesh generation and transformation.
+Designed with a clear code structure and modularization in mind, PyHOPE offers a more user-friendly and adaptable solution for researchers and engineers working on high-order mesh generation and transformation.
 
 [^1]: [https://numericsresearchgroup.org/codes.html](https://numericsresearchgroup.org/codes.html)
 [^2]: [https://github.com/piclas-framework/piclas](https://github.com/piclas-framework/piclas)
 
+# State of the Field
+PyHOPE shares similarities with other high-order mesh generation tools such as HOPR which serves as the reference implementation.
+Although the HOPR format is supported by a variety of codes, there is limited code support to generate meshes in this format.
+Compared to HOPR, PyHOPE places a special focus on enhanced adaptability, including powerful element splitting functionality, improved usability, and broader support for modern mesh formats, including curved and mixed meshes to enable more complex mesh generation.
+The following spectral element solvers have (optional) support for meshes generated in PyHOPE.
+
++--------------+-------------+-------------------------+------------------------------------------+
+| Framework    | Language    | Equation System         | Reference                                |
++:=============+:============+:========================+:=========================================+
+| FLEXI        | Fortran     | NSE                     | [@Krais2021]                             |
++--------------+-------------+-------------------------+------------------------------------------+
+| ƎLEXI        | Fortran     | NSE/MRG                 | [@Kopper2023]                            |
++--------------+-------------+-------------------------+------------------------------------------+
+| GALÆXI       | Fortran/C   | NSE                     | [@Kurz2025]                              |
++--------------+-------------+-------------------------+------------------------------------------+
+| FLUXO        | Fortran     | NSE/MHD/Maxwell         | [@RuedaRamirez2017]                      |
++--------------+-------------+-------------------------+------------------------------------------+
+| HORSES3D     | Fortran     | NSE/Cahn-Hilliard       | [@Ferrer2023]                            |
++--------------+-------------+-------------------------+------------------------------------------+
+| PICLas       | Fortran     | Maxwell/Poisson         | [@Fasoulas2019]                          |
++--------------+-------------+-------------------------+------------------------------------------+
+| SELF         | Fortran     | Shallow Water/Euler     | github.com/FluidNumerics/SELF            |
++:=============+:============+:========================+:=========================================+
+|~*Equation Systems: NSE - Navier-Stokes, MRG - Maxey-Riley-Gatignol, MHD - Magnetohydrodynamics*~|
++:=============+:============+:========================+:=========================================+
+
 # Features
-PyHOPE facilitates high-order mesh generation and transformation through a streamlined and accessible interface.
+PyHOPE provides a simple and intuitive interface for generating and transforming high-order meshes.
 PyHOPE is distributed as open-source software on GitHub[^3] and as package on the Python Package Index (PyPI)[^4].
-It reads user input from a single plain-text configuration file in INI format, rendering setup and execution straightforward.
+It reads user input from a single plain-text configuration file in INI format[^5].
 The software supports the generation of block‑structured meshes using canonical volumetric element types (tetrahedral, pyramidal, prismatic, and hexahedral), allowing for mesh stretching and post‑deformation at arbitrary polynomial orders.
 PyHOPE can automatically create rectilinear boundary layer meshes based on a desired wall resolution or stretching factor.
-It enables the read-in and merging of both internally and externally created curved meshes, incorporates boundary conditions, and automatically adapts sub-meshes to the desired polynomial order.
+It can read in and merge both internally and externally created curved meshes while incorporating boundary conditions and automatically adapting sub-meshes to the desired polynomial order.
 PyHOPE also offers conversion of simplex elements into fully hexagonal cells through geometric subdivision, as well as mesh sorting along structured dimensions or space-filling Hilbert curves.
-Additionally, it calculates mesh connectivity information, supporting periodic and non-conforming interfaces with hanging nodes, while accommodating potential anisotropy.
-To ensure robustness, PyHOPE performs comprehensive sanity checks, verifying mesh watertightness, correct surface orientation, and valid Jacobian mappings.
+Additionally, it calculates mesh connectivity information, supporting both periodic and non-conforming interfaces with hanging nodes, which can accommodate potential anisotropy.
+To ensure robustness, PyHOPE performs comprehensive consistency checks, verifying mesh watertightness, correct surface orientation, and valid Jacobian mappings.
 PyHOPE detects available simultaneous multithreading (SMT) capabilities and automatically enables process-based parallelism using the Python multiprocessing module.
-Through these capabilities, PyHOPE provides a modern and efficient tool for high-order numerical simulations, with a strong emphasis on scalability and parallel processing.
 
 [^3]: [https://github.com/hopr-framework/PyHOPE](https://github.com/hopr-framework/PyHOPE)
 [^4]: [https://pypi.org/project/PyHOPE](https://pypi.org/project/PyHOPE)
+[^5]: [https://hopr-framework.github.io/PyHOPE](https://hopr-framework.github.io/PyHOPE)
 
 # Examples
-PyHOPE is used to generate unstructured high-order meshes for a variety of engineering applications, ranging from canonical cases such as channel flows or the Taylor-Green vortex to complex geometries such as airfoils and complete airplanes.
+PyHOPE is used to generate unstructured high-order HDF5 meshes for a variety of engineering applications, ranging from canonical cases such as channel flows or the Taylor-Green vortex to complex geometries such as airfoils and complete airplanes.
 High-order meshes in HOPR format also find application in electromagnetics and plasma simulation, such as optical lenses and gyrotrons.
 PyHOPE comes with several tutorials that are included in the [GitHub repository](https://github.com/hopr-framework/PyHOPE/tree/main/tutorials), together with the external mesh files where appropriate.
 These tutorials cover both the creation of block-structured grids using PyHOPE's inbuilt functionality as well as the read-in of externally created meshes.
 The available post-deformation options and topology conversion features are outlined as well.
-All tutorial cases are also used for regression checking during Continuous Integration/Continuous Deployment (CI/CD).
+All tutorial cases are also used for code coverage and regression checking during Continuous Integration/Continuous Deployment (CI/CD).
 
 One notable example from the field of aerospace engineering is the application of PyHOPE to the Common Research Model (CRM), a widely used aerodynamic benchmark.
 For this example, the CAD file is initially meshed using second-order simplex elements in the external generator ANSA v24 and exported in high-order curved CGNS 4.2.0 format based on HDF5.
 While the specific mesh used here does not include boundary layers, ANSA supports layered and mixed-element meshing, which has been successfully tested in other configurations.
 The same methodology is also applicable to quasi-2D meshes in ANSA.
-In all cases, a fully-curved volume mesh is generated using the internal second-order volume mesher.
-PyHOPE reads the CGNS file, reconstructs boundary conditions, and creates a fully-curved HOPR mesh including connectivity information for vertices, edges, and sides.
+In all cases, a fully curved volume mesh is generated using ANSA's internal second-order volume mesher.
+PyHOPE reads the exported CGNS file, reconstructs boundary conditions, and creates a fully curved HOPR mesh including connectivity information for vertices, edges, and sides.
 The final mesh contains 147763 second-order elements and can be processed by PyHOPE on any standard machine using approximately 520 MB RAM (peak RSS).
-Notably, this workflow enables full utilization of CFD meshes generated by commercial tools such as, but not limited to, ANSA or Pointwise, which are widely used in industry.
-As a result, meshing complex geometries of industrial relevance -- such as automobiles or advanced aerospace configurations -- is no longer a limitation.
+Notably, this workflow enables full utilization of CFD meshes generated by commercial tools such as ANSA and Pointwise, which are widely used in industry.
 \autoref{fig:CRM} shows the second-order unstructured surface grid and the instantaneous distribution of surface pressure on the NASA CRM, respectively.
 The latter was calculated using FLEXI, an open-source framework for the solution of the compressible Navier-Stokes equations using DGSEM.
 
 ![NASA Common Research Model (CRM). Left: Second-order unstructured surface grid. Right: Instantaneous distribution of surface pressure.\label{fig:CRM}](figures/CRM/CRM.jpg){width=100%}
-
-# Related Software
-PyHOPE shares similarities with other high-order mesh generation tools such as HOPR and can generate meshes for use in DGSEM frameworks.
-However, with enhanced adaptability, improved usability, and support for advanced meshing techniques, PyHOPE goes beyond existing tools in enabling more complex mesh generation, rendering it a powerful alternative for researchers and engineers.
-The following spectral element solvers have (optional) support for meshes generated in PyHOPE.
-
-+--------------+-------------+-------------------------+--------------------------------------------+
-| Framework    | Language    | Equation System         | Reference                                  |
-+:=============+:============+:========================+:===========================================+
-| FLEXI        | Fortran     | NSE                     | [@Krais2021]                               |
-+--------------+-------------+-------------------------+--------------------------------------------+
-| ƎLEXI        | Fortran     | NSE/MRG                 | [@Kopper2023]                              |
-+--------------+-------------+-------------------------+--------------------------------------------+
-| GALÆXI       | Fortran/C   | NSE                     | [@Kurz2025]                                |
-+--------------+-------------+-------------------------+--------------------------------------------+
-| FLUXO        | Fortran     | NSE/MHD/Maxwell         | [@RuedaRamirez2017]                        |
-+--------------+-------------+-------------------------+--------------------------------------------+
-| HORSES3D     | Fortran     | NSE/Cahn-Hilliard       | [@Ferrer2023]                              |
-+--------------+-------------+-------------------------+--------------------------------------------+
-| PICLas       | Fortran     | Maxwell/Poisson         | [@Fasoulas2019]                            |
-+==============+=============+=========================+============================================+
-| ~*Equation Systems: NSE - Navier-Stokes, MRG - Maxey-Riley-Gatignol, MHD - Magnetohydrodynamics*~ |
-+==============+=============+===========================+==========================================+
 
 # Acknowledgements
 This work was funded by the European Union.

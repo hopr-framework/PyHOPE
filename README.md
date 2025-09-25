@@ -29,7 +29,18 @@ PyHOPE is built using standard Python packages. You can install PyHOPE by follow
     pyhope --help
     ```
 
-    > 🛈 Remark: For new shell sessions, the virtual environment must be re-sourced using `source venv/bin/activate` before using `pyhope` commands.
+> [!NOTE]  
+>  By default, PyHOPE looks for the `tutorials` directory relative to the current working directory or the git root. If neither exists, PyHOPE downloads the tests from GitHub while using available authentication methods.
+
+# Getting Help
+The output of the PyHOPE help command is formatted to serve as self-hosting INI format. A list of all options and the default values can be accessed by running the following command.
+```bash
+pyhope --help
+```
+
+# Documentation
+Complete details on the mesh generators included in PyHOPE together with a description of the parameter INI format and the HOPR mesh format can be found in the [online documentation](https://hopr-framework.github.io/PyHOPE). 
+PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and the original HOPR tutorials, please visit the [HOPR documentation](https://hopr-framework.github.io/PyHOPE).
 
 # Usage
 PyHOPE is invoked from the command line. Run parameters are read from a configuration file. The following output is obtained when running the example configuration file `tutorials/1-01-cartbox/parameter.ini`.
