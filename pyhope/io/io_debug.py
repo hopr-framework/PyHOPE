@@ -26,12 +26,13 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from functools import cache
-from typing import Final
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -97,6 +98,7 @@ def DebugIO() -> None:
     elemtypes = set()
     sides     = {}
     sidetypes = set()
+    nodes     = {}
 
     # Instantiate ELEMTYPE
     elemTypeClass = ELEMTYPE()
@@ -132,11 +134,15 @@ def DebugIO() -> None:
     pMap   = np.unique(np.array(points))
     pInv   = dict(zip(pMap, range(len(pMap))))
 
+    hasFEM = True if hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None else False
+
     # Prepare element and side containers
     for t in elemtypes:
         elems.setdefault(t, [])
     for st in sidetypes:
         sides.setdefault(st, [])
+    if hasFEM:
+        nodes.setdefault('vertex', [])
 
     # Create ordered mapping from first-order elems to high-order elems
     types  = list(elemtypes)
@@ -157,6 +163,12 @@ def DebugIO() -> None:
                                  'BCState' : [list() for _ in range(len(sypes))],
                                  'BCAlpha' : [list() for _ in range(len(sypes))],
                                 }
+
+    nodedata: dict[str, list] = {}
+    if hasFEM:
+        nodes = cast(dict[str, npt.ArrayLike], {'vertex':      [np.asarray([s])  for s in range(len(pMap))]})  # noqa: E272
+        nodedata.update(                       {'FEMVertexID': [-1 for _ in range(len(pMap))],
+                                               })
 
     # Populate connectivity and data
     for melem in melems:
@@ -198,17 +210,16 @@ def DebugIO() -> None:
                 sidedata['BCState' ][sidx].append(bc.type[2]      )
                 sidedata['BCAlpha' ][sidx].append(bc.type[3]      )
 
+        if hasFEM:
+            # Create the FEM vertices
+            for locNode, node in enumerate(elemNodes):
+                # Add the nodeData
+                nodedata['FEMVertexID'][node] = melem.vertexInfo[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
+
     # Update points to unique first-order coords
     coords = mpoints[pMap]
-
-    # Create an intermediate mesh to determine the effective elem block order inside meshio.Mesh
-    debugElem  = meshio.Mesh(points    = coords,     # noqa: E251
-                             cells     = elems)      # noqa: E251
-
     # Find the mapping from the cell keys to the elemtypes
-    elemOrder = [tInv[cb.type] for cb in debugElem.cells]
-    # Clean-up for memory safety
-    del debugElem
+    elemOrder = [tInv[cb] for cb in list(elems.keys())]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     elemdata = {k: [np.asarray(v[idx]) for idx in elemOrder] for k, v in elemdata.items()}
@@ -227,12 +238,8 @@ def DebugIO() -> None:
     del debugElem
     del fname
 
-    # Create an intermediate mesh to determine the effective side block order inside meshio.Mesh
-    debugSide  = meshio.Mesh(points    = coords,     # noqa: E251
-                             cells     = sides)      # noqa: E251
-    sideOrder = [sInv[cb.type] for cb in debugSide.cells]
-    # Clean-up for memory safety
-    del debugSide
+    # Find the mapping from the side keys to the elemtypes
+    sideOrder = [sInv[cb] for cb in list(sides.keys())]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     sidedata = {k: [np.asarray(v[idx]) for idx in sideOrder] for k, v in sidedata.items()}
@@ -250,6 +257,21 @@ def DebugIO() -> None:
     # Clean-up for memory safety
     del debugSide
     del fname
+
+    # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
+    nodedata = {k: [np.asarray(v)] for k, v in nodedata.items()}
+
+    if hasFEM:
+        debugNode  = meshio.Mesh(points    = coords,     # noqa: E251
+                                 cells     = nodes,      # noqa: E251
+                                 cell_data = nodedata,   # noqa: E251
+                                )
+        fname = f'{pname}_DebugNode.vtu'
+        hopout.routine(f'Writing vertex  debug mesh to "{fname}"')
+        debugNode.write(fname)
+        # Clean-up for memory safety
+        del debugNode
+        del fname
 
     # (Optional:) Write wrapper for multiblock file
     # blocks = [(0, 'VolumeMesh' , f'{pname}_DebugElem.vtu'),
