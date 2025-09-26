@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from functools import cache
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -59,6 +60,14 @@ import numpy as np
 #
 #     tree = ET.ElementTree(vtkfile)
 #     tree.write(filename, encoding='utf-8', xml_declaration=True)
+@cache
+def isValidInt(s) -> bool:
+    try:
+        int(s)
+    except ValueError:
+        return False
+    else:
+        return True
 
 
 def DebugIO() -> None:
@@ -155,6 +164,7 @@ def DebugIO() -> None:
         elemNum  = melem.type % 100
         elemType = elemTypeClass.inam[elemNum + 100]
         elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
+        elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
         tidx     = tInv[elemType]
 
         elemNodes = np.fromiter((pInv[s] for s in melem.nodes[:elemNum]), dtype=np.int64, count=elemNum)
@@ -163,7 +173,7 @@ def DebugIO() -> None:
         # Add the elemData
         elemdata['ElemID'  ][tidx].append(melem.elemID + 1)
         elemdata['ElemType'][tidx].append(melem.type)
-        elemdata['ElemZone'][tidx].append(melem.zone if melem.zone is not None else 1)
+        elemdata['ElemZone'][tidx].append(elemZone)
         if 'ElemJacobian' in elemdata:
             elemdata['ElemJacobian'][tidx].append(melem.jacobian)
 
