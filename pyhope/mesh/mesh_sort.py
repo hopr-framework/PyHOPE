@@ -305,6 +305,147 @@ def SortMeshByIJK() -> None:
     # Close the progress bar
     bar.close()
 
+def SortMeshBySnake():
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    from pyhope.common.common_progress import ProgressBar
+    # ------------------------------------------------------
+
+    mesh  = mesh_vars.mesh
+    elems = mesh_vars.elems
+    sides = mesh_vars.sides
+
+    totalElems = len(elems)
+    bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
+
+    # Global bounding box
+    points = mesh.points
+    xmin = np.min(points, axis=0)
+    xmax = np.max(points, axis=0)
+
+    # Calculate the element barycenters
+    elem_bary = calc_elem_bary(elems)
+
+    # Discretize coordinates into integer space (like IJK routine)
+    box       = tBox(np.floor(xmin), np.ceil(xmax))
+    intCoords = np.rint((elem_bary - box.mini) * box.spacing).astype(int)
+
+    # Determine maximum dimension for safe flattening
+    max_dim = intCoords.max() + 1
+
+    # Snake-like flattening key
+    # i alternates for each row of j
+    snake_key = (intCoords[:, 2] * max_dim**2 +
+                 intCoords[:, 1] * max_dim +
+                 np.where(intCoords[:, 1] % 2 == 0, intCoords[:, 0], max_dim - 1 - intCoords[:, 0]))
+
+    # Sorting elements according to snake-like key
+    sorted_indices = np.argsort(snake_key)
+
+    # Initialize sorted cells
+    sorted_elems = tuple(elems[i] for i in sorted_indices)
+    sorted_sides = []
+
+    bar.title('│             Processing Elements')
+
+    # Overwrite the elem/side IDs
+    offsetSide = 0
+    for elemID, elem in enumerate(sorted_elems):
+        elem.elemID = elemID
+
+        for key, val in enumerate(elem.sides):
+            side        = sides[val]
+            side.sideID = offsetSide + key
+            side.elemID = elemID
+
+            sorted_sides.append(side)
+
+        # Correct the sideID in elem
+        nSides      = len(elem.sides)
+        elem.sides  = list(range(offsetSide, offsetSide + nSides))
+        offsetSide += nSides
+        bar.step()
+
+    mesh_vars.elems = sorted_elems
+    mesh_vars.sides = sorted_sides
+
+    for elem in mesh_vars.elems:
+        print(elem.elemID)
+
+    bar.close()
+
+def SortMeshByLexOrder():
+    # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    from pyhope.common.common_progress import ProgressBar
+    # ------------------------------------------------------
+    mesh  = mesh_vars.mesh
+    elems = mesh_vars.elems
+    sides = mesh_vars.sides
+
+    totalElems = len(elems)
+    bar = ProgressBar(value=totalElems, title='│          Preparing Elements', length=33)
+
+    # Global bounding box
+    points = mesh.points
+    xmin = np.min(points, axis=0)
+    xmax = np.max(points, axis=0)
+
+    # Calculate the element barycenters
+    elem_bary = calc_elem_bary(elems)
+
+    # Discretize coordinates into integer space (like IJK routine)
+    box       = tBox(np.floor(xmin), np.ceil(xmax))
+    intCoords = np.rint((elem_bary - box.mini) * box.spacing).astype(int)
+
+    # Determine maximum dimension for flattening
+    max_dim = intCoords.max() + 1
+
+    # --- Lexicographic flattening key ---
+    # Sort by (z,y,x) like nested DO-loops
+    lex_key = (intCoords[:, 2] * max_dim**2 +
+               intCoords[:, 1] * max_dim +
+               intCoords[:, 0])
+
+    # Sorting elements according to lexicographic key
+    sorted_indices = np.argsort(lex_key)
+
+    # Initialize sorted cells
+    sorted_elems = tuple(elems[i] for i in sorted_indices)
+    sorted_sides = []
+
+    bar.title('│          Processing Elements')
+
+    # Overwrite the elem/side IDs
+    offsetSide = 0
+    for elemID, elem in enumerate(sorted_elems):
+        elem.elemID = elemID
+
+        for key, val in enumerate(elem.sides):
+            side        = sides[val]
+            side.sideID = offsetSide + key
+            side.elemID = elemID
+
+            sorted_sides.append(side)
+
+        # Correct the sideID in elem
+        nSides      = len(elem.sides)
+        elem.sides  = list(range(offsetSide, offsetSide + nSides))
+        offsetSide += nSides
+        bar.step()
+
+    # Update mesh_vars
+    mesh_vars.elems = sorted_elems
+    mesh_vars.sides = sorted_sides
+
+    for elem in mesh_vars.elems:
+        print(elem.elemID)
+
+    bar.close()
 
 def SortMesh() -> None:
     # Local imports ----------------------------------------
