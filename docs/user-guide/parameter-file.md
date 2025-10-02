@@ -17,7 +17,7 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     !------------------------------------------------------------------------------
     ! Common
     !------------------------------------------------------------------------------
-    nThreads                         =                   10 ! Number of threads for multiprocessing
+    nThreads                         =                      ! Number of threads for multiprocessing
     !------------------------------------------------------------------------------
     ! Output
     !------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ Common parameters for all mesh generation modes.
 
 | <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `nThreads`                               | int                                | `10`                                  | 0, ≥1                                  | Maximum number of worker threads for multiprocessing. Use the number of physical cores you want active during mesh generation/processing. Set to `0` to disable multiprocessing globally. |
+| `nThreads`                               | int                                | `nProcs-2`                            | 0, ≥1                                  | Maximum number of worker threads for multiprocessing. Use the number of physical cores you want active during mesh generation/processing. Set to `0` to disable multiprocessing globally. |
 
 ## Output
 
@@ -94,7 +94,7 @@ Output parameter controlling the output file name and format.
 | <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
 | `ProjectName`                            | string                             | —                                     | string                                 | Base name for output files. If omitted, a tool- or input-derived name may be used. |
-| `OutputFormat`                           | int &#124; string                  | `HDF5`                                | `HDF5`, `VTK`, `GMSH` (experimental)   | Mesh output format for the generated mesh. `HDF5` is the native PyHOPE format. `VTK` and `GMSH` are provided as command formats for interoperability with other tools. |
+| `OutputFormat`                           | int &#124; string                  | `HDF5`                                | `HDF5`, `VTK`, `GMSH` (experimental)   | Mesh output format for the generated mesh. `HDF5` is the native PyHOPE format. `VTK` and `GMSH` are provided as output formats for interoperability with other tools. |
 | `OutputMetadata`                         | bool                               | `T`                                   | `T` &#124; `F`                         | Write mesh metadata in XDMF format when supported by the selected `OutputFormat`.  |
 | `DebugMesh`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Emit an auxiliary VTK mesh for low-order visualization and troubleshooting.        |
 | `DebugVisu`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Launch the Gmsh GUI after mesh generation for interactive validation and spot checks. |
