@@ -160,6 +160,8 @@ def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
     # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
     x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
     x3D_Out  = np.moveaxis(x3D_Out , 0, 3)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
+    # PERF: This is actually slower than the individual contractions
+    # x3D_Out  = np.einsum('pi,qj,rk,dijk->dpqr', Vdm, Vdm, Vdm, x3D_In, optimize=True)
 
     return x3D_Out
 
@@ -177,6 +179,8 @@ def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
     # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x2D_Buf1)
     x2D_Out = np.tensordot(Vdm, x2D_Buf1, axes=(1, 2))
     x2D_Out = np.moveaxis(x2D_Out, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
+    # PERF: This is actually slower than the individual contractions
+    # x2D_Out = np.einsum('pi,qj,dij->dpq', Vdm, Vdm, x2D_In, optimize=True)
 
     return x2D_Out
 
@@ -185,14 +189,20 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     # Perform tensor contraction for the first derivative (Xi direction)
     dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
     dXdXiGL   = np.moveaxis(dXdXiGL  , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    # PERF: This is actually slower than the individual contractions
+    # dXdXiGL   = np.einsum('pi,dijk->dpjk', D_EqToGL, xGeo_In, optimize=True)
 
     # Perform tensor contraction for the second derivative (Eta direction)
     dXdEtaGL  = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 2))
     dXdEtaGL  = np.moveaxis(dXdEtaGL , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    # PERF: This is actually slower than the individual contractions
+    # dXdEtaGL  = np.einsum('qj,dijk->dqik', D_EqToGL, xGeo_In, optimize=True)
 
     # Perform tensor contraction for the third derivative (Zeta direction)
     dXdZetaGL = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 3))
     dXdZetaGL = np.moveaxis(dXdZetaGL, 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    # PERF: This is actually slower than the individual contractions
+    # dXdZetaGL = np.einsum('rk,dijk->drij', D_EqToGL, xGeo_In, optimize=True)
 
     # Change basis for each direction
     dXdXiAP   = change_basis_3D(VdmGLtoAP, dXdXiGL  )
@@ -200,10 +210,17 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     dXdZetaAP = change_basis_3D(VdmGLtoAP, dXdZetaGL)
 
     # Precompute cross products between dXdEtaAP and dXdZetaAP for all points
-    cross_eta_zeta = np.cross(dXdEtaAP, dXdZetaAP, axis=0)  # Shape: (3, nGeoRef, nGeoRef, nGeoRef)
+    # cross_eta_zeta = np.cross(dXdEtaAP, dXdZetaAP, axis=0)  # Shape: (3, nGeoRef, nGeoRef, nGeoRef)
+    # > Manually compute cross product
+    cross_eta_zeta = np.empty_like(dXdEtaAP)
+    cross_eta_zeta[0] = dXdEtaAP[1] * dXdZetaAP[2] - dXdEtaAP[2] * dXdZetaAP[1]
+    cross_eta_zeta[1] = dXdEtaAP[2] * dXdZetaAP[0] - dXdEtaAP[0] * dXdZetaAP[2]
+    cross_eta_zeta[2] = dXdEtaAP[0] * dXdZetaAP[1] - dXdEtaAP[1] * dXdZetaAP[0]
 
     # Fill output Jacobian array
     jacOut = np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
+    # PERF: This is actually slower than the individual contractions
+    # jacOut = np.sum(dXdXiAP * cross_eta_zeta, axis=0)
 
     return jacOut
 

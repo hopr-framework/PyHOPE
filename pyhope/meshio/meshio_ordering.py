@@ -27,6 +27,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
+from functools import cache
 from typing import Dict, List, Union, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -39,6 +40,48 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+@cache
+def HEXREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
+    """ Converts node ordering from gmsh to meshio format
+    """
+    EDGEMAP   = (  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7)
+    FACEMAP   = (  2,  3,  1,  4,  0,  5)
+
+    order    += 1
+    nNodes    = 8 + 12*(order - 2) if incomplete else order**3
+    map: List = [None for _ in range(nNodes)]
+
+    count = 0
+    # Recursively build the mapping
+    for iOrder in range(np.floor(order/2).astype(int)):
+        # Vertices
+        map[count:count+8] = list(range(count, count+8))
+        count += 8
+
+        pNodes = (order-2*(iOrder+1))
+
+        # Edges
+        for iEdge in range(12):
+            iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
+            map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes   )]
+        count += pNodes*12
+
+        # Only vertices and edges of the outermost shell required for incomplete elements
+        if incomplete:
+            return tuple(map)
+
+        # Faces
+        for iFace in range(6):
+            iSlice = slice(count + pNodes**2*iFace                , count + pNodes**2*(iFace+1))
+            map[iSlice] = [count + pNodes**2*(FACEMAP[iFace])+iNode for iNode in range(pNodes**2)]
+        count += pNodes**2*6
+
+    if order % 2 != 0:
+        map[count] = count
+
+    return tuple(map)
 
 
 @dataclass
@@ -158,51 +201,11 @@ class NodeOrdering:
             nGeo = round((nNodes-8)/12 + 1)
             incomplete = True
 
-        ordering = self.HEXREORDER(nGeo, incomplete=incomplete)
+        ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
     def deviation(self, x: float) -> float:
         return abs(x - round(x))
-
-    def HEXREORDER(self, order: int, incomplete: Optional[bool] = False) -> tuple[int]:
-        """ Converts node ordering from gmsh to meshio format
-        """
-        EDGEMAP   = (  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7)
-        FACEMAP   = (  2,  3,  1,  4,  0,  5)
-
-        order    += 1
-        nNodes    = 8 + 12*(order - 2) if incomplete else order**3
-        map: List = [None for _ in range(nNodes)]
-
-        count = 0
-        # Recursively build the mapping
-        for iOrder in range(np.floor(order/2).astype(int)):
-            # Vertices
-            map[count:count+8] = list(range(count, count+8))
-            count += 8
-
-            pNodes = (order-2*(iOrder+1))
-
-            # Edges
-            for iEdge in range(12):
-                iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
-                map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes   )]
-            count += pNodes*12
-
-            # Only vertices and edges of the outermost shell required for incomplete elements
-            if incomplete:
-                return tuple(map)
-
-            # Faces
-            for iFace in range(6):
-                iSlice = slice(count + pNodes**2*iFace                , count + pNodes**2*(iFace+1))
-                map[iSlice] = [count + pNodes**2*(FACEMAP[iFace])+iNode for iNode in range(pNodes**2)]
-            count += pNodes**2*6
-
-        if order % 2 != 0:
-            map[count] = count
-
-        return tuple(map)
 
     # INFO: Alternative implementation
     # def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:

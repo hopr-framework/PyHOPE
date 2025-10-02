@@ -172,6 +172,14 @@ def EliminateDuplicates() -> None:
 
     # Eliminate duplicate points
     points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
+    # PERF: This should be faster but produces slightly wrong results
+    # # > Create a 1D view of the 2D points array where each row is a single item
+    # voidView = np.ascontiguousarray(points).view(np.dtype((np.void, points.dtype.itemsize * points.shape[1])))
+    # # > Use np.unique on the 1D view
+    # _, uniqueIndices, inverseIndices = np.unique(voidView, return_index=True, return_inverse=True)
+    # # > Reconstruct the unique points array from the original points using the unique_indices
+    # points, inverseIndices = points[uniqueIndices], inverseIndices.reshape(-1)
+    # del voidView, uniqueIndices
 
     # Update the mesh
     for cell in cells:
@@ -190,7 +198,6 @@ def EliminateDuplicates() -> None:
         groups[cell.data.shape[1]].append(cell.data)
 
     bbs = float('inf')
-
     for blocks in groups.values():
         # Concatenate all elements with the same vertex count
         cell_data = np.concatenate(blocks, axis=0)
@@ -202,7 +209,7 @@ def EliminateDuplicates() -> None:
         bbs = min(bbs, ptp.min())
 
     # Set the tolerance to 10% of the bounding box of the smallest element
-    tol = np.max([mesh_vars.tolExternal, bbs / ((mesh_vars.nGeo+1)*10.) ])
+    tol = np.max([mesh_vars.tolExternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
 
     # Find all points within the tolerance
     reps = _findPointsTol(points, tol)

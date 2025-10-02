@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import copy
 import gc
 import os
 import re
@@ -235,9 +234,9 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     cells_lst = tuple(mesh.cells_dict)
 
     # Now, for quadrilateral elements
-    nConnLen  = 0
-    nConnNum  = 0
-    stree     = KDTree([[0.0]])
+    nConnLen = 0
+    nConnNum = 0
+    stree    = None
 
     if any('quad' in key for key in mesh.cells_dict):
         nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
@@ -248,12 +247,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         # Collapse all opposing corner nodes into an [:, 12] array
         # nbCorners  = [s['Corners'] for s in nConnSide]
         nbCorners = [s[0:4] for s in nConnSide]
-        nbPoints  = np.sort(mesh.points[nbCorners], axis=1).copy()
-        nbPoints  = nbPoints.reshape(nbPoints.shape[0], nbPoints.shape[1]*nbPoints.shape[2])
+        # Calculate the centroid for each face (3D point)
+        nbCenters = np.mean(mesh.points[nbCorners], axis=1)
         del nbCorners
 
-        # Build a k-dimensional tree of all points on the opposing side
-        stree = KDTree(nbPoints)
+        # Build a k-dimensional tree of all face centroids on the opposing side
+        stree = KDTree(nbCenters)
 
     # Now, the same thing for triangular elements
     tConnLen  = 0
@@ -268,11 +267,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
         # Collapse all opposing corner nodes into an [:, 9] array
         tbCorners = [s[0:3] for s in tConnSide]
-        tbPoints  = np.sort(mesh.points[tbCorners], axis=1).copy()
-        tbPoints  = tbPoints.reshape(tbPoints.shape[0], tbPoints.shape[1]*tbPoints.shape[2])
+        # Calculate the centroid for each face (3D point)
+        tbCenters = np.mean(mesh.points[tbCorners], axis=1)
         del tbCorners
 
-        ttree = KDTree(tbPoints)
+        # Build a k-dimensional tree of all face centroids
+        ttree = KDTree(tbCenters)
 
     tol: Final[float] = mesh_vars.tolExternal
 
@@ -325,12 +325,12 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 zonedata = cast(h5py.Dataset, zone[' data'])
                 match len(zonedata[0]):
                     case 1:  # Unstructured mesh, 1D arrays
-                        mesh = BCCGNS_Unstructured(mesh, points, cells, cast(KDTree, stree), zone, tol, nConnNum, nConnLen,  # noqa: E501
+                        mesh = BCCGNS_Unstructured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen,  # noqa: E501
                                                    # Support for triangular elements
-                                                   cast(KDTree, ttree), tConnNum, tConnLen)
+                                                   ttree, tConnNum, tConnLen)
                     case 3:  # Structured 3D mesh, 3D arrays
                         # Structured grid can only contain tensor-product elements
-                        mesh = BCCGNS_Structured(mesh, points, cells, cast(KDTree, stree), zone, tol, nConnNum, nConnLen)
+                        mesh = BCCGNS_Structured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen)
                     case _:  # Unsupported number of dimensions
                         # raise ValueError('Unsupported number of dimensions')
                         hopout.error('Unsupported number of dimensions')
@@ -344,41 +344,6 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     hopout.sep()
 
     return mesh
-
-
-def BCCGNS_SetBC(BCpoints: np.ndarray,
-                 cellsets,
-                 nConnLen: int,
-                 nConnNum: int,
-                 stree:    KDTree,
-                 tol:      float,
-                 BCName:   str) -> dict:
-    # Local imports ----------------------------------------
-    import pyhope.output.output as hopout
-    # ------------------------------------------------------
-    # Query the tree for the opposing side
-    trSide = copy.copy(stree.query(BCpoints))
-
-    # trSide contains the Euclidean distance and the index of the
-    # opposing side in the nbFaceSet
-    if trSide[0] > tol:
-        hopout.error('Could not find a boundary side within tolerance {}, exiting...'.format(tol), traceback=True)
-
-    sideID   = int(trSide[1])
-    # All BC are lower-case
-    BCName = BCName.lower()
-
-    # For the first side on the BC, the dict does not exist
-    if BCName in cellsets:
-        prevSides = cellsets[BCName]
-        prevSides[nConnNum].append(sideID)
-    else:
-        prevSides = [[] for _ in range(nConnLen)]
-        prevSides[nConnNum] = [sideID]
-    # Update the cellsets
-    cellsets.update({BCName: prevSides})
-
-    return cellsets
 
 
 def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
@@ -410,9 +375,9 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
         cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
 
     for zoneBC in zoneBCs:
-        # bcName = zoneBC[3:]
-        # bcID   = find_index([s['Name'] for s in bcs], bcName)
-        zoneBC = cast(str, zoneBC)
+        # Lists to collect centroids
+        quadCenters = []
+        triaCenters = []
 
         # Data given with separate zoneBCs
         if zoneBC in zone:
@@ -426,12 +391,13 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                 elemType = ElemTypes(cgnsBC[count])
 
                 # Map the unique quad sides to our non-unique elem sides
-                corners  = cgnsBC[count+1:count+int(elemType['Nodes'])+1]
-                BCpoints = np.sort(bpoints[corners - 1], axis=0).flatten()
-                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
+                nNodes   = int(elemType['Nodes'])
+                corners  = cgnsBC[count+1:count+nNodes+1]
+                # Calculate centroid from corner points and add to list
+                quadCenters.append(np.mean(bpoints[corners - 1], axis=0))
 
                 # Move to the next element
-                count += int(elemType['Nodes']) + 1
+                count += nNodes + 1
 
         # Data attached to the zoneBC node
         elif f'{zoneBC}/PointList' in zone['ZoneBC']:
@@ -443,7 +409,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                 hopout.error('Format of BC implementation for FaceCenters not recognized, exiting...')
 
             cgnsShells  =     zone[surface_key]['ElementConnectivity'][' data']
-            nShells     = int(zone[surface_key]['ElementRange'       ][' data'][0])
+            nShells     = int(zone[surface_key]['ElementRange'][' data'][0])
 
             # Get the location of the BC faces
             cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
@@ -452,7 +418,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
             # Read the surface elements, one at a time
             count   = 0
 
-            # Loop over all elements and get the type
+            # Loop over all elements and collect centroids
             while count < cgnsShells.shape[0]:
                 elemType = ElemTypes(cgnsShells[count])
                 nNodes   = int(elemType['Nodes'])
@@ -461,56 +427,54 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                 if cgnsGridLoc == 'Vertex':
                     # Check if corners can form a subset of cgnsBC
-                    corners     = sorted(int(s) for s in corners)
-                    corners_set = set(corners)
+                    corners_set = set(int(s) for s in corners)
                     if corners_set.issubset(cgns_set):
-                        BCpoints = [bpoints[s-1] for s in corners]
-                        BCpoints = np.sort(BCpoints, axis=0)
-                        BCpoints = BCpoints.flatten()
-
-                        # Use regex to check if the string ends with _<number> and split accordingly
-                        match = re.match(r"(.*)_\d+$", zoneBC)
-                        if match:
-                            zoneBC = match.group(1)
-
-                        cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
-                        del BCpoints
-
-                    count   += int(elemType['Nodes']) + 1
+                        BCpoints = bpoints[[s-1 for s in corners]]
+                        quadCenters.append(np.mean(BCpoints, axis=0))
+                    count += nNodes + 1
 
                 elif cgnsGridLoc == 'FaceCenter':
                     if nShells in cgnsBC:
-                        BCpoints = [bpoints[s-1] for s in corners]
+                        BCpoints = bpoints[[s-1 for s in corners]]
 
-                        # For high-order elements, we only consider the 3/4 corner nodes
+                        # For high-order elements, we only consider the 3/4 corner nodes for the centroid
                         match len(BCpoints):
-                            case 6:   # triangle6
-                                BCpoints = BCpoints[:3]
-                            case 8:   # quad8
-                                BCpoints = BCpoints[:4]
-                            case 9:   # quad9:
-                                BCpoints = BCpoints[:4]
-
-                        BCpoints = np.sort(BCpoints, axis=0)
-                        BCpoints = BCpoints.flatten()
-
-                        # Use regex to check if the string ends with _<number> and split accordingly
-                        match = re.match(r"(.*)_\d+$", zoneBC)
-                        if match:
-                            zoneBC = match.group(1)
-
-                        match len(BCpoints):
-                            case 9:   # triangle
-                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, tConnLen, tConnNum, ttree, tol, zoneBC)
-                            case 12:  # quad
-                                cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, zoneBC)
+                            case 3 | 6:       # triangle, triangle6
+                                triaCenters.append(np.mean(BCpoints[:3], axis=0))
+                            case 4 | 8 | 9:   # quad, quad8, quad9
+                                quadCenters.append(np.mean(BCpoints[:4], axis=0))
                             case _:
                                 hopout.error('Unsupported number of corners for shell elements, exiting...')
 
-                        del BCpoints
-
                     nShells += 1
-                    count   += int(elemType['Nodes']) + 1
+                    count   += nNodes + 1
+
+        # Use regex to check if the string ends with _<number> and split accordingly
+        match  = re.match(r'(.*)_\d+$', zoneBC)
+        bcName = match.group(1) if match else zoneBC
+        bcName = bcName.lower()
+
+        # Process quads
+        if quadCenters and stree is not None:
+            distances, indices = cast(tuple[np.ndarray, np.ndarray], stree.query(np.array(quadCenters)))
+            if np.any(distances > tol):
+                hopout.error(f'Could not find all boundary sides within tolerance {tol} for BC "{bcName}", exiting...',
+                             traceback=True)
+
+            if bcName not in cellsets:
+                cellsets[bcName] = [[] for _ in range(nConnLen)]
+            cast(list, cellsets[bcName][nConnNum]).extend(indices.tolist())
+
+        # Process triangles
+        if triaCenters and ttree is not None:
+            distances, indices = cast(tuple[np.ndarray, np.ndarray], ttree.query(np.array(triaCenters)))
+            if np.any(distances > tol):
+                hopout.error(f'Could not find all boundary sides within tolerance {tol} for BC "{bcName}", exiting...',
+                             traceback=True)
+
+            if bcName not in cellsets:
+                cellsets[bcName] = [[] for _ in range(tConnLen)]
+            cast(list, cellsets[bcName][tConnNum]).extend(indices.tolist())
 
     # Convert the cellsets back to a dictionary
     csets = {}
@@ -600,13 +564,25 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
         except KeyError:
             hopout.error(f'ZoneBC "{zoneBC}" does not have a PointRange. PointLists are currently not supported.')
 
-        # Loop over all elements
-        for quad in quads:
-            # elemType = ElemTypes(cgnsBC[count])
+        if quads.size == 0:
+            continue
 
-            # Map the unique quad sides to our non-unique elem sides
-            BCpoints = np.sort(quad, axis=0).flatten()
-            cellsets = BCCGNS_SetBC(BCpoints, cellsets, nConnLen, nConnNum, stree, tol, cgnsName)
+        # Calculate centroids for all quads
+        centers = np.mean(quads, axis=1)
+
+        # Query the tree
+        distances, indices = cast(tuple[np.ndarray, np.ndarray], stree.query(centers))
+        if np.any(distances > tol):
+            hopout.error(f'Could not find all boundary sides within tolerance {tol} for BC "{cgnsName}", exiting...',
+                         traceback=True)
+
+        # Update cellsets
+        bcName = cgnsName.lower()
+        if bcName not in cellsets:
+            cellsets[bcName] = [[] for _ in range(nConnLen)]
+
+        # Append all found side indices to the correct list
+        cast(list, cellsets[bcName][nConnNum]).extend(indices.tolist())
 
     # Convert the cellsets back to a dictionary
     csets = {}

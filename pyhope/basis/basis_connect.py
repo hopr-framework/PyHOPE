@@ -43,7 +43,7 @@ from pyhope.mesh.mesh_common import face_to_nodes
 
 
 def check_sides(elem,
-                ) -> list[bool | int | np.ndarray]:
+               ) -> list[bool | int | np.ndarray]:
     results = []
     elems:  Final[list]  = mesh_vars.elems
     sides:  Final[list]  = mesh_vars.sides
