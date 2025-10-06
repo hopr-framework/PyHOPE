@@ -268,6 +268,17 @@ def ConnectMesh() -> None:
     csets:  Final[dict]       = mesh.cell_sets
     cdict:  Final[dict]       = mesh.cells_dict
 
+    # Set BC and periodic sides
+    bcs:    Final[list]       = mesh_vars.bcs
+    vvs:    Final[list]       = mesh_vars.vvs
+
+    # Consistency check for 2D boundary conditions
+    prefixes: Final[list[str]] = ['quad', 'triangle']
+    if not any(k.startswith(p) for p in prefixes for k in cdict.keys()):  # pragma: no cover
+        if bcs is not None and len(bcs) > 0:
+            print(hopout.warn(f'Detected boundary conditions {[bc.name for bc in bcs]}'))
+        hopout.error('Could not find any 2D boundary conditions, exiting...')
+
     bar = ProgressBar(value=len(sides), title='│                 Preparing Sides')
 
     # Map sides to BC
@@ -291,10 +302,6 @@ def ConnectMesh() -> None:
     corner_side = defaultdict(list)
     for side, corners in side_corners.items():
         corner_side[corners].append(side)
-
-    # Set BC and periodic sides
-    bcs = mesh_vars.bcs
-    vvs = mesh_vars.vvs
 
     # Find the mapping to the (N-1)-dim elements
     csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
@@ -322,7 +329,7 @@ def ConnectMesh() -> None:
             # Cache cell types for this mapping to avoid repeated list creation
             cell_types = tuple(cdict)[iMap]
             # Only 2D faces
-            if not any(s in cell_types for s in ['quad', 'triangle']):
+            if not any(s in cell_types for s in prefixes):
                 continue
 
             iBCsides = np.array(cset[iMap]).astype(int)

@@ -129,7 +129,7 @@ def MeshCartesian() -> meshio.Mesh:
         for index, corner in enumerate(corners):
             p[index] = gmsh.model.geo.addPoint(*cast(tuple[float, float, float], corner), tag=offsetp+index+1)
 
-        # Define edge connectivity based on your corner indexing
+        # Define edge connectivity based on the Gmsh corner indexing
         edge_pairs = [
             (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face edges
             (4, 5), (5, 6), (6, 7), (7, 4),  # Top face edges
@@ -179,28 +179,45 @@ def MeshCartesian() -> meshio.Mesh:
         if 2 in stretchType or 3 in stretchType:
             DXmaxToDXmin = GetRealArray('DXmaxToDXmin', number=zone)
 
+        maxStretch = np.array([1., 1., 1.], dtype=np.float128)
+        for currDir in range(3):
+            match stretchType[currDir]:
+                case 1:
+                    maxStretch[currDir] = abs(stretchFac[currDir]) ** nElems[currDir]
+                case 2:
+                    maxStretch[currDir] = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
+                case 3:
+                    maxStretch[currDir] =  1./DXmaxToDXmin[currDir]
+
+        # Stretching factor greater 2^26 ~ 10^8
+        if np.max(maxStretch) > 2 << 26:  # pragma: no cover
+            print(hopout.warn(f'Maximum stretching factor is {np.max(maxStretch)}!'))
+
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
 
             # We set the number of nodes, so Elems+1
-            currDir = edge_to_dir(index, elemType)
-            stretch_type = stretchType[currDir]
+            currDir  = edge_to_dir(index, elemType)
 
             # Set default values for equidistant elements
             progType = 'Progression'
-            progFac = 1.
+            progFac  = 1.
 
             # Overwrite default values to consider streching in current zone
-            if stretch_type == 3:
-                progType = 'Bump'
-            if stretch_type == 1:
-                progFac = stretchFac[currDir]
-            elif stretch_type == 2:
-                progFac = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
-            elif stretch_type == 3:
-                progFac = 1./DXmaxToDXmin[currDir]
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir]+1, progType, (np.sign(edge_vectors[index][currDir]) or 1.) * progFac)
+            match stretchType[currDir]:
+                case 1:
+                    progFac  = stretchFac[currDir]
+                case 2:
+                    progFac  = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
+                case 3:
+                    progType = 'Bump'
+                    progFac  =  1./DXmaxToDXmin[currDir]
+
+            gmsh.model.geo.mesh.setTransfiniteCurve(line,
+                                                    nElems[currDir]+1,
+                                                    progType,
+                                                    (np.sign(edge_vectors[index][currDir]) or 1.) * progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]
