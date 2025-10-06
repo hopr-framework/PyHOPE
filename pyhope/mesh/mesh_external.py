@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
 # import sys
-from typing import Optional, cast
+from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,6 +46,7 @@ def MeshExternal() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common_tools import sizeof_fmt
     from pyhope.config.config import prmfile
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH, BCCGNS
@@ -101,6 +102,14 @@ def MeshExternal() -> meshio.Mesh:
         if any(compatibleGMSH(fname) for fname in fnames):
             hopout.warning('Mixed file formats detected, this is untested and may not work')
             # sys.exit(1)
+
+    # Check the file sizes
+    fsizes = [os.stat(f).st_size for f in fnames]
+    minsize: Final[int] = 128
+    if any(s < minsize for s in fsizes):
+        # Loop over the meshes and emit the warnings
+        for f, s in zip(fnames, fsizes):
+            print(hopout.warn(f'Mesh file "{os.path.basename(f)}" appears too small [{sizeof_fmt(s)}]. Continuing anyways...'))
 
     # Gmsh has to come first as we cannot extend the mesh
     fgmsh = [s for s in fnames if compatibleGMSH(s)]

@@ -114,13 +114,13 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         gmsh.option.setNumber('Geometry.MatchMeshTolerance', 1e-09)  # default: 1e-8
 
     for fname in fnames:
-        # get file extension
+        # Get file extension
         _, ext = os.path.splitext(fname)
 
         gmsh.option.setNumber('Mesh.RecombineAll', 1)
         # gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 0)
 
-        # if not GMSH format convert
+        # If not GMSH format convert
         if ext == '.cgns':
             # Setup GMSH to import required data
             # gmsh.option.setNumber('Mesh.SaveAll', 1)
