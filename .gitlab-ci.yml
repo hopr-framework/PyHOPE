@@ -92,6 +92,18 @@ variables:
   # Install coverage
   - uv pip install --no-cache-dir coverage
 
+# Define a reusable global before_script with YAML anchors
+.minimal-before-script: &minimal-before-script
+  # Setup system
+  - ulimit -s unlimited
+  # - module list || true
+  - python3 --version
+  # Setup uv
+  - uv --version
+  # Setup Python virtual environment
+  - uv venv venv
+  - source venv/bin/activate
+
 before_script: *global-before-script
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Stages
@@ -108,6 +120,7 @@ stages:
 ruff:
   extends: .defaults
   stage: lint
+  before_script: *minimal-before-script
   script:
     - uv pip install ruff
     - ruff --version
@@ -124,6 +137,7 @@ ty:
 vulture:
   extends: .defaults
   stage: lint
+  before_script: *minimal-before-script
   script:
     - uv pip install vulture
     - vulture --version
@@ -297,7 +311,10 @@ coverage:
       artifacts: true
     - job: healthcheck
       artifacts: true
+  before_script: *minimal-before-script
   script:
+    # Install coverage
+    - uv pip install --no-cache-dir coverage
     # Combine coverage reports from all example directories
     - echo "Combining coverage reports..."
     - coverage combine --keep
@@ -446,16 +463,7 @@ documentation:
   artifacts:
     paths:
       - site
-  before_script:
-    # Setup system
-    - ulimit -s unlimited
-    # - module list || true
-    - python3 --version
-    # Setup uv
-    - uv --version
-    # Setup Python virtual environment
-    - uv venv venv
-    - source venv/bin/activate
+  before_script: *minimal-before-script
   script:
     # Install MkDocs
     - uv pip install --no-cache-dir mkdocs-material mkdocs-autorefs mkdocs-glightbox
