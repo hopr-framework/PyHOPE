@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
-from typing import Final, Tuple, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 import h5py
@@ -53,8 +53,7 @@ def DefineIO() -> None:
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_HDF5, name='HDF5')
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_VTK , name='VTK')
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_GMSH, name='GMSH')
-    CreateLogical(      'OutputMetadata', default=True  , help='Mesh output metadata (if supported by OutputFormat)')  # noqa: E271
-    CreateLogical(      'DebugMesh'     , default=False , help='Mesh output debug mesh in VTK format')
+    CreateLogical(      'DebugMesh'     , default=False , help='Output debug mesh in XDMF format')
     CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
 
@@ -70,7 +69,6 @@ def InitIO() -> None:
 
     io_vars.projectname  = GetStr('ProjectName')
     io_vars.outputformat = GetIntFromStr('OutputFormat')
-    io_vars.outputmeta   = GetLogical('OutputMetadata')
 
     io_vars.debugmesh    = GetLogical('DebugMesh')
     io_vars.debugvisu    = GetLogical('DebugVisu')
@@ -85,7 +83,6 @@ def IO() -> None:
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
     from pyhope.io.io_debug import DebugIO
-    from pyhope.io.io_xdmf import xdmfCreate
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     # ------------------------------------------------------
 
@@ -110,7 +107,6 @@ def IO() -> None:
             fname = '{}_mesh.h5'.format(pname)
 
             elemInfo, sideInfo, nodeInfo, nodeCoords, \
-            xdmfConnect, \
             FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
             elemCounter = getMeshInfo()
 
@@ -142,10 +138,6 @@ def IO() -> None:
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
-
-                # XDMF format
-                if io_vars.outputmeta:
-                    xdmfCreate(f, elemInfo, xdmfConnect)
 
                 if FEMElemInfo is not None:
                     f.attrs['FEMconnect'] = 'ON'
@@ -216,7 +208,6 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray,         # SideInfo
                            np.ndarray,         # NodeInfo
                            np.ndarray,         # NodeCoords
-                           Tuple,              # XDMF connectivity
                            np.ndarray | None,  # Optional[FEMElemInfo]
                            np.ndarray | None,  # Optional[VertexInfo]
                            np.ndarray | None,  # Optional[VertexConnectInfo]
@@ -379,19 +370,13 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     nodeInfo   = np.zeros((nNodes)   , dtype=np.int32)
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
 
-    # Fill the XDMF connectivity
-    elemTypes   = np.unique(elemInfo[:, 0])
-    xdmfconnect = tuple([list() for _ in range(len(elemTypes))])
-
     # Pre-compute LINTEN mappings for all element types
-    linCache    = {}
+    elemTypes = np.unique(elemInfo[:, 0])
+    linCache  = {}
     for elemType in elemTypes:
         _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
         mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
         linCache[elemType] = mapLin
-
-    # Pre-compute the index mapping
-    elemTypeIndexMap = {elemType: i for i, elemType in enumerate(elemTypes)}
 
     # Calculate the NodeInfo
     nodeCount  = 0
@@ -404,10 +389,6 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         nElemNodes = elemNodes.size
         indices    = nodeCount + mapLin[:nElemNodes]
 
-        # Assign the indices to XDMF
-        elemTypeID = elemTypeIndexMap[elemType]
-        xdmfconnect[elemTypeID].append(indices)
-
         # Assign nodeInfo and nodeCoords in vectorized fashion
         nodeInfo[  indices] = elemNodes + 1
         nodeCoords[indices] = points[elemNodes]
@@ -419,10 +400,6 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     else:
         FEMElemInfo = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
 
-    # Convert XDMF to numpy array
-    # xdmfconnect = np.array(xdmfconnect, dtype=np.int32)
-
     return elemInfo, sideInfo, nodeInfo, nodeCoords, \
-           xdmfconnect, \
            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInfo, \
            elemCounter

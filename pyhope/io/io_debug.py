@@ -39,6 +39,9 @@ import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Monkey-patching meshio.xdmf.main.XdmfWriter
+from pyhope.io.io_xdmf import XdmfWriterInit
+meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue]
 # ==================================================================================================================================
 
 
@@ -80,10 +83,11 @@ def DebugIO() -> None:
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.mesh.mesh_common import edges as ELEMEDGES
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
-    hopout.sep()
+    # hopout.sep()
 
     mesh   : Final             = mesh_vars.mesh
     mpoints: Final[np.ndarray] = mesh.points
@@ -99,6 +103,7 @@ def DebugIO() -> None:
     sides     = {}
     sidetypes = set()
     nodes     = {}
+    edges     = {}
 
     # Instantiate ELEMTYPE
     elemTypeClass = ELEMTYPE()
@@ -143,6 +148,7 @@ def DebugIO() -> None:
         sides.setdefault(st, [])
     if hasFEM:
         nodes.setdefault('vertex', [])
+        edges.setdefault('line'  , [])
 
     # Create ordered mapping from first-order elems to high-order elems
     types  = list(elemtypes)
@@ -165,7 +171,12 @@ def DebugIO() -> None:
                                 }
 
     nodedata: dict[str, list] = {}
+    edgedata: dict[str, list] = {}
     if hasFEM:
+        edgedata.update(                       {'FEMEdgeID'  : [],
+                                                'LocEdge'    : [],
+                                               })
+        # Fully create the nodes here
         nodes = cast(dict[str, npt.ArrayLike], {'vertex':      [np.asarray([s])  for s in range(len(pMap))]})  # noqa: E272
         nodedata.update(                       {'FEMVertexID': [-1 for _ in range(len(pMap))],
                                                })
@@ -216,33 +227,50 @@ def DebugIO() -> None:
                 # Add the nodeData
                 nodedata['FEMVertexID'][node] = melem.vertexInfo[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
 
+            # Create the FEM edges
+            elemEdges = ELEMEDGES(elemType)
+            for edge in elemEdges:
+                # Add the edge
+                edgeInfo  = melem.edgeInfo[edge]
+                edgeNodes = np.fromiter((pInv[s] for s in edgeInfo[3]), dtype=np.int64)
+                edges['line'].append(edgeNodes)
+
+                edgedata['FEMEdgeID'  ].append(edgeInfo[1])
+                edgedata['LocEdge'    ].append(edgeInfo[0])
+
     # Update points to unique first-order coords
     coords = mpoints[pMap]
     # Find the mapping from the cell keys to the elemtypes
-    elemOrder = [tInv[cb] for cb in list(elems.keys())]
+    elemOrder = [tInv[cb] for cb in elems.keys()]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     elemdata = {k: [np.asarray(v[idx]) for idx in elemOrder] for k, v in elemdata.items()}
+    eleminfo = {'name': 'Volume'}
     # Clean-up for memory safety
     del elemOrder
+
+    # Create the output list
+    debugOut   = []
 
     # Create the final debugElem with first-order elements
     debugElem  = meshio.Mesh(points    = coords,     # noqa: E251
                              cells     = elems,      # noqa: E251
                              cell_data = elemdata,   # noqa: E251
+                             info      = eleminfo,   # noqa: E251
                             )
-    fname = f'{pname}_DebugElem.vtu'
-    hopout.routine(f'Writing volume  debug mesh to "{fname}"')
-    debugElem.write(fname)
-    # Clean-up for memory safety
-    del debugElem
-    del fname
+    debugOut.append(debugElem)
+    # fname = f'{pname}_Debug.xdmf'
+    # hopout.routine(f'Writing volume  debug mesh to "{fname}"')
+    # debugElem.write(fname)
+    # # Clean-up for memory safety
+    # del debugElem
 
     # Find the mapping from the side keys to the elemtypes
-    sideOrder = [sInv[cb] for cb in list(sides.keys())]
+    sideOrder = [sInv[cb] for cb in sides.keys()]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     sidedata = {k: [np.asarray(v[idx]) for idx in sideOrder] for k, v in sidedata.items()}
+    sideinfo = {'name': 'Surface'}
     # Clean-up for memory safety
     del sideOrder
 
@@ -250,28 +278,54 @@ def DebugIO() -> None:
     debugSide  = meshio.Mesh(points    = coords,     # noqa: E251
                              cells     = sides,      # noqa: E251
                              cell_data = sidedata,   # noqa: E251
+                             info      = sideinfo,   # noqa: E251
                             )
-    fname = f'{pname}_DebugSide.vtu'
-    hopout.routine(f'Writing surface debug mesh to "{fname}"')
-    debugSide.write(fname)
-    # Clean-up for memory safety
-    del debugSide
-    del fname
-
-    # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
-    nodedata = {k: [np.asarray(v)] for k, v in nodedata.items()}
+    debugOut.append(debugSide)
+    # fname = f'{pname}_Debug.xdmf'
+    # hopout.routine(f'Writing surface debug mesh to "{fname}"')
+    # debugSide.write(fname)
+    # # Clean-up for memory safety
+    # del debugSide
+    # del fname
 
     if hasFEM:
+        # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
+        edgedata = {k: [np.asarray(v)] for k, v in edgedata.items()}
+        edgeinfo = {'name': 'FEMEdges'}
+
+        debugEdge  = meshio.Mesh(points    = coords,     # noqa: E251
+                                 cells     = edges,      # noqa: E251
+                                 cell_data = edgedata,   # noqa: E251
+                                 info      = edgeinfo,   # noqa: E251
+                                )
+        debugOut.append(debugEdge)
+        # fname = f'{pname}_DebugEdge.vtu'
+        # hopout.routine(f'Writing edge    debug mesh to "{fname}"')
+        # debugNode.write(fname)
+        # # Clean-up for memory safety
+        # del debugEdge
+        # del fname
+
+        # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
+        nodedata = {k: [np.asarray(v)] for k, v in nodedata.items()}
+        nodeinfo = {'name': 'FEMVertices'}
+
         debugNode  = meshio.Mesh(points    = coords,     # noqa: E251
                                  cells     = nodes,      # noqa: E251
                                  cell_data = nodedata,   # noqa: E251
+                                 info      = nodeinfo,   # noqa: E251
                                 )
-        fname = f'{pname}_DebugNode.vtu'
-        hopout.routine(f'Writing vertex  debug mesh to "{fname}"')
-        debugNode.write(fname)
-        # Clean-up for memory safety
-        del debugNode
-        del fname
+        debugOut.append(debugNode)
+        # fname = f'{pname}_DebugNode.vtu'
+        # hopout.routine(f'Writing vertex  debug mesh to "{fname}"')
+        # debugNode.write(fname)
+        # # Clean-up for memory safety
+        # del debugNode
+        # del fname
+
+    fname = f'{pname}_DebugMesh.xdmf'
+    hopout.routine(f'Writing XDMF mesh to "{fname}"')
+    meshio.xdmf.main.XdmfWriter(fname, debugOut)
 
     # (Optional:) Write wrapper for multiblock file
     # blocks = [(0, 'VolumeMesh' , f'{pname}_DebugElem.vtu'),
