@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
-from typing import Final, cast, final
+from typing import Final, List, Optional, Tuple, cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -57,6 +57,57 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, n
     spacing = np.ceil(intfact/blen)
 
     return np.ceil(nbits).astype(int), spacing
+
+
+def UpdateElemID(elems         : list,
+                 sides         : list,
+                 sorted_indices: np.ndarray,
+                 bar,
+                 nElemsIJK     : Optional[np.ndarray] = None,
+                 ) -> Tuple[List, List]:
+
+    totalElems = len(elems)
+    totalSides = len(sides)
+
+    # Initialize sorted cells
+    sorted_elems = [None] * totalElems
+    sorted_sides = [None] * totalSides
+
+    bar.title('│             Processing Elements')
+
+    # Initialize the sideID and offset
+    offsetSide = 0
+    sideID     = 0
+
+    # Overwrite the elem/side IDs
+    for newElemID, oldElemID in enumerate(sorted_indices):
+        elem        = elems[oldElemID]
+        elem.elemID = newElemID
+
+        # Calculate IJK position for this element
+        if nElemsIJK is not None:
+            k =  newElemID                                       // (nElemsIJK[0] * nElemsIJK[1])
+            j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1])    //  nElemsIJK[0]
+            i =  newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j *   nElemsIJK[0]
+            elem.elemIJK = np.array([i+1, j+1, k+1], dtype=np.int32)
+
+        sorted_elems[newElemID] = elem
+
+        # Correct the sideID
+        for key, val in enumerate(elem.sides):
+            side        = sides[val]
+            side.sideID = offsetSide + key
+            side.elemID = newElemID
+            sorted_sides[sideID] = side
+            sideID     += 1
+
+        # Correct the sideID
+        nSides      = len(elem.sides)
+        elem.sides  = list(range(offsetSide, offsetSide + nSides))
+        offsetSide += nSides
+        bar.step()
+
+    return sorted_elems, sorted_sides
 
 
 @final
@@ -94,9 +145,7 @@ def SortMeshBySFC() -> None:
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
-    totalElems = len(elems)
-    totalSides = len(sides)
-    bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
 
     # Global bounding box
     points = mesh.points
@@ -126,35 +175,7 @@ def SortMeshBySFC() -> None:
     # Now, create an array that maps each element to the new sorting
     # sorted_indices = np.array([value_to_index[tuple(val.tolist())] for val in elem_bary])
 
-    # Initialize sorted cells
-    sorted_elems = [None] * totalElems
-    sorted_sides = [None] * totalSides
-
-    bar.title('│             Processing Elements')
-
-    # Initialize the sideID and offset
-    offsetSide = 0
-    sideID     = 0
-
-    # Overwrite the elem/side IDs
-    for newElemID, oldElemID in enumerate(sorted_indices):
-        elem        = elems[oldElemID]
-        elem.elemID = newElemID
-        sorted_elems[newElemID] = elem
-
-        # Correct the sideID
-        for key, val in enumerate(elem.sides):
-            side        = sides[val]
-            side.sideID = offsetSide + key
-            side.elemID = newElemID
-            sorted_sides[sideID] = side
-            sideID     += 1
-
-        # Correct the sideID
-        nSides      = len(elem.sides)
-        elem.sides  = list(range(offsetSide, offsetSide + nSides))
-        offsetSide += nSides
-        bar.step()
+    sorted_elems, sorted_sides = UpdateElemID(elems, sides, sorted_indices, bar)
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
@@ -252,51 +273,14 @@ def SortMeshByIJK() -> None:
     hopout.info(' Number of structured dirs      : {}'.format(nStructDirs))
     hopout.info(' Number of elems [I,J,K]        : {}'.format(nElemsIJK))
 
-    totalElems = len(elems)
-    totalSides = len(sides)
-    bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
 
     # Now sort the elements based on z, y, then x coordinates
     intList        = (intCoords[:, 2].astype(np.int64) * 10000 + intCoords[:, 1].astype(np.int64)) * 10000 + \
                       intCoords[:, 0].astype(np.int64)
     sorted_indices = np.argsort(intList)
 
-    # Initialize sorted cells
-    sorted_elems = [None] * totalElems
-    sorted_sides = [None] * totalSides
-
-    bar.title('│             Processing Elements')
-
-    # Initialize the sideID and offset
-    offsetSide = 0
-    sideID     = 0
-
-    # Overwrite the elem/side IDs
-    for newElemID, oldElemID in enumerate(sorted_indices):
-        elem        = elems[oldElemID]
-        elem.elemID = newElemID
-
-        # Calculate IJK position for this element
-        k =  newElemID                                       // (nElemsIJK[0] * nElemsIJK[1])
-        j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1])    //  nElemsIJK[0]
-        i =  newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j *   nElemsIJK[0]
-        elem.elemIJK = np.array([i+1, j+1, k+1], dtype=np.int32)
-
-        sorted_elems[newElemID] = elem
-
-        # Correct the sideID
-        for key, val in enumerate(elem.sides):
-            side        = sides[val]
-            side.sideID = offsetSide + key
-            side.elemID = newElemID
-            sorted_sides[sideID] = side
-            sideID     += 1
-
-        # Correct the sideID
-        nSides      = len(elem.sides)
-        elem.sides  = list(range(offsetSide, offsetSide + nSides))
-        offsetSide += nSides
-        bar.step()
+    sorted_elems, sorted_sides = UpdateElemID(elems, sides, sorted_indices, bar, nElemsIJK)
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
@@ -305,11 +289,11 @@ def SortMeshByIJK() -> None:
     # Close the progress bar
     bar.close()
 
+
 def SortMeshBySnake():
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    from pyhope.mesh.mesh_common import calc_elem_bary
     from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
 
@@ -344,43 +328,19 @@ def SortMeshBySnake():
     # Sorting elements according to snake-like key
     sorted_indices = np.argsort(snake_key)
 
-    # Initialize sorted cells
-    sorted_elems = tuple(elems[i] for i in sorted_indices)
-    sorted_sides = []
-
-    bar.title('│             Processing Elements')
-
-    # Overwrite the elem/side IDs
-    offsetSide = 0
-    for elemID, elem in enumerate(sorted_elems):
-        elem.elemID = elemID
-
-        for key, val in enumerate(elem.sides):
-            side        = sides[val]
-            side.sideID = offsetSide + key
-            side.elemID = elemID
-
-            sorted_sides.append(side)
-
-        # Correct the sideID in elem
-        nSides      = len(elem.sides)
-        elem.sides  = list(range(offsetSide, offsetSide + nSides))
-        offsetSide += nSides
-        bar.step()
+    sorted_elems, sorted_sides = UpdateElemID(elems, sides, sorted_indices, bar)
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
 
-    for elem in mesh_vars.elems:
-        print(elem.elemID)
-
+    # Close the progress bar
     bar.close()
 
-def SortMeshByLexOrder():
+
+def SortMeshByLEX():
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import count_elems, calc_elem_bary
+    from pyhope.mesh.mesh_common import calc_elem_bary
     from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
     mesh  = mesh_vars.mesh
@@ -414,58 +374,48 @@ def SortMeshByLexOrder():
     # Sorting elements according to lexicographic key
     sorted_indices = np.argsort(lex_key)
 
-    # Initialize sorted cells
-    sorted_elems = tuple(elems[i] for i in sorted_indices)
-    sorted_sides = []
+    sorted_elems, sorted_sides = UpdateElemID(elems, sides, sorted_indices, bar)
 
-    bar.title('│          Processing Elements')
-
-    # Overwrite the elem/side IDs
-    offsetSide = 0
-    for elemID, elem in enumerate(sorted_elems):
-        elem.elemID = elemID
-
-        for key, val in enumerate(elem.sides):
-            side        = sides[val]
-            side.sideID = offsetSide + key
-            side.elemID = elemID
-
-            sorted_sides.append(side)
-
-        # Correct the sideID in elem
-        nSides      = len(elem.sides)
-        elem.sides  = list(range(offsetSide, offsetSide + nSides))
-        offsetSide += nSides
-        bar.step()
-
-    # Update mesh_vars
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
 
-    for elem in mesh_vars.elems:
-        print(elem.elemID)
-
+    # Close the progress bar
     bar.close()
+
 
 def SortMesh() -> None:
     # Local imports ----------------------------------------
-    import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.readintools.readintools import GetLogical
+    from pyhope.mesh.mesh_vars import MeshSort
+    from pyhope.readintools.readintools import CountOption, GetLogical, GetIntFromStr
     # ------------------------------------------------------
 
     hopout.separator()
     hopout.info('SORT MESH...')
     hopout.sep()
 
-    mesh_vars.sortIJK = GetLogical('doSortIJK')
+    # Check for legacy doSortIJK option
+    default = None
+    if CountOption('doSortIJK') > 0:
+        default  = MeshSort.IJK.name if GetLogical('doSortIJK') else MeshSort.SFC.name
+
+    meshsort = GetIntFromStr('MeshSorting', default=default)
+
     hopout.sep()
 
     # Sort the mesh
-    if mesh_vars.sortIJK:
-        SortMeshByIJK()
-    else:
-        SortMeshBySFC()
+    match meshsort:
+        case MeshSort.NONE.value:
+            # Do nothing
+            pass
+        case MeshSort.SFC.value:
+            SortMeshBySFC()
+        case MeshSort.IJK.value:
+            SortMeshByIJK()
+        case MeshSort.LEX.value:
+            SortMeshByLEX()
+        case MeshSort.Snake.value:
+            SortMeshBySnake()
 
     # Run garbage collector to release memory
     gc.collect()

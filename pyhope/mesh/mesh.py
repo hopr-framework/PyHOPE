@@ -44,7 +44,7 @@ def DefineMesh() -> None:
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
-    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode
+    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode, MeshSort
     # ------------------------------------------------------
 
     CreateSection('Mesh')
@@ -77,7 +77,14 @@ def DefineMesh() -> None:
     CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
     CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
     # Connections
-    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateIntFromString('MeshSorting',      default=MeshSort.SFC.name,
+                                                           help='Mesh sorting mode (1 - SFC, 2 - IJK, 3 - Lex, 4 - Snake)')
+    CreateIntOption(    'MeshSorting', number=MeshSort.NONE.value , name=MeshSort.NONE.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.SFC.value  , name=MeshSort.SFC.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.IJK.value  , name=MeshSort.IJK.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.LEX.value  , name=MeshSort.LEX.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.Snake.value, name=MeshSort.Snake.name)
+    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions (legacy)')
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
     # Mortars
     CreateLogical(  'doMortars',            default=True,  help='Enables mortars')

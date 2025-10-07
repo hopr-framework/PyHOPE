@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum, IntEnum
 from functools import cache
 from typing import Dict, Final, Optional, Union, Tuple, final
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,7 +45,6 @@ import numpy as np
 mode     : int                                    # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
 mesh     : meshio.Mesh                            # MeshIO object holding the mesh
 nGeo     : int                                    # Order of spline-reconstruction for curved surfaces
-sortIJK  : bool                                   # Flag if mesh should be I,J,K sorted
 
 bcs      : list[type | None]                      # [list of dict] - Boundary conditions
 vvs      : list                                   # [list of dict] - Periodic vectors
@@ -73,10 +73,17 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
-@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
-class MeshMode:
-    MODE_INT:    int = 1
-    MODE_EXT:    int = 3
+class MeshMode(IntEnum):
+    MODE_INT = 1
+    MODE_EXT = 3
+
+
+class MeshSort(Enum):
+    NONE  = 0
+    SFC   = 1
+    IJK   = 2
+    LEX   = 3
+    Snake = 4
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False)
