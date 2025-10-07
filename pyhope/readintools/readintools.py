@@ -422,6 +422,8 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
         print(hopout.warn(f'{outStr}'))
         hopout.error(f'Unknown value "{value}" for parameter "{name}", exiting...')
 
+    result = int(result)
+
     hopout.printoption(name, '{} [{}]'.format(result, mapping[result]), source)
     return result
 

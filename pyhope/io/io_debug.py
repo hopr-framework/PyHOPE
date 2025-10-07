@@ -123,10 +123,10 @@ def DebugIO() -> None:
             elemtypes.add(elemType)
 
         # Add the first-order nodes to the points set
-        points.update(set(melem.nodes[:elemNum]))
+        points.update(set(cast(np.ndarray, melem.nodes)[:elemNum]))
 
         # Add the first-order sides to the sides set
-        for sideID in melem.sides:
+        for sideID in melem.sides:  # ty: ignore [not-iterable]
             # Only consider boundary sides
             if msides[sideID].bcid is not None:
                 sideType = 'triangle' if msides[sideID].sideType == 3 else 'quad'
@@ -190,7 +190,7 @@ def DebugIO() -> None:
         elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
         tidx     = tInv[elemType]
 
-        elemNodes = np.fromiter((pInv[s] for s in melem.nodes[:elemNum]), dtype=np.int64, count=elemNum)
+        elemNodes = np.fromiter((pInv[s] for s in cast(np.ndarray, melem.nodes)[:elemNum]), dtype=np.int64, count=elemNum)
         elems[elemType].append(elemNodes)
 
         # Add the elemData
@@ -201,7 +201,7 @@ def DebugIO() -> None:
             elemdata['ElemJacobian'][tidx].append(melem.jacobian)
 
         # Add the side[Data]
-        for sideID in melem.sides:
+        for sideID in melem.sides:  # ty: ignore [not-iterable]
             # Only consider boundary sides
             side = msides[sideID]
             if side.bcid is not None:
@@ -209,7 +209,7 @@ def DebugIO() -> None:
                 sidx     = sInv[sideType]
 
                 # Add the side
-                sideNodes = np.fromiter((pInv[s] for s in side.corners), dtype=np.int64)
+                sideNodes = np.fromiter((pInv[s] for s in cast(np.ndarray, side.corners)), dtype=np.int64)
                 sides[sideType].append(sideNodes)
 
                 # Add the sideData
@@ -217,9 +217,9 @@ def DebugIO() -> None:
                 bc   = bcs[bcID]
                 sidedata['ElemID'  ][sidx].append(melem.elemID + 1)
                 sidedata['BCID'    ][sidx].append(bcID         + 1)
-                sidedata['BCType'  ][sidx].append(bc.type[0]      )
-                sidedata['BCState' ][sidx].append(bc.type[2]      )
-                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )
+                sidedata['BCType'  ][sidx].append(bc.type[0]      )  # ty: ignore [non-subscriptable]
+                sidedata['BCState' ][sidx].append(bc.type[2]      )  # ty: ignore [non-subscriptable]
+                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )  # ty: ignore [non-subscriptable]
 
         if hasFEM:
             # Create the FEM vertices

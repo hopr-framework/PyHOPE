@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
 # import sys
-from typing import cast
+from typing import Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -163,12 +163,12 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
     for iVV, vv in enumerate(vvs):
 
         # Identify positive and negative periodic boundaries
-        boundaries = {1: None, -1: None}
-        for bc in [s for s in bcs if abs(s.type[3]) == iVV + 1]:
-            sign = np.sign(bc.type[3])
+        boundaries: dict[int, Optional[str]] = {1: None, -1: None}
+        for bc in [s for s in bcs if abs(cast(np.ndarray, s.type)[3]) == iVV + 1]:
+            sign = np.sign(cast(np.ndarray, bc.type)[3])
             if boundaries[sign] is not None:
                 hopout.error("Multiple periodic boundaries found for the same direction. Exiting...")
-            boundaries[sign] = bc.name
+            boundaries[sign] = cast(str, bc.name)
 
         # Compute mean coordinates for both boundaries as a tuple
         mean_coords = tuple(

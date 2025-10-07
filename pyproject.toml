@@ -140,6 +140,13 @@ exclude = [
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 
+[tool.ty.rules]
+# Type checker
+invalid-argument-type      = 'ignore'
+invalid-assignment         = 'ignore'
+possibly-unbound-attribute = 'ignore'
+unsupported-operator       = 'ignore'
+
 [tool.ruff.format]
 quote-style  = "single"
 indent-style = "space"

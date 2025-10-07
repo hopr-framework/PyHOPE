@@ -241,7 +241,7 @@ def main() -> None:
 
     print('Resolving transitive dependencies...')
     all_dependencies = collect_all_dependencies(initial_dependencies)
-    print(f'Resolved dependencies: {', '.join(all_dependencies)}')
+    print(f'Resolved dependencies: {", ".join(all_dependencies)}')
 
     run_pyright_on_dependencies(pyright_path, all_dependencies)
 

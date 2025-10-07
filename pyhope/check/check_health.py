@@ -299,7 +299,7 @@ def CheckHealth() -> None:
 
     # For Gmsh, also check the packager
     gmshv, gmshp = GmshVersion()
-    if gmshp.strip() == 'NRG':
+    if gmshp is not None and gmshp.strip() == 'NRG':
         gmshi = ' (packaged by NRG)'
         gmshs = symbols.OK
     else:  # pragma: no cover
@@ -308,7 +308,7 @@ def CheckHealth() -> None:
 
     DependencyHealth('Gmsh'    , version=gmshv,           status=gmshs, info=gmshi)
     # Warn if we know that Gmsh uses an outdated CGNS
-    if gmshp.strip() != 'NRG':  # pragma: no cover
+    if gmshp is not None and gmshp.strip() != 'NRG':  # pragma: no cover
         print(hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). ' +
                           'For compatibility, replace with the updated NRG version'))
     DependencyHealth('ParaView', version=DependencyVersion('paraview'), info=' (optional)')

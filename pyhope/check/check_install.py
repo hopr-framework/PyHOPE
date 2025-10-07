@@ -198,7 +198,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
 
     # Standard library since Python 3.11
     if Version(platform.python_version()) >= Version('3.11'):
-        import tomllib
+        import tomllib  # ty: ignore[unresolved-import]
     else:
         tomllib = None
 
@@ -232,7 +232,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 print(hopout.warn('No GitHub token found. Using unauthenticated requests which are severely rate-limited.'))
                 hopout.sep()
 
-        tmpDir = tempfile.TemporaryDirectory(delete=False)  # pyright: ignore[reportCallIssue]
+        tmpDir = tempfile.TemporaryDirectory(delete=False)  # pyright: ignore[reportCallIssue] # ty: ignore[no-matching-overload]
         downloadGitDir('hopr-framework', 'PyHOPE', testDir, tmpDir.name, token)
         path = tmpDir.name
         hopout.sep()
@@ -336,7 +336,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
             if os.path.isfile(toml_path):
                 try:
                     with open(toml_path, mode='rb') as f:
-                        tomlData = tomllib.load(f)
+                        tomlData = tomllib.load(f)   # ty: ignore[possibly-unbound-attribute]
                 except Exception:
                     # If TOML is present but invalid,
                     # Python 3.11+: Skip the tutorial
