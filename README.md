@@ -37,6 +37,9 @@ pyhope --verify-install [tutorials]  # Run PyHOPE mesh generation checks
 > [!NOTE]  
 >  By default, PyHOPE looks for the `tutorials` directory relative to the current working directory or the git root. If neither exists, PyHOPE downloads the tests from GitHub while using available authentication methods.
 
+> [!IMPORTANT]  
+> Be aware that the PyHOPE repository uses [Git Large File Storage (LFS)](https://git-lfs.com) for some of its larger mesh files.
+
 # Getting Help
 PyHOPE help output is formatted to serve as self-hosting INI format. A list of all options and the default values can be accessed by running the following command.
 ```bash
