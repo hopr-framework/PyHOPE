@@ -458,6 +458,6 @@ documentation:
     - source venv/bin/activate
   script:
     # Install MkDocs
-    - uv pip install --no-cache-dir mkdocs-material mkdocs-autorefs
+    - uv pip install --no-cache-dir mkdocs-material mkdocs-autorefs mkdocs-glightbox
     # Build documentation
     - mkdocs build

@@ -65,6 +65,8 @@ extra_css:
 plugins:
   - search
   # - autorefs
+  # Image zoom
+  - glightbox
 
 # Markdown settings
 markdown_extensions:
@@ -92,6 +94,9 @@ markdown_extensions:
   - pymdownx.superfences
   # Attribute lists
   - attr_list
+  # Images support
+  - md_in_html
+  - pymdownx.blocks.caption
 
 extra_javascript:
   - javascripts/mathjax.js

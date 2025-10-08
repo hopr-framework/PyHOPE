@@ -29,6 +29,7 @@ An external mesh is specified via the `3`/`external` mesh generation `Mode` in t
 
 ## Mesh Curving
 
+![Image title](../../assets/external_mesh.png){ width='300', loading=lazy, align=right }
 PyHOPE understands curved meshes of arbitrary order if the external mesh generator provided already curved mesh. PyHOPE reads these meshes and directly uses their high-order information. Existing high-order meshes from other sources can thus be directly translated into the HDF5 format. Furthermore, available post-processing capabilities can be applied to these meshes. If more than one external mesh file is specified, each mesh is interpolated to the desired order specified via the `NGeo` parameter in the [parameter file](../parameter-file.md).
 
 ### Curving through Agglomeration
