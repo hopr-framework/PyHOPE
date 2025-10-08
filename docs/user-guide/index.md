@@ -9,6 +9,7 @@ High-order numerical methods surch as Discontinuous Galerkin, Spectral Element M
 PyHOPE is a Python library for reading, writing, and manipulating HOPR HDF5 curved mesh files. 
 
 - [Installation](installation.md): Installation and verification of the local installation of PyHOPE
+- [Library Usage](library_usage.md): Usage of PyHOPE as a Python library
 
 At the current state, it features two modes for mesh generation:
 
