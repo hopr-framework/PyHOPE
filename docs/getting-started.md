@@ -176,3 +176,4 @@ from pyhope import Basis, Mesh
 with Mesh('1-01-cartbox_mesh.h5') as m:
     elems = m.elems
     lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
+```
