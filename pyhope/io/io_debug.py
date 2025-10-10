@@ -41,7 +41,7 @@ import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching meshio.xdmf.main.XdmfWriter
 from pyhope.io.io_xdmf import XdmfWriterInit
-meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue]
+meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue] # ty: ignore[unresolved-attribute]
 # ==================================================================================================================================
 
 
@@ -225,13 +225,13 @@ def DebugIO() -> None:
             # Create the FEM vertices
             for locNode, node in enumerate(elemNodes):
                 # Add the nodeData
-                nodedata['FEMVertexID'][node] = melem.vertexInfo[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
+                nodedata['FEMVertexID'][node] = cast(dict, melem.vertexInfo)[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
 
             # Create the FEM edges
             elemEdges = ELEMEDGES(elemType)
             for edge in elemEdges:
                 # Add the edge
-                edgeInfo  = melem.edgeInfo[edge]
+                edgeInfo  = cast(dict, melem.edgeInfo)[edge]
                 edgeNodes = np.fromiter((pInv[s] for s in edgeInfo[3]), dtype=np.int64)
                 edges['line'].append(edgeNodes)
 
@@ -325,7 +325,7 @@ def DebugIO() -> None:
 
     fname = f'{pname}_DebugMesh.xdmf'
     hopout.routine(f'Writing XDMF mesh to "{fname}"')
-    meshio.xdmf.main.XdmfWriter(fname, debugOut)
+    meshio.xdmf.main.XdmfWriter(fname, debugOut)  # ty: ignore[unresolved-attribute]
 
     # (Optional:) Write wrapper for multiblock file
     # blocks = [(0, 'VolumeMesh' , f'{pname}_DebugElem.vtu'),
