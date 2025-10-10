@@ -67,7 +67,7 @@ MeshContainer = namedtuple('Mesh',
 
 
 @contextmanager  # pragma: no cover
-def Mesh(*args, stdout=False, stderr=True):
+def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
     """ Mesh context manager to generate a mesh from a given file
 
         Args:
