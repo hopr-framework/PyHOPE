@@ -60,6 +60,9 @@ periNodes: dict                                   # Mapping from the periodic no
 # Mesh curving
 already_curved: bool                              # Flag if mesh is already curved
 
+# Mesh sorting
+nElemsIJK: Optional[np.ndarray]                   # Number of elements in each structured dimension
+
 # Mesh connectitivity
 doMortars: bool                                   # Flag if mortars are enabled
 doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
@@ -182,6 +185,8 @@ class ELEM:
     elemID      : Optional[int]  = None
     sides       : Optional[Union[list, np.ndarray]] = None
     nodes       : Optional[            np.ndarray]  = None
+    # Sorting
+    elemIJK     : Optional[np.ndarray] = None
     # Jacobian
     jacobian    : Optional[float] = None
     # FEM connectivity

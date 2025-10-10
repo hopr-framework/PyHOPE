@@ -106,7 +106,7 @@ def IO() -> None:
 
             fname = '{}_mesh.h5'.format(pname)
 
-            elemInfo, sideInfo, nodeInfo, nodeCoords, \
+            elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
             FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
             elemCounter = getMeshInfo()
 
@@ -138,6 +138,10 @@ def IO() -> None:
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
+
+                if elemIJK     is not None:  # noqa: E272
+                    _ = f.create_dataset('nElems_IJK'        , data=mesh_vars.nElemsIJK)
+                    _ = f.create_dataset('Elem_IJK'          , data=elemIJK)
 
                 if FEMElemInfo is not None:
                     f.attrs['FEMconnect'] = 'ON'
@@ -205,6 +209,7 @@ def IO() -> None:
 
 
 def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
+                           np.ndarray | None,  # ElemIJK
                            np.ndarray,         # SideInfo
                            np.ndarray,         # NodeInfo
                            np.ndarray,         # NodeCoords
@@ -266,6 +271,11 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     uniq_types, uniq_counts = np.unique(elem_types, return_counts=True)
     for elemType, elemCount in zip(uniq_types, uniq_counts):
         elemCounter[elemType] = elemCount
+
+    # Fill the IJK-sorting array
+    elemIJK = None
+    if hasattr(mesh_vars, 'nElemsIJK'):
+        elemIJK = np.vstack([elem.elemIJK for elem in elems]).astype(np.int32)
 
     # Set the global side ID
     globalSideID     = 0
@@ -379,7 +389,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         linCache[elemType] = mapLin
 
     # Calculate the NodeInfo
-    nodeCount  = 0
+    nodeCount = 0
     for elem in elems:
         # Mesh coordinates are stored in meshIO sorting
         elemType = elem.type
@@ -400,6 +410,6 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     else:
         FEMElemInfo = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
 
-    return elemInfo, sideInfo, nodeInfo, nodeCoords, \
+    return elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInfo, \
            elemCounter
