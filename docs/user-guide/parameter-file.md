@@ -23,7 +23,6 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     !------------------------------------------------------------------------------
     ProjectName                      =                      ! Name of output files
     OutputFormat                     =                 HDF5 ! Mesh output format
-    OutputMetadata                   =                    T ! Mesh output metadata (if supported by OutputFormat)
     DebugVisu                        =                    F ! Launch the GMSH GUI to visualize the mesh
     !------------------------------------------------------------------------------
     ! Mesh
@@ -95,8 +94,7 @@ Output parameter controlling the output file name and format.
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
 | `ProjectName`                            | string                             | —                                     | string                                 | Base name for output files. If omitted, a tool- or input-derived name may be used. |
 | `OutputFormat`                           | int &#124; string                  | `HDF5`                                | `HDF5`, `VTK`, `GMSH` (experimental)   | Mesh output format for the generated mesh. `HDF5` is the native PyHOPE format. `VTK` and `GMSH` are provided as output formats for interoperability with other tools. |
-| `OutputMetadata`                         | bool                               | `T`                                   | `T` &#124; `F`                         | Write mesh metadata in XDMF format when supported by the selected `OutputFormat`.  |
-| `DebugMesh`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Emit an auxiliary VTK mesh for low-order visualization and troubleshooting.        |
+| `DebugMesh`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Emit an auxiliary XDMF mesh for low-order visualization and troubleshooting.         |
 | `DebugVisu`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Launch the Gmsh GUI after mesh generation for interactive validation and spot checks. |
 
 ## Mesh

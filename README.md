@@ -67,7 +67,6 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │ INIT OUTPUT...
 │                     ProjectName │ 1-01-cartbox                    │ *CUSTOM │
 │                    OutputFormat │ 0 [HDF5]                        │ *CUSTOM │
-│                  OutputMetadata │ True                            │ DEFAULT │
 │                       DebugMesh │ T                               │ *CUSTOM │
 │                       DebugVisu │ F                               │ *CUSTOM │
 ├─────────────────────────────────────────────
@@ -169,10 +168,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │         Curved Hexahedra  :          512
 ├────
 ├── Writing HDF5 mesh to "1-01-cartbox_mesh.h5"
-│  WARNING  ┃ XDMF only supports linear/quadratic elements, skipping...
-├────
-├── Writing volume  debug mesh to "1-01-cartbox_DebugElem.vtu"
-├── Writing surface debug mesh to "1-01-cartbox_DebugSide.vtu"
+├── Writing XDMF mesh to "1-01-cartbox_DebugMesh.xdmf"
 ┢━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┃ PyHOPE completed in [0.25 sec]
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
