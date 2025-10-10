@@ -275,6 +275,13 @@ def SortMeshByIJK() -> None:
     for newElemID, oldElemID in enumerate(sorted_indices):
         elem        = elems[oldElemID]
         elem.elemID = newElemID
+
+        # Calculate IJK position for this element
+        k =  newElemID                                       // (nElemsIJK[0] * nElemsIJK[1])
+        j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1])    //  nElemsIJK[0]
+        i =  newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j *   nElemsIJK[0]
+        elem.elemIJK = np.array([i+1, j+1, k+1], dtype=np.int32)
+
         sorted_elems[newElemID] = elem
 
         # Correct the sideID
@@ -293,6 +300,7 @@ def SortMeshByIJK() -> None:
 
     mesh_vars.elems = sorted_elems
     mesh_vars.sides = sorted_sides
+    mesh_vars.nElemsIJK = nElemsIJK
 
     # Close the progress bar
     bar.close()
