@@ -41,7 +41,7 @@ import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching meshio.xdmf.main.XdmfWriter
 from pyhope.io.io_xdmf import XdmfWriterInit
-meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue]
+meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue] # ty: ignore[unresolved-attribute]
 # ==================================================================================================================================
 
 
@@ -123,10 +123,10 @@ def DebugIO() -> None:
             elemtypes.add(elemType)
 
         # Add the first-order nodes to the points set
-        points.update(set(melem.nodes[:elemNum]))
+        points.update(set(cast(np.ndarray, melem.nodes)[:elemNum]))
 
         # Add the first-order sides to the sides set
-        for sideID in melem.sides:
+        for sideID in melem.sides:  # ty: ignore [not-iterable]
             # Only consider boundary sides
             if msides[sideID].bcid is not None:
                 sideType = 'triangle' if msides[sideID].sideType == 3 else 'quad'
@@ -139,6 +139,7 @@ def DebugIO() -> None:
     pMap   = np.unique(np.array(points))
     pInv   = dict(zip(pMap, range(len(pMap))))
 
+    hasIJK = True if hasattr(mesh_vars, 'nElemsIJK' ) and mesh_vars.nElemsIJK  is not None else False  # noqa: E272
     hasFEM = True if hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None else False
 
     # Prepare element and side containers
@@ -162,6 +163,11 @@ def DebugIO() -> None:
     # (Optional:) Add Jacobians
     if melems and (getattr(melems[0], 'jacobian', None) is not None):
         elemdata.update({'ElemJacobian': [list() for _ in range(len(types))]})
+    # (Optional:) Add IJK sorting
+    if hasIJK:
+        elemdata.update({'Elem_I'      : [list() for _ in range(len(types))]})
+        elemdata.update({'Elem_J'      : [list() for _ in range(len(types))]})
+        elemdata.update({'Elem_K'      : [list() for _ in range(len(types))]})
 
     sidedata: dict[str, list] = {'ElemID'  : [list() for _ in range(len(sypes))],
                                  'BCID'    : [list() for _ in range(len(sypes))],
@@ -190,7 +196,7 @@ def DebugIO() -> None:
         elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
         tidx     = tInv[elemType]
 
-        elemNodes = np.fromiter((pInv[s] for s in melem.nodes[:elemNum]), dtype=np.int64, count=elemNum)
+        elemNodes = np.fromiter((pInv[s] for s in cast(np.ndarray, melem.nodes)[:elemNum]), dtype=np.int64, count=elemNum)
         elems[elemType].append(elemNodes)
 
         # Add the elemData
@@ -199,9 +205,13 @@ def DebugIO() -> None:
         elemdata['ElemZone'][tidx].append(elemZone)
         if 'ElemJacobian' in elemdata:
             elemdata['ElemJacobian'][tidx].append(melem.jacobian)
+        if hasIJK:
+            elemdata['Elem_I'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[0])
+            elemdata['Elem_J'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[1])
+            elemdata['Elem_K'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[2])
 
         # Add the side[Data]
-        for sideID in melem.sides:
+        for sideID in melem.sides:  # ty: ignore [not-iterable]
             # Only consider boundary sides
             side = msides[sideID]
             if side.bcid is not None:
@@ -209,7 +219,7 @@ def DebugIO() -> None:
                 sidx     = sInv[sideType]
 
                 # Add the side
-                sideNodes = np.fromiter((pInv[s] for s in side.corners), dtype=np.int64)
+                sideNodes = np.fromiter((pInv[s] for s in cast(np.ndarray, side.corners)), dtype=np.int64)
                 sides[sideType].append(sideNodes)
 
                 # Add the sideData
@@ -217,21 +227,21 @@ def DebugIO() -> None:
                 bc   = bcs[bcID]
                 sidedata['ElemID'  ][sidx].append(melem.elemID + 1)
                 sidedata['BCID'    ][sidx].append(bcID         + 1)
-                sidedata['BCType'  ][sidx].append(bc.type[0]      )
-                sidedata['BCState' ][sidx].append(bc.type[2]      )
-                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )
+                sidedata['BCType'  ][sidx].append(bc.type[0]      )  # ty: ignore [non-subscriptable]
+                sidedata['BCState' ][sidx].append(bc.type[2]      )  # ty: ignore [non-subscriptable]
+                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )  # ty: ignore [non-subscriptable]
 
         if hasFEM:
             # Create the FEM vertices
             for locNode, node in enumerate(elemNodes):
                 # Add the nodeData
-                nodedata['FEMVertexID'][node] = melem.vertexInfo[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
+                nodedata['FEMVertexID'][node] = cast(dict, melem.vertexInfo)[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
 
             # Create the FEM edges
             elemEdges = ELEMEDGES(elemType)
             for edge in elemEdges:
                 # Add the edge
-                edgeInfo  = melem.edgeInfo[edge]
+                edgeInfo  = cast(dict, melem.edgeInfo)[edge]
                 edgeNodes = np.fromiter((pInv[s] for s in edgeInfo[3]), dtype=np.int64)
                 edges['line'].append(edgeNodes)
 
@@ -325,7 +335,7 @@ def DebugIO() -> None:
 
     fname = f'{pname}_DebugMesh.xdmf'
     hopout.routine(f'Writing XDMF mesh to "{fname}"')
-    meshio.xdmf.main.XdmfWriter(fname, debugOut)
+    meshio.xdmf.main.XdmfWriter(fname, debugOut)  # ty: ignore[unresolved-attribute]
 
     # (Optional:) Write wrapper for multiblock file
     # blocks = [(0, 'VolumeMesh' , f'{pname}_DebugElem.vtu'),

@@ -254,6 +254,7 @@ def CreateIntFromString(string: str, help: Optional[str] = None, default: Option
                                help=help,
                                default=default,
                                counter=0,
+                               source=None,
                                multiple=multiple)
 
 
@@ -349,6 +350,8 @@ def GetParam(name    : str,
                 hopout.printoption(name, '{0:}'.format(value), '*CUSTOM')
             else:
                 hopout.printoption(name, value               , '*CUSTOM')
+        else:
+            config.prms[name]['source'] = '*CUSTOM'
     else:
         if default:
             value = default
@@ -364,6 +367,9 @@ def GetParam(name    : str,
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
                 hopout.error(f'Keyword "{name}" not found in file and no default given, exiting...', traceback=False)
+        # int2str has custom output
+        if calltype == 'int2str':
+            config.prms[name]['source'] = 'DEFAULT'
     return value
 
 
@@ -393,7 +399,11 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     import pyhope.output.output as hopout
     # ------------------------------------------------------
     value  = GetParam(name=name, default=default, number=number, calltype='int2str')
-    source = 'DEFAULT' if config.prms[name]['counter'] == 0 else '*CUSTOM'
+    # source = 'DEFAULT' if config.prms[name]['counter'] == 0 else '*CUSTOM'
+
+    if config.prms[name].get('source') is None:
+        raise LookupError('Malformed Int2Str option')
+    source = config.prms[name].get('source')
 
     # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']
@@ -411,6 +421,8 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
         print(hopout.warn(f'Allowed values for parameter "{name}":'))
         print(hopout.warn(f'{outStr}'))
         hopout.error(f'Unknown value "{value}" for parameter "{name}", exiting...')
+
+    result = int(result)
 
     hopout.printoption(name, '{} [{}]'.format(result, mapping[result]), source)
     return result

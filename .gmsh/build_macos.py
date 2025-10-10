@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
 import sys
-import build
+import build  # ty: ignore [unresolved-import]
 # import errno
 import multiprocessing
 import platform

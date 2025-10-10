@@ -67,7 +67,7 @@ MeshContainer = namedtuple('Mesh',
 
 
 @contextmanager  # pragma: no cover
-def Mesh(*args, stdout=False, stderr=True):
+def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
     """ Mesh context manager to generate a mesh from a given file
 
         Args:
@@ -156,8 +156,8 @@ def Mesh(*args, stdout=False, stderr=True):
 
     finally:
         # Cleanup resources after exiting the context
-        mesh_vars.mesh  = None
-        mesh_vars.nGeo  = None
-        mesh_vars.bcs   = None
-        mesh_vars.elems = None
-        mesh_vars.sides = None
+        del mesh_vars.mesh
+        del mesh_vars.nGeo
+        del mesh_vars.bcs
+        del mesh_vars.elems
+        del mesh_vars.sides

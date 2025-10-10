@@ -43,42 +43,99 @@ from scipy.sparse.csgraph import connected_components
 # ==================================================================================================================================
 
 
-def _findPointsTol(points: np.ndarray, tol: float) -> np.ndarray:
+def _unionFind(parent: np.ndarray, x: int) -> int:
+    # Path compression
+    par = parent  # local ref
+    while par[x] != x:
+        par[x] = par[par[x]]
+        x = par[x]
+    return x
+
+
+def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
+    ra, rb = _unionFind(parent, a), _unionFind(parent, b)
+    if ra == rb:
+        return
+    if rank[ra] < rank[rb]:
+        parent[ra] = rb
+    elif rank[ra] > rank[rb]:
+        parent[rb] = ra
+    else:
+        parent[rb] = ra
+        rank[ra] += 1
+
+
+def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
     """ Build an undirected connectivity graph for points within 'tol', then compute
         the connected components and pick the minimum index in each component as the
         representative
     """
 
+    nPoints = points.shape[0]
+    match nPoints:
+        case 0:  # pragma: no cover
+            return np.empty(0, dtype=int)
+        case 1:  # pragma: no cover
+            return np.zeros(1, dtype=int)
+
     # Create a KDTree for the mesh points
     tree = KDTree(points)
 
-    # Construct a sparse adjacency matrix where edges connect points within 'tol'
-    # > Use sparse_distance_matrix to avoid Python-level loops and return COO/CSR in C
-    #
-    # NOTE: This includes self-distances (diagonal); zero them below
-    adj = tree.sparse_distance_matrix(tree, tol, output_type='coo_matrix')
-    adj = adj.tocsr()
+    match method:
+        case 'union_find':
+            # Get all unordered pairs (i < j) within tolerance
+            # > query_pairs returns a set-like structure; request ndarray for vectorization
+            pairs = tree.query_pairs(tol, output_type='ndarray')
 
-    # Remove self-connections, enforce symmetry
-    adj.setdiag(0)
-    adj.eliminate_zeros()
-    # Make matrix symmetric (in case of any asymmetry)
-    adj = adj.maximum(adj.T)
+            if pairs.size == 0:  # pragma: no cover
+                # All isolated: each point is its own representative
+                return np.arange(nPoints, dtype=int)
 
-    # Ensure canonical CSR for faster graph ops
-    adj.sum_duplicates()
-    adj.sort_indices()
+            # Disjoint Set (Union-Find)
+            parent = np.arange(nPoints, dtype=int)
+            rank   = np.zeros(nPoints, dtype=int)
 
-    # If there are no edges (all points isolated w.r.t. tol), each point is its own component
-    nPoints = points.shape[0]
-    if adj.nnz == 0:
-        return np.arange(nPoints, dtype=int)
+            # Union all pairs
+            for a, b in pairs:
+                _unionUnion(parent, rank, int(a), int(b))
 
-    # Compute connected components (undirected)
-    components, labels = connected_components(adj, directed=False, return_labels=True)
+            # Final pass: compress and compute representatives (minimum index per root)
+            # > Find root for every point
+            for i in range(nPoints):
+                parent[i] = _unionFind(parent, i)
+            components, labels = nPoints, parent
+
+        case 'sparse':  # pragma: no cover
+            # Construct a sparse adjacency matrix where edges connect points within 'tol'
+            # > Use sparse_distance_matrix to avoid Python-level loops and return COO/CSR in C
+            #
+            # NOTE: This includes self-distances (diagonal); zero them below
+            adj = tree.sparse_distance_matrix(tree, tol, output_type='coo_matrix').tocsr()
+
+            # Remove self-connections, enforce symmetry
+            adj.setdiag(0)
+            adj.eliminate_zeros()
+            # Make matrix symmetric (in case of any asymmetry)
+            adj = adj.maximum(adj.T)
+
+            # Ensure canonical CSR for faster graph ops
+            adj.sum_duplicates()
+            adj.sort_indices()
+
+            # If there are no edges (all points isolated w.r.t. tol), each point is its own component
+            nPoints = points.shape[0]
+            if adj.nnz == 0:  # pragma: no cover
+                return np.arange(nPoints, dtype=int)
+
+            # Compute connected components (undirected)
+            components, labels = connected_components(adj, directed=False, return_labels=True)
+
+        case _:  # pragma: no cover
+            raise ValueError('Unknown method in _findPointsTol')
 
     # For each component label, choose the minimum original point index as representative
     repLabel  = np.full(components, nPoints, dtype=int)
+    # Assign each point its component representative
     np.minimum.at(repLabel, labels, np.arange(nPoints, dtype=int))
     repsPoint = repLabel[labels]
 
@@ -212,7 +269,7 @@ def EliminateDuplicates() -> None:
     tol = np.max([mesh_vars.tolExternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
 
     # Find all points within the tolerance
-    reps = _findPointsTol(points, tol)
+    reps = _findPointsTol(points, tol, method='union_find')
 
     # Eliminate duplicates
     # > reps[i] is the chosen representative index for point i

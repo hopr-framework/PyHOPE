@@ -15,7 +15,7 @@ Internal meshes are specified using exclusively the [INI parameter file format](
 ! OUTPUT
 !================================================================================================================================= !
 ProjectName  = 1-01-cartbox                         ! Name of output files
-OutputFormat = HDF5                                 ! Mesh output format (HDF5 VTK)
+OutputFormat = HDF5                                 ! Mesh output format [HDF5 VTK GMSH]
 
 !================================================================================================================================= !
 ! MESH
@@ -45,9 +45,12 @@ BoundaryType = (/2,0,0,0/)
 BoundaryName = BC_zplus                             ! BC index 6
 BoundaryType = (/9,0,0,0/)
 ```
+!!! info
+    Mesh output in VTK / Gmsh format is provided mainly for visualization purposes and might not support all high-order features.
 
 ### Multiple Cartesian Boxes
 
+![Image title](../../assets/internal_mesh.png){ width='300', loading=lazy, align=right }
 PyHOPE supports multi-zone setups consisting of multiple Cartesian boxes. Each box, refered to as zone, is defined by its 8 corner nodes specified in the `Corner` vector. The number of elements in each direction for each box is specified in the `nElems` vector. If boxes are connected with each other, the corner nodes of the touching element faces must either be identical or be placed on the center of the element edge (non-conforming interfaces with hanging nodes).
 
 ## Boundary Conditions

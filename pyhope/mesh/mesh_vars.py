@@ -25,15 +25,22 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum
 from functools import cache
 from typing import Dict, Final, Optional, Union, Tuple, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import meshio
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import meshio
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,15 +51,14 @@ import numpy as np
 mode     : int                                    # Mesh generation mode (1 - Internal, 2 - External (MeshIO))
 mesh     : meshio.Mesh                            # MeshIO object holding the mesh
 nGeo     : int                                    # Order of spline-reconstruction for curved surfaces
-sortIJK  : bool                                   # Flag if mesh should be I,J,K sorted
 
-bcs      : list[type | None]                      # [list of dict] - Boundary conditions
+bcs      : list[Optional['BC']]                   # [list of dict] - Boundary conditions
 vvs      : list                                   # [list of dict] - Periodic vectors
 
 nZones   : int       = 1                          # Number of zones
 elemTypes: list[int] = []                         # Element types per zone
-elems    : list[type | None]                      # [list of list] - Element nodes
-sides    : list[type | None]                      # [list of list] - Side    nodes
+elems    : list[Optional['ELEM']]                 # [list of list] - Element nodes
+sides    : list[Optional['SIDE']]                 # [list of list] - Side    nodes
 
 # Periodic nodes
 periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
@@ -73,10 +79,17 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
-@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
-class MeshMode:
-    MODE_INT:    int = 1
-    MODE_EXT:    int = 3
+class MeshMode(Enum):
+    Internal = 1
+    External = 3
+
+
+class MeshSort(Enum):
+    NONE  = 0
+    SFC   = 1
+    IJK   = 2
+    LEX   = 3
+    Snake = 4
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False)

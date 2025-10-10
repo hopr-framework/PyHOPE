@@ -41,7 +41,7 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs-material mkdocs-autorefs
+      - run: pip install mkdocs-material mkdocs-autorefs mkdocs-glightbox
       - run: mkdocs build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

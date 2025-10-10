@@ -140,6 +140,17 @@ exclude = [
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 
+# [tool.ty.src]
+# # Monkey-patching meshio.xdmf.main.XdmfWriter
+# exclude = ['pyhope/io/io_xdmf.py']
+
+[tool.ty.rules]
+# Type checker
+invalid-argument-type      = 'ignore'
+invalid-assignment         = 'ignore'
+possibly-unbound-attribute = 'ignore'
+unsupported-operator       = 'ignore'
+
 [tool.ruff.format]
 quote-style  = "single"
 indent-style = "space"

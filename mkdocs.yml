@@ -44,6 +44,7 @@ nav:
   - User Guide:
     - Introduction: user-guide/index.md
     - Installation: user-guide/installation.md
+    - Library Usage: user-guide/library_usage.md
     - Mesh Generators:
       - Internal: user-guide/mesh-generators/internal.md
       - External: user-guide/mesh-generators/external.md
@@ -65,6 +66,8 @@ extra_css:
 plugins:
   - search
   # - autorefs
+  # Image zoom
+  - glightbox
 
 # Markdown settings
 markdown_extensions:
@@ -92,6 +95,9 @@ markdown_extensions:
   - pymdownx.superfences
   # Attribute lists
   - attr_list
+  # Images support
+  - md_in_html
+  - pymdownx.blocks.caption
 
 extra_javascript:
   - javascripts/mathjax.js

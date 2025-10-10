@@ -113,7 +113,7 @@ def DebugEnabled() -> bool:
         pass
 
     try:
-        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:
+        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:  # pyright: ignore[reportAttributeAccessIssue] # ty: ignore [unresolved-attribute]
             return True
     except AttributeError:
         pass

@@ -49,10 +49,10 @@ def DefineIO() -> None:
 
     CreateSection('Output')
     CreateStr('ProjectName', help='Name of output files')
-    CreateIntFromString('OutputFormat'  , default='HDF5', help='Mesh output format')
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_HDF5, name='HDF5')
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_VTK , name='VTK')
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.FORMAT_GMSH, name='GMSH')
+    CreateIntFromString('OutputFormat'  , default='HDF5', help=f'Mesh output format [{", ".join(s.name for s in MeshFormat)}]')
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.HDF5.value, name=MeshFormat.HDF5.name)
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.VTK.value , name=MeshFormat.VTK.name)
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.GMSH.value, name=MeshFormat.GMSH.name)
     CreateLogical(      'DebugMesh'     , default=False , help='Output debug mesh in XDMF format')
     CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
@@ -92,7 +92,7 @@ def IO() -> None:
     pname:  Final[str] = io_vars.projectname
 
     match io_vars.outputformat:
-        case MeshFormat.FORMAT_HDF5:
+        case MeshFormat.HDF5.value:
             mesh  = mesh_vars.mesh
             elems: Final[list] = cast(list, mesh_vars.elems)
             sides: Final[list] = cast(list, mesh_vars.sides)
@@ -169,7 +169,7 @@ def IO() -> None:
                 if io_vars.debugmesh:
                     DebugIO()
 
-        case MeshFormat.FORMAT_VTK:
+        case MeshFormat.VTK.value:
             mesh  = mesh_vars.mesh
             fname = '{}_mesh.vtk'.format(pname)
 
@@ -178,7 +178,7 @@ def IO() -> None:
 
             mesh.write(fname, file_format='vtk42')
 
-        case MeshFormat.FORMAT_GMSH:
+        case MeshFormat.GMSH.value:
             mesh  = mesh_vars.mesh
             fname = '{}_mesh.msh'.format(pname)
 

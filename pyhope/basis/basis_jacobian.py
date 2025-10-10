@@ -210,7 +210,7 @@ def CheckJacobians() -> None:
 
         # Only consider hexahedrons
         if int(elemType) % 100 != 8:
-            elem.jacobian = 1
+            elem.jacobian = 1.
             continue
 
         elem.jacobian = next(jacIter)

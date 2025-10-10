@@ -25,19 +25,24 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 # import copy
 import gc
 import sys
 from collections import defaultdict
-from typing import Final, Optional, cast
+from typing import Final, Optional, Union, cast
 # from multiprocessing import Pool
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import meshio
 import numpy as np
-import numpy.typing as npt
-# from scipy.spatial import KDTree
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import meshio
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -238,7 +243,7 @@ def ConnectMesh() -> None:
     # ------------------------------------------------------
 
     match io_vars.outputformat:
-        case MeshFormat.FORMAT_HDF5:
+        case MeshFormat.HDF5.value:
             pass
         case _:
             return
@@ -277,7 +282,8 @@ def ConnectMesh() -> None:
     #     side_corners = dict(results)
     # else:
     #     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
-    side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
+    side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems
+                                                                       for side in cast(Union[list, np.ndarray], elem.sides)}
     # > Create a dict containing only the periodic corners
     peri_corners = {}
 

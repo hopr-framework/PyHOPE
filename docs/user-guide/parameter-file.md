@@ -177,7 +177,7 @@ Perform mesh quality checks and report statistics.
 
 ## FEM Connectivity
 
-Create explicit connectivity arrays for finite element method (FEM) solvers that require node/face-to-element connectivity.
+DG methods only require side-based connectivity. Create explicit connectivity arrays for finite element method (FEM) solvers that require node/face-to-element connectivity.
 
 | <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |

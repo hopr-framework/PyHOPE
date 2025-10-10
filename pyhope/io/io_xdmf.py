@@ -77,7 +77,10 @@ def XdmfWriterInit(self,
     if not isinstance(meshes, (list, tuple)):
         meshes = [meshes]
 
-    for mesh in meshes:
+    # Explicit type hint that meshes: list[Mesh]
+    meshList: list[Mesh] = meshes
+
+    for mesh in meshList:
         # Assign the correct subgrid name
         if mesh.info is not None and 'name' in mesh.info.keys():
             gridname = mesh.info['name']

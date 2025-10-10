@@ -127,7 +127,7 @@ def MeshCartesian() -> meshio.Mesh:
         # Create all the corner points
         p = [None for _ in range(len(corners))]
         for index, corner in enumerate(corners):
-            p[index] = gmsh.model.geo.addPoint(*corner, tag=offsetp+index+1)
+            p[index] = gmsh.model.geo.addPoint(*cast(tuple[float, float, float], corner), tag=offsetp+index+1)
 
         # Define edge connectivity based on your corner indexing
         edge_pairs = [

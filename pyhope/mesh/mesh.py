@@ -44,13 +44,13 @@ def DefineMesh() -> None:
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
-    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode
+    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode, MeshSort
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateIntFromString('Mode',                            help='Mesh generation mode (1 - Internal, 3 - External [MeshIO])')
-    CreateIntOption(    'Mode', number=MeshMode.MODE_INT,  name='Internal')
-    CreateIntOption(    'Mode', number=MeshMode.MODE_EXT,  name='External')
+    CreateIntFromString('Mode',                            help=f'Mesh generation mode [{", ".join(s.name for s in MeshMode)}]')
+    CreateIntOption(    'Mode', number=MeshMode.Internal.value,  name=MeshMode.Internal.name)
+    CreateIntOption(    'Mode', number=MeshMode.External.value,  name=MeshMode.External.name)
     # Internal mesh generator
     CreateInt(      'nZones',                              help='Number of mesh zones')
     CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
@@ -77,7 +77,14 @@ def DefineMesh() -> None:
     CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
     CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
     # Connections
-    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateIntFromString('MeshSorting',      default=MeshSort.SFC.name,
+                                            help=f'Mesh sorting mode [{", ".join(s.name for s in MeshSort if s.value != 0)}]')
+    CreateIntOption(    'MeshSorting', number=MeshSort.NONE.value , name=MeshSort.NONE.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.SFC.value  , name=MeshSort.SFC.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.IJK.value  , name=MeshSort.IJK.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.LEX.value  , name=MeshSort.LEX.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.Snake.value, name=MeshSort.Snake.name)
+    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions (legacy)')
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
     # Mortars
     CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
@@ -146,7 +153,7 @@ def InitMesh() -> None:
 
     # Check if the requested output format can supported the requested polynomial order
     match io_vars.outputformat:
-        case io_vars.MeshFormat.FORMAT_VTK:
+        case io_vars.MeshFormat.VTK.value:
             if mesh_vars.nGeo > 2:
                 hopout.error('Output format VTK does not support polynomial order > 2!')
 
@@ -172,9 +179,9 @@ def GenerateMesh() -> None:
     hopout.info('GENERATE MESH...')
 
     match mesh_vars.mode:
-        case MeshMode.MODE_INT:  # Internal Cartesian Mesh
+        case MeshMode.Internal.value:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
-        case MeshMode.MODE_EXT:  # External mesh
+        case MeshMode.External.value:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
             hopout.error('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode), traceback=True)

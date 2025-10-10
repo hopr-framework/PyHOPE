@@ -31,7 +31,7 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Final, cast
+from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ from scipy.spatial import KDTree
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching MeshIO
-meshio._mesh.topological_dimension.update({'wedge15'   : 3,
+meshio._mesh.topological_dimension.update({'wedge15'   : 3,  # ty: ignore [unresolved-attribute]
                                            'pyramid13' : 3,
                                            'pyramid55' : 3})
 # ==================================================================================================================================
@@ -257,7 +257,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     # Now, the same thing for triangular elements
     tConnLen  = 0
     tConnNum  = 0
-    ttree     = KDTree([[0.0]])
+    ttree     = None
 
     if any('triangle' in key for key in mesh.cells_dict):
         tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
@@ -349,13 +349,13 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                           points:   np.ndarray,
                           cells:    list,
-                          stree:    KDTree,
+                          stree:    Optional[KDTree],
                           zone,     # CGNS zone
                           tol:      float,
                           nConnNum: int,
                           nConnLen: int,
                           # Triangular elements
-                          ttree:    KDTree,
+                          ttree:    Optional[KDTree],
                           tConnNum: int,
                           tConnLen: int) -> meshio.Mesh:
     """ Set the CGNS boundary conditions for uncurved (unstructured) grids
@@ -491,7 +491,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   np.ndarray,
                       cells:    list,
-                      stree:    KDTree,
+                      stree:    Optional[KDTree],
                       zone,     # CGNS zone
                       tol:      float,
                       nConnNum: int,

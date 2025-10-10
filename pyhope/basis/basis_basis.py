@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -111,7 +112,7 @@ def polynomial_derivative_matrix(order: int, xGP: np.ndarray) -> np.ndarray:
     return D
 
 
-def lagrange_interpolation_polys(x: float, order: int, xGP: np.ndarray, wBary: np.ndarray) -> np.ndarray:
+def lagrange_interpolation_polys(x: Union[float, np.ndarray], order: int, xGP: np.ndarray, wBary: np.ndarray) -> np.ndarray:
     """ Computes all Lagrange functions evaluated at position x in [-1;1]
         > Algorithm 34, Kopriva
     """
@@ -147,10 +148,10 @@ def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
     """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
         to another 3D tensor product node positions (number of nodes N_out+1)
         defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
-        xi is defined in the 1DrefElem xi=[-1,1]
+        xi is defined in the 1D reference element xi=[-1,1]
     """
     # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
-    x3D_Buf1 = np.tensordot(Vdm, x3D_In, axes=(1, 1))
+    x3D_Buf1 = np.tensordot(Vdm, x3D_In , axes=(1, 1))
     x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
 
     # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
@@ -186,6 +187,8 @@ def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
 
 
 def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
+    """ Calculate the Jacobian of the mapping for a given element
+    """
     # Perform tensor contraction for the first derivative (Xi direction)
     dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
     dXdXiGL   = np.moveaxis(dXdXiGL  , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)

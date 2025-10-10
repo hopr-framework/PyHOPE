@@ -82,7 +82,7 @@ def FEMConnect() -> None:
     # Build mapping of each node -> set of element indices that include that node.
     nodeToElements = defaultdict(set)
     for idx, elem in enumerate(elems):
-        for n in elem.nodes[:elem.type % 10]:
+        for n in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]:
             nodeToElements[int(n)].add(idx)
 
     # Precompute combined connectivity for each node
@@ -94,7 +94,7 @@ def FEMConnect() -> None:
     # Collect all unique canonical vertices from every element
     # > The canonical vertex is the minimum of the node and its periodic counterpart
     canonicalSet = { min(int(node), periDict.get(int(node), int(node))) for elem in elems
-                                                                        for node in elem.nodes[:(elem.type % 10)]}
+                                                                        for node in cast(np.ndarray, elem.nodes)[:(cast(int, elem.type) % 10)]}  # noqa: E501
 
     # Create a mapping from each canonical vertex to a unique index
     # > FEMVertexID starts at 1
@@ -104,7 +104,7 @@ def FEMConnect() -> None:
     # Build the vertex connectivity
     for idx, elem in enumerate(elems):
         vertexInfo: Dict[int, Tuple[int, Tuple[int, ...]]] = {}
-        for locNode, node in enumerate(int(n) for n in elem.nodes[:elem.type % 10]):
+        for locNode, node in enumerate(int(n) for n in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]):
             # Determine canonical vertex id
             canonical   = min(node, periDict.get(node, node))
             FEMVertexID = FEMNodeMapping[canonical]
@@ -121,7 +121,7 @@ def FEMConnect() -> None:
         for iEdge in edges(elem.type):
             # Get the nodes of the edge
             edge        = edge_to_corner(iEdge, elem.type)
-            edge        = tuple(int(s) for s in elem.nodes[edge])
+            edge        = tuple(int(s) for s in cast(np.ndarray, elem.nodes)[edge])
             # Determine canonical vertex ID
             canonical   = [min(edge[s], cast(int, periDict.get(edge[s], edge[s]))) for s in range(2)]
             # Get the FEM vertex ID
@@ -177,7 +177,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
 
     for elemID, elem in enumerate(elems):
         # Process vertex occurrences for the current element
-        for _ in elem.vertexInfo:
+        for _ in cast(dict, elem.vertexInfo):
             # Get the occurrence information from the global occList
             FEMVertexID, _, locNode = occList[occGlobalIdx]
             groupOcc = groups[FEMVertexID]
@@ -202,8 +202,8 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
 
         # Set the vertex connectivity offset for this element.
         FEMElemInfo[elemID, 2] = vertexOffset
-        FEMElemInfo[elemID, 3] = vertexOffset + len(elem.vertexInfo)
-        vertexOffset += len(elem.vertexInfo)
+        FEMElemInfo[elemID, 3] = vertexOffset + len(cast(dict, elem.vertexInfo))
+        vertexOffset += len(cast(dict, elem.vertexInfo))
 
     # Edge   connectivity info ---------------------------------------------------
     edgeInfoList   = []  # List: [FEMEdgeID  , offsetIndEdgeConnect  , lastIndEdgeConnect]
@@ -250,7 +250,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
                 edgeIdx         = edgGlobalIdx
                 masterID, masterEdge, masterEdgeNodes = -1, edge, edgeNodes
                 # Set the current edge as master edge
-                elem.edgeInfo[iEdge] = (locEdge, edgGlobalIdx, edge, edgeNodes)
+                cast(dict, elem.edgeInfo)[iEdge] = (locEdge, edgGlobalIdx, edge, edgeNodes)
                 # Set the global index for the other edges
                 for nbElem, _, nbLocEdge, _, _ in connections:
                     e = list(elems[nbElem].edgeInfo[nbLocEdge])

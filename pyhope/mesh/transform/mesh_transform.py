@@ -28,6 +28,8 @@
 import importlib.util
 import os
 import sys
+from typing import Optional
+from types import ModuleType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -210,7 +212,7 @@ def TransformMesh() -> None:
     ]
 
     # Check if the transformation file exists
-    PostDeformMod = None
+    PostDeformMod: Optional[ModuleType] = None
     for loc in DeformLocations:
         if os.path.exists(loc):
             spec = importlib.util.spec_from_file_location(meshPostDeform, loc)
@@ -239,7 +241,7 @@ def TransformMesh() -> None:
         hopout.error('Available default transformation templates:' + ','.join(templist))
 
     # Perform actual post-deformation
-    mesh.points = PostDeformMod.PostDeform(mesh.points)
+    mesh.points = PostDeformMod.PostDeform(mesh.points)  # ty: ignore [unresolved-attribute]
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')
