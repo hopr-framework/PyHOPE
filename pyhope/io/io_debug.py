@@ -139,6 +139,7 @@ def DebugIO() -> None:
     pMap   = np.unique(np.array(points))
     pInv   = dict(zip(pMap, range(len(pMap))))
 
+    hasIJK = True if hasattr(mesh_vars, 'nElemsIJK' ) and mesh_vars.nElemsIJK  is not None else False  # noqa: E272
     hasFEM = True if hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None else False
 
     # Prepare element and side containers
@@ -162,6 +163,11 @@ def DebugIO() -> None:
     # (Optional:) Add Jacobians
     if melems and (getattr(melems[0], 'jacobian', None) is not None):
         elemdata.update({'ElemJacobian': [list() for _ in range(len(types))]})
+    # (Optional:) Add IJK sorting
+    if hasIJK:
+        elemdata.update({'Elem_I'      : [list() for _ in range(len(types))]})
+        elemdata.update({'Elem_J'      : [list() for _ in range(len(types))]})
+        elemdata.update({'Elem_K'      : [list() for _ in range(len(types))]})
 
     sidedata: dict[str, list] = {'ElemID'  : [list() for _ in range(len(sypes))],
                                  'BCID'    : [list() for _ in range(len(sypes))],
@@ -199,6 +205,10 @@ def DebugIO() -> None:
         elemdata['ElemZone'][tidx].append(elemZone)
         if 'ElemJacobian' in elemdata:
             elemdata['ElemJacobian'][tidx].append(melem.jacobian)
+        if hasIJK:
+            elemdata['Elem_I'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[0])
+            elemdata['Elem_J'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[1])
+            elemdata['Elem_K'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[2])
 
         # Add the side[Data]
         for sideID in melem.sides:  # ty: ignore [not-iterable]
