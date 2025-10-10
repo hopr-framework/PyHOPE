@@ -150,7 +150,7 @@ def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
         xi is defined in the 1DrefElem xi=[-1,1]
     """
     # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
-    x3D_Buf1 = np.tensordot(Vdm, x3D_In, axes=(1, 1))
+    x3D_Buf1 = np.tensordot(Vdm, x3D_In,  axes=(1, 1))
     x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
 
     # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
