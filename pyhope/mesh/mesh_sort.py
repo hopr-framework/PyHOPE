@@ -248,22 +248,25 @@ def SortMeshByIJK() -> None:
     nStructDirs = np.sum(structDir)
 
     # Adjust nElemsIJK based on structured directions
-    if nStructDirs == 0:
-        nElemsIJK = np.array((nElems, 1, 1))
-    elif nStructDirs == 1:
-        structured_dir = np.argmax(structDir)
-        nElemsIJK[structured_dir] = nElems // nElemsIJK[structured_dir]
-        nElemsIJK[(structured_dir + 1) % 3] = nElems // nElemsIJK[structured_dir]
-        nElemsIJK[(structured_dir + 2) % 3] = 1
-    elif nStructDirs == 2:
-        non_structured_dir = np.argmin(structDir)
-        nElemsIJK[non_structured_dir] = 1
-        nElemsIJK[~structDir] = nElemsIJK[~structDir][::-1]
-    else:
-        tIJK = np.copy(nElemsIJK)
-        nElemsIJK[0] = round(np.sqrt(tIJK[1] * tIJK[2] / tIJK[0]))
-        nElemsIJK[1] = round(np.sqrt(tIJK[0] * tIJK[2] / tIJK[1]))
-        nElemsIJK[2] = round(np.sqrt(tIJK[0] * tIJK[1] / tIJK[2]))
+    match nStructDirs:
+        case 0:
+            nElemsIJK = np.array((nElems, 1, 1))
+        case 1:
+            structured_dir = np.argmax(structDir)
+            nElemsIJK[structured_dir] = nElems // nElemsIJK[structured_dir]
+            nElemsIJK[(structured_dir + 1) % 3] = nElems // nElemsIJK[structured_dir]
+            nElemsIJK[(structured_dir + 2) % 3] = 1
+        case 2:
+            non_structured_dir = np.argmin(structDir)
+            nElemsIJK[non_structured_dir] = 1
+            nElemsIJK[~structDir] = nElemsIJK[~structDir][::-1]
+        case 3:
+            tIJK = np.copy(nElemsIJK)
+            nElemsIJK[0] = round(np.sqrt(tIJK[1] * tIJK[2] / tIJK[0]))
+            nElemsIJK[1] = round(np.sqrt(tIJK[0] * tIJK[2] / tIJK[1]))
+            nElemsIJK[2] = round(np.sqrt(tIJK[0] * tIJK[1] / tIJK[2]))
+        case _:
+            raise ValueError('Invalid number of structured dimensions')
 
     # Check for consistency in the number of elements
     if np.prod(nElemsIJK) != nElems:

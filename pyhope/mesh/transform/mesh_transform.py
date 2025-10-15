@@ -68,7 +68,8 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
         print(hopout.warn('Both l0 and a stretching factor are provided. ' +
                           'The number of elements will be adapted to account for both parameters.'))
     if stretchingType is None:
-        hopout.error('Streching parameters not defined properly. Check whether l0 and/or Factor are defined nZone-times.', traceback=True)
+        hopout.error('Streching parameters not defined properly. Check whether l0 and/or Factor are defined nZone-times.',
+                     traceback=True)
 
     # Calculate the stretching parameter for meshing the current zone
     stretchingHandlers = {
