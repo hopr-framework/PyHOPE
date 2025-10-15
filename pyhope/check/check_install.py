@@ -336,7 +336,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
             if os.path.isfile(toml_path):
                 try:
                     with open(toml_path, mode='rb') as f:
-                        tomlData = tomllib.load(f)   # ty: ignore[possibly-unbound-attribute]
+                        tomlData = tomllib.load(f)   # ty: ignore[possibly-missing-attribute]
                 except Exception:
                     # If TOML is present but invalid,
                     # Python 3.11+: Skip the tutorial

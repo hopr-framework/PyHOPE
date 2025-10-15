@@ -148,7 +148,7 @@ target-version = "py310"
 # Type checker
 invalid-argument-type      = 'ignore'
 invalid-assignment         = 'ignore'
-possibly-unbound-attribute = 'ignore'
+possibly-missing-attribute = 'ignore'
 unsupported-operator       = 'ignore'
 
 [tool.ruff.format]

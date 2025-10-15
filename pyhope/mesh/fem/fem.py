@@ -163,7 +163,7 @@ def FEMConnect() -> None:
             # Get the local corner indices for the current edge
             edgeCorners = edge_to_corner(edge, elem.type)
             # Get the global node indices for those corners
-            n0, n1 = int(elem.nodes[edgeCorners[0]]), int(elem.nodes[edgeCorners[1]])
+            n0, n1 = int(cast(np.ndarray, elem.nodes)[edgeCorners[0]]), int(cast(np.ndarray, elem.nodes)[edgeCorners[1]])
             edgesRaw.append((elemID, edge, (n0, n1)))
 
     # EDGE3: Generate Canonical Edge Keys (Graph-Based Approach)
