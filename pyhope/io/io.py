@@ -79,6 +79,7 @@ def InitIO() -> None:
 def IO() -> None:
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
+    from pyhope.mesh.mesh_common import edges
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
@@ -100,14 +101,16 @@ def IO() -> None:
 
             nElems: Final[int] = len(elems)
             nSides: Final[int] = len(sides)
-            # Number of non-unique nodes
-            nNodes: Final[int] = np.array([elem.nodes.size for elem in elems], dtype=np.int32).sum(dtype=int)
             nBCs:   Final[int] = len(bcs)
+            # Number of non-unique nodes, vertices, edges
+            nNodes:    Final[int] = np.array([elem.nodes.size       for elem in elems], dtype=np.int32).sum(dtype=int)  # noqa: E272
+            nVertices: Final[int] = np.array([elem.type % 10        for elem in elems], dtype=np.int32).sum(dtype=int)  # noqa: E272
+            nEdges:    Final[int] = np.array([len(edges(elem.type)) for elem in elems], dtype=np.int32).sum(dtype=int)  # noqa: E272
 
             fname = '{}_mesh.h5'.format(pname)
 
             elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
-            FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInto, \
+            FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo, \
             elemCounter = getMeshInfo()
 
             # Print the final output
@@ -130,6 +133,8 @@ def IO() -> None:
                 f.attrs['nElems'        ] = nElems
                 f.attrs['nSides'        ] = nSides
                 f.attrs['nNodes'        ] = nNodes
+                f.attrs['nVertices'     ] = nVertices
+                f.attrs['nEdges'        ] = nEdges
                 f.attrs['nUniqueSides'  ] = np.max(sideInfo[:, 1])
                 f.attrs['nUniqueNodes'  ] = np.max(nodeInfo)
 
@@ -144,12 +149,20 @@ def IO() -> None:
                     _ = f.create_dataset('Elem_IJK'          , data=elemIJK)
 
                 if FEMElemInfo is not None:
+                    # Store FEM information
                     f.attrs['FEMconnect'] = 'ON'
+                    f.attrs['nFEMVertices'         ] = nFEMVertices
+                    f.attrs['nFEMVertexConnections'] = vertexConnectInfo.shape[0]
+                    f.attrs['nFEMEdges'            ] = nFEMEdges
+                    f.attrs['nFEMEdgeConnections'  ] = edgeConnectInfo  .shape[0]
+                    # TODO: This seems to be just repeated information
+                    f.attrs['nUniqueEdges'         ] = nFEMEdges
+
                     _ = f.create_dataset('FEMElemInfo'       , data=FEMElemInfo)
                     _ = f.create_dataset('VertexInfo'        , data=vertexInfo)
                     _ = f.create_dataset('VertexConnectInfo' , data=vertexConnectInfo)
                     _ = f.create_dataset('EdgeInfo'          , data=edgeInfo)
-                    _ = f.create_dataset('EdgeConnectInfo'   , data=edgeConnectInto)
+                    _ = f.create_dataset('EdgeConnectInfo'   , data=edgeConnectInfo)
 
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
@@ -214,8 +227,10 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray,         # NodeInfo
                            np.ndarray,         # NodeCoords
                            np.ndarray | None,  # Optional[FEMElemInfo]
+                           int        | None,  # Optional[nVertices]
                            np.ndarray | None,  # Optional[VertexInfo]
                            np.ndarray | None,  # Optional[VertexConnectInfo]
+                           int        | None,  # Optional[nEdges]
                            np.ndarray | None,  # Optional[EdgeInfo]
                            np.ndarray | None,  # Optional[EdgeConnectInfo]
                            dict[int, int]
@@ -406,10 +421,11 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         nodeCount += nElemNodes
 
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
-        FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInfo = getFEMInfo(nodeInfo)
+        FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo = getFEMInfo(nodeInfo)
     else:
-        FEMElemInfo = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
+        nFEMVertices = nFEMEdges  = 0
+        FEMElemInfo  = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
 
     return elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
-           FEMElemInfo, vertexInfo, vertexConnectInfo, edgeInfo, edgeConnectInfo, \
+           FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo, \
            elemCounter

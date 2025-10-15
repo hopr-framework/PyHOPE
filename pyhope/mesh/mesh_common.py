@@ -546,7 +546,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
             raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
 
     try:
-        return faces_map[face]
+        return np.asarray(faces_map[face])
     except KeyError:
         raise KeyError(f'Error in face_to_nodes: face {face} is not supported')
 
