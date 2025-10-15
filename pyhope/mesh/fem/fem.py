@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
-from itertools import chain
 from typing import Dict, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -41,13 +40,13 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def copysign_int(x: int, y: int) -> int:
-    """ Return a int with the magnitude (absolute value) of x but the sign of y
-    """
-    # Standard libraries -----------------------------------
-    import math
-    # ------------------------------------------------------
-    return int(math.copysign(x, y))
+# def copysign_int(x: int, y: int) -> int:
+#     """ Return a int with the magnitude (absolute value) of x but the sign of y
+#     """
+#     # Standard libraries -----------------------------------
+#     import math
+#     # ------------------------------------------------------
+#     return int(math.copysign(x, y))
 
 
 def FEMConnect() -> None:
@@ -75,38 +74,196 @@ def FEMConnect() -> None:
     elems     = mesh_vars.elems
     periNodes = mesh_vars.periNodes
 
-    # Create a bidirectional lookup using a single dictionary comprehension with chain
-    periDict = { k: v for k, v in chain(((int(node), int(peri)) for (node, _), peri in periNodes.items()),
-                                        ((int(peri), int(node)) for (node, _), peri in periNodes.items()))}
+    # Build a graph of all periodic connections across all BCs
+    periGraph: dict[int, set[int]] = defaultdict(set)
+    for (node, _bc), peri in periNodes.items():
+        node, peri = int(node), int(peri)
+        periGraph[node].add(peri)
+        periGraph[peri].add(node)
 
-    # Build mapping of each node -> set of element indices that include that node.
+    # Find connected components; representative = min(node indices in component)
+    nodeFirst: dict[int, int]      = {}  # node -> representative (canonical)
+    nodeGroup: dict[int, set[int]] = {}  # representative -> full member set
+
+    for start in list(periGraph.keys()):
+        if start in nodeFirst:
+            continue
+
+        stack = [start]
+        comp  = set()
+
+        while stack:
+            cur = stack.pop()
+            if cur in comp:
+                continue
+
+            comp.add(cur)
+            for nxt in periGraph[cur]:
+                if nxt not in comp:
+                    stack.append(nxt)
+
+        rep = min(comp)
+        for v in comp:
+            nodeFirst[v] = rep
+
+        nodeGroup[rep] = comp
+
+    # Convenience mapping: each node -> full set of periodic equivalents (including itself)
+    periGroups: dict[int, set[int]] = {}
+    for rep, members in nodeGroup.items():
+        for v in members:
+            periGroups[v] = members
+
+    # Build mapping of each node -> set of element indices that include that node
     nodeToElements = defaultdict(set)
     for idx, elem in enumerate(elems):
-        for n in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]:
-            nodeToElements[int(n)].add(idx)
+        for node in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]:
+            nodeToElements[int(node)].add(idx)
 
     # Precompute combined connectivity for each node
     # > For a given node, the combined set is:
     # > nodeToElements[node] ∪ nodeToElements[periDict[node]]
-    nodeConn = { node: elemSet.union(nodeToElements.get(periDict.get(node), set()))
-                 for node, elemSet in nodeToElements.items()}
+    nodeConn = {node: set().union(*(nodeToElements.get(eq, set()) for eq   in periGroups.get(node, {node})))  # noqa: E272
+                                                                  for node in nodeToElements.keys()}
 
     # Collect all unique canonical vertices from every element
-    # > The canonical vertex is the minimum of the node and its periodic counterpart
-    canonicalSet = { min(int(node), periDict.get(int(node), int(node))) for elem in elems
-                                                                        for node in cast(np.ndarray, elem.nodes)[:(cast(int, elem.type) % 10)]}  # noqa: E501
+    # > The canonical vertex is the minimum of the node and its periodic counterparts
+    canonicalSet = {nodeFirst.get(int(node), int(node)) for elem in elems
+                                                        for node in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]}
 
     # Create a mapping from each canonical vertex to a unique index
     # > FEMVertexID starts at 1
     sortedCanonical = sorted(canonicalSet)
     FEMNodeMapping  = { canonical: newID for newID, canonical in enumerate(sortedCanonical, start=1)}
 
+    # EDGE1: Build Per-BC DIRECTED Mappings
+    # > To create a unique signature for each edge, we need to know how its nodes
+    # > are displaced by each periodic boundary condition. We build a simple, directed
+    # > map for each BC that directly reflects the (source -> target) relationship in
+    # > periNodes. We only want to map from negative to positive, thus keep the direction
+    periNames = sorted(list({bc for _, bc in periNodes.keys()}))
+
+    # This dictionary holds the directed mapping for each BC
+    # > Key: Source node
+    # > Val: Target node
+    nodeMapBC: dict[str, dict[int, int]] = {}
+    for bc in periNames:
+        nodeMapBC[bc] = {int(node): int(peri) for (node, bc_name), peri in periNodes.items() if bc_name == bc}
+
+    # For convenience, also build a set of all nodes that lie on any boundary
+    BCNodes = {int(node)      for node, _ in periNodes.keys()}     # noqa: E272
+    BCNodes.update({int(peri) for peri    in periNodes.values()})  # noqa: E272
+
+    # EDGE2: Enumerate All Raw Edges from the Mesh
+    # > tuple(element_index, local_edge_index, (node0, node1))
+    edgesRaw: list[tuple[int, int, tuple[int, int]]] = []
+
+    for elemID, elem in enumerate(elems):
+        for edge in edges(elem.type):
+            # Get the local corner indices for the current edge
+            edgeCorners = edge_to_corner(edge, elem.type)
+            # Get the global node indices for those corners
+            n0, n1 = int(elem.nodes[edgeCorners[0]]), int(elem.nodes[edgeCorners[1]])
+            edgesRaw.append((elemID, edge, (n0, n1)))
+
+    # EDGE3: Generate Canonical Edge Keys (Graph-Based Approach)
+    # > This identifies all periodically equivalent edges by building a graph of their representations
+    # > 1. Build an Equivalence Graph
+    #      The keys are edge-representations (tuples), and the values are sets of other edge-representations they are connected to
+    edgeGraph = defaultdict(set)
+
+    for _, _, nodes in edgesRaw:
+        # Start with the edge's own representation
+        edgeBase = tuple(sorted(nodes))
+        # Find all possible displaced representations
+        edgePeri = {edgeBase}
+        nodesSet = frozenset(nodes)
+
+        # Check if all nodes are on a boundary
+        if nodesSet.issubset(BCNodes):
+            for bc in periNames:
+                nodeMap = nodeMapBC[bc]
+                if nodesSet.issubset(nodeMap) and nodeMap[nodes[0]] != nodeMap[nodes[1]]:
+                    edgePeri.add(tuple(sorted([nodeMap[node] for node in nodes])))
+
+        # Connect all representations for this edge in the graph
+        # > This ensures that if A->B and B->C, we can later find that A is related to C
+        edgeList = list(edgePeri)
+        for i in range(len(edgeList)):
+            for j in range(i + 1, len(edgeList)):
+                u, v = edgeList[i], edgeList[j]
+                edgeGraph[u].add(v)
+                edgeGraph[v].add(u)
+
+    # > 2. Find connected components and their canonical representatives
+    #      This dict stores the single "canonical edge" for each group
+    edgeCanonical = {}
+    visited       = set()
+
+    # Iterate through all unique representations
+    edgeSet = set(edgeGraph.keys())
+    for _, _, nodes in edgesRaw:
+        edgeSet.add(tuple(sorted(nodes)))
+
+    for nodeStart in edgeSet:
+        # Done with this node
+        if nodeStart in visited:
+            continue
+
+        # This component holds all edge representations for one unique FEM edge
+        component = set()
+        stack     = [nodeStart]
+
+        while stack:
+            currentNode = stack.pop()
+            if currentNode in visited:
+                continue
+
+            visited  .add(currentNode)
+            component.add(currentNode)
+
+            for neighbor in edgeGraph.get(currentNode, []):
+                if neighbor not in visited:
+                    stack.append(neighbor)
+
+        # > 3. The true canonical key is the minimum representation in the component
+        canonical_rep = min(component)
+
+        # > 4. Map all members of the component to this single canonical rep
+        for node in component:
+            edgeCanonical[node] = canonical_rep
+
+    # > 5. Generate final edge keys for all raw edges
+    edgeKeys = []
+    for elemID, locEdge, nodes in edgesRaw:
+        # Get the initial representation of the edge
+        edgeBase = tuple(sorted(nodes))
+
+        # Find the true canonical representation from the pre-computed map
+        canonical_edge_nodes = edgeCanonical.get(edgeBase, edgeBase)
+
+        c0 = nodeFirst.get(nodes[0], nodes[0])
+        c1 = nodeFirst.get(nodes[1], nodes[1])
+        v0 = FEMNodeMapping[c0]
+        v1 = FEMNodeMapping[c1]
+        edgePair = tuple(sorted((v0, v1)))
+
+        # The final, unique key for this edge
+        edgeKey = (edgePair, canonical_edge_nodes)
+
+        # Create the edge key list
+        edgeKeys.append((elemID, locEdge, edgeKey, (v0, v1), nodes))
+
+    # Create the final mapping from the unique edge key to a simple integer ID
+    uniqueEdges    = sorted(list({k for _, _, k, _, _ in edgeKeys}))
+    FEMEdgeMapping = {key: i for i, key in enumerate(uniqueEdges)}
+
     # Build the vertex connectivity
     for idx, elem in enumerate(elems):
         vertexInfo: Dict[int, Tuple[int, Tuple[int, ...]]] = {}
         for locNode, node in enumerate(int(n) for n in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]):
             # Determine canonical vertex id
-            canonical   = min(node, periDict.get(node, node))
+            canonical   = nodeFirst.get(node, node)
             FEMVertexID = FEMNodeMapping[canonical]
             # Retrive connectivity set for the node
             nodeVertex = nodeConn.get(node, set())
@@ -114,40 +271,36 @@ def FEMConnect() -> None:
         # Set the vertex connectivity for the element
         elem.vertexInfo = vertexInfo
 
-        # Build the edge connectivity
-        # > Loop over all edges of an element
-        # for iEdge, edge in enumerate(edge_to_corner):
-        edgeInfo: Dict[int, Tuple[int, int | None, Tuple[int, ...], Tuple[int, ...]]] = {}
-        for iEdge in edges(elem.type):
-            # Get the nodes of the edge
-            edge        = edge_to_corner(iEdge, elem.type)
-            edge        = tuple(int(s) for s in cast(np.ndarray, elem.nodes)[edge])
-            # Determine canonical vertex ID
-            canonical   = [min(edge[s], cast(int, periDict.get(edge[s], edge[s]))) for s in range(2)]
-            # Get the FEM vertex ID
-            FEMVertexID = tuple(FEMNodeMapping[c] for c in canonical)
-            # Set the edge connectivity for the element
-            # > FEMVertexID is unsorted as it contains the global orientation of the edge
-            edgeInfo[iEdge] = (iEdge, None, FEMVertexID, edge)
-        # Set the edge information for the element
-        elem.edgeInfo = edgeInfo
+        # Initialize edgeInfo dictionaries for all elements first
+        elem.edgeInfo = {}
+
+    # Use the pre-computed edge_key_list
+    for elemID, locEdge, edgeKey, edgePair, edgeNodes in edgeKeys:
+        # Get the global FEMEdgeID
+        FEMEdgeID = FEMEdgeMapping[edgeKey]
+        # Retrieve the edge connectivity for the element
+        # The structure is: (local_idx, global_id, global_vertex_ids, local_node_ids)
+        elems[elemID].edgeInfo[locEdge] = (locEdge, FEMEdgeID, edgePair, edgeNodes)
 
 
 def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
+                                              int,         # nVertices
                                               np.ndarray,  # VertexInfo
                                               np.ndarray,  # VertexConnectInfo
+                                              int,         # nEdges
                                               np.ndarray,  # EdgeInfo
                                               np.ndarray   # EdgeConnectInfo
                                              ]:
-    """ Extract the FEM connectivity information and return four arrays
+    """ Extract the FEM connectivity information and return five arrays
 
      - FEMElemInfo      : [offsetIndEdge, lastIndEdge, offsetIndVertex, lastIndVertex]
-     - vertexInfo       : [FEMVertexID, offsetIndVertexConnect, lastIndVertexConnect]
-     - vertexConnectInfo: [nbElemId, nbLocVertexId]
+     - VertexInfo       : [FEMVertexID, offsetIndVertexConnect, lastIndVertexConnect]
+     - VertexConnectInfo: [nbElemId, nbLocVertexId]
+     - EdgeInfo         : [FEMEdgeID,   offsetIndEdgeConnect,   lastIndEdgeConnect]
+     - EdgeConnectInfo  : [nbElemID, nbLocEdgeID]
     """
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     elems  = mesh_vars.elems
@@ -155,12 +308,13 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
 
     # Check if elements contain FEM connectivity
     if not hasattr(elems[0], 'vertexInfo') or elems[0].vertexInfo is None:
-        return np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
+        return np.array([]), 0, np.array([]), np.array([]), 0, np.array([]), np.array([])
 
     # Vertex connectivity info ---------------------------------------------------
     # > Build list of all vertex occurrences, appearing in the same order as the elements
     occList = [(FEMVertexID, elemID, locNode) for elemID , elem             in enumerate(elems)  # noqa: E272
                                               for locNode, (FEMVertexID, _) in elem.vertexInfo.items()]
+    nFEMVertices = max(FEMVertexID for FEMVertexID, _, _ in occList)
 
     # > Build mapping from FEM vertex ID to list of occurrences
     groups = defaultdict(list)
@@ -206,113 +360,85 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
         vertexOffset += len(cast(dict, elem.vertexInfo))
 
     # Edge   connectivity info ---------------------------------------------------
-    edgeInfoList   = []  # List: [FEMEdgeID  , offsetIndEdgeConnect  , lastIndEdgeConnect]
+    # > Build list of all raw edge occurrences, appearing in the same order as the elements
+    occList = [{'EdgeID': edgeIdx, 'elem': elemID, 'loc': locEdge, 'nodes': edgeNodes} for elemID, elem                        in enumerate(elems)        # noqa: E272, E501
+                                                                                       for locEdge, (_, edgeIdx, _, edgeNodes) in elem.edgeInfo.items()]  # noqa: E501
+    # > EdgeID starts at zero, so add 1
+    nFEMEdges = max(d['EdgeID'] for d in occList) + 1
+
+    # 2. Group these occurrences by their canonical FEMEdgeID
+    groups = defaultdict(list)
+    for occ in occList:
+        groups[occ['EdgeID']].append(occ)
+
+    edgeInfoList   = []  # List: [FEMEdgeID, offsetIndEdgeConnect, lastIndEdgeConnect]
     edgeConnList   = []  # List: [[nbElemID, nbLocEdgeID]]
-    edgGlobalIdx   = 0   # global edge index
+    edgeOffset     = 0
+    occGlobalIdx   = 0   # global index in occList
 
     for elemID, elem in enumerate(elems):
         # Process edge occurrences for the current element
-        for iEdge, (locEdge, edgeIdx, edge, edgeNodes) in enumerate(elem.edgeInfo.values()):
-            # Get the elements connected to both edge nodes
-            groupOcc  = [groups[e] for e in edge]
-            offset    = len(edgeConnList)
+        for _ in range(len(elem.edgeInfo)):
+            # Get the occurrence information from the global occList
+            currentEdge = occList[occGlobalIdx]
+            FEMEdgeID   = currentEdge['EdgeID']
 
-            # Identify elements connected to the current edge
-            edgeElems = set([e[1]  for g in groupOcc for e in g])  # noqa: E272
+            # Get all siblings (including periodic ones) from the edge group
+            groupOcc = groups[FEMEdgeID]
+            offset   = len(edgeConnList)
 
-            # Build connectivity list for current element, excluding the current edge
-            connections = [(nbElem, nbEdgeIdx, nbLocEdge, nbEdge, nbEdgeNodes)
-                           for nbElem                                      in edgeElems                            # noqa: E272
-                           for (nbLocEdge, nbEdgeIdx, nbEdge, nbEdgeNodes) in elems[nbElem].edgeInfo.values()      # noqa: E272
-                           if set(nbEdge) == set(edge) and (nbLocEdge != locEdge or nbElem != elem.elemID)]
+            # Identify the master occurrence (lowest occIdx from the occurrence group)
+            # WARNING: The master/slave logic is simplified here. We assume the first occurrence in the list is the master
+            masterOcc = groupOcc[0]
 
-            if connections:
-                # Sanity check, all edge should have the same global index
-                if ((edgeIdx is     None and any(     e  is not None for (_, e, _, _, _) in connections)) or       # noqa: E271, E272
-                    (edgeIdx is not None and len({abs(e)             for (_, e, _, _, _) in connections}) != 1)):  # noqa: E271, E272
-                    hopout.error('FEMConnect: Inconsistent edge global index', traceback=True)
+            # Build connectivity list for current element, excluding itself
+            connections = []
+            for sibling in groupOcc:
+                if sibling['elem'] == currentEdge['elem'] and sibling['loc'] == currentEdge['loc']:
+                    continue
 
-            # Check if the edges already have an global index
-            if edgeIdx is not None:
-                # Check if the current edge is the master edge
-                if edgeIdx > 0:  # master edge
-                    masterID, masterEdge, masterEdgeNodes = -1, edge, edgeNodes
-                else:            # slave edge
-                    # Find the master edge among the connections
-                    masterID = [i for i in range(len(connections)) if connections[i][1] > 0]
-                    if len(masterID) != 1:
-                        hopout.error('FEMConnect: Inconsistent edge global index', traceback=True)
-                    masterID = masterID[0]
-                    masterID, masterEdge, masterEdgeNodes = masterID, *connections[masterID][3:5]
-            # Otherwise, the current edge is the master edge and the others are slave edges
-            else:
-                edgGlobalIdx   +=  1
-                edgeIdx         = edgGlobalIdx
-                masterID, masterEdge, masterEdgeNodes = -1, edge, edgeNodes
-                # Set the current edge as master edge
-                cast(dict, elem.edgeInfo)[iEdge] = (locEdge, edgGlobalIdx, edge, edgeNodes)
-                # Set the global index for the other edges
-                for nbElem, _, nbLocEdge, _, _ in connections:
-                    e = list(elems[nbElem].edgeInfo[nbLocEdge])
-                    e[1] = -edgGlobalIdx
-                    elems[nbElem].edgeInfo[nbLocEdge] = tuple(e)
+                edgeIsMaster  = (sibling['elem'] == masterOcc['elem'] and sibling['loc'] == masterOcc['loc'])
+                # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
+                orientation   = 1 if nodeInfo[masterOcc['nodes'][0]] < nodeInfo[masterOcc['nodes'][1]] else -1
 
-            # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
-            orientation =  1 if nodeInfo[masterEdgeNodes[0]] < nodeInfo[masterEdgeNodes[1]] else -1
-            # Current edge is a slave edge, check our relative orientation
-            if masterID != -1:
-                # Check if the edge is oriented in the same direction
-                orientation = orientation if masterEdge[0] == edge[0] else -orientation
-
-            edgeConn = []
-            for iConn, (nbElem, _, nbLocEdge, nbEdge, _) in enumerate(connections):
                 # The current edge is the master
-                if masterID == -1:
-                    orientedElemID  = -(nbElem   +1)
-                    orientedLocEdge =   nbLocEdge+1 if nbEdge   == masterEdge               else -(nbLocEdge+1)  # noqa: E272
+                # if masterID == -1:
+                #     orientedElemID  = -(nbElem   +1)
+                #     orientedLocEdge =   nbLocEdge+1 if nbEdge   == masterEdge               else -(nbLocEdge+1)  # noqa: E272
+                if edgeIsMaster:
+                    orientedElemID  = -(sibling['elem'] + 1)
+                    orientedLocEdge =   sibling['loc']  + 1
 
-                # The master edge is one of the connections, indicated by masterID
+                # Current edge is a slave edge
+                # # The master edge is one of the connections, indicated by masterID
                 else:
-                    orientedElemID  =   nbElem   +1 if masterID == iConn                    else -(nbElem   +1)  # noqa: E272
-                    orientedLocEdge =   nbLocEdge+1 if nbEdge   == connections[masterID][3] else -(nbLocEdge+1)
+                    # orientedElemID  =   nbElem   +1 if masterID == iConn                    else -(nbElem   +1)  # noqa: E272
+                    # orientedLocEdge =   nbLocEdge+1 if nbEdge   == connections[masterID][3] else -(nbLocEdge+1)
+                    # Check our relative orientation
+                    orientation     = orientation if nodeInfo[sibling['nodes'][0]] == nodeInfo[masterOcc['nodes'][0]] else -1
+                    orientedElemID  =  sibling['elem'] + 1
+                    orientedLocEdge =  sibling['loc']  + 1
 
-                # Append the edge connectivity
-                edgeConn.append([orientedElemID, orientedLocEdge])
+                # TODO: Check if this is correct
+                # > Copy the orientation
+                orientedLocEdge = int(orientedLocEdge * orientation)
+
+                connections.append([orientedElemID, orientedLocEdge])
 
             if connections:
-                lastIndex = offset + len(edgeConn)
-                edgeConnList.extend(edgeConn)
-            else:  # No connections
+                lastIndex = offset + len(connections)
+                edgeConnList.extend(connections)
+            else:
                 lastIndex = offset
 
             # Append edge information
-            edgeInfoList.append([copysign_int(edgeIdx, orientation), offset, lastIndex])
+            edgeInfoList.append([FEMEdgeID, offset, lastIndex])
+            occGlobalIdx += 1
 
-    # INFO: Same output as above but looping over the occurrences
-    # for occIdx, (FEMVertexId, elemID, locNode) in enumerate(occList):
-    #     groupOcc    = groups[FEMVertexId]
-    #     offset      = len(vertexConnList)
-    #
-    #     # Identify the master occurrence (lowest occurrence index in the group)
-    #     masterOcc   = min(x[0] for x in groupOcc)
-    #
-    #     # Build connectivity list for current element, excluding itself
-    #     connections = [(nbElem+1, nbLocal+1) if otherOcc == masterOcc else (-(nbElem+1), nbLocal+1)
-    #                    for (otherOcc, nbElem, nbLocal) in groupOcc if otherOcc != occIdx]
-    #     if connections:
-    #         lastIndex = offset + len(connections)
-    #         vertexConnList.extend(connections)
-    #     else:  # No connections
-    #         lastIndex = offset
-    #     # Append vertex information
-    #     vertexInfoList.append([FEMVertexId, offset, lastIndex])
-    #
-    #     # Update FEMElemInfo for the corresponding element.
-    #     # Set the offset to the minimum and last index to the maximum among occurrences.
-    #     if offset < FEMElemInfo[elemID, 2]:
-    #         FEMElemInfo[elemID, 2] = offset
-    #     if lastIndex > FEMElemInfo[elemID, 3]:
-    #         FEMElemInfo[elemID, 3] = lastIndex
+        # Set the edge connectivity offset for this element
+        FEMElemInfo[elemID, 0] = edgeOffset
+        FEMElemInfo[elemID, 1] = edgeOffset + len(elem.edgeInfo)
+        edgeOffset += len(elem.edgeInfo)
 
     # Convert lists to numpy arrays
     vertexInfo = np.array(vertexInfoList, dtype=np.int32)
@@ -321,4 +447,4 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
     edgeInfo   = np.array(edgeInfoList  , dtype=np.int32)
     edgeConn   = np.array(edgeConnList  , dtype=np.int32) if edgeConnList   else np.array((0, 2), dtype=np.int32)  # noqa: E272
 
-    return FEMElemInfo, vertexInfo, vertexConn, edgeInfo, edgeConn
+    return FEMElemInfo, nFEMVertices, vertexInfo, vertexConn, nFEMEdges, edgeInfo, edgeConn
