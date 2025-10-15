@@ -380,7 +380,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return strToFloatOrPi(value)
+    return strToFloatOrPi(str(value))
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
