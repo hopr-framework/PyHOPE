@@ -56,7 +56,7 @@ Prominent examples of DGSEM codes originating and being actively developed at th
 A crucial aspect of DGSEM is the mapping of the equations to be solved from reference space to physical space, which relies on the computation of the Jacobian determinant to ensure accurate transformations for curved high-order elements.
 At the same time, DGSEM features a highly local stencil since grid elements are connected solely via the numerical flux through adjacent element faces.
 Providing mesh and solution data in an on-disc data format which facilitates non-overlapping I/O is key to efficient parallel data access, thereby minimizing execution time.
-While HOPR has traditionally served as a reference implementation of a mesh generator for this process, PyHOPE is a modern alternative that enhances readability and extensibility.
+While HOPR has traditionally served as the reference implementation of a mesh generator for this process, PyHOPE is a modern alternative that enhances readability and extensibility.
 Designed with a clear code structure and modularization in mind, PyHOPE offers a more user-friendly and adaptable solution for researchers and engineers working on high-order mesh generation and transformation.
 
 [^1]: [https://numericsresearchgroup.org/codes.html](https://numericsresearchgroup.org/codes.html)
@@ -64,7 +64,7 @@ Designed with a clear code structure and modularization in mind, PyHOPE offers a
 
 # State of the Field
 PyHOPE shares similarities with other high-order mesh generation tools such as HOPR which serves as the reference implementation.
-Although the HOPR format is supported by a variety of codes, there is limited code support to generate meshes in this format.
+Although the HOPR mesh format is supported by a variety of solvers, there is limited code support to generate meshes in this format.
 Compared to HOPR, PyHOPE places a special focus on enhanced adaptability, including powerful element splitting functionality, improved usability, and broader support for modern mesh formats, including curved and mixed meshes to enable more complex mesh generation.
 The following spectral element solvers have (optional) support for meshes generated in PyHOPE.
 
@@ -107,8 +107,8 @@ PyHOPE detects available simultaneous multithreading (SMT) capabilities and auto
 # Examples
 PyHOPE is used to generate unstructured high-order HDF5 meshes for a variety of engineering applications, ranging from canonical cases such as channel flows or the Taylor-Green vortex to complex geometries such as airfoils and complete airplanes.
 High-order meshes in HOPR format also find application in electromagnetics and plasma simulation, such as optical lenses and gyrotrons.
-PyHOPE comes with several tutorials that are included in the [GitHub repository](https://github.com/hopr-framework/PyHOPE/tree/main/tutorials), together with the external mesh files where appropriate.
-These tutorials cover both the creation of block-structured grids using PyHOPE's inbuilt functionality as well as the read-in of externally created meshes.
+PyHOPE comes with several tutorials which are included in the [GitHub repository](https://github.com/hopr-framework/PyHOPE/tree/main/tutorials), together with the external mesh files where appropriate.
+These tutorials cover both the creation of block-structured grids using PyHOPE's built-in functionality as well as the read-in of externally created meshes.
 The available post-deformation options and topology conversion features are outlined as well.
 All tutorial cases are also used for code coverage and regression checking during Continuous Integration/Continuous Deployment (CI/CD).
 
