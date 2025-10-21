@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-10-21
+This release brings PyHOPE to functional parity with the HOPR features currently in active use. Any additional used but missing features will be treated as bugs.
+### Added
+- Add `nElems_IJK`/`Elem_IJK` arrays for meshes with structured dimensions [92f7168]
+- Add debugMesh output in XDMF format [907df1f]
+- Add element and zone ID to the debugMesh [9bb3338]
+- Add two additional mesh sorting algorithms (snake/lex) [df517c8]
+- Add consistency checks to various sections [f68bdb6]
+- Add type checking with [ty](https://github.com/astral-sh/ty) [df517c8]
+
+### Changed
+- Improve error message for invalid MeshMode [a8d78ef]
+- Improve code performance in various sections [5403b5b]
+
+### Fixed
+- Missing integer conversion in DebugMesh [a5c3248]
+- Consider multiple periodicity during FEMconnect [43414bd]
+
 ## [0.1.1] - 2025-09-19
 ### Added
 - Add support for multiple mesh zones [40dc87c]
