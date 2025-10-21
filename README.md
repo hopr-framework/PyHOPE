@@ -2,7 +2,7 @@ PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python fr
 
 PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
 
-PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [HOPR documentation](https://hopr.readthedocs.io). Furthermore, PyHOPE utilizes [Gmsh](https://gmsh.info) for the initial mesh generation and conversion before converting it to its internal representation.
+PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. Furthermore, PyHOPE utilizes [Gmsh](https://gmsh.info) for the initial mesh generation and conversion before converting it to its internal representation. The internal representation is loosely based on [meshio](https://github.com/nschloe/meshio) but augmented with additional information required for high-order meshes.
 
 This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
 
@@ -41,13 +41,13 @@ pyhope --verify-install [tutorials]  # Run PyHOPE mesh generation checks
 > Be aware that the PyHOPE repository uses [Git Large File Storage (LFS)](https://git-lfs.com) for some of its larger mesh files.
 
 # Getting Help
-PyHOPE help output is formatted to serve as self-hosting INI format. A list of all options and the default values can be accessed by running the following command.
+PyHOPE help output is formatted to serve as self-hosting [INI format](https://hopr-framework.github.io/PyHOPE/user-guide/parameter-file). A list of all options and the default values can be accessed by running the following command.
 ```bash
 pyhope --help
 ```
 
 # Documentation
-PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For more information and tutorials, please visit the [documentation](https://hopr-framework.github.io/PyHOPE).
+Refer to the [PyHOPE documentation](https://hopr-framework.github.io/PyHOPE) for the getting started guide, examples, and usage instructions. PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. For technical details and the reference mesh format specification, see the [HOPR documentation](https://hopr.readthedocs.io).
 
 # Usage
 PyHOPE can either be invoked directly from the command line or used as a Python library.
