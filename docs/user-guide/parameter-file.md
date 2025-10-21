@@ -22,12 +22,13 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     ! Output
     !------------------------------------------------------------------------------
     ProjectName                      =                      ! Name of output files
-    OutputFormat                     =                 HDF5 ! Mesh output format
+    OutputFormat                     =                 HDF5 ! Mesh output format [HDF5, VTK, GMSH]
+    DebugMesh                        =                    F ! Output debug mesh in XDMF format
     DebugVisu                        =                    F ! Launch the GMSH GUI to visualize the mesh
     !------------------------------------------------------------------------------
     ! Mesh
     !------------------------------------------------------------------------------
-    Mode                             =                      ! Mesh generation mode (1 - Internal, 3 - External [MeshIO])
+    Mode                             =                      ! Mesh generation mode [Internal, External]
     nZones                           =                      ! Number of mesh zones
     Corner                           =                      ! Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ... ,, x_8,y_8,z_8/)
     X0                               =                      ! Origin of a zone. Equivalent to a corner node.
@@ -41,7 +42,8 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     BoundaryOrder                    =                    2 ! Order of spline-reconstruction for curved surfaces (legacy)
     vv                               =                      ! Vector for periodic BC
     doPeriodicCorrect                =                    F ! Enables periodic correction
-    doSortIJK                        =                    F ! Sort the mesh elements along the I,J,K directions
+    MeshSorting                      =                  SFC ! Mesh sorting mode [SFC, IJK, LEX, Snake]
+    doSortIJK                        =                    F ! Sort the mesh elements along the I,J,K directions (legacy)
     doSplitToHex                     =                    F ! Split simplex elements into hexahedral elements
     doMortars                        =                    T ! Enables mortars
     !------------------------------------------------------------------------------
