@@ -81,7 +81,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├────
 │                          nZones │ 1                               │ *CUSTOM │
 ├── Generating zone 1
-│                          Corner │ (/0.,0.,0. ,,1.,0.,0. ,,1.,1... │ *CUSTOM │
+│                          Corner │ (/0.,0.,0.,,1.,0.,0.,,1.,1.,... │ *CUSTOM │
 │                          nElems │ (/8,8,8/)                       │ *CUSTOM │
 │                        ElemType │ 108 [hexahedron]                │ *CUSTOM │
 │                     StretchType │ (/0,0,0/)                       │ DEFAULT │
@@ -102,9 +102,9 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │                    BoundaryName │ BC_zplus                        │ *CUSTOM │
 │                    BoundaryType │ (/9,0,0,0/)                     │ *CUSTOM │
 ├────
-│                              vv │ (/1., 0., 0./)                  │ *CUSTOM │
-│                              vv │ (/0., 1., 0./)                  │ *CUSTOM │
-│                              vv │ (/0., 0., 1./)                  │ *CUSTOM │
+│                              vv │ (/1.,0.,0./)                    │ *CUSTOM │
+│                              vv │ (/0.,1.,0./)                    │ *CUSTOM │
+│                              vv │ (/0.,0.,1./)                    │ *CUSTOM │
 ├────
 ├── Generated mesh with 512 cells
 ├─────────────────────────────────────────────
@@ -120,7 +120,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├─────────────────────────────────────────────
 │ SORT MESH...
 ├────
-│                       doSortIJK │ False                           │ DEFAULT │
+│                     MeshSorting │ 1 [SFC]                         │ DEFAULT │
 ├────
 ├── Sorting elements along space-filling curve
 ├─────────────────────────────────────────────
