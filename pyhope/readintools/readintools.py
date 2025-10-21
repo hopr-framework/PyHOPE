@@ -195,7 +195,7 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
     config.prms[string] = dict(type='str',
                                name=string,
                                help=help,
-                               default=default,
+                               default=str(default),
                                counter=0,
                                multiple=multiple)
 
@@ -209,7 +209,7 @@ def CreateReal(string: str, help: Optional[str] = None, default: Optional[float]
     config.prms[string] = dict(type='real',
                                name=string,
                                help=help,
-                               default=default,
+                               default=str(default),
                                counter=0,
                                multiple=multiple)
 
@@ -223,7 +223,7 @@ def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = 
     config.prms[string] = dict(type='int',
                                name=string,
                                help=help,
-                               default=default,
+                               default=str(default),
                                counter=0,
                                multiple=multiple)
 
@@ -380,7 +380,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return strToFloatOrPi(value)
+    return strToFloatOrPi(str(value))
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
