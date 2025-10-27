@@ -44,18 +44,18 @@ bibliography: paper.bib
 
 # Summary
 PyHOPE (Python High-Order Preprocessing Environment) is a framework for generating and converting high-order meshes composed of standard 3D element types, designed for massively parallel spectral element solvers on high-performance computing (HPC) systems.
-PyHOPE builds on and extends Gmsh [@Geuzaine2009] which is used for the initial mesh generation and/or mesh read-in before conversion of the mesh to its internal representation and application of boundary conditions.
-Parallel read-in is crucial on HPC clusters which typically use parallel distributed file systems to enable and scale storage access by striping data across multiple servers.
-Primary output format of PyHOPE is the HOPR [@Hindenlang2014] HDF5 curved mesh format which is specifically designed for parallel read-in of unstructured three-dimensional meshes of arbitrary order, including tetrahedra, pyramids, prisms, and hexahedra.
+PyHOPE builds on and extends Gmsh [@Geuzaine2009], which is used for the initial mesh generation and/or mesh read-in before conversion of the mesh to its internal representation and application of boundary conditions.
+Parallel read-in is crucial on HPC clusters, which typically use parallel distributed file systems to enable and scale storage access by striping data across multiple servers.
+The primary output format of PyHOPE is the HOPR [@Hindenlang2014] HDF5 curved mesh format, which is specifically designed for parallel read-in of unstructured three-dimensional meshes of arbitrary order, including tetrahedra, pyramids, prisms, and hexahedra.
 Information stored in HOPR format facilitates non-overlapping input/output (I/O) through collocation of the required mesh information, including the vertex and side information together with element connectivity, in per-element packages.
 Each package is assigned a unique identifier via ordering along structured dimensions or a space-filling curve.
 
 # Statement of Need
 The Discontinuous Galerkin Spectral Element Method (DGSEM) is a powerful numerical approach for solving partial differential equations, particularly in high-performance computing applications.
-Prominent examples of DGSEM codes originating and being actively developed at the University of Stuttgart include the FLEXI family[^1] geared towards solving the compressible (multiphase) Navier-Stokes equations along with PICLas[^2] which focuses on plasma simulation with a Particle-in-Cell/Direct Simulation Monte Carlo approach.
+Prominent examples of DGSEM codes originating and being actively developed at the University of Stuttgart include the FLEXI family[^1] geared towards solving the compressible (multiphase) Navier-Stokes equations, along with PICLas[^2], which focuses on plasma simulation with a Particle-in-Cell/Direct Simulation Monte Carlo approach.
 A crucial aspect of DGSEM is the mapping of the equations to be solved from reference space to physical space, which relies on the computation of the Jacobian determinant to ensure accurate transformations for curved high-order elements.
 At the same time, DGSEM features a highly local stencil since grid elements are connected solely via the numerical flux through adjacent element faces.
-Providing mesh and solution data in an on-disc data format which facilitates non-overlapping I/O is key to efficient parallel data access, thereby minimizing execution time.
+Providing mesh and solution data in an on-disc data format, which facilitates non-overlapping I/O, is key to efficient parallel data access, thereby minimizing execution time.
 While HOPR has traditionally served as the reference implementation of a mesh generator for this process, PyHOPE is a modern alternative that enhances readability and extensibility.
 Designed with a clear code structure and modularization in mind, PyHOPE offers a more user-friendly and adaptable solution for researchers and engineers working on high-order mesh generation and transformation.
 
@@ -63,7 +63,7 @@ Designed with a clear code structure and modularization in mind, PyHOPE offers a
 [^2]: [https://github.com/piclas-framework/piclas](https://github.com/piclas-framework/piclas)
 
 # State of the Field
-PyHOPE shares similarities with other high-order mesh generation tools such as HOPR which serves as the reference implementation.
+PyHOPE shares similarities with other high-order mesh generation tools such as HOPR, which serves as the reference implementation.
 Although the HOPR mesh format is supported by a variety of solvers, there is limited code support to generate meshes in this format.
 Compared to HOPR, PyHOPE places a special focus on enhanced adaptability, including powerful element splitting functionality, improved usability, and broader support for modern mesh formats, including curved and mixed meshes to enable more complex mesh generation.
 The following spectral element solvers have (optional) support for meshes generated in PyHOPE.
@@ -71,17 +71,17 @@ The following spectral element solvers have (optional) support for meshes genera
 +--------------+-------------+-------------------------+------------------------------------------+
 | Framework    | Language    | Equation System         | Reference                                |
 +:=============+:============+:========================+:=========================================+
-| FLEXI        | Fortran     | NSE                     | [@Krais2021]                             |
+| FLEXI        | Fortran     | NSE                     | @Krais2021                               |
 +--------------+-------------+-------------------------+------------------------------------------+
-| ƎLEXI        | Fortran     | NSE/MRG                 | [@Kopper2023]                            |
+| ƎLEXI        | Fortran     | NSE/MRG                 | @Kopper2023                              |
 +--------------+-------------+-------------------------+------------------------------------------+
-| GALÆXI       | Fortran/C   | NSE                     | [@Kurz2025]                              |
+| GALÆXI       | Fortran/C   | NSE                     | @Kurz2025                                |
 +--------------+-------------+-------------------------+------------------------------------------+
-| FLUXO        | Fortran     | NSE/MHD/Maxwell         | [@RuedaRamirez2017]                      |
+| FLUXO        | Fortran     | NSE/MHD/Maxwell         | @RuedaRamirez2017                        |
 +--------------+-------------+-------------------------+------------------------------------------+
-| HORSES3D     | Fortran     | NSE/Cahn-Hilliard       | [@Ferrer2023]                            |
+| HORSES3D     | Fortran     | NSE/Cahn-Hilliard       | @Ferrer2023                              |
 +--------------+-------------+-------------------------+------------------------------------------+
-| PICLas       | Fortran     | Maxwell/Poisson         | [@Fasoulas2019]                          |
+| PICLas       | Fortran     | Maxwell/Poisson         | @Fasoulas2019                            |
 +--------------+-------------+-------------------------+------------------------------------------+
 | SELF         | Fortran     | Shallow Water/Euler     | github.com/FluidNumerics/SELF            |
 +:=============+:============+:========================+:=========================================+
@@ -90,7 +90,7 @@ The following spectral element solvers have (optional) support for meshes genera
 
 # Features
 PyHOPE provides a simple and intuitive interface for generating and transforming high-order meshes.
-PyHOPE is distributed as open-source software on GitHub[^3] and as package on the Python Package Index (PyPI)[^4].
+PyHOPE is distributed as open-source software on GitHub[^3] and as a package on the Python Package Index (PyPI)[^4].
 It reads user input from a single plain-text configuration file in INI format[^5].
 The software supports the generation of block‑structured meshes using any combination of canonical volumetric element types (tetrahedral, pyramidal, prismatic, and hexahedral), allowing for mesh stretching and post‑deformation at arbitrary polynomial orders.
 PyHOPE can automatically create rectilinear boundary layer meshes based on a desired wall resolution or stretching factor.
