@@ -52,7 +52,7 @@ Each package is assigned a unique identifier via ordering along structured dimen
 
 # Statement of Need
 The Discontinuous Galerkin Spectral Element Method (DGSEM) is a powerful numerical approach for solving partial differential equations, particularly in high-performance computing applications.
-Prominent examples of DGSEM codes originating and being actively developed at the University of Stuttgart include the FLEXI family[^1] geared towards solving the compressible (multiphase) Navier-Stokes equations, along with PICLas[^2], which focuses on plasma simulation with a Particle-in-Cell/Direct Simulation Monte Carlo approach.
+Prominent examples of DGSEM codes originating and being actively developed at the University of Stuttgart include the FLEXI family[^1] geared towards solving the compressible Navier-Stokes equations, along with PICLas[^2], which focuses on plasma simulation with a Particle-in-Cell/Direct Simulation Monte Carlo approach.
 A crucial aspect of DGSEM is the mapping of the equations to be solved from reference space to physical space, which relies on the computation of the Jacobian determinant to ensure accurate transformations for curved high-order elements.
 At the same time, DGSEM features a highly local stencil since grid elements are connected solely via the numerical flux through adjacent element faces.
 Providing mesh and solution data in an on-disc data format, which facilitates non-overlapping I/O, is key to efficient parallel data access, thereby minimizing execution time.
