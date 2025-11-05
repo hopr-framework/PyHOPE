@@ -40,6 +40,15 @@ from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
 
 
+# Use Pool initializer to attach process-local data to the worker function
+def init_worker(function, VdmEqToGP, DGP, weights) -> None:
+    """Initializer to set process-local attributes on the worker function
+    """
+    function.VdmEqToGP = VdmEqToGP
+    function.DGP       = DGP
+    function.weights   = weights
+
+
 def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """ Evaluate the surface integral for normals over a side of an element
     """
@@ -79,7 +88,7 @@ def check_sides(elem,
                 DGP      : np.ndarray,
                 weights  : np.ndarray,
                 # sides    : list
-                ) -> list[bool | int | np.ndarray]:
+                ) -> list[tuple]:
     results = []
     points  = mesh_vars.mesh.points
     elems   = mesh_vars.elems
@@ -165,12 +174,14 @@ def check_sides(elem,
     return results
 
 
-def process_chunk(chunk) -> np.ndarray:
+def process_chunk(chunk) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
-    chunk_results    = np.empty(len(chunk), dtype=object)
-    # elem, VdmEqToGP, DGP, weights = elem_data
-    chunk_results[:] = [check_sides(*elem_data) for elem_data in chunk]
+    # Only keep failures to reduce memory and avoid building large arrays of successes
+    chunk_results = []
+    for elem in chunk:
+        elem_results = check_sides(elem, process_chunk.VdmEqToGP, process_chunk.DGP, process_chunk.weights)  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+        chunk_results.append([r for r in elem_results if not bool(r[0])])
     return chunk_results
 
 
@@ -226,19 +237,36 @@ def CheckWatertight() -> None:
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks  = tuple((elem, VdmEqToGP, DGP, weights)
-                        for elem in elems)
+        tasks   = tuple(elem for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
+        res     = run_in_parallel(process_chunk,
+                                  tasks,
+                                  chunk_size  = max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),  # noqa: E251
+                                  initializer = init_worker,                                               # noqa: E251
+                                  init_args   = (process_chunk, VdmEqToGP, DGP, weights))                  # noqa: E251
     else:
-        res    = np.empty(len(elems), dtype=object)
-        res[:] = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]
+        res     = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]
 
-    results = tuple(tuple(result for r in res for result in r if not bool(result[0]))
-)
+    results = tuple(result for r in res for result in r if not bool(result[0]))
+
     if len(results) > 0:
-        nconn = len(tuple(tuple(result for r in res for result in r)))
+        # Compute total number of checked connections without materializing all results
+        nconn = 0
+        for SideID, side in enumerate(sides):
+            # Only connected sides and not small mortar sides
+            if side.connection is None or side.sideType < 0:
+                continue
+            # Big mortar side is counted once
+            elif side.connection < 0:
+                nconn += 1
+            # Internal side: only count the canonical representative and ignore virtual mortar sides
+            elif side.connection >= 0:
+                if SideID > side.connection:
+                    continue
+                if side.locMortar is not None:
+                    continue
+                nconn += 1
 
         for result in results:
             # Unpack the results

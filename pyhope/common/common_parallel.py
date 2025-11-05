@@ -59,7 +59,7 @@ def update_progress(progress_queue: Queue, total_elements: int) -> None:
             processed_count += chunk_size
 
 
-def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10) -> list:
+def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10, initializer=None, init_args=()) -> list:
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------
@@ -84,7 +84,7 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
     progress_thread.start()
 
     # Use multiprocessing Pool for parallel processing
-    with Pool(processes=np_mtp) as pool:
+    with Pool(processes=np_mtp, initializer=initializer, initargs=init_args) as pool:
         # Map work across processes in chunks
         results = []
         try:
@@ -101,8 +101,6 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10)
             sys.exit(1)
 
     # Wait for the process and progress threads to finish and synchronize
-    pool.join()
-    pool.close()
     progress_thread.join()
     progress_thread.close()
     return results

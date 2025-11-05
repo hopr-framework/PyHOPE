@@ -48,7 +48,7 @@ from pyhope.mesh.mesh_common import face_to_nodes
 
 
 def check_sides(elem,
-               ) -> list[bool | int | np.ndarray]:
+               ) -> list[tuple]:
     results = []
     elems:  Final[list]  = mesh_vars.elems
     sides:  Final[list]  = mesh_vars.sides
@@ -144,17 +144,15 @@ def CheckConnect() -> None:
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks  = tuple((elem)
-                        for elem in elems)
+        tasks   = tuple(elem for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
+        res     = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
     else:
-        res    = np.empty(len(elems), dtype=object)
-        res[:] = [check_sides(elem) for elem in elems]
+        res     = [check_sides(elem) for elem in elems]
 
-    results = tuple(tuple(result for r in res for result in r if not bool(result[0]))
-)
+    results = tuple(result for r in res for result in r if not bool(result[0]))
+
     if len(results) > 0:
         nGeo:      Final[int]        = mesh_vars.nGeo
         sides:     Final[list]       = mesh_vars.sides
