@@ -104,6 +104,7 @@ def DefineMesh() -> None:
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
     CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
     CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
+    CreateRealArray( 'meshRot3D',   nReals=3, default='(/0.,0.,0./)'                , help='Rotate the mesh around rotation center and coordiante axis, defined angle in degrees')
     CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
     CreateStr(       'MeshPostDeform',   default='none',                              help='Mesh post-transformation template')
     # Stretching

@@ -76,8 +76,8 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
     cell_sets = {}
     for dim, tag in gmsh.model.getPhysicalGroups():
         # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)
-        _, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
-        offset = min(elem_tags[0])
+        elem_types, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
+        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i,j in zip(elem_tags,elem_types)}
 
         name = gmsh.model.getPhysicalName(dim, tag)
         cell_sets[name] = [[] for _ in range(len(cells))]
@@ -85,19 +85,19 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
             # elem_types, elem_tags, node_tags
             elem_types, elem_tags, _ = gmsh.model.mesh.getElements(dim, e)
             assert len(elem_types) == len(elem_tags)
-            assert len(elem_types) == 1
-            elem_type = elem_types[0]
-            elem_tags = elem_tags[0] - offset
 
-            meshio_cell_type = meshio.gmsh.gmsh_to_meshio_type[elem_type]
+            meshio_cell_type = [meshio.gmsh.gmsh_to_meshio_type[type_ele] for type_ele in elem_types]
             # Make sure that the cell type appears only once in the cell list
             idx = []
             for k, cell_block in enumerate(cells):
-                if cell_block.type == meshio_cell_type:
+                if cell_block.type in meshio_cell_type:
                     idx.append(k)
-            assert len(idx) == 1
-            idx = idx[0]
-            cell_sets[name][idx].append(elem_tags)
+
+            offset = {meshio_cell_type[j]: np.where(elem_tags_group[meshio_cell_type[j]] == elem_tags[j][0])[0] for j in range(len(idx))}
+            elem_tags = [offset[j] + np.int64(i - i[0]) for j,i in zip(meshio_cell_type,elem_tags)]
+
+            for j,i in enumerate(idx):
+                cell_sets[name][i].append(elem_tags[j])
 
         cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]
 
