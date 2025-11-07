@@ -154,7 +154,7 @@ def TransformMesh() -> None:
 
     nMeshScale = CountOption('meshScale')
     nMeshTrans = CountOption('meshTrans')
-    nMeshRot   = CountOption('meshRot')
+    nMeshRot   = (CountOption('meshRot')+CountOption('meshRot3D'))
 
     # Read in the mesh post-deformation flag
     meshPostDeform = GetStr('MeshPostDeform') if CountOption('MeshPostDeform') != 0 else 'none'
@@ -178,21 +178,38 @@ def TransformMesh() -> None:
     meshTrans = GetRealArray('meshTrans')
 
     # Get rotation matrix for mesh
-    meshRot   = GetRealArray('meshRot')
-    meshRot   = np.array(meshRot).reshape(3, 3)
+    meshRot3D = GetRealArray('meshRot3D')
     meshRotC  = GetRealArray('meshRotCenter')
+
+    if not np.array_equal(meshRot3D, [0.0, 0.0, 0.0]):
+      a = meshRot3D[0]*np.pi/180
+      b = meshRot3D[1]*np.pi/180
+      c = meshRot3D[2]*np.pi/180
+      meshRot      = np.zeros((3,3))
+      meshRot[0,0] = np.cos(a)*np.cos(b)
+      meshRot[0,1] = np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
+      meshRot[0,2] = np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
+      meshRot[1,0] = np.sin(a)*np.cos(b)
+      meshRot[1,1] = np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
+      meshRot[1,2] = np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
+      meshRot[2,0] = -np.sin(b)
+      meshRot[2,1] = np.cos(b)*np.sin(c)
+      meshRot[2,2] = np.cos(b)*np.cos(c)
+    else:
+      meshRot   = GetRealArray('meshRot')
+      meshRot   = np.array(meshRot).reshape(3, 3)
 
     # Scale mesh
     if meshScale != 1.0:
         mesh.points *= meshScale
 
-    # Translate mesh
-    if not np.array_equal(meshTrans, [0.0, 0.0, 0.0]):
-        mesh.points += meshTrans
-
     # Rotate mesh
     if not np.array_equal(meshRot, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
         mesh.points = meshRotC + (mesh.points-meshRotC) @ meshRot
+
+    # Translate mesh
+    if not np.array_equal(meshTrans, [0.0, 0.0, 0.0]):
+        mesh.points += meshTrans
 
     # Exit routine if no further advanced transformation is required
     if meshPostDeform == 'none':
