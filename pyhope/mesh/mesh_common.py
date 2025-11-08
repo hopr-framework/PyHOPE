@@ -51,7 +51,6 @@ import pyhope.mesh.mesh_vars as mesh_vars
 elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
-
 @cache
 def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of an element
@@ -776,3 +775,23 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
             sys.exit(1)
+
+
+@cache
+def NDOFS_ELEM(elemType: int, N: int, dim: int = 3) -> int:
+    """ Return a list of all edges of an element
+    """
+    nodes_map = {  # Tetrahedron
+                   4: round((N+1)*(N+2)*(N+3)/6.),
+                   # Pyramid
+                   5: round((N+1)*(N+2)*(2*N+3)/6.),
+                   # Wedge / Prism
+                   6: round((N+1)**(dim-1)*(N+2)/2.),
+                   # Hexahedron
+                   8: (N+1)**dim
+                }
+
+    if elemType % 100 not in nodes_map:
+        raise ValueError(f'Error in nodes: elemType {elemType} is not supported')
+
+    return nodes_map[elemType % 100]
