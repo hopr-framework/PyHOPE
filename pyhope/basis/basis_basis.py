@@ -172,78 +172,78 @@ def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndar
     return Vdm
 
 
-def compute_cols_prism(a, b, c, n):
-    cols = []
-    for iZETA in range(n):
-        fZETA = sp.special.jacobi(iZETA, 0, 0)(c)
-        for iETA in range(n):
-            fETA = sp.special.jacobi(iETA, 0, 0)(b)
-            for iXI in range(n - iETA):
-                fXI = sp.special.jacobi(iXI, 2*iETA + 1, 0)(a)
-                col = np.sqrt(2.) * fXI * fETA * fZETA * (1 - a) ** iETA
-                cols.append(col)
-    return np.array(cols).T
-
-
-def compute_cols_tetra(a, b, c, n):
-    cols = []
-    for iZETA in range(n):
-        for iETA in range(n - iZETA):
-            for iXI in range(n - iETA - iZETA):
-                fXI   = sp.special.jacobi(iXI  , 0             , 0)(a)
-                fETA  = sp.special.jacobi(iETA , 2*iETA + 1    , 0)(b)
-                fZETA = sp.special.jacobi(iZETA, 2*(iETA+iXI)+2, 0)(c)
-                col = 2.*np.sqrt(2.) * fXI * fETA * fZETA * (1 - b) ** iXI * (1 - c) ** (iXI+iETA)
-                cols.append(col)
-    return np.array(cols).T
-
-
-def calc_vandermonde_prism(n_In: int, n_Out: int, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:
-    """ Build a 3D Vandermonde matrix using the PKD basis function,
-        evaluated at the interpolation points xi_Out (build of Jacobi polynomials of degree N_In)
-    """
-    a_in  = xi_In[0, :]
-    b_in  = np.where((1 - xi_In[0, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[1, :]) / (1. - xi_In[0, :] + 1.e-20) - 1.)
-    c_in  = xi_In[2, :]
-
-    a_out = xi_Out[0, :]
-    b_out = np.where((1 - xi_Out[0, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[1, :]) / (1. - xi_Out[0, :] + 1.e-20) - 1.)
-    c_out = xi_Out[2, :]
-
-    if n_In >= n_Out:
-        Vdm_tmp = compute_cols_prism(a_in , b_in , c_in , n_In)
-        Vdm     = compute_cols_prism(a_out, b_out, c_out, n_In)
-        Vdm     = np.linalg.inv(Vdm_tmp) @ Vdm
-    else:
-        Vdm_tmp = compute_cols_prism(a_out, b_out, c_out, n_Out)
-        Vdm     = compute_cols_prism(a_in , b_in , c_in , n_Out)
-        Vdm     = Vdm @ np.linalg.inv(Vdm_tmp)
-
-    return Vdm
-
-
-def calc_vandermonde_tetra(n_In: int, n_Out: int, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:
-    """ Build a 3D Vandermonde matrix using the PKD basis function,
-        evaluated at the interpolation points xi_Out (build of Jacobi polynomials of degree N_In)
-    """
-    a_in  = np.where(np.abs(xi_In[1, :] + xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[0, :]) / (- xi_In[1, :] - xi_In[2, :] + 1.e-20) - 1.)
-    b_in  = np.where((1 - xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[1, :]) / (1. - xi_In[2, :] + 1.e-20) - 1.)
-    c_in  = xi_In[2, :]
-
-    a_out = np.where(np.abs(xi_Out[1, :] + xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[0, :]) / (- xi_Out[1, :] - xi_Out[2, :] + 1.e-20) - 1.)
-    b_out = np.where((1 - xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[1, :]) / (1. - xi_Out[2, :] + 1.e-20) - 1.)
-    c_out = xi_Out[2, :]
-
-    if n_In >= n_Out:
-        Vdm_tmp = compute_cols_tetra(a_in , b_in , c_in , n_In)
-        Vdm     = compute_cols_tetra(a_out, b_out, c_out, n_In)
-        Vdm     = np.linalg.inv(Vdm_tmp) @ Vdm
-    else:
-        Vdm_tmp = compute_cols_tetra(a_out, b_out, c_out, n_Out)
-        Vdm     = compute_cols_tetra(a_in , b_in , c_in , n_Out)
-        Vdm     = Vdm @ np.linalg.inv(Vdm_tmp)
-
-    return Vdm
+#  def compute_cols_prism(a, b, c, n):
+#      cols = []
+#      for iZETA in range(n):
+#          fZETA = sp.special.jacobi(iZETA, 0, 0)(c)
+#          for iETA in range(n):
+#              fETA = sp.special.jacobi(iETA, 0, 0)(b)
+#              for iXI in range(n - iETA):
+#                  fXI = sp.special.jacobi(iXI, 2*iETA + 1, 0)(a)
+#                  col = np.sqrt(2.) * fXI * fETA * fZETA * (1 - a) ** iETA
+#                  cols.append(col)
+#      return np.array(cols).T
+#
+#
+#  def compute_cols_tetra(a, b, c, n):
+#      cols = []
+#      for iZETA in range(n):
+#          for iETA in range(n - iZETA):
+#              for iXI in range(n - iETA - iZETA):
+#                  fXI   = sp.special.jacobi(iXI  , 0             , 0)(a)
+#                  fETA  = sp.special.jacobi(iETA , 2*iETA + 1    , 0)(b)
+#                  fZETA = sp.special.jacobi(iZETA, 2*(iETA+iXI)+2, 0)(c)
+#                  col = 2.*np.sqrt(2.) * fXI * fETA * fZETA * (1 - b) ** iXI * (1 - c) ** (iXI+iETA)
+#                  cols.append(col)
+#      return np.array(cols).T
+#
+#
+#  def calc_vandermonde_prism(n_In: int, n_Out: int, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:
+#      """ Build a 3D Vandermonde matrix using the PKD basis function,
+#          evaluated at the interpolation points xi_Out (build of Jacobi polynomials of degree N_In)
+#      """
+#      a_in  = xi_In[0, :]
+#      b_in  = np.where((1 - xi_In[0, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[1, :]) / (1. - xi_In[0, :] + 1.e-20) - 1.)
+#      c_in  = xi_In[2, :]
+#
+#      a_out = xi_Out[0, :]
+#      b_out = np.where((1 - xi_Out[0, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[1, :]) / (1. - xi_Out[0, :] + 1.e-20) - 1.)
+#      c_out = xi_Out[2, :]
+#
+#      if n_In >= n_Out:
+#          Vdm_tmp = compute_cols_prism(a_in , b_in , c_in , n_In)
+#          Vdm     = compute_cols_prism(a_out, b_out, c_out, n_In)
+#          Vdm     = np.linalg.inv(Vdm_tmp) @ Vdm
+#      else:
+#          Vdm_tmp = compute_cols_prism(a_out, b_out, c_out, n_Out)
+#          Vdm     = compute_cols_prism(a_in , b_in , c_in , n_Out)
+#          Vdm     = Vdm @ np.linalg.inv(Vdm_tmp)
+#
+#      return Vdm
+#
+#
+#  def calc_vandermonde_tetra(n_In: int, n_Out: int, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:
+#      """ Build a 3D Vandermonde matrix using the PKD basis function,
+#          evaluated at the interpolation points xi_Out (build of Jacobi polynomials of degree N_In)
+#      """
+#      a_in  = np.where(np.abs(xi_In[1, :] + xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[0, :]) / (- xi_In[1, :] - xi_In[2, :] + 1.e-20) - 1.)
+#      b_in  = np.where((1 - xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[1, :]) / (1. - xi_In[2, :] + 1.e-20) - 1.)
+#      c_in  = xi_In[2, :]
+#
+#      a_out = np.where(np.abs(xi_Out[1, :] + xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[0, :]) / (- xi_Out[1, :] - xi_Out[2, :] + 1.e-20) - 1.)
+#      b_out = np.where((1 - xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[1, :]) / (1. - xi_Out[2, :] + 1.e-20) - 1.)
+#      c_out = xi_Out[2, :]
+#
+#      if n_In >= n_Out:
+#          Vdm_tmp = compute_cols_tetra(a_in , b_in , c_in , n_In)
+#          Vdm     = compute_cols_tetra(a_out, b_out, c_out, n_In)
+#          Vdm     = np.linalg.inv(Vdm_tmp) @ Vdm
+#      else:
+#          Vdm_tmp = compute_cols_tetra(a_out, b_out, c_out, n_Out)
+#          Vdm     = compute_cols_tetra(a_in , b_in , c_in , n_Out)
+#          Vdm     = Vdm @ np.linalg.inv(Vdm_tmp)
+#
+#      return Vdm
 
 
 def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarray:
