@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 import re
 import sys
 from typing import Final, Optional
@@ -45,31 +46,32 @@ from pyhope.mesh.mesh_common import dir_to_nodes, faces
 
 
 def check_orientation(ionodes : np.ndarray,
-                      elemType: int) -> tuple[bool, Optional[str]]:
+                      elemType: int,
+                     ) -> tuple[bool, Optional[str]]:
     """ Check the orientation of the surface normals
     """
     mapLin   = LINMAP(elemType, order=mesh_vars.nGeo)
-    nodes    = ionodes[mapLin]
     iopoints = mesh_vars.mesh.points
     points   = iopoints[ionodes[mapLin]]
 
     # Center of element
-    cElem = np.mean(points, axis=(0, 1, 2))
+    cElem    = np.mean(points, axis=(0, 1, 2))
 
-    success = True
-    sface   = None
+    success  = True
+    sface    = None
+
     for face in faces(elemType):
         # Center of face
         indices, doTransp = dir_to_nodes(face, elemType, mesh_vars.nGeo)
-        fnodes  = nodes[indices]
+        fnodes = ionodes[mapLin][indices]
         if doTransp:
             fnodes = fnodes.transpose()
         fpoints = iopoints[fnodes]
-        # cFace  = fpoints.mean(axis=tuple(range(fpoints.ndim - 1)))
-        cFace  = np.mean(fpoints, axis=(0, 1))
 
         # Tangent and normal vectors
-        nVecFace = cElem - cFace
+        # cFace  = np.mean(fpoints, axis=(0, 1))
+        # nVecFace = cElem - cFace
+        nVecFace = cElem - np.mean(fpoints, axis=(0, 1))
         # nVecFace = nVecFace / np.linalg.norm(nVecFace)
         nVecFace = nVecFace / np.sqrt(np.dot(nVecFace, nVecFace))
 
@@ -92,11 +94,16 @@ def check_orientation(ionodes : np.ndarray,
     return success, sface
 
 
-def process_chunk(chunk) -> np.ndarray:
+def process_chunk(chunk) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
-    chunk_results = np.fromiter(((check_orientation(ionodes, elemType), iElem)
-                                  for iElem, ionodes, elemType in chunk), dtype=object)
+    # Only keep failures to reduce memory and avoid building large arrays of successes
+    chunk_results = []
+    for elemChunk in chunk:
+        iElem, ionodes, elemType = elemChunk
+        elem_result = check_orientation(ionodes, elemType)
+        # Append a lightweight sentinel (None) for successes, actual failure list otherwise
+        chunk_results.append((elem_result, iElem) if not elem_result[0] else None)
     return chunk_results
 
 
@@ -146,12 +153,14 @@ def OrientMesh() -> None:
                            for iElem in range(nElems, nElems + nIOElems))
             # Run in parallel with a chunk size
             # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-            res   = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
+            res   = run_in_parallel(process_chunk,
+                                    tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),
+                                   )
         else:
             res   = np.fromiter(((check_orientation(ioelems[iElem - nElems], elemType), iElem)
                                   for iElem in range(nElems, nElems + nIOElems)), dtype=object)
 
-        if not np.all([success for (success, _), _ in res]):
+        if len(res) > 0 and not np.all([success for (success, _), _ in res]):
             failed_elems = [(iElem + 1, face) for (success, face), iElem in res if not success]
             for iElem, face in failed_elems:
                 print(hopout.warn(f'> Element {iElem}, Side {face}'))
@@ -164,3 +173,6 @@ def OrientMesh() -> None:
     if len(passedTypes) > 0:
         print(hopout.warn('Ignored element type{}: {}'.format('s' if len(passedTypes) > 1 else '',
                                                               [re.sub(r"\d+$", "", s) for s in passedTypes])))
+
+    # Run garbage collector to release memory
+    gc.collect()

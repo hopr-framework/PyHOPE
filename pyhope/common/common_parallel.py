@@ -74,14 +74,15 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10,
     if total_elements == 0:
         return []
 
-    progress_queue = Queue()
-
     # Create a progress bar target
-    target = update_progress if IsInteractive() else None
+    interactive     = IsInteractive()
+    progress_queue  = Queue()  # Queue needs to be initialized even without interactive to declare "put"
+    progress_thread = None
 
-    # Use a separate thread for the progress bar
-    progress_thread = Process(target=target, args=(progress_queue, total_elements))
-    progress_thread.start()
+    if interactive:
+        # Use a separate thread for the progress bar
+        progress_thread = Process(target=update_progress, args=(progress_queue, total_elements), daemon=True)
+        progress_thread.start()
 
     # Use multiprocessing Pool for parallel processing
     with Pool(processes=np_mtp, initializer=initializer, initargs=init_args) as pool:
@@ -90,17 +91,19 @@ def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10,
         try:
             # Using imap_unordered to get results as they complete
             for chunk_result in pool.imap_unordered(process_chunk, chunks):
-                results.extend(chunk_result)
+                # A (None) value indicates success
+                results.extend([r for r in chunk_result if r is not None])
                 # Update progress for each processed chunk
                 progress_queue.put(len(chunk_result))
         except Exception:
-            # Terminate processes and print traceback (exception only contains the error message)
-            pool.terminate()
-            progress_thread.terminate()
-            print(traceback.format_exc())
-            sys.exit(1)
+            # Terminate processes and print traceback
+            if interactive and progress_thread is not None:
+                progress_thread.terminate()
+                print(traceback.format_exc())
+                sys.exit(1)
 
     # Wait for the process and progress threads to finish and synchronize
-    progress_thread.join()
-    progress_thread.close()
+    if interactive and progress_thread is not None:
+        progress_thread.join()
+        progress_thread.close()
     return results
