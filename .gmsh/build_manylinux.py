@@ -143,7 +143,7 @@ CGNS_VERSION = 'v4.5.0'
 
 # OpenCASCADE
 OCC_DIR      = os.path.join(WORK_DIR, 'occt')
-OCC_VERSION  = 'V7_9_1'
+OCC_VERSION  = 'V7_9_2'
 
 # FreeType
 FREETYPE_VERSION = '2.14.1'
@@ -167,7 +167,7 @@ FLTK_VERSION = '1.3.11'
 # FLTK_VERSION = '1.4.0'  # Currently broken, produces segfault
 
 # gperf
-GPERF_VERSION = "3.1"
+GPERF_VERSION = "3.3"
 
 # Fontconfig
 FONTCONFIG_VERSION = '2.17.1'
@@ -178,7 +178,7 @@ FONTCONFIG_DIR = os.path.join(WORK_DIR, 'fontconfig')
 # GLU_VERSION  = '9.0.3'
 
 # Gmsh
-GMSH_VERSION = '4.14.1'
+GMSH_VERSION = '4.15.0'
 GMSH_PATCH   = '1'
 GMSH_FULLVER = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
