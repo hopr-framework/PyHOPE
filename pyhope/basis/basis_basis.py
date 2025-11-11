@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from functools import cache
 from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -229,11 +230,11 @@ def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndar
 #      """ Build a 3D Vandermonde matrix using the PKD basis function,
 #          evaluated at the interpolation points xi_Out (build of Jacobi polynomials of degree N_In)
 #      """
-#      a_in  = np.where(np.abs(xi_In[1, :] + xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[0, :]) / (- xi_In[1, :] - xi_In[2, :] + 1.e-20) - 1.)
+#      a_in  = np.where(np.abs(xi_In[1, :] + xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[0, :]) / (- xi_In[1, :] - xi_In[2, :] + 1.e-20) - 1.)  # noqa: E501
 #      b_in  = np.where((1 - xi_In[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_In[1, :]) / (1. - xi_In[2, :] + 1.e-20) - 1.)
 #      c_in  = xi_In[2, :]
 #
-#      a_out = np.where(np.abs(xi_Out[1, :] + xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[0, :]) / (- xi_Out[1, :] - xi_Out[2, :] + 1.e-20) - 1.)
+#      a_out = np.where(np.abs(xi_Out[1, :] + xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[0, :]) / (- xi_Out[1, :] - xi_Out[2, :] + 1.e-20) - 1.)  # noqa: E501
 #      b_out = np.where((1 - xi_Out[2, :]) <= 1.e-12, -1.0, 2 * (1 + xi_Out[1, :]) / (1. - xi_Out[2, :] + 1.e-20) - 1.)
 #      c_out = xi_Out[2, :]
 #
@@ -257,30 +258,26 @@ def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarra
     c  = xGP[2, :]
 
     # Precompute required Jacobi polynomials and derivatives
-    jacobi_0_0 = [sp.special.jacobi(i, 0, 0) for i in range(order)]
-    jacobi_0_0_deriv = [p.deriv() for p in jacobi_0_0]
-    jacobi_eta_polys = [sp.special.jacobi(i, 0, 0) for i in range(order)]
-    jacobi_eta_derivs = [p.deriv() for p in jacobi_eta_polys]
+    jacobi_0_0        = [sp.special.jacobi(i, 0, 0) for i in range(order)]
+    jacobi_0_0_deriv  = [p.deriv()                  for p in jacobi_0_0]  # noqa: E272
+    jacobi_eta_polys  = [sp.special.jacobi(i, 0, 0) for i in range(order)]
+    jacobi_eta_derivs = [p.deriv()                  for p in jacobi_eta_polys]  # noqa: E272
 
-    jacobi_xi_polys = [
-        [sp.special.jacobi(i, 2*j + 1, 0) for i in range(order - j)]
-        for j in range(order)
-    ]
-    jacobi_xi_derivs = [
-        [p.deriv() for p in row]
-        for row in jacobi_xi_polys
-    ]
+    jacobi_xi_polys = [[sp.special.jacobi(i, 2*j + 1, 0) for i in range(order - j)] for j in range(order)]
+    jacobi_xi_derivs = [[p.deriv() for p in row] for row in jacobi_xi_polys]
 
     fZETA_all  = np.array([p(c) for p in jacobi_0_0])
     dfZETA_all = np.array([p(c) for p in jacobi_0_0_deriv])
     fETA_all   = np.array([p(b) for p in jacobi_eta_polys])
     dfETA_all  = np.array([p(b) for p in jacobi_eta_derivs])
 
-    Vdm = np.zeros((NDOFS_ELEM(106,order-1),NDOFS_ELEM(106,order-1)))
-    Vr  = np.zeros((NDOFS_ELEM(106,order-1),NDOFS_ELEM(106,order-1)))
-    Vs  = np.zeros((NDOFS_ELEM(106,order-1),NDOFS_ELEM(106,order-1)))
-    Vt  = np.zeros((NDOFS_ELEM(106,order-1),NDOFS_ELEM(106,order-1)))
-    D   = np.zeros((3,NDOFS_ELEM(106,order-1),NDOFS_ELEM(106,order-1)))
+    nDOFsElem = NDOFS_ELEM(106, order-1)
+    Vdm = np.zeros((   nDOFsElem, nDOFsElem))
+    Vr  = np.zeros((   nDOFsElem, nDOFsElem))
+    Vs  = np.zeros((   nDOFsElem, nDOFsElem))
+    Vt  = np.zeros((   nDOFsElem, nDOFsElem))
+    D   = np.zeros((3, nDOFsElem, nDOFsElem))
+
     iX = 0
     for iZETA in range(order):
         fZETA, dfZETA = fZETA_all[iZETA], dfZETA_all[iZETA]
@@ -311,9 +308,9 @@ def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarra
                 iX += 1
 
     sVdm     = np.linalg.inv(Vdm)
-    D[1,:,:] = (Vr @ sVdm).T
-    D[0,:,:] = (Vs @ sVdm).T
-    D[2,:,:] = (Vt @ sVdm).T
+    D[1, :, :] = (Vr @ sVdm).T
+    D[0, :, :] = (Vs @ sVdm).T
+    D[2, :, :] = (Vt @ sVdm).T
 
     return D
 
@@ -325,20 +322,22 @@ def polynomial_derivative_matrix_pyram(order: int, xGP: np.ndarray) -> np.ndarra
     b  = np.where((1 - xGP[2, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[1, :]) / (1. - xGP[2, :] + 1.e-20) - 1.)
     c  = xGP[2, :]
 
-    Vdm = np.zeros((NDOFS_ELEM(105,order-1),NDOFS_ELEM(105,order-1)))
-    Vr  = np.zeros((NDOFS_ELEM(105,order-1),NDOFS_ELEM(105,order-1)))
-    Vs  = np.zeros((NDOFS_ELEM(105,order-1),NDOFS_ELEM(105,order-1)))
-    Vt  = np.zeros((NDOFS_ELEM(105,order-1),NDOFS_ELEM(105,order-1)))
-    D   = np.zeros((3,NDOFS_ELEM(105,order-1),NDOFS_ELEM(105,order-1)))
+    nDOFsElem = NDOFS_ELEM(105, order-1)
+    Vdm = np.zeros((   nDOFsElem, nDOFsElem))
+    Vr  = np.zeros((   nDOFsElem, nDOFsElem))
+    Vs  = np.zeros((   nDOFsElem, nDOFsElem))
+    Vt  = np.zeros((   nDOFsElem, nDOFsElem))
+    D   = np.zeros((3, nDOFsElem, nDOFsElem))
+
     iX = 0
     for iZETA in range(order):
         for iETA in range(order - iZETA):
             for iXI in range(order - iZETA):
-                fXI    = sp.special.jacobi(iXI, 0, 0)(a)
-                fETA   = sp.special.jacobi(iETA, 0, 0)(b)
+                fXI    = sp.special.jacobi(iXI  , 0, 0)(a)
+                fETA   = sp.special.jacobi(iETA , 0, 0)(b)
                 fZETA  = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0)(c)
-                dfXI   = sp.special.jacobi(iXI, 0, 0).deriv()(a)
-                dfETA  = sp.special.jacobi(iETA, 0, 0).deriv()(b)
+                dfXI   = sp.special.jacobi(iXI  , 0, 0).deriv()(a)
+                dfETA  = sp.special.jacobi(iETA , 0, 0).deriv()(b)
                 dfZETA = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0).deriv()(c)
                 Vdm[:, iX] = 2 * fXI * fETA * fZETA * (1-c)**(iXI+iETA)
 
@@ -354,16 +353,18 @@ def polynomial_derivative_matrix_pyram(order: int, xGP: np.ndarray) -> np.ndarra
                 if iXI+iETA > 0:
                     tmp -= (iETA+iXI)*(1-c)**(iETA+iXI-1)*fZETA
                 Vt[:, iX] = 2*tmp*fXI*fETA
-                Vt[:, iX] += (1+a)*Vr[:,iX] + (1+b)*Vs[:,iX]
+                Vt[:, iX] += (1+a)*Vr[:, iX] + (1+b)*Vs[:, iX]
 
                 Vr[:, iX] *= 2
                 Vs[:, iX] *= 2
                 iX += 1
 
-    sVdm     = np.linalg.inv(Vdm)
-    D[0,:,:] = (Vr @ sVdm).T
-    D[1,:,:] = (Vs @ sVdm).T
-    D[2,:,:] = (Vt @ sVdm).T
+    # DEBUG: Need to use SciPy here as Numpy has issues with multiprocessing
+    # sVdm     = np.linalg.inv(Vdm)
+    sVdm     = sp.linalg.inv(Vdm)
+    D[0, :, :] = (Vr @ sVdm).T
+    D[1, :, :] = (Vs @ sVdm).T
+    D[2, :, :] = (Vt @ sVdm).T
 
     return D
 
@@ -375,20 +376,22 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
     b  = np.where((1 - xGP[2, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[1, :]) / (1. - xGP[2, :] + 1.e-20) - 1.)
     c  = xGP[2, :]
 
-    Vdm = np.zeros((NDOFS_ELEM(104,order-1),NDOFS_ELEM(104,order-1)))
-    Vr  = np.zeros((NDOFS_ELEM(104,order-1),NDOFS_ELEM(104,order-1)))
-    Vs  = np.zeros((NDOFS_ELEM(104,order-1),NDOFS_ELEM(104,order-1)))
-    Vt  = np.zeros((NDOFS_ELEM(104,order-1),NDOFS_ELEM(104,order-1)))
-    D   = np.zeros((3,NDOFS_ELEM(104,order-1),NDOFS_ELEM(104,order-1)))
+    nDOFsElem = NDOFS_ELEM(104, order-1)
+    Vdm = np.zeros((   nDOFsElem, nDOFsElem))
+    Vr  = np.zeros((   nDOFsElem, nDOFsElem))
+    Vs  = np.zeros((   nDOFsElem, nDOFsElem))
+    Vt  = np.zeros((   nDOFsElem, nDOFsElem))
+    D   = np.zeros((3, nDOFsElem, nDOFsElem))
+
     iX = 0
     for iZETA in range(order):
         for iETA in range(order - iZETA):
             for iXI in range(order - iETA - iZETA):
-                fXI    = sp.special.jacobi(iXI, 0, 0)(a)
-                fETA   = sp.special.jacobi(iETA, 2*iXI+1, 0)(b)
+                fXI    = sp.special.jacobi(iXI  , 0, 0)(a)
+                fETA   = sp.special.jacobi(iETA , 2*iXI+1, 0)(b)
                 fZETA  = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0)(c)
-                dfXI   = sp.special.jacobi(iXI, 0, 0).deriv()(a)
-                dfETA  = sp.special.jacobi(iETA, 2*iXI+1, 0).deriv()(b)
+                dfXI   = sp.special.jacobi(iXI  , 0, 0).deriv()(a)
+                dfETA  = sp.special.jacobi(iETA , 2*iXI+1, 0).deriv()(b)
                 dfZETA = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0).deriv()(c)
                 Vdm[:, iX] = 2 * np.sqrt(2.) * fXI * fETA * fZETA * (1-b)**iXI * (1-c)**(iXI+iETA)
 
@@ -404,9 +407,9 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
                 if iXI+iETA > 0:
                     tmp *= (1-c)**(iXI+iETA-1)
                 tmp *= 2.*np.sqrt(2.)*fXI*fZETA
-                Vs[:, iX] = tmp + Vr[:,iX] * (1+a)
+                Vs[:, iX] = tmp + Vr[:, iX] * (1+a)
 
-                Vt[:, iX] = 2*(1+a)*Vr[:,iX] + (1+b)*tmp
+                Vt[:, iX] = 2*(1+a)*Vr[:, iX] + (1+b)*tmp
                 tmp = dfZETA*(1-c)**(iETA+iXI)
                 if iXI+iETA > 0:
                     tmp -= (iXI+iETA)*(1-c)**(iETA+iXI-1)*fZETA
@@ -417,10 +420,12 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
                 Vs[:, iX] *= 2
                 iX += 1
 
-    sVdm     = np.linalg.inv(Vdm)
-    D[0,:,:] = (Vr @ sVdm).T
-    D[1,:,:] = (Vs @ sVdm).T
-    D[2,:,:] = (Vt @ sVdm).T
+    # DEBUG: Need to use SciPy here as Numpy has issues with multiprocessing
+    # sVdm     = np.linalg.inv(Vdm)
+    sVdm     = sp.linalg.inv(Vdm)
+    D[0, :, :] = (Vr @ sVdm).T
+    D[1, :, :] = (Vs @ sVdm).T
+    D[2, :, :] = (Vt @ sVdm).T
 
     return D
 
@@ -510,12 +515,12 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     return jacOut
 
 
-def evaluate_jacobian_simplex(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
+def evaluate_jacobian_simplex(xGeo_In: np.ndarray, _: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
     # Perform tensor contraction for each derivative
     # Change basis for each direction
-    dXdXiAP   = xGeo_In[:,:] @ D_EqToGL[0,:,:]
-    dXdEtaAP  = xGeo_In[:,:] @ D_EqToGL[1,:,:]
-    dXdZetaAP = xGeo_In[:,:] @ D_EqToGL[2,:,:]
+    dXdXiAP   = xGeo_In[:, :] @ D_EqToGL[0, :, :]
+    dXdEtaAP  = xGeo_In[:, :] @ D_EqToGL[1, :, :]
+    dXdZetaAP = xGeo_In[:, :] @ D_EqToGL[2, :, :]
 
     # Manually compute cross product
     cross_eta_zeta = np.empty_like(dXdEtaAP)

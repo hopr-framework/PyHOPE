@@ -38,15 +38,18 @@ from pyhope.basis.basis_basis import evaluate_jacobian, evaluate_jacobian_simple
 from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ==================================================================================================================================
 
-eval_jac = {# Tetrahedron  # noqa: E261
-            4: lambda nodeCoords, VdmGLtoAP, D_EqToGL: evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL),
-            # Pyramid
-            5: lambda nodeCoords, VdmGLtoAP, D_EqToGL: evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL),
-            # Wedge / Prism
-            6: lambda nodeCoords, VdmGLtoAP, D_EqToGL: evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL),
-            # Hexahedron
-            8: lambda nodeCoords, VdmGLtoAP, D_EqToGL: evaluate_jacobian(        nodeCoords, VdmGLtoAP, D_EqToGL)
-            }
+# Define element types for simplex and hexahedron separately
+SIMPLEX_TYPES: Final = {4, 5, 6}
+HEX_TYPE:      Final = 8
+
+
+def evaluate_jacobian_dispatch(nodeCoords, VdmGLtoAP, D_EqToGL, elem_type):
+    if elem_type in SIMPLEX_TYPES:
+        return evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL)
+    elif elem_type == HEX_TYPE:
+        return evaluate_jacobian(nodeCoords, VdmGLtoAP, D_EqToGL)
+    else:
+        raise ValueError(f"Unsupported element type {elem_type}")
 
 
 def plot_histogram(data: np.ndarray) -> None:
@@ -100,7 +103,10 @@ def process_chunk(chunk) -> list[np.ndarray]:
     chunk_results = []
     for elem in chunk:
         nodeCoords, elem_type = elem
-        jac = eval_jac[elem_type](nodeCoords, process_chunk.VdmGLtoAP[elem_type], process_chunk.D_EqToGL[elem_type])  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+        jac = evaluate_jacobian_dispatch(nodeCoords,
+                                         process_chunk.VdmGLtoAP[elem_type],  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                         process_chunk.D_EqToGL[ elem_type],  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                         elem_type)
         # INFO: ALTERNATIVE VERSION, CACHING VDM, D
         # nodeCoords, evaluate_jacobian = elem
         # jac    = evaluate_jacobian(nodeCoords)
@@ -181,7 +187,7 @@ def CheckJacobians() -> None:
                  6: equi_nodes_prism(nGeoRef),
                  # Hexahedron
                  8: np.linspace(-1, 1, num=nGeoRef, dtype=np.float64)
-                 }
+                }
     VdmGLtoAP = {# Tetrahedron  # noqa: E261
                  4: 0,  # calc_vandermonde_tetra(nGeo, nGeoRef, xEq[4], xAP[4]),
                  # Pyramid
@@ -190,7 +196,7 @@ def CheckJacobians() -> None:
                  6: 0,  # calc_vandermonde_prism(nGeo, nGeoRef, xEq[6], xAP[6]),
                  # Hexahedron
                  8: calc_vandermonde      (nGeo, nGeoRef, wbaryGL, xGL, xAP[8])  # noqa: E211
-                 }
+                }
     # INFO: ALTERNATIVE VERSION, CACHING VDM, D
     # evaluate_jacobian = JacobianEvaluator(VdmGLtoAP, D_EqToGL).evaluate_jacobian
 
@@ -221,16 +227,13 @@ def CheckJacobians() -> None:
         nodeCoords         = np.empty((nGeo ** 3, 3), dtype=np.float64)
         nodeCoords[mapLin] = nodes[elem.nodes]
 
-        # xGeo = np.zeros((3, nGeo, nGeo, nGeo))
-        xGeo = {# Tetrahedron  # noqa: E261
-                4: nodeCoords[:NDOFS_ELEM(elemType, nGeo-1)].transpose(1, 0),
-                # Pyramid
-                5: nodeCoords[:NDOFS_ELEM(elemType, nGeo-1)].transpose(1, 0),
-                # Wedge / Prism
-                6: nodeCoords[:NDOFS_ELEM(elemType, nGeo-1)].transpose(1, 0),
-                # Hexahedron
-                8: nodeCoords[:nGeo**3].reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
-                }
+        # Hexahedron
+        if elemType % 100 == 8:
+            xGeo = nodeCoords[:nGeo**3].reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
+        # All other elem types
+        else:
+            dofs = NDOFS_ELEM(elemType, nGeo - 1)
+            xGeo = nodeCoords[:dofs].transpose(1, 0)
 
         if np_mtp > 0:
             # Add tasks for parallel processing
@@ -238,9 +241,10 @@ def CheckJacobians() -> None:
             # INFO: ALTERNATIVE VERSION, CACHING VDM, D
             # tasks.append((xGeo, evaluate_jacobian))
         else:
-            jac = eval_jac[elemBase](xGeo[     elemBase],
-                                     VdmGLtoAP[elemBase],
-                                     D_EqToGL[ elemBase])
+            jac = evaluate_jacobian_dispatch(xGeo,
+                                             VdmGLtoAP[elemBase],
+                                             D_EqToGL[ elemBase],
+                                             elemBase)
             # INFO: ALTERNATIVE VERSION, CACHING VDM, D
             # jac = evaluate_jacobian(xGeo)
             # maxJac =  np.max(np.abs(jac))
