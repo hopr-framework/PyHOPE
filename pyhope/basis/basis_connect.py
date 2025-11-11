@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import re
 import sys
-from typing import Final, cast
+from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -48,8 +48,11 @@ from pyhope.mesh.mesh_common import face_to_nodes
 
 
 def check_sides(elem,
-               ) -> list[bool | int | np.ndarray]:
-    results = []
+                failed_only: bool = False,
+               ) -> Optional[list[tuple]]:
+    """ Check if connected sides have matching corner nodes
+    """
+    results = None
     elems:  Final[list]  = mesh_vars.elems
     sides:  Final[list]  = mesh_vars.sides
     nGeo:   Final[int]   = mesh_vars.nGeo
@@ -100,15 +103,32 @@ def check_sides(elem,
             vv  = vvs[np.abs(iVV) - 1]['Dir'] * np.sign(iVV)
             success = np.allclose(points[nodes] + vv, points[nbNodes], rtol=tol, atol=tol)
 
+        # If requested, only return errors
+        if failed_only and success:
+            continue
+
+        # Lazily initialize results on first failure
+        if results is None:
+            results = []
         results.append((success, SideID))
+
+    # Avoid creating empty lists on elem_results
+    if results is None:
+        return None if failed_only else []
+
     return results
 
 
-def process_chunk(chunk) -> np.ndarray:
+def process_chunk(chunk) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
-    chunk_results    = np.empty(len(chunk), dtype=object)
-    chunk_results[:] = [check_sides(elem_data) for elem_data in chunk]
+    # Only keep failures to reduce memory and avoid building large arrays of successes
+    chunk_results = []
+    for elem in chunk:
+        elem_results = check_sides(elem,
+                                   failed_only=True)
+        # Append a lightweight sentinel (None) for successes, actual failure list otherwise
+        chunk_results.append(elem_results)
     return chunk_results
 
 
@@ -144,23 +164,39 @@ def CheckConnect() -> None:
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks  = tuple((elem)
-                        for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
+        res     = run_in_parallel(process_chunk,
+                                  tuple(elems),
+                                  chunk_size=max(1, min(1000, max(10, int(len(elems)/(40.*np_mtp))))),
+                                 )
     else:
-        res    = np.empty(len(elems), dtype=object)
-        res[:] = [check_sides(elem) for elem in elems]
+        res     = [elem for elem in elems if check_sides(elem, failed_only=True)]
 
-    results = tuple(tuple(result for r in res for result in r if not bool(result[0]))
-)
-    if len(results) > 0:
+    if len(res) > 0:
+        # Flatten per-element results (skip None placeholders)
+        results = tuple(result for elem_results in res if elem_results for result in elem_results)
+
         nGeo:      Final[int]        = mesh_vars.nGeo
         sides:     Final[list]       = mesh_vars.sides
         points:    Final[np.ndarray] = mesh_vars.mesh.points
 
-        nconn = len(tuple(tuple(result for r in res for result in r)))
+        # Compute total number of checked connections without materializing all results
+        nconn = 0
+        for SideID, side in enumerate(sides):
+            # Only connected sides and not small mortar sides
+            if side.connection is None or side.sideType < 0:
+                continue
+            # Big mortar side is counted once
+            elif side.connection < 0:
+                nconn += 1
+            # Internal side: only count the canonical representative and ignore virtual mortar sides
+            elif side.connection >= 0:
+                if SideID > side.connection:
+                    continue
+                if side.locMortar is not None:
+                    continue
+                nconn += 1
 
         for result in results:
             # Unpack the results

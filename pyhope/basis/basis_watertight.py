@@ -25,8 +25,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 import re
-from typing import Final
+from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,6 +41,15 @@ from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
 
 
+# Use Pool initializer to attach process-local data to the worker function
+def init_worker(function, VdmEqToGP, DGP, weights) -> None:
+    """Initializer to set process-local attributes on the worker function
+    """
+    function.VdmEqToGP = VdmEqToGP
+    function.DGP       = DGP
+    function.weights   = weights
+
+
 def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """ Evaluate the surface integral for normals over a side of an element
     """
@@ -47,30 +57,44 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.n
     xGP      = change_basis_2D(Vdm, XGeo)
 
     # Compute derivatives at all Gauss points
-    dXdxiGP  = np.tensordot(DGP, xGP, axes=(1, 1)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
-    # dXdxiGP  = np.moveaxis(dXdxiGP , 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
-    dXdxiGP  = dXdxiGP .reshape(3, -1)                                 # Flatten for cross computation
+    # dXdxiGP  = np.tensordot(DGP, xGP, axes=(1, 1)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
+    # # dXdxiGP  = np.moveaxis(dXdxiGP , 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
+    # dXdxiGP  = dXdxiGP .reshape(3, -1)                                 # Flatten for cross computation
+    #
+    # dXdetaGP = np.tensordot(DGP, xGP, axes=(1, 2)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
+    # # dXdetaGP = np.moveaxis(dXdetaGP, 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
+    # dXdetaGP = dXdetaGP.reshape(3, -1)                                 # Flatten for cross computation
 
-    dXdetaGP = np.tensordot(DGP, xGP, axes=(1, 2)).transpose(1, 0, 2)  # Shape: (3, N_GP+1, N_GP+1)
-    # dXdetaGP = np.moveaxis(dXdetaGP, 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
-    dXdetaGP = dXdetaGP.reshape(3, -1)                                 # Flatten for cross computation
+    # Compute derivatives at all Gauss points using matrix multiplications to avoid extra copies
+    dXdxiGP  = np.empty_like(xGP)
+    dXdetaGP = np.empty_like(xGP)
+    DT       = DGP.T
+    for k in range(3):
+        dXdxiGP[ k] = DGP @ xGP[k]
+        dXdetaGP[k] = xGP[k] @ DT
 
     # Compute the cross product at each Gauss point
-    VDMSize  = Vdm.shape[-1]
-    # nVec     = np.cross(dXdxiGP, dXdetaGP, axis=0)  # Shape: (3, N_GP*N_GP)
-    # > Manually compute cross product
-    nVec = np.empty_like(dXdxiGP)
-    nVec[0] = dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]
-    nVec[1] = dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]
-    nVec[2] = dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]
-    nVec     = nVec.reshape(3, VDMSize, VDMSize)    # Reshape to (3, N_GP+1, N_GP+1)
+    # VDMSize  = Vdm.shape[-1]
+    # # nVec     = np.cross(dXdxiGP, dXdetaGP, axis=0)  # Shape: (3, N_GP*N_GP)
+    # # > Manually compute cross product
+    # nVec = np.empty_like(dXdxiGP)
+    # nVec[0] = dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]
+    # nVec[1] = dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]
+    # nVec[2] = dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]
+    # nVec     = nVec.reshape(3, VDMSize, VDMSize)    # Reshape to (3, N_GP+1, N_GP+1)
 
     # Compute the weighted normals
-    nVecW    = nVec * weights                       # Broadcast weights to shape (3, N_GP+1, N_GP+1)
+    # nVecW    = nVec * weights                       # Broadcast weights to shape (3, N_GP+1, N_GP+1)
 
     # Integrate over the Gauss points
-    NSurf    = -np.sum(nVecW, axis=(1, 2))          # Sum over the last two axes
-    return NSurf
+    # return -np.sum(nVecW, axis=(1, 2))              # Sum over the last two axes
+
+    # Compute the weighted cross product integral directly
+    NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
+    NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
+    NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
+
+    return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
 
 
 def check_sides(elem,
@@ -79,8 +103,11 @@ def check_sides(elem,
                 DGP      : np.ndarray,
                 weights  : np.ndarray,
                 # sides    : list
-                ) -> list[bool | int | np.ndarray]:
-    results = []
+                failed_only: bool = False,
+               ) -> Optional[list[tuple]]:
+    """ Check if connected sides are watertight under high-order curving
+    """
+    results = None
     points  = mesh_vars.mesh.points
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
@@ -105,11 +132,11 @@ def check_sides(elem,
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
             idx     = elem.nodes[face_to_nodes(side.face, elemType, nGeo)]
-            nSurf   = eval_nsurf(np.transpose(points[idx], axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
+            nSurf   = eval_nsurf(points[idx].transpose(2, 0, 1), VdmEqToGP, DGP, weights)
 
             # Calculate the L2 norm of the side and take the maximum
             sideTol = np.linalg.norm(nSurf, ord=2)
-            tol     = np.max((elemTol, sideTol)) * mesh_vars.tolInternal
+            tol     = np.maximum(elemTol, sideTol) * mesh_vars.tolInternal
 
             # Mortar sides are the following virtual sides
             nMortar = 4 if mortarType == 1 else 2
@@ -161,16 +188,35 @@ def check_sides(elem,
         else:
             continue
 
+        # If requested, only return errors
+        if failed_only and success:
+            continue
+
+        # Lazily initialize results on first failure
+        if results is None:
+            results = []
         results.append((success, SideID, nSurf, nnbSurf, nSurfErr, tol))
+
+    # Avoid creating empty lists on elem_results
+    if results is None:
+        return None if failed_only else []
+
     return results
 
 
-def process_chunk(chunk) -> np.ndarray:
+def process_chunk(chunk) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
-    chunk_results    = np.empty(len(chunk), dtype=object)
-    # elem, VdmEqToGP, DGP, weights = elem_data
-    chunk_results[:] = [check_sides(*elem_data) for elem_data in chunk]
+    # Only keep failures to reduce memory and avoid building large arrays of successes
+    chunk_results = []
+    for elem in chunk:
+        elem_result = check_sides(elem,
+                                   process_chunk.VdmEqToGP,  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                   process_chunk.DGP,        # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                   process_chunk.weights,    # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                   failed_only=True)
+        # Append a lightweight sentinel (None) for successes, actual failure list otherwise
+        chunk_results.append(elem_result)
     return chunk_results
 
 
@@ -226,19 +272,38 @@ def CheckWatertight() -> None:
 
     # Prepare elements for parallel processing
     if np_mtp > 0:
-        tasks  = tuple((elem, VdmEqToGP, DGP, weights)
-                        for elem in elems)
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res    = run_in_parallel(process_chunk, tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
+        res     = run_in_parallel(process_chunk,
+                                  tuple(elems),
+                                  chunk_size  = max(1, min(1000, max(10, int(len(elems)/(40.*np_mtp))))),  # noqa: E251
+                                  initializer = init_worker,                                               # noqa: E251
+                                  init_args   = (process_chunk, VdmEqToGP, DGP, weights))                  # noqa: E251
     else:
-        res    = np.empty(len(elems), dtype=object)
-        res[:] = [check_sides(elem, VdmEqToGP, DGP, weights) for elem in elems]
+        res     = [elem for elem in elems if check_sides(elem,
+                                                         VdmEqToGP, DGP, weights,
+                                                         failed_only=True)]
 
-    results = tuple(tuple(result for r in res for result in r if not bool(result[0]))
-)
-    if len(results) > 0:
-        nconn = len(tuple(tuple(result for r in res for result in r)))
+    if len(res) > 0:
+        # Flatten per-element results (skip None placeholders)
+        results = tuple(result for elem_results in res if elem_results for result in elem_results)
+
+        # Compute total number of checked connections without materializing all results
+        nconn = 0
+        for SideID, side in enumerate(sides):
+            # Only connected sides and not small mortar sides
+            if side.connection is None or side.sideType < 0:
+                continue
+            # Big mortar side is counted once
+            elif side.connection < 0:
+                nconn += 1
+            # Internal side: only count the canonical representative and ignore virtual mortar sides
+            elif side.connection >= 0:
+                if SideID > side.connection:
+                    continue
+                if side.locMortar is not None:
+                    continue
+                nconn += 1
 
         for result in results:
             # Unpack the results
@@ -275,3 +340,6 @@ def CheckWatertight() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
         hopout.error(f'Watertightness check failed for {len(results)} / {nconn} connections!')
+
+    # Run garbage collector to release memory
+    gc.collect()

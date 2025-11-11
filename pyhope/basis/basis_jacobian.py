@@ -76,14 +76,21 @@ def plot_histogram(data: np.ndarray) -> None:
     hopout.separator(18)
 
 
+# Use Pool initializer to attach process-local data to the worker function
+def init_worker(function, VdmGLtoAP, D_EqToGL) -> None:
+    """Initializer to set process-local attributes on the worker function
+    """
+    function.VdmGLtoAP = VdmGLtoAP
+    function.D_EqToGL  = D_EqToGL
+
+
 def process_chunk(chunk) -> list[np.ndarray]:
     """Process a chunk of elements by evaluating the Jacobian for each
     """
     chunk_results = []
     for elem in chunk:
-        # nodeCoords, nGeoRef, VdmGLtoAP, D_EqToGL = elem
-        nodeCoords, _, VdmGLtoAP, D_EqToGL = elem
-        jac    = evaluate_jacobian(nodeCoords, VdmGLtoAP, D_EqToGL)
+        nodeCoords = elem
+        jac    = evaluate_jacobian(nodeCoords, process_chunk.VdmGLtoAP, process_chunk.D_EqToGL)  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
         # INFO: ALTERNATIVE VERSION, CACHING VDM, D
         # nodeCoords, evaluate_jacobian = elem
         # jac    = evaluate_jacobian(nodeCoords)
@@ -174,7 +181,7 @@ def CheckJacobians() -> None:
 
         if np_mtp > 0:
             # Add tasks for parallel processing
-            tasks.append((xGeo, nGeoRef, VdmGLtoAP, D_EqToGL))
+            tasks.append(xGeo)
             # INFO: ALTERNATIVE VERSION, CACHING VDM, D
             # tasks.append((xGeo, evaluate_jacobian))
         else:
@@ -189,7 +196,11 @@ def CheckJacobians() -> None:
     if np_mtp > 0:
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        jacs = run_in_parallel(process_chunk, tuple(tasks), chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))))
+        jacs = run_in_parallel(process_chunk,
+                               tuple(tasks),
+                               chunk_size  = max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),  # noqa: E251
+                               initializer = init_worker,                                               # noqa: E251
+                               init_args   = (process_chunk, VdmGLtoAP, D_EqToGL))                      # noqa: E251
     else:
         jacs = np.array(tasks)
 
