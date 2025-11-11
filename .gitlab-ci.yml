@@ -86,7 +86,7 @@ variables:
   - uv venv venv
   - source venv/bin/activate
   # Regression checks needs NRG Gmsh, pre-install it
-  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.14.1.post1-py3-none-linux_x86_64.whl
+  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.0.post1-py3-none-linux_x86_64.whl
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
   # Install coverage
@@ -302,6 +302,7 @@ healthcheck:
 coverage:
   extends: .defaults_coverage
   stage: verification
+  before_script: *minimal-before-script
   coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
   dependencies:
     - examples
@@ -311,7 +312,6 @@ coverage:
       artifacts: true
     - job: healthcheck
       artifacts: true
-  before_script: *minimal-before-script
   script:
     # Install coverage
     - uv pip install --no-cache-dir coverage

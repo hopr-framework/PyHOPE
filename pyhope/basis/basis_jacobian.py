@@ -256,7 +256,7 @@ def CheckJacobians() -> None:
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
         jacs = run_in_parallel(process_chunk,
-                               tuple(tasks),
+                               tasks,
                                chunk_size  = max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),  # noqa: E251
                                initializer = init_worker,                                               # noqa: E251
                                init_args   = (process_chunk, VdmGLtoAP, D_EqToGL))                      # noqa: E251

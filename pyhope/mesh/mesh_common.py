@@ -614,13 +614,14 @@ def calc_elem_bary(elems: list) -> np.ndarray:
     Returns:
         elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
     """
-    elem_bary = []
-    for elem in elems:
-        # Calculate barycenters
-        bary = np.mean(mesh_vars.mesh.points[elem.nodes], axis=0)
-        elem_bary.append(bary)
+    # return np.asarray([mesh_vars.mesh.points[elem.nodes].mean(axis=0) for elem in elems])
 
-    return np.asarray(elem_bary)
+    # Pre-allocate memory for large arrays
+    elem_bary = np.empty((len(elems), 3), dtype=np.float64)
+    for elemID, elem in enumerate(elems):
+        # Calculate barycenters
+        elem_bary[elemID] = mesh_vars.mesh.points[elem.nodes].mean(axis=0)
+    return elem_bary
 
 
 @cache
