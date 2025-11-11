@@ -20,7 +20,8 @@ dependencies = [
     'scipy',
     'gmsh',
     # 'sortedcontainers',
-    'typing-extensions'
+    'typing-extensions',
+    'threadpoolctl'
 ]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [

@@ -28,7 +28,7 @@
 import sys
 import traceback
 from multiprocessing import Pool, Queue, Process
-from typing import Callable
+from typing import Callable, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,7 +39,7 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-def distribute_work(elems: tuple, chunk_size: int) -> tuple:
+def distribute_work(elems: Union[list, tuple], chunk_size: int) -> tuple:
     """Distribute elements into chunks of a given size
     """
     return tuple(elems[i:i + chunk_size] for i in range(0, len(elems), chunk_size))
@@ -59,7 +59,12 @@ def update_progress(progress_queue: Queue, total_elements: int) -> None:
             processed_count += chunk_size
 
 
-def run_in_parallel(process_chunk: Callable, elems: tuple, chunk_size: int = 10, initializer=None, init_args=()) -> list:
+def run_in_parallel(process_chunk: Callable,            # noqa: E251
+                    elems        : Union[list, tuple],  # noqa: E251
+                    chunk_size   : int   = 10,          # noqa: E251
+                    initializer          = None,        # noqa: E251
+                    init_args    : tuple = ()
+                   ) -> list:
     """Run the element processing in parallel using a specified number of processes
     """
     # Local imports ----------------------------------------

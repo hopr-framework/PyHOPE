@@ -32,6 +32,7 @@ from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import scipy as sp
+from threadpoolctl import ThreadpoolController
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 from pyhope.mesh.mesh_common import NDOFS_ELEM
@@ -307,7 +308,10 @@ def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarra
                 Vs[:, iX] *= scale
                 iX += 1
 
-    sVdm     = np.linalg.inv(Vdm)
+    # PERF: Need to use threadpoolctl here as BLAS has issues with multiprocessing
+    #       > Workaround by restricting to one thread during concurrent execution
+    with ThreadpoolController().limit(limits=1, user_api='blas'):
+        sVdm = np.linalg.inv(Vdm)
     D[1, :, :] = (Vr @ sVdm).T
     D[0, :, :] = (Vs @ sVdm).T
     D[2, :, :] = (Vt @ sVdm).T
@@ -359,9 +363,10 @@ def polynomial_derivative_matrix_pyram(order: int, xGP: np.ndarray) -> np.ndarra
                 Vs[:, iX] *= 2
                 iX += 1
 
-    # DEBUG: Need to use SciPy here as Numpy has issues with multiprocessing
-    # sVdm     = np.linalg.inv(Vdm)
-    sVdm     = sp.linalg.inv(Vdm)
+    # PERF: Need to use threadpoolctl here as BLAS has issues with multiprocessing
+    #       > Workaround by restricting to one thread during concurrent execution
+    with ThreadpoolController().limit(limits=1, user_api='blas'):
+        sVdm = np.linalg.inv(Vdm)
     D[0, :, :] = (Vr @ sVdm).T
     D[1, :, :] = (Vs @ sVdm).T
     D[2, :, :] = (Vt @ sVdm).T
@@ -420,9 +425,10 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
                 Vs[:, iX] *= 2
                 iX += 1
 
-    # DEBUG: Need to use SciPy here as Numpy has issues with multiprocessing
-    # sVdm     = np.linalg.inv(Vdm)
-    sVdm     = sp.linalg.inv(Vdm)
+    # PERF: Need to use threadpoolctl here as BLAS has issues with multiprocessing
+    #       > Workaround by restricting to one thread during concurrent execution
+    with ThreadpoolController().limit(limits=1, user_api='blas'):
+        sVdm = np.linalg.inv(Vdm)
     D[0, :, :] = (Vr @ sVdm).T
     D[1, :, :] = (Vs @ sVdm).T
     D[2, :, :] = (Vt @ sVdm).T
