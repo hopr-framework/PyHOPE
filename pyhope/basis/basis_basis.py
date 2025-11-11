@@ -79,6 +79,7 @@ def legendre_gauss_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
     return nodes, weights
 
 
+@cache
 def equi_nodes_prism(order: int) -> np.ndarray:
     """ Return equidistant nodes on a wedge/prism
     """
@@ -88,6 +89,7 @@ def equi_nodes_prism(order: int) -> np.ndarray:
     return np.vstack((xEq[iXI[mask]], xEq[iETA[mask]], xEq[iZETA[mask]]))
 
 
+@cache
 def equi_nodes_pyram(order: int) -> np.ndarray:
     """ Return equidistant nodes on a pyramid
     """
@@ -97,6 +99,7 @@ def equi_nodes_pyram(order: int) -> np.ndarray:
     return np.vstack((xEq[iXI[mask]], xEq[iETA[mask]], xEq[iZETA[mask]]))
 
 
+@cache
 def equi_nodes_tetra(order: int) -> np.ndarray:
     """ Return equidistant nodes on a tetrahedron
     """
