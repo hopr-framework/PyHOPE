@@ -51,7 +51,6 @@ import pyhope.mesh.mesh_vars as mesh_vars
 elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
-
 @cache
 def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of an element
@@ -615,13 +614,14 @@ def calc_elem_bary(elems: list) -> np.ndarray:
     Returns:
         elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
     """
-    elem_bary = []
-    for elem in elems:
-        # Calculate barycenters
-        bary = np.mean(mesh_vars.mesh.points[elem.nodes], axis=0)
-        elem_bary.append(bary)
+    # return np.asarray([mesh_vars.mesh.points[elem.nodes].mean(axis=0) for elem in elems])
 
-    return np.asarray(elem_bary)
+    # Pre-allocate memory for large arrays
+    elem_bary = np.empty((len(elems), 3), dtype=np.float64)
+    for elemID, elem in enumerate(elems):
+        # Calculate barycenters
+        elem_bary[elemID] = mesh_vars.mesh.points[elem.nodes].mean(axis=0)
+    return elem_bary
 
 
 @cache
@@ -776,3 +776,23 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
             sys.exit(1)
+
+
+@cache
+def NDOFS_ELEM(elemType: int, N: int, dim: int = 3) -> int:
+    """ Return a list of all edges of an element
+    """
+    nodes_map = {  # Tetrahedron
+                   4: round((N+1)*(N+2)*(N+3)/6.),
+                   # Pyramid
+                   5: round((N+1)*(N+2)*(2*N+3)/6.),
+                   # Wedge / Prism
+                   6: round((N+1)**(dim-1)*(N+2)/2.),
+                   # Hexahedron
+                   8: (N+1)**dim
+                }
+
+    if elemType % 100 not in nodes_map:
+        raise ValueError(f'Error in nodes: elemType {elemType} is not supported')
+
+    return nodes_map[elemType % 100]

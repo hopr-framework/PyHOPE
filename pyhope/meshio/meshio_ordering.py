@@ -133,7 +133,8 @@ class NodeOrdering:
                                        # > Wedge
                                        'wedge'       : [ 0, 1, 2, 3, 4, 5],
                                        'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
-                                       'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 16, 17 ],
+                                       # http://davis.lbl.gov/Manuals/VTK-4.5/classvtkQuadraticWedge.html and https://gmsh.info/doc/texinfo/gmsh.html#Node-ordering
+                                       'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16 ],
                                        # > Pyramid
                                        'pyramid'     : [ 0, 1, 2, 3, 4],
                                        'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],

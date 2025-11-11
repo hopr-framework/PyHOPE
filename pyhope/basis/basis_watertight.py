@@ -28,6 +28,7 @@
 import gc
 import re
 from typing import Final, Optional
+from collections.abc import Iterable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -286,7 +287,7 @@ def CheckWatertight() -> None:
 
     if len(res) > 0:
         # Flatten per-element results (skip None placeholders)
-        results = tuple(result for elem_results in res if elem_results for result in elem_results)
+        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None for result in elem_results)
 
         # Compute total number of checked connections without materializing all results
         nconn = 0
