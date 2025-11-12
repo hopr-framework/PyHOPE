@@ -574,7 +574,7 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     # dXdZetaGL = np.moveaxis(dXdZetaGL, 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
     _X3       = xGeo_In.reshape(dim1, n_In * n_In, n_In)
     dXdZetaGL = (_X3 @ D_EqToGL.T).reshape(dim1, n_In, n_In, n_Out)
-    dXdZetaGL = np.transpose(dXdZetaGL, (0, 3, 1, 2))  # -> (3, n_Out, n_In, n_In)
+    dXdZetaGL = np.transpose(dXdZetaGL, (0, 3, 1, 2))
     # PERF: This is actually slower than the individual contractions
     # dXdZetaGL = np.einsum('rk,dijk->drij', D_EqToGL, xGeo_In, optimize=True)
 

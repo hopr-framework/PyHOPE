@@ -51,6 +51,7 @@ import pyhope.mesh.mesh_vars as mesh_vars
 elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
+
 @cache
 def faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of an element
