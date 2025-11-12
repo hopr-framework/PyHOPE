@@ -47,7 +47,7 @@ def evaluate_jacobian_dispatch(nodeCoords, VdmGLtoAP, D_EqToGL, elem_type):
     if elem_type in SIMPLEX_TYPES:
         return evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL)
     elif elem_type == HEX_TYPE:
-        return evaluate_jacobian(nodeCoords, VdmGLtoAP, D_EqToGL)
+        return evaluate_jacobian(        nodeCoords, VdmGLtoAP, D_EqToGL)
     else:
         raise ValueError(f"Unsupported element type {elem_type}")
 
@@ -145,58 +145,46 @@ def CheckJacobians() -> None:
         return None
 
     # Map all points to tensor product
-    nGeo:  Final[int]        = mesh_vars.nGeo + 1
-    elems: Final[list]       = mesh_vars.elems
-    nodes: Final[np.ndarray] = mesh_vars.mesh.points
+    nGeo:      Final[int]        = mesh_vars.nGeo + 1
+    elems:     Final[list]       = mesh_vars.elems
+    nodes:     Final[np.ndarray] = mesh_vars.mesh.points
+    elemBases: Final[set]        = set([e.type % 100 for e in elems])
 
     # Compute the equidistant point set used by meshIO
-    xEq       = {# Tetrahedron  # noqa: E261
-                 4: equi_nodes_tetra(nGeo),
-                 # Pyramid
-                 5: equi_nodes_pyram(nGeo),
-                 # Wedge / Prism
-                 6: equi_nodes_prism(nGeo),
-                 # Hexahedron
-                 8: np.linspace(-1, 1, num=nGeo, dtype=np.float64)
-                 }
-    wBaryEq   = barycentric_weights(nGeo, xEq[8])
+    xEq_fn      = {4: lambda: equi_nodes_tetra(nGeo),                                          # Tetrahedron
+                   5: lambda: equi_nodes_pyram(nGeo),                                          # Pyramid
+                   6: lambda: equi_nodes_prism(nGeo),                                          # Wedge / Prism
+                   8: lambda: np.linspace(-1, 1, num=nGeo, dtype=np.float64)}                  # Hexahedron
+    xEq         = {b: xEq_fn[b]()        for b in elemBases}  # noqa: E272
+    wBaryEq     = barycentric_weights(nGeo, np.linspace(-1, 1, num=nGeo, dtype=np.float64))
 
     # For hexahedron only
-    xGL, _    = legendre_gauss_lobatto_nodes(nGeo)
-    DGL       = polynomial_derivative_matrix(nGeo, xGL)
-    VdmEqToGL = calc_vandermonde(nGeo, nGeo, wBaryEq, xEq[8], xGL)
-    wbaryGL   = barycentric_weights(nGeo, xGL)
-
-    D_EqToGL  = {# Tetrahedron  # noqa: E261
-                 4: polynomial_derivative_matrix_tetra(nGeo, xEq[4]),
-                 # Pyramid
-                 5: polynomial_derivative_matrix_pyram(nGeo, xEq[5]),
-                 # Wedge / Prism
-                 6: polynomial_derivative_matrix_prism(nGeo, xEq[6]),
-                 # Hexahedron
-                 8: np.matmul(DGL, VdmEqToGL)
-                }
+    xGL = DGL = VdmEqToGL = wbaryGL = np.array([])
+    if 8 in elemBases:
+        xGL, _    = legendre_gauss_lobatto_nodes(nGeo)
+        DGL       = polynomial_derivative_matrix(nGeo, xGL)
+        VdmEqToGL = calc_vandermonde(nGeo, nGeo, wBaryEq, xEq[8], xGL)
+        wbaryGL   = barycentric_weights(nGeo, xGL)
 
     # Interpolate derivatives on GL (N) to nGeoRef points
-    nGeoRef   = 3*(nGeo-1)+1
-    xAP       = {# Tetrahedron  # noqa: E261
-                 4: equi_nodes_tetra(nGeoRef),
-                 # Pyramid
-                 5: equi_nodes_pyram(nGeoRef),
-                 # Wedge / Prism
-                 6: equi_nodes_prism(nGeoRef),
-                 # Hexahedron
-                 8: np.linspace(-1, 1, num=nGeoRef, dtype=np.float64)
-                }
-    VdmGLtoAP = {# Tetrahedron  # noqa: E261
-                 4: 0,  # calc_vandermonde_tetra(nGeo, nGeoRef, xEq[4], xAP[4]),
-                 # Pyramid
-                 5: 0,  # calc_vandermonde_tetra(nGeo, nGeoRef, xEq[5], xAP[5]),
-                 # Wedge / Prism
-                 6: 0,  # calc_vandermonde_prism(nGeo, nGeoRef, xEq[6], xAP[6]),
-                 # Hexahedron
-                 8: calc_vandermonde      (nGeo, nGeoRef, wbaryGL, xGL, xAP[8])  # noqa: E211
-                }
+    D_EqToGL_fn  = {4: lambda: polynomial_derivative_matrix_tetra(nGeo, xEq[4]),              # Tetrahedron
+                    5: lambda: polynomial_derivative_matrix_pyram(nGeo, xEq[5]),              # Pyramid
+                    6: lambda: polynomial_derivative_matrix_prism(nGeo, xEq[6]),              # Wedge / Prism
+                    8: lambda: np.matmul(DGL, VdmEqToGL)}                                     # Hexahedron
+    D_EqToGL     = {b: D_EqToGL_fn[b]()  for b in elemBases}  # noqa: E272
+
+    # Interpolate derivatives on GL (N) to nGeoRef points
+    nGeoRef      = 3*(nGeo-1)+1
+    xAP_fn       = {4: lambda: equi_nodes_tetra(nGeoRef),                                     # Tetrahedron
+                    5: lambda: equi_nodes_pyram(nGeoRef),                                     # Pyramid
+                    6: lambda: equi_nodes_prism(nGeoRef),                                     # Wedge / Prism
+                    8: lambda: np.linspace(-1, 1, num=nGeoRef, dtype=np.float64)}             # Hexahedron
+    VdmGLtoAP_fn = {4: lambda: 0,  # calc_vandermonde_tetra(nGeo, nGeoRef, xEq[4], xAP[4]),   # Tetrahedron
+                    5: lambda: 0,  # calc_vandermonde_tetra(nGeo, nGeoRef, xEq[5], xAP[5]),   # Pyramid
+                    6: lambda: 0,  # calc_vandermonde_prism(nGeo, nGeoRef, xEq[6], xAP[6]),   # Wedge / Prism
+                    8: lambda: calc_vandermonde      (nGeo, nGeoRef, wbaryGL, xGL, xAP[8])}   # Hexahedron    # noqa: E211
+    xAP          = {b: xAP_fn[b]()       for b in elemBases}  # noqa: E272
+    VdmGLtoAP    = {b: VdmGLtoAP_fn[b]() for b in elemBases}
     # INFO: ALTERNATIVE VERSION, CACHING VDM, D
     # evaluate_jacobian = JacobianEvaluator(VdmGLtoAP, D_EqToGL).evaluate_jacobian
 
@@ -206,7 +194,7 @@ def CheckJacobians() -> None:
     # Pre-compute LINTEN mappings for all element types
     linCache  = {}
     elemOrder = 100 if mesh_vars.nGeo == 1 else 200
-    elemTypes = tuple([s + elemOrder for s in (4, 5, 6, 8)])
+    elemTypes = tuple([s + elemOrder for s in elemBases])
     for elemType in elemTypes:
         try:
             _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
@@ -228,12 +216,11 @@ def CheckJacobians() -> None:
         nodeCoords[mapLin] = nodes[elem.nodes]
 
         # Hexahedron
-        if elemType % 100 == 8:
+        if elemBase == 8:
             xGeo = nodeCoords[:nGeo**3].reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
         # All other elem types
         else:
-            dofs = NDOFS_ELEM(elemType, nGeo - 1)
-            xGeo = nodeCoords[:dofs].transpose(1, 0)
+            xGeo = nodeCoords[:NDOFS_ELEM(elemType, nGeo - 1)].transpose(1, 0)
 
         if np_mtp > 0:
             # Add tasks for parallel processing
