@@ -56,14 +56,14 @@ def _unionFind(parent: np.ndarray, x: int) -> int:
 def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
     ra, rb = _unionFind(parent, a), _unionFind(parent, b)
     if ra == rb:
-        return
+        return None
     if rank[ra] < rank[rb]:
-        parent[ra] = rb
+        parent[ra]  = rb
     elif rank[ra] > rank[rb]:
-        parent[rb] = ra
+        parent[rb]  = ra
     else:
-        parent[rb] = ra
-        rank[ra] += 1
+        parent[rb]  = ra
+        rank[  ra] += 1
 
 
 def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
@@ -80,7 +80,7 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
             return np.zeros(1, dtype=int)
 
     # Create a KDTree for the mesh points
-    tree = KDTree(points)
+    tree = KDTree(points, balanced_tree=False, compact_nodes=False)
 
     match method:
         case 'union_find':

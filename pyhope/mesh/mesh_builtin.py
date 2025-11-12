@@ -361,10 +361,9 @@ def MeshCartesian() -> meshio.Mesh:
 
     if debugvisu and IsDisplay():
         gmsh.fltk.run()
-
-    # Re-set the order for newly created elements
-    gmsh.model.mesh.setOrder(mesh_vars.nGeo)
-    gmsh.model.geo.synchronize()
+        # Re-set the order for newly created elements
+        gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+        gmsh.model.geo.synchronize()
 
     # Sanity check if the mesh contains volume elements
     # > User might have modified the mesh inside the FLTK GUI

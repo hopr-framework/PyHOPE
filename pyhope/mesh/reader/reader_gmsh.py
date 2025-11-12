@@ -252,7 +252,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del nbCorners
 
         # Build a k-dimensional tree of all face centroids on the opposing side
-        stree = KDTree(nbCenters)
+        stree = KDTree(nbCenters, balanced_tree=False, compact_nodes=False)
 
     # Now, the same thing for triangular elements
     tConnLen  = 0
@@ -272,7 +272,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del tbCorners
 
         # Build a k-dimensional tree of all face centroids
-        ttree = KDTree(tbCenters)
+        ttree = KDTree(tbCenters, balanced_tree=False, compact_nodes=False)
 
     tol: Final[float] = mesh_vars.tolExternal
 

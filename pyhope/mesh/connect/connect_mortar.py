@@ -84,7 +84,7 @@ def ConnectMortar( nConnSide  : list
     vvs: Final[list             ] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter))
+    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter), balanced_tree=False, compact_nodes=False)
     indexList: Final[IndexedLists] = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
