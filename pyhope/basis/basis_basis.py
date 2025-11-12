@@ -507,17 +507,22 @@ def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
         defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
         xi is defined in the 1D reference element xi=[-1,1]
     """
+
     # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
-    x3D_Buf1 = np.tensordot(Vdm, x3D_In , axes=(1, 1))
-    x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
+    # x3D_Buf1 = np.tensordot(Vdm, x3D_In , axes=(1, 1))
+    # x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
+    n_In     = Vdm.shape[1]
+    X1       = x3D_In.reshape(x3D_In.shape[0], n_In, n_In * n_In)
+    x3D_Buf1 = (Vdm @ X1).reshape(x3D_In.shape[0], Vdm.shape[0], n_In, n_In)  # (dim1, n_Out, n_In, n_In)
 
     # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
     x3D_Buf2 = np.tensordot(Vdm, x3D_Buf1, axes=(1, 2))
     x3D_Buf2 = np.moveaxis(x3D_Buf2, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
 
     # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
-    x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
-    x3D_Out  = np.moveaxis(x3D_Out , 0, 3)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
+    # x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
+    # x3D_Out  = np.moveaxis(x3D_Out , 0, 3)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
+    x3D_Out = x3D_Buf2 @ Vdm.T
     # PERF: This is actually slower than the individual contractions
     # x3D_Out  = np.einsum('pi,qj,rk,dijk->dpqr', Vdm, Vdm, Vdm, x3D_In, optimize=True)
 
@@ -531,12 +536,14 @@ def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
         xi is defined in the 1D reference element xi=[-1,1]
     """
     # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x2D_In)
-    x2D_Buf1 = np.tensordot(Vdm, x2D_In, axes=(1, 1))
-    x2D_Buf1 = np.moveaxis(x2D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
+    # x2D_Buf1 = np.tensordot(Vdm, x2D_In, axes=(1, 1))
+    # x2D_Buf1 = np.moveaxis(x2D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
+    x2D_Buf1 = Vdm @ x2D_In
 
     # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x2D_Buf1)
-    x2D_Out = np.tensordot(Vdm, x2D_Buf1, axes=(1, 2))
-    x2D_Out = np.moveaxis(x2D_Out, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
+    # x2D_Out = np.tensordot(Vdm, x2D_Buf1, axes=(1, 2))
+    # x2D_Out = np.moveaxis(x2D_Out, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
+    x2D_Out = x2D_Buf1 @ Vdm.T
     # PERF: This is actually slower than the individual contractions
     # x2D_Out = np.einsum('pi,qj,dij->dpq', Vdm, Vdm, x2D_In, optimize=True)
 
@@ -546,21 +553,28 @@ def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
 def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
     """ Calculate the Jacobian of the mapping for a given element
     """
+    dim1  = xGeo_In.shape[0]
+    n_In  = xGeo_In.shape[1]
+    n_Out = D_EqToGL.shape[0]
+
     # Perform tensor contraction for the first derivative (Xi direction)
-    dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
-    dXdXiGL   = np.moveaxis(dXdXiGL  , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
-    # PERF: This is actually slower than the individual contractions
-    # dXdXiGL   = np.einsum('pi,dijk->dpjk', D_EqToGL, xGeo_In, optimize=True)
+    # dXdXiGL   = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 1))
+    # dXdXiGL   = np.moveaxis(dXdXiGL  , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    _X1     = xGeo_In.reshape(dim1, n_In, n_In * n_In)
+    dXdXiGL = (D_EqToGL @ _X1).reshape(dim1, n_Out, n_In, n_In)
 
     # Perform tensor contraction for the second derivative (Eta direction)
     dXdEtaGL  = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 2))
-    dXdEtaGL  = np.moveaxis(dXdEtaGL , 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    dXdEtaGL  = np.moveaxis(dXdEtaGL , 1, 0)  # Correct the shape to (3, n_Out, n_In, n_In)
     # PERF: This is actually slower than the individual contractions
     # dXdEtaGL  = np.einsum('qj,dijk->dqik', D_EqToGL, xGeo_In, optimize=True)
 
     # Perform tensor contraction for the third derivative (Zeta direction)
-    dXdZetaGL = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 3))
-    dXdZetaGL = np.moveaxis(dXdZetaGL, 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    # dXdZetaGL = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 3))
+    # dXdZetaGL = np.moveaxis(dXdZetaGL, 1, 0)  # Correct the shape to (3, nGeoRef, nGeoRef, nGeoRef)
+    _X3       = xGeo_In.reshape(dim1, n_In * n_In, n_In)
+    dXdZetaGL = (_X3 @ D_EqToGL.T).reshape(dim1, n_In, n_In, n_Out)
+    dXdZetaGL = np.transpose(dXdZetaGL, (0, 3, 1, 2))  # -> (3, n_Out, n_In, n_In)
     # PERF: This is actually slower than the individual contractions
     # dXdZetaGL = np.einsum('rk,dijk->drij', D_EqToGL, xGeo_In, optimize=True)
 
