@@ -21,7 +21,7 @@ dependencies = [
     'gmsh',
     # 'sortedcontainers',
     'typing-extensions',
-    'threadpoolctl'
+    # 'threadpoolctl'
 ]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [

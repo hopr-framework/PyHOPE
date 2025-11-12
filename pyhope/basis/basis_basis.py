@@ -26,17 +26,17 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from functools import cache
-from typing import Union
+from typing import Final, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import scipy as sp
-from threadpoolctl import ThreadpoolController
+# from threadpoolctl import ThreadpoolController
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
-from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ==================================================================================================================================
 
 
@@ -160,7 +160,7 @@ def lagrange_interpolation_polys(x: Union[float, np.ndarray], order: int, xGP: n
     tmp = 0.
     for iGP in range(order):
         lagrange[iGP] = wBary[iGP] / (x-xGP[iGP])
-        tmp   += lagrange[iGP]
+        tmp += lagrange[iGP]
 
     # Normalize
     lagrange = lagrange/tmp
@@ -254,67 +254,92 @@ def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndar
 def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarray:
     """ Compute the polynomial derivative matrix for a prism
     """
-    a  = xGP[0, :]
-    b  = np.where((1 - xGP[0, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[1, :]) / (1. - xGP[0, :] + 1.e-20) - 1.)
-    c  = xGP[2, :]
+    a: Final[np.ndarray]  = xGP[0, :]
+    b: Final[np.ndarray]  = np.where((1 - xGP[0, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[1, :]) / (1. - xGP[0, :] + 1.e-20) - 1.)
+    c: Final[np.ndarray]  = xGP[2, :]
+
+    nDOFs = NDOFS_ELEM(106, order-1)
+    Vdm = np.zeros((   nDOFs, nDOFs))
+    Vr  = np.zeros((   nDOFs, nDOFs))
+    Vs  = np.zeros((   nDOFs, nDOFs))
+    Vt  = np.zeros((   nDOFs, nDOFs))
+    D   = np.zeros((3, nDOFs, nDOFs))
 
     # Precompute required Jacobi polynomials and derivatives
-    jacobi_0_0        = [sp.special.jacobi(i, 0, 0) for i in range(order)]
-    jacobi_0_0_deriv  = [p.deriv()                  for p in jacobi_0_0]  # noqa: E272
-    jacobi_eta_polys  = [sp.special.jacobi(i, 0, 0) for i in range(order)]
-    jacobi_eta_derivs = [p.deriv()                  for p in jacobi_eta_polys]  # noqa: E272
+    # fZETA(i) = P_i^(0,0)(c), dfZETA(i) = 0.5*(i+1)*P_{i-1}^{(1,1)}(c)
+    fZETA_all  = np.array([          sp.special.eval_jacobi(i  , 0, 0, c) for i in range(order)])
+    dfZETA_all = np.array([0.5*(i+1)*sp.special.eval_jacobi(i-1, 1, 1, c) for i in range(order)])
+    # fETA(j) = P_j^(0,0)(b), dfETA(j) = 0.5*(j+1)*P_{j-1}^{(1,1)}(b)
+    fETA_all   = np.array([          sp.special.eval_jacobi(j  , 0, 0, b) for j in range(order)])
+    dfETA_all  = np.array([0.5*(j+1)*sp.special.eval_jacobi(j-1, 1, 1, b) for j in range(order)])
 
-    jacobi_xi_polys = [[sp.special.jacobi(i, 2*j + 1, 0) for i in range(order - j)] for j in range(order)]
+    jacobi_xi_polys  = [[sp.special.jacobi(i, 2*j + 1, 0) for i in range(order - j)] for j in range(order)]
     jacobi_xi_derivs = [[p.deriv() for p in row] for row in jacobi_xi_polys]
 
-    fZETA_all  = np.array([p(c) for p in jacobi_0_0])
-    dfZETA_all = np.array([p(c) for p in jacobi_0_0_deriv])
-    fETA_all   = np.array([p(b) for p in jacobi_eta_polys])
-    dfETA_all  = np.array([p(b) for p in jacobi_eta_derivs])
+    # Precompute constants
+    sqrt2    = np.sqrt(2.)
+    base_pa  = 0.5*(1 - a)
+    base_pb  = 0.5*(1 + b)
 
-    nDOFsElem = NDOFS_ELEM(106, order-1)
-    Vdm = np.zeros((   nDOFsElem, nDOFsElem))
-    Vr  = np.zeros((   nDOFsElem, nDOFsElem))
-    Vs  = np.zeros((   nDOFsElem, nDOFsElem))
-    Vt  = np.zeros((   nDOFsElem, nDOFsElem))
-    D   = np.zeros((3, nDOFsElem, nDOFsElem))
+    pow1ma   = [np.ones_like(a)]  # (1 - a)**k
+    for _ in range(1, order+1):
+        pow1ma.append(pow1ma[-1] * (1 - a))
 
     iX = 0
     for iZETA in range(order):
         fZETA, dfZETA = fZETA_all[iZETA], dfZETA_all[iZETA]
         for iETA in range(order):
             fETA, dfETA = fETA_all[iETA], dfETA_all[iETA]
+            # fXI(ix) = P_ix^(2*iETA+1, 0)(a)
+            # dfXI(ix)= 0.5*(ix + 2*iETA + 2) * P_{ix-1}^{(2*iETA+2, 1)}(a), with dfXI(0)=0
             for iXI in range(order - iETA):
-                fXI  = jacobi_xi_polys[iETA][iXI](a)
+                fXI  = jacobi_xi_polys[ iETA][iXI](a)
                 dfXI = jacobi_xi_derivs[iETA][iXI](a)
-                powfac = (1 - a) ** iETA
-                Vdm[:, iX] = np.sqrt(2.) * fXI * fETA * fZETA * powfac
 
+                # powfac = (1 - a) ** iETA
+                powfac = pow1ma[iETA]
+
+                # Fill Vdm columns
+                Vdm[:, iX] = sqrt2 * fXI * fETA * fZETA * powfac
+
+                # Vr term
                 Vr[:, iX] = dfETA * fXI * fZETA
                 if iETA > 0:
-                    Vr[:, iX] *= ((0.5*(1-a))**(iETA-1))
+                    Vr[:, iX] *= (base_pa**(iETA-1))
 
-                Vs[:, iX] = dfETA * (fXI * (0.5*(1+b))) * fZETA
+                # Vs term
+                Vs[:, iX] = dfETA * (fXI * base_pb) * fZETA
                 if iETA > 0:
-                    Vs[:, iX] *= ((0.5*(1-a))**(iETA-1))
-                tmp = dfXI * ((0.5*(1-a))**iETA)
+                    Vs[:, iX] *= (base_pa**(iETA-1))
+                tmp = dfXI * (base_pa**iETA)
                 if iETA > 0:
-                    tmp -= 0.5*iETA*fXI*((0.5*(1-a))**(iETA-1))
+                    tmp -= 0.5*iETA*fXI*(base_pa**(iETA-1))
                 Vs[:, iX] += fETA*tmp*fZETA
 
-                Vt[:, iX] = np.sqrt(2.)*dfZETA*fETA*fXI*powfac
+                # Vt term
+                Vt[:, iX] = sqrt2*dfZETA*fETA*fXI*powfac
+
+                # Final scaling
                 scale = 2.**(iETA+0.5)
                 Vr[:, iX] *= scale
                 Vs[:, iX] *= scale
+
                 iX += 1
 
     # PERF: Need to use threadpoolctl here as BLAS has issues with multiprocessing
     #       > Workaround by restricting to one thread during concurrent execution
-    with ThreadpoolController().limit(limits=1, user_api='blas'):
-        sVdm = np.linalg.inv(Vdm)
-    D[1, :, :] = (Vr @ sVdm).T
-    D[0, :, :] = (Vs @ sVdm).T
-    D[2, :, :] = (Vt @ sVdm).T
+    # with ThreadpoolController().limit(limits=1, user_api='blas'):
+    #     sVdm = np.linalg.inv(Vdm)
+    # D[1, :, :] = (Vr @ sVdm).T
+    # D[0, :, :] = (Vs @ sVdm).T
+    # D[2, :, :] = (Vt @ sVdm).T
+
+    # PERF: Solve with LU factorization instead of explicitly inverting, disabling input matrix checks
+    VT = Vdm.T
+    lu, piv    = sp.linalg.lu_factor(VT,             check_finite=False)
+    D[1, :, :] = sp.linalg.lu_solve((lu, piv), Vr.T, check_finite=False)
+    D[0, :, :] = sp.linalg.lu_solve((lu, piv), Vs.T, check_finite=False)
+    D[2, :, :] = sp.linalg.lu_solve((lu, piv), Vt.T, check_finite=False)
 
     return D
 
@@ -326,50 +351,69 @@ def polynomial_derivative_matrix_pyram(order: int, xGP: np.ndarray) -> np.ndarra
     b  = np.where((1 - xGP[2, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[1, :]) / (1. - xGP[2, :] + 1.e-20) - 1.)
     c  = xGP[2, :]
 
-    nDOFsElem = NDOFS_ELEM(105, order-1)
-    Vdm = np.zeros((   nDOFsElem, nDOFsElem))
-    Vr  = np.zeros((   nDOFsElem, nDOFsElem))
-    Vs  = np.zeros((   nDOFsElem, nDOFsElem))
-    Vt  = np.zeros((   nDOFsElem, nDOFsElem))
-    D   = np.zeros((3, nDOFsElem, nDOFsElem))
+    nDOFs = NDOFS_ELEM(105, order-1)
+    Vdm = np.zeros((   nDOFs, nDOFs))
+    Vr  = np.zeros((   nDOFs, nDOFs))
+    Vs  = np.zeros((   nDOFs, nDOFs))
+    Vt  = np.zeros((   nDOFs, nDOFs))
+    D   = np.zeros((3, nDOFs, nDOFs))
 
     iX = 0
     for iZETA in range(order):
         for iETA in range(order - iZETA):
             for iXI in range(order - iZETA):
+                # fXI  = P_{iXI }^{(0,0)}(a), dfXI  = 0.5*(iXI +1)*P_{iXI -1}^{(1,1)}(a)
                 fXI    = sp.special.jacobi(iXI  , 0, 0)(a)
-                fETA   = sp.special.jacobi(iETA , 0, 0)(b)
-                fZETA  = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0)(c)
                 dfXI   = sp.special.jacobi(iXI  , 0, 0).deriv()(a)
+
+                # fETA = P_{iETA}^{(0,0)}(b), dfETA = 0.5*(iETA+1)*P_{iETA-1}^{(1,1)}(b)
+                fETA   = sp.special.jacobi(iETA , 0, 0)(b)
                 dfETA  = sp.special.jacobi(iETA , 0, 0).deriv()(b)
+
+                # fZETA is the dependent direction: alpha = 2*(iXI+iETA)+2, beta = 0
+                fZETA  = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0)(c)
                 dfZETA = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0).deriv()(c)
+
+                # Fill Vdm columns
                 Vdm[:, iX] = 2 * fXI * fETA * fZETA * (1-c)**(iXI+iETA)
 
+                # Vr term
                 Vr[:, iX] = dfXI*fETA*fZETA
                 if iXI+iETA > 0:
                     Vr[:, iX] *= 2*(1-c)**(iXI+iETA-1)
 
+                # Vs term
                 Vs[:, iX] = fXI*dfETA*fZETA
                 if iXI+iETA > 0:
                     Vs[:, iX] *= 2*(1-c)**(iXI+iETA-1)
 
+                # Vt term
                 tmp = (1-c)**(iXI+iETA)*dfZETA
                 if iXI+iETA > 0:
                     tmp -= (iETA+iXI)*(1-c)**(iETA+iXI-1)*fZETA
                 Vt[:, iX] = 2*tmp*fXI*fETA
                 Vt[:, iX] += (1+a)*Vr[:, iX] + (1+b)*Vs[:, iX]
 
+                # Final scaling
                 Vr[:, iX] *= 2
                 Vs[:, iX] *= 2
+
                 iX += 1
 
     # PERF: Need to use threadpoolctl here as BLAS has issues with multiprocessing
     #       > Workaround by restricting to one thread during concurrent execution
-    with ThreadpoolController().limit(limits=1, user_api='blas'):
-        sVdm = np.linalg.inv(Vdm)
-    D[0, :, :] = (Vr @ sVdm).T
-    D[1, :, :] = (Vs @ sVdm).T
-    D[2, :, :] = (Vt @ sVdm).T
+    # with ThreadpoolController().limit(limits=1, user_api='blas'):
+    #     sVdm = np.linalg.inv(Vdm)
+    # D[0, :, :] = (Vr @ sVdm).T
+    # D[1, :, :] = (Vs @ sVdm).T
+    # D[2, :, :] = (Vt @ sVdm).T
+
+    # PERF: Solve with LU factorization instead of explicitly inverting, disabling input matrix checks
+    VT = Vdm.T
+    lu, piv    = sp.linalg.lu_factor(VT,             check_finite=False)
+    D[0, :, :] = sp.linalg.lu_solve((lu, piv), Vr.T, check_finite=False)
+    D[1, :, :] = sp.linalg.lu_solve((lu, piv), Vs.T, check_finite=False)
+    D[2, :, :] = sp.linalg.lu_solve((lu, piv), Vt.T, check_finite=False)
 
     return D
 
@@ -381,44 +425,57 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
     b  = np.where((1 - xGP[2, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[1, :]) / (1. - xGP[2, :] + 1.e-20) - 1.)
     c  = xGP[2, :]
 
-    nDOFsElem = NDOFS_ELEM(104, order-1)
-    Vdm = np.zeros((   nDOFsElem, nDOFsElem))
-    Vr  = np.zeros((   nDOFsElem, nDOFsElem))
-    Vs  = np.zeros((   nDOFsElem, nDOFsElem))
-    Vt  = np.zeros((   nDOFsElem, nDOFsElem))
-    D   = np.zeros((3, nDOFsElem, nDOFsElem))
+    nDOFs = NDOFS_ELEM(104, order-1)
+    Vdm = np.zeros((   nDOFs, nDOFs))
+    Vr  = np.zeros((   nDOFs, nDOFs))
+    Vs  = np.zeros((   nDOFs, nDOFs))
+    Vt  = np.zeros((   nDOFs, nDOFs))
+    D   = np.zeros((3, nDOFs, nDOFs))
+
+    # Precompute constants
+    sqrt2    = np.sqrt(2.)
 
     iX = 0
     for iZETA in range(order):
         for iETA in range(order - iZETA):
             for iXI in range(order - iETA - iZETA):
-                fXI    = sp.special.jacobi(iXI  , 0, 0)(a)
-                fETA   = sp.special.jacobi(iETA , 2*iXI+1, 0)(b)
-                fZETA  = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0)(c)
-                dfXI   = sp.special.jacobi(iXI  , 0, 0).deriv()(a)
-                dfETA  = sp.special.jacobi(iETA , 2*iXI+1, 0).deriv()(b)
-                dfZETA = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0).deriv()(c)
-                Vdm[:, iX] = 2 * np.sqrt(2.) * fXI * fETA * fZETA * (1-b)**iXI * (1-c)**(iXI+iETA)
+                # fXI(a), dfXI(a)
+                fXI    = sp.special.jacobi(iXI  , 0             , 0)(a)
+                dfXI   = sp.special.jacobi(iXI  , 0             , 0).deriv()(a)
 
-                Vr[:, iX] = 2 * np.sqrt(2.) * dfXI * fETA * fZETA
+                # fETA(b; alpha=2*iXI+1), dfETA(b)
+                fETA   = sp.special.jacobi(iETA , 2*iXI+1       , 0)(b)
+                dfETA  = sp.special.jacobi(iETA , 2*iXI+1       , 0).deriv()(b)
+
+                # fZETA(c; alpha=2*(iXI+iETA)+2), dfZETA(c)
+                fZETA  = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0)(c)
+                dfZETA = sp.special.jacobi(iZETA, 2*(iXI+iETA)+2, 0).deriv()(c)
+
+                # Fill Vdm columns
+                Vdm[:, iX] = 2 * sqrt2 * fXI * fETA * fZETA * (1-b)**iXI * (1-c)**(iXI+iETA)
+
+                # Vr term
+                Vr[:, iX] = 2 * sqrt2 * dfXI * fETA * fZETA
                 if iXI > 0:
                     Vr[:, iX] *= ((0.5*(1-b))**(iXI-1))
                 if iXI+iETA > 0:
                     Vr[:, iX] *= ((0.5*(1-c))**(iXI+iETA-1))
 
+                # Vs term
                 tmp = (1-b)**iXI*dfETA
                 if iXI > 0:
                     tmp -= iXI*(1-b)**(iXI-1)*fETA
                 if iXI+iETA > 0:
                     tmp *= (1-c)**(iXI+iETA-1)
-                tmp *= 2.*np.sqrt(2.)*fXI*fZETA
+                tmp *= 2.*sqrt2*fXI*fZETA
                 Vs[:, iX] = tmp + Vr[:, iX] * (1+a)
 
+                # Vt term
                 Vt[:, iX] = 2*(1+a)*Vr[:, iX] + (1+b)*tmp
                 tmp = dfZETA*(1-c)**(iETA+iXI)
                 if iXI+iETA > 0:
                     tmp -= (iXI+iETA)*(1-c)**(iETA+iXI-1)*fZETA
-                tmp *= 2*np.sqrt(2.)*fXI*fETA*(1-b)**iXI
+                tmp *= 2*sqrt2*fXI*fETA*(1-b)**iXI
                 Vt[:, iX] += tmp
 
                 Vr[:, iX] *= 4
@@ -427,11 +484,18 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
 
     # PERF: Need to use threadpoolctl here as BLAS has issues with multiprocessing
     #       > Workaround by restricting to one thread during concurrent execution
-    with ThreadpoolController().limit(limits=1, user_api='blas'):
-        sVdm = np.linalg.inv(Vdm)
-    D[0, :, :] = (Vr @ sVdm).T
-    D[1, :, :] = (Vs @ sVdm).T
-    D[2, :, :] = (Vt @ sVdm).T
+    # with ThreadpoolController().limit(limits=1, user_api='blas'):
+    #     sVdm = np.linalg.inv(Vdm)
+    # D[0, :, :] = (Vr @ sVdm).T
+    # D[1, :, :] = (Vs @ sVdm).T
+    # D[2, :, :] = (Vt @ sVdm).T
+
+    # PERF: Solve with LU factorization instead of explicitly inverting, disabling input matrix checks
+    VT = Vdm.T
+    lu, piv    = sp.linalg.lu_factor(VT,             check_finite=False)
+    D[0, :, :] = sp.linalg.lu_solve((lu, piv), Vr.T, check_finite=False)
+    D[1, :, :] = sp.linalg.lu_solve((lu, piv), Vs.T, check_finite=False)
+    D[2, :, :] = sp.linalg.lu_solve((lu, piv), Vt.T, check_finite=False)
 
     return D
 
