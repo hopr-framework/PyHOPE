@@ -94,17 +94,20 @@ def UpdateElemID(elems         : list,
         sorted_elems[newElemID] = elem
 
         # Correct the sideID
+        nSides = 0
         for key, val in enumerate(elem.sides):
             side        = sides[val]
             side.sideID = offsetSide + key
             side.elemID = newElemID
             sorted_sides[sideID] = side
             sideID     += 1
+            nSides     += 1
 
         # Correct the sideID
-        nSides      = len(elem.sides)
+        # nSides      = len(elem.sides)
         elem.sides  = list(range(offsetSide, offsetSide + nSides))
         offsetSide += nSides
+
         bar.step()
 
     return sorted_elems, sorted_sides
@@ -135,9 +138,13 @@ def SortMeshBySFC() -> None:
     from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    # Monkey-patching HilbertCurve
+    from pyhope.mesh.sort.sort_hilbert import HilbertCurveNumpy
     # INFO: Alternative Hilbert curve sorting (not on PyPI)
     # from hilsort import hilbert_sort
     # ------------------------------------------------------
+    # Monkey-patching HilbertCurve
+    HilbertCurveNumpy()
 
     hopout.routine('Sorting elements along space-filling curve')
 
@@ -145,7 +152,9 @@ def SortMeshBySFC() -> None:
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
-    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
 
     # Global bounding box
     points = mesh.points
