@@ -293,7 +293,7 @@ def SortMeshByIJK() -> None:
     bar.close()
 
 
-def SortMeshBySnake():
+def SortMeshBySnake() -> None:  # pragma: no cover
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import calc_elem_bary
@@ -340,7 +340,7 @@ def SortMeshBySnake():
     bar.close()
 
 
-def SortMeshByLEX():
+def SortMeshByLEX() -> None:  # pragma: no cover
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import calc_elem_bary
