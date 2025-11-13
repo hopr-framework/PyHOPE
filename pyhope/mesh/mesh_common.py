@@ -28,7 +28,7 @@
 from __future__ import annotations
 import sys
 from functools import cache
-from typing import Union, Tuple, Any
+from typing import Union, Tuple, Any, Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -615,14 +615,49 @@ def calc_elem_bary(elems: list) -> np.ndarray:
     Returns:
         elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
     """
+    # PERF: n.mean from iterator is too slow for large meshes
     # return np.asarray([mesh_vars.mesh.points[elem.nodes].mean(axis=0) for elem in elems])
-
     # Pre-allocate memory for large arrays
-    elem_bary = np.empty((len(elems), 3), dtype=np.float64)
-    for elemID, elem in enumerate(elems):
-        # Calculate barycenters
-        elem_bary[elemID] = mesh_vars.mesh.points[elem.nodes].mean(axis=0)
-    return elem_bary
+    # elem_bary = np.empty((len(elems), 3), dtype=np.float64)
+    # points: Final[np.ndarray] = mesh_vars.mesh.points
+    # for elemID, elem in enumerate(elems):
+    #     # Calculate barycenters
+    #     elem_bary[elemID] = points[elem.nodes].mean(axis=0)
+    # return elem_bary
+
+    points:  Final[np.ndarray] = mesh_vars.mesh.points
+    nElems:  Final[int]  = len(elems)
+    nNodes:  Final[int]  = len(elems[0].nodes)
+    uniform: Final[bool] = all(len(e.nodes) == nNodes for e in elems)
+
+    # Fast path: Uniform number of nodes per element
+    if uniform:
+        idx = np.empty(nElems * nNodes, dtype=np.int64)
+        pos = 0
+        for e in elems:
+            idx[pos:pos + nNodes] = e.nodes
+            pos += nNodes
+
+        elemSum = points[idx].reshape(nElems, nNodes, 3).sum(axis=1, dtype=np.float64)
+        elemInv = 1.0 / nNodes
+        return elemSum * elemInv
+
+    # General path: varying node counts
+    counts: Final[np.ndarray] = np.fromiter((len(e.nodes) for e in elems), dtype=np.int64, count=nElems)
+    offsets:      np.ndarray  = np.empty(nElems + 1, dtype=np.int64)
+    offsets[0] = 0
+    np.cumsum(counts, out=offsets[1:])
+
+    idx = np.empty(offsets[-1], dtype=np.int64)
+    pos = 0
+    for e in elems:
+        m = len(e.nodes)
+        idx[pos:pos + m] = e.nodes
+        pos += m
+
+    gathered = points[idx]
+    sums     = np.add.reduceat(gathered, offsets[:-1], axis=0)
+    return sums / counts[:, None]
 
 
 @cache
