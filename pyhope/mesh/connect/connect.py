@@ -63,6 +63,8 @@ def flip_analytic(side: int, nbside: np.ndarray) -> int:
     # Local imports ----------------------------------------
     from pyhope.common.common import find_index
     # ------------------------------------------------------
+    # PERF: Finding in list is faster than numpy
+    # return int(np.nonzero(nbside == side)[0])
     return find_index(nbside, side)
 
 
@@ -279,7 +281,9 @@ def ConnectMesh() -> None:
             print(hopout.warn(f'Detected boundary conditions {[bc.name for bc in bcs]}'))
         hopout.error('Could not find any 2D boundary conditions, exiting...')
 
-    bar = ProgressBar(value=len(sides), title='│                 Preparing Sides')
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(sides)/(400)))))
+    bar = ProgressBar(value=len(sides), title='│                 Preparing Sides', length=33, chunk=chunk, threshold=1)
 
     # Map sides to BC
     # > Create a dict containing only the face corners

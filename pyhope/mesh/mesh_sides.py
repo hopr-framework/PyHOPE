@@ -71,7 +71,9 @@ def GenerateSides() -> None:
 
         totalElems += mesh.get_cells_type(elemType).shape[0]
 
-    bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33, chunk=chunk)
 
     # Loop over all element types
     for elemType in mesh.cells_dict.keys():
