@@ -28,6 +28,7 @@
 import copy
 import gc
 import math
+import resource
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -58,6 +59,9 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetIntFromStr, GetRealArray, GetStr
     # ------------------------------------------------------
+
+    # Setup stacksize
+    resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     gmsh.initialize()
 

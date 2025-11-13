@@ -28,6 +28,7 @@
 import gc
 import os
 import re
+import resource
 import shutil
 import subprocess
 import time
@@ -94,6 +95,9 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
+
+    # Setup stacksize
+    resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     hopout.sep()
     gmsh.initialize()
