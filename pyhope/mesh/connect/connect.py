@@ -297,15 +297,14 @@ def ConnectMesh() -> None:
     #     side_corners = dict(results)
     # else:
     #     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
-    side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems
-                                                                       for side in cast(Union[list, np.ndarray], elem.sides)}
-    # > Create a dict containing only the periodic corners
-    peri_corners = {}
-
     # Build the reverse dictionary
     corner_side = defaultdict(list)
-    for side, corners in side_corners.items():
-        corner_side[corners].append(side)
+    for elem in elems:
+        for side in cast(Union[list, np.ndarray], elem.sides):
+            corner_side[hash(tuple(sorted(sides[side].corners)))].append(side)
+
+    # > Create a dict containing only the periodic corners
+    peri_corners = {}
 
     # Find the mapping to the (N-1)-dim elements
     csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
@@ -344,8 +343,7 @@ def ConnectMesh() -> None:
             # Map the unique BC sides to our non-unique elem sides
             for iSide in iBCsides:
                 # Get the corner nodes
-                corners = np.sort(mapFaces[iSide][:nCorners])
-                corners = hash(corners.tobytes())
+                corners = hash(tuple(sorted(mapFaces[iSide][:nCorners])))
 
                 if corners not in corner_side:
                     print()
@@ -382,8 +380,7 @@ def ConnectMesh() -> None:
                     # Add the periodic nodes of the periodic sides to the side_corners
                     # > Only negative BC_alpha allowed here
                     if bcs[bcID].type[0] == 1 and bcs[bcID].type[3] > 0:
-                        pNodes = np.fromiter((mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners]), dtype=int)
-                        pNodes = hash(np.sort(pNodes).tobytes())
+                        pNodes = hash(tuple(sorted(mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners])))
                         peri_corners[sideID] = pNodes
                         # Update the reverse dictionary immediately
                         corner_side[pNodes].append(sideID)
