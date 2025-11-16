@@ -378,7 +378,7 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
 
     for elemID, elem in enumerate(elems):
         # Process edge occurrences for the current element
-        for _ in range(len(elem.edgeInfo)):
+        for _ in range(len(cast(dict, elem.edgeInfo))):
             # Get the occurrence information from the global occList
             currentEdge = occList[occGlobalIdx]
             FEMEdgeID   = currentEdge['EdgeID']
@@ -437,8 +437,8 @@ def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
 
         # Set the edge connectivity offset for this element
         FEMElemInfo[elemID, 0] = edgeOffset
-        FEMElemInfo[elemID, 1] = edgeOffset + len(elem.edgeInfo)
-        edgeOffset += len(elem.edgeInfo)
+        FEMElemInfo[elemID, 1] = edgeOffset + len(cast(dict, elem.edgeInfo))
+        edgeOffset += len(cast(dict, elem.edgeInfo))
 
     # Convert lists to numpy arrays
     vertexInfo = np.array(vertexInfoList, dtype=np.int32)

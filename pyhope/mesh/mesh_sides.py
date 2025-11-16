@@ -178,7 +178,7 @@ def GenerateSides() -> None:
     for side in sides:
         elemID = cast(int, side.elemID)
         sideID = cast(int, side.sideID)
-        cast(list, cast(ELEM, elems[elemID]).sides).append(sideID)
+        cast(list, elems[elemID].sides).append(sideID)
 
     # Convert lists to numpy arrays
     for elem in elems:
