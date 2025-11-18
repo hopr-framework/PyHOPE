@@ -35,6 +35,7 @@ from typing import Dict, List, Union, Optional, cast
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
+# from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
@@ -84,6 +85,86 @@ def HEXREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
     return tuple(map)
 
 
+# tet order 3
+#
+#              2
+#            ,/|`\
+#          ,8  |  `7              E = order - 1
+#        ,/    13   `\            C = 4 + 6*E
+#      ,9    16 |     `6          F = ((order - 1)*(order - 2))/2
+#    ,/         |       `\        N = total number of vertices
+#   0-----4-----'.--5-----1
+#    `\.   18    |  19  ,/        Interior vertex numbers
+#       11.     12    ,15           for edge 0 <= i <= 5: 4+i*E to 4+(i+1)*E-1
+#          `\.   '. 14              for face 0 <= j <= 3: C+j*F to C+(j+1)*F-1
+#             10\.|/        in volume           : C+4*F to N-1
+#      17        `3
+#
+# tet order 4
+#
+#              2
+#            ,/|`\
+#          10  |  `9              E = order - 1
+#        11    18   `8            C = 4 + 6*E
+#      12  23   |     `7          F = ((order - 1)*(order - 2))/2
+#    ,/  22 24  17      `\        N = total number of vertices
+#   0-----4----5'.--6-----1
+#    `\.  28-30  | 22-24,21       Interior vertex numbers
+#       15.  29 16    ,20           for edge 0 <= i <= 5: 4+i*E to 4+(i+1)*E-1
+#          14.   '. 19              for face 0 <= j <= 3: C+j*F to C+(j+1)*F-1
+#             13\.|/        in volume           : C+4*F to N-1
+#    25-26       `3
+#      27
+#
+# [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 12, 13, 18, 19, 17, 16]
+
+# @cache
+# def TETREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
+#     """ Converts node ordering from gmsh to meshio format
+#     """
+#     # gmsh MTetrahedron.h: static const int e[6][2] = {{0, 1}, {1, 2}, {2, 0}, {3, 0}, {3, 2}, {3, 1}};
+#     EDGEMAP   = (  0,  1,  2,  3,  5,  4)
+#     # gmsh MTetrahedron.h: static const int f[4][3] = {{0, 2, 1}, {0, 1, 3}, {0, 3, 2}, {3, 1, 2}};
+#     FACEMAP   = (  1,  3,  2,  0)
+#
+#     order    += 1
+#     nNodes    = 4 + 6*(order - 1) if incomplete else NDOFS_ELEM(104, order-1)
+#     map: List = [None for _ in range(nNodes)]
+#
+#     count = 0
+#     map[count:count+4] = list(range(count, count+4))
+#     count += 4
+#
+#     # Edges
+#     pNodes = order - 2
+#     for iEdge in range(6):
+#         iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
+#         if iEdge < 3:
+#             map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes)]
+#         else:
+#             map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in reversed(range(pNodes))]
+#     count += pNodes*6
+#
+#     # Only vertices and edges of the outermost shell required for incomplete elements
+#     if incomplete:
+#         return tuple(map)
+#
+#     # Faces: FIXME for NGeo>=4
+#     if order > 3:
+#         fNodes = int(((order - 2)*(order - 3))/2)
+#         for iFace in range(4):
+#             iSlice = slice(count + fNodes*iFace                , count + fNodes*(iFace+1))
+#             map[iSlice] = [count + fNodes*(FACEMAP[iFace])+iNode for iNode in range(fNodes)]
+#         count += fNodes*4
+#
+#     # Inner sides
+#     if order > 4:
+#         iSlice = slice(count                 , nNodes)
+#         map[iSlice] = [i for i in range(count, nNodes)]
+#
+#     return tuple(map)
+
+
 @dataclass
 class NodeOrdering:
     """
@@ -130,6 +211,9 @@ class NodeOrdering:
                                        # > Tetrahedron
                                        'tetra'       : [ 0, 1, 2, 3 ],
                                        'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
+                                       'tetra20'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10, 15, 14, 13, 12, 17, 19, 18, 16 ],
+                                       'tetra35'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 14, 13, 21, 20, 19, 18, 17, 16,
+                                                         25, 26, 27, 32, 33, 31, 28, 30, 29, 22, 24, 23, 34],
                                        # > Wedge
                                        'wedge'       : [ 0, 1, 2, 3, 4, 5],
                                        'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],

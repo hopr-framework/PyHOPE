@@ -144,9 +144,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         case 2:
             faceType = ['triangle6' , 'quad9' ]
             faceNum  = [          6 ,       9 ]
-        # case 3:
-        #     faceType = ['triangle10', 'quad16']
-        #     faceNum  = [         10 ,      16 ]
+        case 3:
+            faceType = ['triangle10', 'quad16']
+            faceNum  = [         10 ,      16 ]
         case 4:
             faceType = ['triangle15', 'quad25']
             faceNum  = [         15 ,      25 ]
@@ -532,6 +532,15 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
             #          (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
             return [(  0,  1,  2,  4,  5,  6,  8,  9, 24, 12, 13, 25, 16, 17, 18, 22, 21, 26),
                     (  0,  2,  3,  4,  6,  7, 24, 10, 11, 25, 14, 15, 16, 18, 19, 26, 23, 20)]
+        case 3:
+            return [(  0,  1,  3,  4,  5,  7,                                                 # 6 vertices
+                       8,  9, 51, 49, 15, 14, 16, 17, 53, 55, 23, 22, 24, 25, 26, 27, 30, 31, # Edges 6:24
+                      40, 41, 42, 43, 57, 59, 63, 61, 35, 32, 33, 34, 52, 48,                 # Faces
+                      56, 60),                                                                # Volume
+                    (  1,  2,  3,  5,  6,  7,                                                 # 6 vertices
+                      10, 11, 12, 13, 49, 51, 18, 19, 20, 21, 55, 53, 26, 27, 28, 29, 30, 31, # Edges
+                      36, 37, 38, 39, 44, 45, 46, 47, 59, 57, 61, 63, 54, 50,                 # Faces
+                      58, 62)]                                                                # Volume
         case 4:
             # prism1 = (   0,   1,   3,   4,   5,   7,
             #              8,   9,  10,  83,  88,  81,  19,  18,  17,            # 6 vertices
@@ -546,7 +555,7 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
             prism1 = (   0,   1,   3,   4,   5,   7,                           # 6 vertices
                         *range( 8, 11), 83, 88, 81, *reversed(range(17, 20)),  # Edges
                         *range(20, 23), 90, 97, 92, *reversed(range(29, 32)),  # Edges
-                        *range(32, 35), 35, 36, 37, *reversed(range(41, 44)),  # Face 1
+                        *range(32, 35), 35, 36, 37,          *range(41, 44) ,  # Face 1
                         *range(62, 65), 65, 66, 67,          *range(68, 71) ,  # Face 2
                          99,  101, 105, 103, 122,  117, 123, 115, 124,         # Face 3
                          47, *range(44, 47),  51, *range(48, 51),  52,         # Face 4
@@ -599,6 +608,14 @@ def prism_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  0,  1,  4,  3,  6, 13,  9, 12, 15), dtype=int),
                     np.array((  1,  2,  5,  4,  7, 14, 10, 13, 16), dtype=int),
                     np.array((  2,  0,  3,  5,  8, 12, 11, 14, 17), dtype=int))
+        case 3:
+            return (# Triangular faces  # noqa: E261
+                    np.array((  0,  1,  2,  *range(6 ,12), 37   ), dtype=int),
+                    np.array((  3,  4,  5,  *range(12,18), 36   ), dtype=int),
+                    # Quadrilateral faces
+                    np.array((  0,  1,  4,  3,  6,  7, 20, 21, 12, 13, 19, 18, *range(24,28)), dtype=int),
+                    np.array((  1,  2,  5,  4,  8,  9, 22, 23, 15, 14, 21, 20, *range(28,32)), dtype=int),
+                    np.array((  2,  0,  3,  5, 10, 11, 18, 19, 17, 16, 23, 22, *range(32,36)), dtype=int))
         case 4:
             return (# Triangular faces  # noqa: E261
                     np.array((  0, 1, 2, *range( 6, 15), *range(63, 66)), dtype=int),  # z-
