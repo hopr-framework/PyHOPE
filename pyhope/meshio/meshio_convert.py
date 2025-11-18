@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import importlib
 from typing import Dict, Final, List, Set, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -76,9 +77,9 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
 
     cell_sets = {}
     for dim, tag in gmsh.model.getPhysicalGroups():
-        # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)
+        # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)  # noqa: E501
         elem_types, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
-        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i,j in zip(elem_tags,elem_types)}
+        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i, j in zip(elem_tags, elem_types)}
 
         name = gmsh.model.getPhysicalName(dim, tag)
         cell_sets[name] = [[] for _ in range(len(cells))]
@@ -94,10 +95,10 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
                 if cell_block.type in meshio_cell_type:
                     idx.append(k)
 
-            offset = {meshio_cell_type[j]: np.where(elem_tags_group[meshio_cell_type[j]] == elem_tags[j][0])[0] for j in range(len(idx))}
-            elem_tags = [offset[j] + np.int64(i - i[0]) for j,i in zip(meshio_cell_type,elem_tags)]
+            offset = {meshio_cell_type[j]: np.where(elem_tags_group[meshio_cell_type[j]] == elem_tags[j][0])[0] for j in range(len(idx))}  # noqa: E501
+            elem_tags = [offset[j] + np.int64(i - i[0]) for j, i in zip(meshio_cell_type, elem_tags)]
 
-            for j,i in enumerate(idx):
+            for j, i in enumerate(idx):
                 cell_sets[name][i].append(elem_tags[j])
 
         cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]
@@ -269,3 +270,37 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     gmshMesh.field_data = {**getattr(gmshMesh, 'field_data', {}), **field_data}
 
     return gmshMesh
+
+
+def MeshioGmshOrderingPatch() -> None:
+    """ Monkey-patch MeshIO's Gmsh writer to call NodeOrdering helper
+    """
+
+    # Avoid multiple patching
+    import meshio.gmsh.common as common
+    if getattr(common, '_pyhope_ordering_patched', False):
+        return None
+
+    # Lazy import to avoid circulars
+    try:
+        from pyhope.meshio.meshio_ordering import NodeOrdering
+    except Exception:
+        return None
+
+    # Patch the common module
+    try:
+        common._meshio_to_gmsh_order = NodeOrdering().ordering_meshio_to_gmsh
+        common._pyhope_ordering_patched = True  # type: ignore[attr-defined]
+    except Exception:
+        # If assignment fails, bail out
+        return
+
+    # Also patch known writer modules that imported the symbol directly at module scope
+    # > They reference this wrapper at call time
+    for mod_name in ('meshio.gmsh._gmsh', 'meshio.gmsh._gmsh41', 'meshio.gmsh._gmsh22', 'meshio.gmsh._gmsh4'):
+        try:
+            mod = importlib.import_module(mod_name)
+            setattr(mod, '_meshio_to_gmsh_order', NodeOrdering().ordering_meshio_to_gmsh)
+        except Exception:
+            # If assignment fails, pass
+            pass

@@ -163,7 +163,7 @@ ignore_names = [
     "Basis",
     # Exclude debug function
     "time_function",
-    # Exclude monkey-patching meshio
+    # Exclude monkey-patching MeshIO
     "__init__", "data_counter", "h5_file"
     ]
 sort_by_size = true

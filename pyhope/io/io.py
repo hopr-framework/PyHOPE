@@ -195,9 +195,11 @@ def IO() -> None:
             mesh.write(fname, file_format='vtk42')
 
         case MeshFormat.GMSH.value:
-            if mesh_vars.nGeo > 1:
-                hopout.sep()
-                print(hopout.warn('GMSH output is incomplete for nGeo > 1'))
+            # Local imports ----------------------------------------
+            from pyhope.meshio.meshio_convert import MeshioGmshOrderingPatch
+            # ------------------------------------------------------
+            # Monkey-patching MeshIO
+            MeshioGmshOrderingPatch()
 
             mesh  = mesh_vars.mesh
             fname = '{}_mesh.msh'.format(pname)
@@ -216,10 +218,6 @@ def IO() -> None:
                 hopout.info(f'{ELEMTYPE(elemType)}: {len(cell):12d}')
 
             gmshMesh = meshio_to_gmsh(mesh)
-
-            if mesh_vars.nGeo > 1:
-                hopout.sep()
-                print(hopout.warn('GMSH volume output is incomplete for nGeo > 1'))
 
             hopout.sep()
             hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
