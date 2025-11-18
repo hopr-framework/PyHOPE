@@ -265,8 +265,8 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
     """
-    if order not in [1, 2, 3, 5]:
-        raise ValueError("Only orders 1, 2, and 4 are supported")
+    if order not in [1, 2, 3, 4, 5]:
+        raise ValueError("Only orders <= 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
 
@@ -303,7 +303,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         map[int(order/2), 0           , int(order/2)] = count+1
         map[int(order/2), int(order/2), int(order/2)] = count+2
         map[0           , int(order/2), int(order/2)] = count+3
-    elif order == 5:
+    elif order >= 4:
         # Loop over all edges
         for k in [0, order-1]:
             for i in range(1, order-1):
@@ -326,55 +326,68 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         count += order-2
 
         # Internal points of upstanding faces
-        map[1, 0, 1] = count+1
-        map[3, 0, 1] = count+2
-        map[3, 0, 3] = count+3
-        map[1, 0, 3] = count+4
-        map[2, 0, 1] = count+5
-        map[3, 0, 2] = count+6
-        map[2, 0, 3] = count+7
-        map[1, 0, 2] = count+8
-        map[2, 0, 2] = count+9
-        count += 9
+        # y-
+        for pos in range((order-2*iOrder-2)**2):
+            # Assemble mapping to tuple, top  quadrangle -> z = order
+            count += 1
+            index = facePointMESHIO(iOrder, order-iOrder-1, 2, pos)
+            index = (int(index[0]), int(index[1]), int(index[2]))
+            map[index] = count
 
-        map[3, 1, 1] = count+1
-        map[1, 3, 1] = count+2
-        map[1, 3, 3] = count+3
-        map[3, 1, 3] = count+4
-        map[2, 2, 1] = count+5
-        map[1, 3, 2] = count+6
-        map[2, 2, 3] = count+7
-        map[3, 1, 2] = count+8
-        map[2, 2, 2] = count+9
-        count += 9
+        if order == 4:
+            map[2, 1, 1] = count+1
+            map[1, 2, 1] = count+2
+            map[1, 2, 2] = count+3
+            map[2, 1, 2] = count+4
+            count += 4
+        elif order == 5:
+            map[3, 1, 1] = count+1
+            map[1, 3, 1] = count+2
+            map[1, 3, 3] = count+3
+            map[3, 1, 3] = count+4
+            map[2, 2, 1] = count+5
+            map[1, 3, 2] = count+6
+            map[2, 2, 3] = count+7
+            map[3, 1, 2] = count+8
+            map[2, 2, 2] = count+9
+            count += 9
+        #
+        if order == 4:
+            map[0, 2, 1] = count+1
+            map[0, 1, 1] = count+2
+            map[0, 1, 2] = count+3
+            map[0, 2, 2] = count+4
+            count += 4
+        elif order == 5:
+            map[0, 3, 1] = count+1
+            map[0, 1, 1] = count+2
+            map[0, 1, 3] = count+3
+            map[0, 3, 3] = count+4
+            map[0, 2, 1] = count+5
+            map[0, 1, 2] = count+6
+            map[0, 2, 3] = count+7
+            map[0, 3, 2] = count+8
+            map[0, 2, 2] = count+9
+            count += 9
 
-        map[0, 3, 1] = count+1
-        map[0, 1, 1] = count+2
-        map[0, 1, 3] = count+3
-        map[0, 3, 3] = count+4
-        map[0, 2, 1] = count+5
-        map[0, 1, 2] = count+6
-        map[0, 2, 3] = count+7
-        map[0, 3, 2] = count+8
-        map[0, 2, 2] = count+9
-        count += 9
+        # z+
+        for j in range(1, order-1):
+            for i in range(1, order-1-j):
+                count += 1
+                map[i, j, order-1] = count
 
-        map[1, 1, 4] = count+1
-        map[2, 1, 4] = count+2
-        map[1, 2, 4] = count+3
-        count += 3
-
-        map[1, 1, 0] = count+1
-        map[2, 1, 0] = count+2
-        map[1, 2, 0] = count+3
-        count += 3
+        # z-
+        for j in range(1, order-1):
+            for i in range(1, order-1-j):
+                count += 1
+                map[i, j, 0] = count
 
         # Internal points of volume
-        for k in [1, 2, 3]:
-            map[1, 1, k] = count+1
-            map[2, 1, k] = count+2
-            map[1, 2, k] = count+3
-            count += 3
+        for k in range(1,order-1):
+            for j in range(1, order-1):
+                for i in range(1, order-1-j):
+                    count += 1
+                    map[i, j, k] = count
 
     # Python indexing, 1 -> 0
     map -= 1
@@ -522,8 +535,8 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)
     """
-    if order not in [1, 2, 3, 5]:
-        raise ValueError("Only orders 1, 2, and 4 are supported")
+    if order not in [1, 2, 3, 4, 5]:
+        raise ValueError("Only orders <= 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
 
@@ -551,7 +564,8 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         map[int(order/2), 0           , int(order/2)] = count+5
         map[0           , int(order/2), int(order/2)] = count+6
         count += 6
-    elif order == 5:
+
+    elif order >= 4:
         # Loop over all edges
         for i in range(1, order-1):
             map[i, 0, 0 ] = count+i
@@ -574,30 +588,42 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
         # Internal points of upstanding faces
         # y-
-        map[1, 0, 1] = count+1
-        map[2, 0, 1] = count+2
-        map[1, 0, 2] = count+3
-        count += 3
-
-        map[2, 1, 1] = count+1
-        map[1, 2, 1] = count+2
-        map[1, 1, 2] = count+3
-        count += 3
+        ij = 1
+        for j in range(1, order-1):
+            for i in range(1, order-1-j):
+                map[i, 0, j] = count+ij
+                ij += 1
+        count += ij-1
 
         # x-
-        map[0, 1, 1] = count+1
-        map[0, 2, 1] = count+2
-        map[0, 1, 2] = count+3
-        count += 3
+        if order == 4:
+            map[1, 1, 1] = count+1
+            count += 1
+        elif order == 5:
+            map[2, 1, 1] = count+1
+            map[1, 2, 1] = count+2
+            map[1, 1, 2] = count+3
+            count += 3
 
-        # bottom
-        map[1, 1, 0] = count+1
-        map[2, 1, 0] = count+2
-        map[1, 2, 0] = count+3
-        count += 3
+        # x-
+        ij = 1
+        for j in range(1, order-1):
+            for i in range(1, order-1-j):
+                map[0, i, j] = count+ij
+                ij += 1
+        count += ij-1
+
+        # z-
+        ij = 1
+        for j in range(1, order-1):
+            for i in range(1, order-1-j):
+                map[i, j, 0] = count+ij
+                ij += 1
+        count += ij-1
 
         # Internal point
-        map[1, 1, 1] = count+1
+        if order == 5:
+            map[1, 1, 1] = count+1
 
     # Python indexing, 1 -> 0
     map -= 1
