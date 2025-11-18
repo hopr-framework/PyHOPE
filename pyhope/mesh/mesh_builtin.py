@@ -28,13 +28,10 @@
 import copy
 import gc
 import math
-import sys
-import traceback
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import gmsh
 import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -47,10 +44,13 @@ import numpy as np
 
 
 def MeshCartesian() -> meshio.Mesh:
+    # Third-party libraries --------------------------------
+    import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.common.common import find_index, find_indices
+    from pyhope.common.common import find_index, find_indices, IsDisplay
+    from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
@@ -60,6 +60,16 @@ def MeshCartesian() -> meshio.Mesh:
     # ------------------------------------------------------
 
     gmsh.initialize()
+
+    # Setup multiprocessing
+    numThreads = np_mtp if np_mtp > 0 else 1
+    gmsh.option.setNumber('General.NumThreads',   numThreads)
+    gmsh.option.setNumber('Geometry.OCCParallel', 1 if np_mtp > 0 else 0)
+
+    # Setup mesh factory
+    # gmsh.option.setString('SetFactory', 'OpenCascade')
+
+    # Setup debug visualization
     if not debugvisu:
         # Hide the GMSH debug output
         gmsh.option.setNumber('General.Terminal', 0)
@@ -93,7 +103,7 @@ def MeshCartesian() -> meshio.Mesh:
             # read in origin of the zone
             X0 = GetRealArray( 'X0'  , number=zone)
 
-            # reconstruct points from DX and X0 such that all coreners are defined
+            # reconstruct points from DX and X0 such that all corners are defined
             corners = np.array((np.array((X0[0],       X0[1],       X0[2]      )),
                                 np.array((X0[0]+DX[0], X0[1],       X0[2]      )),
                                 np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]      )),
@@ -103,8 +113,7 @@ def MeshCartesian() -> meshio.Mesh:
                                 np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2])),
                                 np.array((X0[0],       X0[1]+DX[1], X0[2]+DX[2]))))
         else:
-            hopout.warning('No corners or DX vector given for zone {}'.format(zone+1))
-            sys.exit(1)
+            hopout.error('No corners or DX vector given for zone {}'.format(zone+1))
 
         nElems = GetIntArray(  'nElems'  , number=zone)
         # Store the requested element types
@@ -118,9 +127,9 @@ def MeshCartesian() -> meshio.Mesh:
         # Create all the corner points
         p = [None for _ in range(len(corners))]
         for index, corner in enumerate(corners):
-            p[index] = gmsh.model.geo.addPoint(*corner, tag=offsetp+index+1)
+            p[index] = gmsh.model.geo.addPoint(*cast(tuple[float, float, float], corner), tag=offsetp+index+1)
 
-        # Define edge connectivity based on your corner indexing
+        # Define edge connectivity based on the Gmsh corner indexing
         edge_pairs = [
             (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face edges
             (4, 5), (5, 6), (6, 7), (7, 4),  # Top face edges
@@ -170,28 +179,45 @@ def MeshCartesian() -> meshio.Mesh:
         if 2 in stretchType or 3 in stretchType:
             DXmaxToDXmin = GetRealArray('DXmaxToDXmin', number=zone)
 
+        maxStretch = np.array([1., 1., 1.], dtype=np.float128)
+        for currDir in range(3):
+            match stretchType[currDir]:
+                case 1:
+                    maxStretch[currDir] = abs(stretchFac[currDir]) ** nElems[currDir]
+                case 2:
+                    maxStretch[currDir] = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
+                case 3:
+                    maxStretch[currDir] =  1./DXmaxToDXmin[currDir]
+
+        # Stretching factor greater 2^26 ~ 10^8
+        if np.max(maxStretch) > 2 << 26:  # pragma: no cover
+            print(hopout.warn(f'Maximum stretching factor is {np.max(maxStretch)}!'))
+
         # We need to define the curves as transfinite curves
         # and set the correct spacing from the parameter file
         for index, line in enumerate(e):
 
             # We set the number of nodes, so Elems+1
-            currDir = edge_to_dir(index, elemType)
-            stretch_type = stretchType[currDir]
+            currDir  = edge_to_dir(index, elemType)
 
             # Set default values for equidistant elements
             progType = 'Progression'
-            progFac = 1.
+            progFac  = 1.
 
             # Overwrite default values to consider streching in current zone
-            if stretch_type == 3:
-                progType = 'Bump'
-            if stretch_type == 1:
-                progFac = stretchFac[currDir]
-            elif stretch_type == 2:
-                progFac = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
-            elif stretch_type == 3:
-                progFac = 1./DXmaxToDXmin[currDir]
-            gmsh.model.geo.mesh.setTransfiniteCurve(line, nElems[currDir]+1, progType, (np.sign(edge_vectors[index][currDir]) or 1.) * progFac)
+            match stretchType[currDir]:
+                case 1:
+                    progFac  = stretchFac[currDir]
+                case 2:
+                    progFac  = -1./(DXmaxToDXmin[currDir] ** (1. / (nElems[currDir] - 1.)))
+                case 3:
+                    progType = 'Bump'
+                    progFac  =  1./DXmaxToDXmin[currDir]
+
+            gmsh.model.geo.mesh.setTransfiniteCurve(line,
+                                                    nElems[currDir]+1,
+                                                    progType,
+                                                    (np.sign(edge_vectors[index][currDir]) or 1.) * progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]
@@ -283,9 +309,7 @@ def MeshCartesian() -> meshio.Mesh:
             if cast(np.ndarray, bcs[iBC].type)[3] > 0:
                 pass
             elif cast(np.ndarray, bcs[iBC].type)[3] == 0:
-                hopout.warning('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1))
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1), traceback=True)
             else:
                 continue
 
@@ -335,8 +359,21 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.model.mesh.setOrder(mesh_vars.nGeo)
     gmsh.model.geo.synchronize()
 
-    if debugvisu:
+    if debugvisu and IsDisplay():
         gmsh.fltk.run()
+
+    # Re-set the order for newly created elements
+    gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+    gmsh.model.geo.synchronize()
+
+    # Sanity check if the mesh contains volume elements
+    # > User might have modified the mesh inside the FLTK GUI
+    gmsh_elems = np.asarray((gmsh.option.getNumber('Mesh.NbTetrahedra'),
+                             gmsh.option.getNumber('Mesh.NbPrisms'    ),
+                             gmsh.option.getNumber('Mesh.NbPyramids'  ),
+                             gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
+    if not np.any(gmsh_elems):
+        hopout.error('Generated mesh does not contain volume elements, exiting...')
 
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)

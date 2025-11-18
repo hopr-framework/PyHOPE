@@ -44,15 +44,23 @@ barElems: Final[int] = int(1.E5)
 class ProgressBar:
     """ Provide a progress bar outside of the context manager
     """
-    def __init__(self, title: Optional[str], value: int, length: int = 33, threshold: int = barElems) -> None:
-        self._cm   : Final         = alive_bar(title=title, total=value, length=length)
-        self._title: Optional[str] = title
-        self._len  : int           = length
-
-        if value > threshold:
-            self.bar = self._cm.__enter__()
-        else:
+    def __init__(self,
+                 title       : Optional[str],
+                 value       : int,
+                 length      : int  = 33,
+                 threshold   : int  = barElems,
+                 enrich_print: bool = True) -> None:
+        # Local imports ----------------------------------------
+        from pyhope.common.common import IsInteractive
+        # ------------------------------------------------------
+        if value <= threshold or not IsInteractive():
             self.bar = None
+            return None
+
+        self._cm   : Final         = alive_bar(title=title, total=value, length=length, enrich_print=enrich_print)
+
+        # Initialize the progress bar
+        self.bar = self._cm.__enter__()
 
     def step(self, steps: int = 1) -> None:
         if self.bar is not None:

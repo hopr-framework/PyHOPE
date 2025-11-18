@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import multiprocessing
-import subprocess
 import sys
 import time
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,6 +45,7 @@ def main() -> None:
     import pyhope.output.output as hopout
     from pyhope.common.common import DefineCommon, InitCommon
     from pyhope.common.common_vars import Common
+    from pyhope.basis.basis_connect import CheckConnect
     from pyhope.basis.basis_jacobian import CheckJacobians
     from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.io.io import IO, DefineIO, InitIO
@@ -55,9 +55,11 @@ def main() -> None:
     from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
+    from pyhope.mesh.fem.fem import FEMConnect
     from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
+    from pyhope.check.check import Check
     # ------------------------------------------------------
 
     # Always spawn with "fork" method to inherit the address space of the parent process
@@ -69,15 +71,11 @@ def main() -> None:
             raise
 
     tStart  = time.time()
-    process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'], shell=False, stdout=subprocess.PIPE,
-                                                                                     stderr=subprocess.DEVNULL)
 
     common  = Common()
     program = common.program
     version = common.version
-    commit = process.communicate()[0].strip().decode('ascii')
-    if process.returncode != 0:
-        commit = None
+    commit  = common.commit
 
     with DefineConfig() as dc:
         config.prms = dc
@@ -93,6 +91,13 @@ def main() -> None:
     # Exit with version if requested
     if args.version:
         print(f'{program} version {version}' + (f' [commit {commit}]' if commit else ''))
+        sys.exit(0)
+
+    # Exit with checks if requested
+    if args.verify        \
+    or args.verify_health \
+    or args.verify_install:
+        Check(args)
         sys.exit(0)
 
     # Check if there are unrecognized arguments
@@ -120,7 +125,8 @@ def main() -> None:
     hopout.sep()
 
     EliminateDuplicates()
-    OrientMesh()
+    if not args.skip_checks:
+        OrientMesh()
 
     # Build our data structures
     GenerateSides()
@@ -128,9 +134,14 @@ def main() -> None:
     ConnectMesh()
     TransformMesh()
 
+    # Generate edge/vertex connectivity
+    FEMConnect()
+
     # Perform the mesh checks
-    CheckWatertight()
-    CheckJacobians()
+    if not args.skip_checks:
+        CheckConnect()
+        CheckWatertight()
+        CheckJacobians()
 
     # Output the mesh
     IO()

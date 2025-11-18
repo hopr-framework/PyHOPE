@@ -29,7 +29,6 @@ import os
 import shutil
 import platform
 import subprocess
-import sys
 from importlib import metadata
 from packaging.version import Version
 from typing import Optional, cast
@@ -97,12 +96,11 @@ def PkgsCheckGmsh() -> None:
                     PkgsInstallGmsh(system, arch, version='pypi')
                     return None
         else:
-            hopout.warning('Gmsh is not installed, exiting...')
-            sys.exit(1)
+            hopout.error('Gmsh is not installed, exiting...')
 
-    gmsh_version = cast(str, gmsh_version)
     # Assume that newer versions have updated CGNS
-    gmsh_expected = '4.14'
+    gmsh_version  = cast(str, gmsh_version)
+    gmsh_expected = '5.0'
     if Version(gmsh_version) > Version(gmsh_expected):
         return None
 
@@ -132,9 +130,11 @@ def PkgsCheckGmsh() -> None:
 
 
 def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
-    # Local imports ----------------------------------------
+    # Standard libraries -----------------------------------
+    import sys
     import hashlib
     import tempfile
+    # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Gitlab
     # ------------------------------------------------------
@@ -159,7 +159,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     if version == 'nrg':
         # Gitlab "python-gmsh" access
         lfs = 'yes'
-        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION, system, arch)
+        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION[system][arch], system, arch)
 
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as path:
@@ -185,8 +185,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
                 hopout.info('Hash matches, installing Gmsh wheel...')
             else:
-                hopout.warning('Hash mismatch, exiting...')
-                sys.exit(1)
+                hopout.error('Hash mismatch, exiting...')
 
             # Remove the old version
             try:

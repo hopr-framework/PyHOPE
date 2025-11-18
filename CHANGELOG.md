@@ -4,6 +4,73 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-10-21
+This release brings PyHOPE to functional parity with the HOPR features currently in active use. Any additional used but missing features will be treated as bugs.
+### Added
+- Add `nElems_IJK`/`Elem_IJK` arrays for meshes with structured dimensions [92f7168]
+- Add debugMesh output in XDMF format [907df1f]
+- Add element and zone ID to the debugMesh [9bb3338]
+- Add two additional mesh sorting algorithms (snake/lex) [df517c8]
+- Add consistency checks to various sections [f68bdb6]
+- Add type checking with [ty](https://github.com/astral-sh/ty) [df517c8]
+
+### Changed
+- Improve error message for invalid MeshMode [a8d78ef]
+- Improve code performance in various sections [5403b5b]
+
+### Fixed
+- Missing integer conversion in DebugMesh [a5c3248]
+- Consider multiple periodicity during FEMconnect [43414bd]
+
+## [0.1.1] - 2025-09-19
+### Added
+- Add support for multiple mesh zones [40dc87c]
+- Add support for XDMF output [07319b6]
+- Add documentation on GitHub pages [23c90ae]
+- Add community guidelines [73ecc84]
+- Add consistency check after initial Gmsh mesh creation [e32730a]
+- Add health checks [21e771e][93a094c]
+- Add support for Gitlab code coverage [531fec3][f5fe93a]
+
+### Changed
+- Pre-install Gmsh during CI/CD [ff11bb8]
+- Updated bundled Gmsh to v4.14.1 [0b01a2e][396a71a]
+- General improvements to code performance [1361cfb]
+- Explicitly request OpenMP multithreading in Gmsh [c074aad]
+
+### Fixed
+- Fix inner boundary conditions being counted twice [01deffb]
+- Fix DEFVAR parsing for floats [69ffe11]
+- Remove dead code with vulture [c2d1ec8]
+- Remove unnecessary intermediate meshio.Mesh [744d362]
+- Several bugfixes for GitHub pages [61af0c5][d0addd1][6f2f19c]
+
+## [0.1.0] - 2025-06-25
+
+### Added
+- Add PyHOPE context manager [97a5194a]
+
+### Changed
+- Major rework of GAMBIT mesh reader [57067512]
+
+## [0.0.9] - 2025-06-12
+
+### Added
+- FEMConnect: Edge and vertex connectivity [5b72caa4]
+- Reader: Support for Gambit mesh format [d1e8eec5]
+- Support for ElemCounter, nUniqueSides, nUniqueNodes with HOPR format [9304460a]
+
+### Changed
+- Improve performance during topology changes [e6245f4f]
+- Take the element volume into account when calculating the watertightness tolerance [27620b59]
+- Reword the error message for malformed comma-separated arrays [c7751b88]
+- Reword the readme to clarify installation steps using venv [8e818d6a]
+- Only open GMSH GUI when running with Display attached [8718ec3e]
+
+### Fixed
+- Fix checking PyHOPE directory instead of current directory for git commit [a56ba0b8]
+- Fix several issues in the readintools (default, DEFVAR) [b9e5d431]
+
 ## [0.0.8] - 2025-03-07
 
 ### Added
@@ -23,7 +90,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 - Fix extra offset for simplex/splitToHex [2191fa60]
 - Several bugfixes improving overall stability [63354530]
-
 
 ## [0.0.7-1] - 2025-02-13
 

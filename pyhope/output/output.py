@@ -25,9 +25,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import textwrap
+import sys
 from dataclasses import dataclass
-from typing import Final, Optional
+from typing import Final, Optional, NoReturn
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -42,12 +42,19 @@ STD_LENGTH: Final[int] = 79  # Standard length for output to console
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
+class Symbols:
+    OK:      Final[str] = '✅ OK'
+    WARN:    Final[str] = '⚠️ WARNING'
+    ERR:     Final[str] = '❌ ERROR'
+
+
+@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Colors:
     """ Define colors used throughout this framework
 
         Attributes:
-            WARN    (str): Defines color for warnings.
-            END     (str): Defines end of color in string.
+            WARN    (str): Defines color for warnings
+            END     (str): Defines end of color in string
     """
     BANNERA: Final[str] = '\033[93m'
     BANNERB: Final[str] = '\033[94m'
@@ -56,10 +63,10 @@ class Colors:
 
 
 def header(program: str, version: str, commit: Optional[str], length: int = STD_LENGTH) -> None:
-    """ Print big header with program name and logo to console.
+    """ Print big header with program name and logo to console
 
         Args:
-            length (int): Number of characters used within each line.
+            length (int): Number of characters used within each line
     """
     # string = 'Parametric Exploration and Control Engine'
     print(Colors.BANNERA + '┏' + '━'*(length-1))
@@ -70,54 +77,93 @@ def header(program: str, version: str, commit: Optional[str], length: int = STD_
     print(Colors.BANNERA + '┡' + '━'*(length-1) + Colors.END)
 
 
-def banner(string: str, length: int = STD_LENGTH) -> None:
-    """ Print the input `string` in a banner-like output.
-
-        Args:
-            string (str): String to be printed in banner.
-            length (int): (Optional.) Number of characters in each line.
-    """
-    print(Colors.BANNERA + '\n' + '='*length)
-    print(Colors.BANNERA + ' '+string)
-    print(Colors.BANNERA + '='*length + Colors.END)
+# def banner(string: str, length: int = STD_LENGTH) -> None:
+#     """ Print the input `string` in a banner-like output
+#
+#         Args:
+#             string (str): String to be printed in banner
+#             length (int): (Optional.) Number of characters in each line
+#     """
+#     print(Colors.BANNERA + '\n' + '='*length)
+#     print(Colors.BANNERA + ' '+string)
+#     print(Colors.BANNERA + '='*length + Colors.END)
 
 
 def small_banner(string: str, length: int = STD_LENGTH) -> None:
-    """ Print the input `string` in a small banner-like output.
+    """ Print the input `string` in a small banner-like output
 
         Args:
-            string (str): String to be printed in banner.
-            length (int): (Optional.) Number of characters in each line.
+            string (str): String to be printed in banner
+            length (int): (Optional.) Number of characters in each line
     """
-    print(Colors.BANNERB + '\n' + '-'*length)
-    print(Colors.BANNERB + ' '+string)
-    print(Colors.BANNERB + '-'*length + Colors.END)
+    print(Colors.BANNERB + '├' + '─'*(length-1))
+    print(Colors.BANNERB + '│ '+string)
+    print(Colors.BANNERB + '├' + '─'*(length-1) + Colors.END)
 
 
-def warn(string: str, length: int = STD_LENGTH) -> str:
-    """ Format the input `string` as a warning with the corresponding color.
+def warn(string:   str,
+         length:   int  = STD_LENGTH,
+         prefix:   str  = Colors.WARN + '│  WARNING  ┃ '  + Colors.END,
+         warnonce: bool = False) -> str:
+    """ Format the input `string` as a warning with the corresponding color
 
         Args:
-                string (str): String to be printed in banner.
-                length (int): (Optional.) Number of characters in each line.
+                string (str): String to be printed in banner
+                length (int): (Optional.) Number of characters in each line
     """
-    prefix   = Colors.WARN + '│  WARNING  ┃ '  + Colors.END
-    lprefix  = len('│  WARNING  ┃ ')
-    wrap_msg = textwrap.fill(string, width=length - lprefix)
+    # Standard libraries -----------------------------------
+    import re
+    import textwrap
+    # ------------------------------------------------------
+    # Remove ANSI escape codes for accurate visible-length calculation
+    ansiEscape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    lprefix    = len(ansiEscape.sub('', prefix))
+    # Wrap the message to account for the visible prefix width
+    wrap_msg   = textwrap.fill(string, width=length - lprefix)
 
-    # Add prefix to each line
-    format_msg = '\n'.join(f'{prefix}{line}' for line in wrap_msg.splitlines())
-    return format_msg
+    # Split into lines and format
+    lines = wrap_msg.splitlines()
+    if not lines:
+        # If there's nothing to print, return just the prefix (trim trailing spaces)
+        return prefix.rstrip()
+
+    if not warnonce:
+        # Add prefix to every wrapped line
+        formatted_lines = [f'{prefix}{line}' for line in lines]
+    else:
+        # Add full prefix only to the first line, pad subsequent lines with spaces
+        formatted_lines = [f'{prefix}{lines[0]}']
+        indent = '│' + ' ' * (lprefix-1)
+        formatted_lines.extend(f'{indent}{line}' for line in lines[1:])
+
+    return '\n'.join(formatted_lines)
 
 
-def warning(string: str) -> None:
-    """ Print the input `string` as a warning with the corresponding color.
+def warning(string: str, file=sys.stdout) -> None:
+    """ Print the input `string` as a warning with the corresponding color
 
         Args:
-            string (str): String to be printed in banner.
-            length (int): (Optional.) Number of characters in each line.
+            string (str): String to be printed in banner
+            file (TextIO): Output unit of the message
     """
-    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True)
+    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True, file=file)
+
+
+def error(string: str, traceback=False, file=sys.stderr) ->  NoReturn:
+    """ Print the input `string` as a error with the corresponding color
+
+        Args:
+            string (str): String to be printed in banner
+            traceback (bool): Print traceback information
+            file (TextIO): Output unit of the message
+    """
+    # Local imports ----------------------------------------
+    from traceback import print_stack
+    # ------------------------------------------------------
+    print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True, file=file)
+    if traceback:
+        print_stack(file=file)
+    sys.exit(1)
 
 
 def sep(length: int = 5) -> None:
@@ -135,11 +181,11 @@ def end(program: str, time: float, length: int = STD_LENGTH) -> None:
 
 
 def info(string: str, newline: bool = False, end: Optional[str] = None) -> None:
-    """ Print the input `string` as generic output without special formatting.
+    """ Print the input `string` as generic output without special formatting
 
         Args:
-            string (str): String to be printed in banner.
-            length (int): (Optional.) Number of characters in each line.
+            string (str): String to be printed in banner
+            length (int): (Optional.) Number of characters in each line
     """
     if newline:
         print('\n│ '+ string, end=end)
@@ -147,12 +193,12 @@ def info(string: str, newline: bool = False, end: Optional[str] = None) -> None:
         print('│ '  + string, end=end)
 
 
-def routine(string: str, newline=False) -> None:
-    """ Print the input `string` as generic output without special formatting.
+def routine(string: str, newline: bool = False) -> None:
+    """ Print the input `string` as generic output without special formatting
 
         Args:
-            string (str): String to be printed in banner.
-            length (int): (Optional.) Number of characters in each line.
+            string (str): String to be printed in banner
+            length (int): (Optional.) Number of characters in each line
     """
     if newline:
         print('\n├── ' + string)
@@ -164,8 +210,8 @@ def printoption(option: str, value: str, status: str, length: int = 31) -> None:
     """ Print the input `string` as option string
 
         Args:
-            string (str): String to be printed in banner.
-            length (int): (Optional.) Number of characters in each line.
+            string (str): String to be printed in banner
+            length (int): (Optional.) Number of characters in each line
     """
     try:
         if len(value) > length:

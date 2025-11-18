@@ -1,0 +1,68 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Kopper
+  given-names: Patrick
+  orcid: "https://orcid.org/0000-0002-7613-0739"
+- family-names: Blind
+  given-names: Marcel P.
+  orcid: "https://orcid.org/0000-0002-4737-9359"
+- family-names: Schwarz
+  given-names: Anna
+  orcid: "https://orcid.org/0000-0002-3181-8230"
+- family-names: Kurz
+  given-names: Marius
+  orcid: "https://orcid.org/0009-0005-0844-0769"
+- family-names: Rodach
+  given-names: Felix
+  orcid: "https://orcid.org/0009-0003-1800-5600"
+- family-names: Copplestone
+  given-names: Stephen M.
+  orcid: "https://orcid.org/0000-0001-5557-1044"
+- family-names: Beck
+  given-names: Andrea D.
+  orcid: "https://orcid.org/0000-0003-3634-7447"
+contact:
+- family-names: Kopper
+  given-names: Patrick
+  orcid: "https://orcid.org/0000-0002-7613-0739"
+doi: 10.5281/zenodo.17414844
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Kopper
+    given-names: Patrick
+    orcid: "https://orcid.org/0000-0002-7613-0739"
+  - family-names: Blind
+    given-names: Marcel P.
+    orcid: "https://orcid.org/0000-0002-4737-9359"
+  - family-names: Schwarz
+    given-names: Anna
+    orcid: "https://orcid.org/0000-0002-3181-8230"
+  - family-names: Kurz
+    given-names: Marius
+    orcid: "https://orcid.org/0009-0005-0844-0769"
+  - family-names: Rodach
+    given-names: Felix
+    orcid: "https://orcid.org/0009-0003-1800-5600"
+  - family-names: Copplestone
+    given-names: Stephen M.
+    orcid: "https://orcid.org/0000-0001-5557-1044"
+  - family-names: Beck
+    given-names: Andrea D.
+    orcid: "https://orcid.org/0000-0003-3634-7447"
+  date-published: 2025-11-03
+  doi: 10.21105/joss.08769
+  issn: 2475-9066
+  issue: 115
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 8769
+  title: "PyHOPE: A Python Toolkit for Three-Dimensional Unstructured
+    High-Order Meshes"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.08769"
+  volume: 10
+title: "PyHOPE: A Python Toolkit for Three-Dimensional Unstructured
+  High-Order Meshes"

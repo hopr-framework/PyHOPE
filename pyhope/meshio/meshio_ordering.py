@@ -27,6 +27,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
+from functools import cache
 from typing import Dict, List, Union, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -34,11 +35,134 @@ from typing import Dict, List, Union, Optional, cast
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
+# from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+@cache
+def HEXREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
+    """ Converts node ordering from gmsh to meshio format
+    """
+    EDGEMAP   = (  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7)
+    FACEMAP   = (  2,  3,  1,  4,  0,  5)
+
+    order    += 1
+    nNodes    = 8 + 12*(order - 2) if incomplete else order**3
+    map: List = [None for _ in range(nNodes)]
+
+    count = 0
+    # Recursively build the mapping
+    for iOrder in range(np.floor(order/2).astype(int)):
+        # Vertices
+        map[count:count+8] = list(range(count, count+8))
+        count += 8
+
+        pNodes = (order-2*(iOrder+1))
+
+        # Edges
+        for iEdge in range(12):
+            iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
+            map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes   )]
+        count += pNodes*12
+
+        # Only vertices and edges of the outermost shell required for incomplete elements
+        if incomplete:
+            return tuple(map)
+
+        # Faces
+        for iFace in range(6):
+            iSlice = slice(count + pNodes**2*iFace                , count + pNodes**2*(iFace+1))
+            map[iSlice] = [count + pNodes**2*(FACEMAP[iFace])+iNode for iNode in range(pNodes**2)]
+        count += pNodes**2*6
+
+    if order % 2 != 0:
+        map[count] = count
+
+    return tuple(map)
+
+
+# tet order 3
+#
+#              2
+#            ,/|`\
+#          ,8  |  `7              E = order - 1
+#        ,/    13   `\            C = 4 + 6*E
+#      ,9    16 |     `6          F = ((order - 1)*(order - 2))/2
+#    ,/         |       `\        N = total number of vertices
+#   0-----4-----'.--5-----1
+#    `\.   18    |  19  ,/        Interior vertex numbers
+#       11.     12    ,15           for edge 0 <= i <= 5: 4+i*E to 4+(i+1)*E-1
+#          `\.   '. 14              for face 0 <= j <= 3: C+j*F to C+(j+1)*F-1
+#             10\.|/        in volume           : C+4*F to N-1
+#      17        `3
+#
+# tet order 4
+#
+#              2
+#            ,/|`\
+#          10  |  `9              E = order - 1
+#        11    18   `8            C = 4 + 6*E
+#      12  23   |     `7          F = ((order - 1)*(order - 2))/2
+#    ,/  22 24  17      `\        N = total number of vertices
+#   0-----4----5'.--6-----1
+#    `\.  28-30  | 22-24,21       Interior vertex numbers
+#       15.  29 16    ,20           for edge 0 <= i <= 5: 4+i*E to 4+(i+1)*E-1
+#          14.   '. 19              for face 0 <= j <= 3: C+j*F to C+(j+1)*F-1
+#             13\.|/        in volume           : C+4*F to N-1
+#    25-26       `3
+#      27
+#
+# [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 12, 13, 18, 19, 17, 16]
+
+# @cache
+# def TETREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
+#     """ Converts node ordering from gmsh to meshio format
+#     """
+#     # gmsh MTetrahedron.h: static const int e[6][2] = {{0, 1}, {1, 2}, {2, 0}, {3, 0}, {3, 2}, {3, 1}};
+#     EDGEMAP   = (  0,  1,  2,  3,  5,  4)
+#     # gmsh MTetrahedron.h: static const int f[4][3] = {{0, 2, 1}, {0, 1, 3}, {0, 3, 2}, {3, 1, 2}};
+#     FACEMAP   = (  1,  3,  2,  0)
+#
+#     order    += 1
+#     nNodes    = 4 + 6*(order - 1) if incomplete else NDOFS_ELEM(104, order-1)
+#     map: List = [None for _ in range(nNodes)]
+#
+#     count = 0
+#     map[count:count+4] = list(range(count, count+4))
+#     count += 4
+#
+#     # Edges
+#     pNodes = order - 2
+#     for iEdge in range(6):
+#         iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
+#         if iEdge < 3:
+#             map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes)]
+#         else:
+#             map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in reversed(range(pNodes))]
+#     count += pNodes*6
+#
+#     # Only vertices and edges of the outermost shell required for incomplete elements
+#     if incomplete:
+#         return tuple(map)
+#
+#     # Faces: FIXME for NGeo>=4
+#     if order > 3:
+#         fNodes = int(((order - 2)*(order - 3))/2)
+#         for iFace in range(4):
+#             iSlice = slice(count + fNodes*iFace                , count + fNodes*(iFace+1))
+#             map[iSlice] = [count + fNodes*(FACEMAP[iFace])+iNode for iNode in range(fNodes)]
+#         count += fNodes*4
+#
+#     # Inner sides
+#     if order > 4:
+#         iSlice = slice(count                 , nNodes)
+#         map[iSlice] = [i for i in range(count, nNodes)]
+#
+#     return tuple(map)
 
 
 @dataclass
@@ -87,10 +211,14 @@ class NodeOrdering:
                                        # > Tetrahedron
                                        'tetra'       : [ 0, 1, 2, 3 ],
                                        'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
+                                       'tetra20'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10, 15, 14, 13, 12, 17, 19, 18, 16 ],
+                                       'tetra35'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 14, 13, 21, 20, 19, 18, 17, 16,
+                                                         25, 26, 27, 32, 33, 31, 28, 30, 29, 22, 24, 23, 34],
                                        # > Wedge
                                        'wedge'       : [ 0, 1, 2, 3, 4, 5],
                                        'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
-                                       'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 16, 17 ],
+                                       # http://davis.lbl.gov/Manuals/VTK-4.5/classvtkQuadraticWedge.html and https://gmsh.info/doc/texinfo/gmsh.html#Node-ordering
+                                       'wedge18'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16 ],
                                        # > Pyramid
                                        'pyramid'     : [ 0, 1, 2, 3, 4],
                                        'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 10, 6, 7, 9, 11, 12 ],
@@ -109,6 +237,24 @@ class NodeOrdering:
     #                                   'pyramid13'   : [ 0, 1, 2, 3, 4, 5, 8, 9, 6, 10, 7, 11, 12 ],
     #                                 }
     # )
+
+    # Dictionary for translation of  gambit types to gmsh codes
+    _gambit_typing: Dict[int, str] = field(
+            default_factory=lambda: { 1  : 'line'          , 2  : 'quad'          , 3  : 'triangle'      , 4  : 'hexahedron'    ,
+                                      5  : 'wedge'         , 6  : 'tetrahedron'   , 7  : 'pyramid'                              ,
+                                    }
+    )
+
+    # Dictionary for conversion of Gambit to meshIO
+    _gambit_ordering: Dict[str, List[int]] = field(
+            default_factory=lambda: {  # 0D elements
+                                       # 1D elements
+                                       # 2D elements
+                                       # 3D elements
+                                       # > Hexahedron
+                                       'hexahedron':   [0, 1, 3, 2, 4, 5, 7, 6],
+                                    }
+    )
 
     def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
         """
@@ -140,51 +286,11 @@ class NodeOrdering:
             nGeo = round((nNodes-8)/12 + 1)
             incomplete = True
 
-        ordering = self.HEXREORDER(nGeo, incomplete=incomplete)
+        ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
     def deviation(self, x: float) -> float:
         return abs(x - round(x))
-
-    def HEXREORDER(self, order: int, incomplete: Optional[bool] = False) -> tuple[int]:
-        """ Converts node ordering from gmsh to meshio format
-        """
-        EDGEMAP   = (  0,  3,  5,  1,  8, 10, 11,  9,  2,  4,  6,  7)
-        FACEMAP   = (  2,  3,  1,  4,  0,  5)
-
-        order    += 1
-        nNodes    = 8 + 12*(order - 2) if incomplete else order**3
-        map: List = [None for _ in range(nNodes)]
-
-        count = 0
-        # Recursively build the mapping
-        for iOrder in range(np.floor(order/2).astype(int)):
-            # Vertices
-            map[count:count+8] = list(range(count, count+8))
-            count += 8
-
-            pNodes = (order-2*(iOrder+1))
-
-            # Edges
-            for iEdge in range(12):
-                iSlice = slice(count + pNodes   *iEdge                , count + pNodes    *(iEdge+1))
-                map[iSlice] = [count + pNodes   *(EDGEMAP[iEdge])+iNode for iNode in range(pNodes   )]
-            count += pNodes*12
-
-            # Only vertices and edges of the outermost shell required for incomplete elements
-            if incomplete:
-                return tuple(map)
-
-            # Faces
-            for iFace in range(6):
-                iSlice = slice(count + pNodes**2*iFace                , count + pNodes**2*(iFace+1))
-                map[iSlice] = [count + pNodes**2*(FACEMAP[iFace])+iNode for iNode in range(pNodes**2)]
-            count += pNodes**2*6
-
-        if order % 2 != 0:
-            map[count] = count
-
-        return tuple(map)
 
     # INFO: Alternative implementation
     # def _compute_hexahedron_meshio_order(self, p: int, recursive: Optional[bool] = False) -> List[int]:
@@ -248,3 +354,29 @@ class NodeOrdering:
     #         mapping.extend(subcubeIndices)
     #
     #     return mapping
+
+    def typing_gambit_to_meshio(self, elemType: Union[int, str, np.uint]) -> str:
+        """
+        Return the meshIO element type for a given Gambit element type
+        """
+        if isinstance(elemType, (int, np.integer)):
+            return self._gambit_typing[int(elemType)]
+
+        raise ValueError(f'Unknown element type {elemType}')
+
+    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+        """
+        Return the meshIO node ordering for a given element type
+        """
+        if isinstance(elemType, (int, np.integer)):
+            elemType = self._gambit_typing[int(elemType)]
+
+        # 0D/1D/2D elements
+        if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
+            return cast(np.ndarray, idx)
+
+        # Check if we have a fixed ordering
+        if elemType in self._gambit_ordering:
+            return cast(np.ndarray, idx[self._gambit_ordering[elemType]])
+
+        raise ValueError(f'Unknown element type {elemType}')

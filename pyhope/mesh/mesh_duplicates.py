@@ -25,15 +25,15 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import copy
 import gc
-import sys
-from typing import Final, cast
+from collections import defaultdict
+from typing import Dict, Final, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from scipy import spatial
+from scipy.spatial import KDTree
+from scipy.sparse.csgraph import connected_components
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,6 +41,105 @@ from scipy import spatial
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+def _unionFind(parent: np.ndarray, x: int) -> int:
+    # Path compression
+    par = parent  # local ref
+    while par[x] != x:
+        par[x] = par[par[x]]
+        x = par[x]
+    return x
+
+
+def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
+    ra, rb = _unionFind(parent, a), _unionFind(parent, b)
+    if ra == rb:
+        return
+    if rank[ra] < rank[rb]:
+        parent[ra] = rb
+    elif rank[ra] > rank[rb]:
+        parent[rb] = ra
+    else:
+        parent[rb] = ra
+        rank[ra] += 1
+
+
+def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
+    """ Build an undirected connectivity graph for points within 'tol', then compute
+        the connected components and pick the minimum index in each component as the
+        representative
+    """
+
+    nPoints = points.shape[0]
+    match nPoints:
+        case 0:  # pragma: no cover
+            return np.empty(0, dtype=int)
+        case 1:  # pragma: no cover
+            return np.zeros(1, dtype=int)
+
+    # Create a KDTree for the mesh points
+    tree = KDTree(points)
+
+    match method:
+        case 'union_find':
+            # Get all unordered pairs (i < j) within tolerance
+            # > query_pairs returns a set-like structure; request ndarray for vectorization
+            pairs = tree.query_pairs(tol, output_type='ndarray')
+
+            if pairs.size == 0:  # pragma: no cover
+                # All isolated: each point is its own representative
+                return np.arange(nPoints, dtype=int)
+
+            # Disjoint Set (Union-Find)
+            parent = np.arange(nPoints, dtype=int)
+            rank   = np.zeros(nPoints, dtype=int)
+
+            # Union all pairs
+            for a, b in pairs:
+                _unionUnion(parent, rank, int(a), int(b))
+
+            # Final pass: compress and compute representatives (minimum index per root)
+            # > Find root for every point
+            for i in range(nPoints):
+                parent[i] = _unionFind(parent, i)
+            components, labels = nPoints, parent
+
+        case 'sparse':  # pragma: no cover
+            # Construct a sparse adjacency matrix where edges connect points within 'tol'
+            # > Use sparse_distance_matrix to avoid Python-level loops and return COO/CSR in C
+            #
+            # NOTE: This includes self-distances (diagonal); zero them below
+            adj = tree.sparse_distance_matrix(tree, tol, output_type='coo_matrix').tocsr()
+
+            # Remove self-connections, enforce symmetry
+            adj.setdiag(0)
+            adj.eliminate_zeros()
+            # Make matrix symmetric (in case of any asymmetry)
+            adj = adj.maximum(adj.T)
+
+            # Ensure canonical CSR for faster graph ops
+            adj.sum_duplicates()
+            adj.sort_indices()
+
+            # If there are no edges (all points isolated w.r.t. tol), each point is its own component
+            nPoints = points.shape[0]
+            if adj.nnz == 0:  # pragma: no cover
+                return np.arange(nPoints, dtype=int)
+
+            # Compute connected components (undirected)
+            components, labels = connected_components(adj, directed=False, return_labels=True)
+
+        case _:  # pragma: no cover
+            raise ValueError('Unknown method in _findPointsTol')
+
+    # For each component label, choose the minimum original point index as representative
+    repLabel  = np.full(components, nPoints, dtype=int)
+    # Assign each point its component representative
+    np.minimum.at(repLabel, labels, np.arange(nPoints, dtype=int))
+    repsPoint = repLabel[labels]
+
+    return repsPoint
 
 
 def EliminateDuplicates() -> None:
@@ -62,26 +161,29 @@ def EliminateDuplicates() -> None:
     cdict: Final[dict] = mesh.cells_dict
 
     # Find the mapping to the (N-1)-dim elements
-    csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
-                             for key, cset in csets.items()}
+    csetMap: Dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
+                                        for key, cset in csets.items()}
 
     # Create new periodic nodes per (original node, boundary) pair
     # > Use a dictionary mapping (node, bc_key) --> new node index
-    node_bc_translation = {}
-    # > Create a list of points to append to the mesh
-    pointl  = cast(list, points.tolist())
+    nodeTrans: Dict[Tuple[int, str], int] = {}
+    # > Collect points to append to the mesh
+    newPoints: list       = []
+    nPoints:   Final[int] = points.shape[0]
+    BCNodes:   Dict       = {}
 
     for bc_key, cset in csets.items():
         # Find the matching boundary condition
         bcID = find_bc_index(bcs, bc_key)
 
         # Ignore the volume zones
-        if 'Zone' in bc_key:
+        if any(not any(s in tuple(cdict)[iMap] for s    in ('quad', 'triangle'))  # noqa: E272
+                                               for iMap in csetMap[bc_key]):
             continue
 
+        # Error if BC has no ID
         if bcID is None:
-            hopout.warning(f'Could not find BC {bc_key} in list, exiting...')
-            sys.exit(1)
+            hopout.error(f'Could not find BC {bc_key} in list, exiting...')
 
         # Only process periodic boundaries in the positive direction
         if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
@@ -90,99 +192,98 @@ def EliminateDuplicates() -> None:
         iVV = bcs[bcID].type[3]
         VV  = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
 
+        currentBCNodes = set()
         for iMap in csetMap[bc_key]:
             # Only process 2D faces (quad or triangle)
-            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
-                continue
+            if any(s in tuple(cdict)[iMap] for s in ('quad', 'triangle')):
+                mapFaces = cells[iMap].data
+                currentBCNodes.update(node for iSide in cset[iMap] for node in mapFaces[iSide])
 
-            iBCsides = np.array(cset[iMap]).astype(int)
-            mapFaces = cells[iMap].data
+        # Ignore nodes that have already been processed for this boundary
+        if bc_key not in BCNodes:
+            BCNodes[bc_key] = set()
 
-            for iSide in iBCsides:
-                for node in mapFaces[iSide]:
-                    # Create a unique key for (node, boundary) pair.
-                    key_pair = (node, bc_key)
+        currentNodes = list(currentBCNodes - BCNodes[bc_key])
+        BCNodes[bc_key].update(currentNodes)
 
-                    # Ignore nodes that have already been processed for this boundary
-                    if key_pair in node_bc_translation:
-                        continue
+        if not currentNodes:
+            continue
 
-                    # Create the new periodic node by applying the boundary's translation.
-                    new_node    = points[node] + VV
-                    # mesh.points = np.vstack((mesh.points, new_node))
-                    pointl.append(new_node)
-                    node_bc_translation[key_pair] = len(pointl) - 1
+        # Create the new periodic node by applying the boundary's translation
+        newNodes = points[currentNodes] + VV
+        newPoints.extend(newNodes)
 
-    # Convert the list of points back to an array
-    points = np.array(pointl)
-    mesh_vars.mesh.points = points
-    del pointl
+        # Update translation dictionary
+        start_index = nPoints + len(newPoints) - len(currentNodes)
+        for i, node in enumerate(currentNodes):
+            nodeTrans[(node, bc_key)] = start_index + i
+
+    # Append new periodic nodes (if any) to the mesh
+    if newPoints:
+        points = np.vstack((points, np.asarray(newPoints)))
+    del newPoints
 
     # At this point, each (node, bc_key) pair has its own new node
     # > Store these in a mapping (here, keys remain as tuples) for later reference
-    periNodes = node_bc_translation.copy()
+    periNodes = nodeTrans.copy()
 
     # Eliminate duplicate points
     points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
+    # PERF: This should be faster but produces slightly wrong results
+    # # > Create a 1D view of the 2D points array where each row is a single item
+    # voidView = np.ascontiguousarray(points).view(np.dtype((np.void, points.dtype.itemsize * points.shape[1])))
+    # # > Use np.unique on the 1D view
+    # _, uniqueIndices, inverseIndices = np.unique(voidView, return_index=True, return_inverse=True)
+    # # > Reconstruct the unique points array from the original points using the unique_indices
+    # points, inverseIndices = points[uniqueIndices], inverseIndices.reshape(-1)
+    # del voidView, uniqueIndices
 
     # Update the mesh
     for cell in cells:
         # Map the old indices to the new ones
-        # cell.data = np.vectorize(lambda idx: inverseIndices[idx])(cell.data)
-        # Efficiently map all indices in one operation
         cell.data = inverseIndices[cell.data]
 
     # Update periNodes accordingly
-    tmpPeriNodes = {}
-    for (node, bc_key), new_node in periNodes.items():
-        tmpPeriNodes[(inverseIndices[node], bc_key)] = inverseIndices[new_node]
-    periNodes = copy.copy(tmpPeriNodes)
-    del tmpPeriNodes
+    periNodes = { (inverseIndices[node], bc_key): inverseIndices[new_node] for (node, bc_key), new_node in periNodes.items() }
 
     # Also, remove near duplicate points
-    # Create a KDTree for the mesh points
-    mesh_vars.mesh.points = points
-    tree   = spatial.KDTree(points)
-
-    # Filter the valid three-dimensional cell types
+    # > Filter the valid three-dimensional cell types
     valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
+    # > Group by number of vertices per element to avoid ragged arrays
+    groups = defaultdict(list)
+    for cell in valid_cells:
+        groups[cell.data.shape[1]].append(cell.data)
 
-    tol = mesh_vars.tolExternal
-    bbs = np.empty(len(valid_cells), dtype=float)
+    bbs = float('inf')
+    for blocks in groups.values():
+        # Concatenate all elements with the same vertex count
+        cell_data = np.concatenate(blocks, axis=0)
+        coords    = points[cell_data]
 
-    for i, cell in enumerate(valid_cells):
-        edata   = np.array(cell.data)
-        ecoords = points[edata]
-        # Compute the ptp (range) along the vertex axis (axis=1) for each element.
-        ptp     = np.ptp(ecoords, axis=1)
+        # Compute the ptp (range) along the vertex axis (axis=1) for each element
+        ptp = np.ptp(coords, axis=1)
         # For each element type, take the minimum across dimensions
-        bbs[i]  = ptp.min(axis=1).min()
+        bbs = min(bbs, ptp.min())
 
     # Set the tolerance to 10% of the bounding box of the smallest element
-    tol = np.max([tol, bbs.min() / ((mesh_vars.nGeo+1)*10.) ])
+    tol = np.max([mesh_vars.tolExternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
 
     # Find all points within the tolerance
-    clusters = tree.query_ball_point(points, r=tol)
-    del tree
-
-    # Map each point to its cluster representative (first point in the cluster)
-    # > Choose the minimum index as the representative for consistency
-    indices = np.fromiter((min(cluster) for cluster in clusters), dtype=int)
+    reps = _findPointsTol(points, tol, method='union_find')
 
     # Eliminate duplicates
-    _, inverseIndices = np.unique(indices, return_inverse=True)
-    mesh_vars.mesh.points = points[np.unique(indices)]
-    del indices
+    # > reps[i] is the chosen representative index for point i
+    indices, inverseIndices = np.unique(reps, return_inverse=True)
+    mesh_vars.mesh.points = points[indices]
+    del reps, indices
 
     # Update the mesh cells
     for cell in cells:
         cell.data = inverseIndices[cell.data]
 
     # Update the periodic nodes
-    tmpPeriNodes = {}
-    for (node, bc_key), new_node in periNodes.items():
-        tmpPeriNodes[(inverseIndices[node], bc_key)] = inverseIndices[new_node]
-    mesh_vars.periNodes = tmpPeriNodes
+    periNodes = { (inverseIndices[node], bc_key): inverseIndices[new_node] for (node, bc_key), new_node in periNodes.items() }
+    mesh_vars.periNodes = periNodes
 
     del inverseIndices
 

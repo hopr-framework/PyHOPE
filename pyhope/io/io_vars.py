@@ -25,8 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
 from dataclasses import dataclass
+from enum import Enum, IntEnum
 from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -41,14 +41,14 @@ from functools import cache
 projectname  : str                               # Name of output files
 outputformat : int                               # Mesh output format
 
+debugmesh    : bool                              # Mesh output debug mesh
 debugvisu    : bool                              # Enable and show debug output / visualization
 
 
-@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
-class MeshFormat:
-    FORMAT_HDF5: int = 0
-    FORMAT_VTK:  int = 1
-    FORMAT_GMSH: int = 2
+class MeshFormat(Enum):
+    HDF5 = 0
+    VTK  = 1
+    GMSH = 2
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
@@ -64,14 +64,13 @@ class ELEM:
     TYPES: tuple[int, ...] = (104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208)
 
 
-@dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
-class SIDE:
-    INFOSIZE: int = 5
-    TYPE:     int = 0
-    ID:       int = 1
-    NBELEMID: int = 2
-    NBLOCSIDE_FLIP: int = 3
-    BCID:     int = 4
+class SIDE(IntEnum):
+    INFOSIZE       = 5
+    TYPE           = 0
+    ID             = 1
+    NBELEMID       = 2
+    NBLOCSIDE_FLIP = 3
+    BCID           = 4
 
 
 @cache
@@ -102,5 +101,5 @@ def ELEMTYPE(elemType: int) -> str:
         case 208:
             return '        Curved Hexahedra  '
         case _:  # Default
-            print('Error in ELEMTYPE, unknown elemType')
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Error in ELEMTYPE, unknown elemType')

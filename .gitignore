@@ -3,6 +3,7 @@
 # Python files
 __pycache__
 PKG-INFO
+venv/
 
 # Python stubs
 *.pyi

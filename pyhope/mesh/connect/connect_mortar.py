@@ -28,8 +28,6 @@
 import bisect
 import copy
 import itertools
-import sys
-import traceback
 from collections import defaultdict
 from functools import lru_cache
 from itertools import combinations
@@ -40,7 +38,7 @@ from typing import Optional, Final, Tuple
 # import meshio
 import numpy as np
 from numpy.linalg import norm
-from scipy import spatial
+from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -90,8 +88,8 @@ def ConnectMortar( nConnSide  : list
     vvs: Final[list             ] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree:     Final[spatial.KDTree] = spatial.KDTree(np.array(nConnCenter))
-    indexList: Final[IndexedLists  ] = IndexedLists()
+    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter))
+    indexList: Final[IndexedLists] = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
         targetSide   = side
@@ -293,21 +291,17 @@ def connect_mortar_sides( sideIDs    : tuple
                                  for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
 
         case _:
-            hopout.warning('Found invalid number of sides for mortar side, exiting...')
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Found invalid number of sides for mortar side, exiting...', traceback=True)
 
     # Sanity check
     if len(slaveSides) != nMortars:
-        hopout.warning('Could not determine mortar type, exiting...')
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Could not determine mortar type, exiting...', traceback=True)
 
     # Update the master side
     masterSide.MS          = 1            # noqa: E251
     masterSide.connection  = -mortarType  # noqa: E251
     masterSide.flip        = 0            # noqa: E251
-    masterSide.nbLocSide   = 0            # noqa: E251
+    # masterSide.nbLocSide   = 0            # noqa: E251
 
     flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
 
@@ -343,7 +337,7 @@ def connect_mortar_sides( sideIDs    : tuple
                   MS         = 1,                   # noqa: E251
                   flip       = flipID,              # noqa: E251
                   connection = slave.sideID,        # noqa: E251
-                  nbLocSide  = slave.locSide        # noqa: E251
+                  # nbLocSide  = slave.locSide        # noqa: E251
                 )
         new_sides  .append(side)
         new_sideIDs.append(newID)

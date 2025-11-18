@@ -24,7 +24,8 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
-image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.2-bookworm-x86_64
+# image: ${CI_REGISTRY_NAME}/nrg-python:3.13.7-trixie-x86_64
+image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.0-trixie-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
@@ -33,22 +34,37 @@ variables:
   DOCKER_DRIVER: overlay2
 
 # https://pip.pypa.io/en/stable/topics/caching/
-cache:
-  paths:
-    - venv
-    - .cache/pip
+# .venv_cache: &venv_cache
+#   key: "venv"
+#   paths:
+#     - venv
+#   policy: pull
+
+# Cache pip packages to speed up the build process
+# .pip_cache: &pip_cache
+#   key: "pip"
+#   paths:
+#     - .cache/pip
+#   policy: pull-push
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Templates ("hidden jobs")
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 .defaults: &defaults
   tags: [dockertag]
+  # cache:
+  #   - *venv_cache
+  #   - *pip_cache
+  # CI/CD has no dependencies
+  dependencies: []
 
 .defaults_coverage: &defaults_coverage
   <<: *defaults
+  # coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
   artifacts:
     paths:
       - coverage.xml
+      - .coverage.*
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -64,32 +80,29 @@ cache:
   - ulimit -s unlimited
   # - module list || true
   - python3 --version
-  # Setup required packages
-  # - | # Literal YAML multiline block scalar indicator
-  #   if command -v apt-get >/dev/null 2>&1; then
-  #     apt-get update
-  #     apt-get install -y libglu1-mesa-dev freeglut3-dev mesa-common-dev libxcursor1 libxinerama1
-  #   fi
-  # - | # Literal YAML multiline block scalar indicator
-  #   if command -v dnf >/dev/null 2>&1; then
-  #     dnf makecache
-  #     dnf install -y mesa-libGLU-devel freeglut-devel libXcursor libXinerama
-  #   fi
   # Setup uv
   - uv --version
   # Setup Python virtual environment
-  - rm -rf venv
   - uv venv venv
   - source venv/bin/activate
-  # # Cleanup previous installs
-  # - pip freeze | xargs pip uninstall -y --root-user-action=ignore
+  # Regression checks needs NRG Gmsh, pre-install it
+  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.0.post1-py3-none-linux_x86_64.whl
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
-  # Regression checks needs NRG Gmsh
-  - uv pip uninstall gmsh
-  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.13.1.post1-py3-none-linux_x86_64.whl
   # Install coverage
   - uv pip install --no-cache-dir coverage
+
+# Define a reusable global before_script with YAML anchors
+.minimal-before-script: &minimal-before-script
+  # Setup system
+  - ulimit -s unlimited
+  # - module list || true
+  - python3 --version
+  # Setup uv
+  - uv --version
+  # Setup Python virtual environment
+  - uv venv venv
+  - source venv/bin/activate
 
 before_script: *global-before-script
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -98,8 +111,8 @@ before_script: *global-before-script
 stages:
   - lint
   - compatibility
-  - coverage
-  - convergence
+  - verification
+  - documentation
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Linter
@@ -107,10 +120,28 @@ stages:
 ruff:
   extends: .defaults
   stage: lint
+  before_script: *minimal-before-script
   script:
     - uv pip install ruff
     - ruff --version
     - ruff check --target-version=py310 --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope
+
+ty:
+  extends: .defaults
+  stage: lint
+  script:
+    - uv pip install ty
+    - ty --version
+    - ty check --color always --project pyhope
+
+vulture:
+  extends: .defaults
+  stage: lint
+  before_script: *minimal-before-script
+  script:
+    - uv pip install vulture
+    - vulture --version
+    - vulture .gmsh pyhope
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Compatibility
@@ -128,39 +159,39 @@ ruff:
 python:3.10:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.10.16-bookworm-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.10.19-trixie-x86_64
   <<: *compatibility-script
 # Python 3.11 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.11:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.11.11-bookworm-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.11.14-trixie-x86_64
   <<: *compatibility-script
 # Python 3.12 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.12:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.12.9-bookworm-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.12.12-trixie-x86_64
   <<: *compatibility-script
 # Python 3.13 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.13:
   extends: .defaults
   stage: compatibility
-  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.2-bookworm-x86_64 # default version at the moment
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.9-trixie-x86_64
   <<: *compatibility-script
-# # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
-# python_314:
-#   extends: .defaults
-#   stage: compatibility
-#   image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14-rc-bookworm-x86_64
-#   <<: *compatibility-script
+# Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
+python:3.14:
+  extends: .defaults
+  stage: compatibility
+  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.0-trixie-x86_64 # default version at the moment
+  <<: *compatibility-script
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-# Reggie
+# Verification
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
-coverage:
+examples:
   extends: .defaults_coverage
-  stage: coverage
+  stage: verification
   script:
     # Store the base directory
     - basedir=$(pwd)
@@ -224,12 +255,12 @@ coverage:
 
     # Combine coverage reports from all example directories
     - echo "Combining coverage reports..."
-    - coverage combine
+    - coverage combine --keep
 
     # Generate the coverage report in XML format
     - echo "Generating coverage report..."
     - coverage xml
-    - coverage report --skip-empty
+    - coverage report --skip-empty --precision=2
 
     # Output the final sorted report as a UTF-8 box-drawing table
     - | # Literal YAML multiline block scalar indicator
@@ -258,16 +289,53 @@ coverage:
         echo "All examples passed.";
       fi
 
+    # Repeat the coverage report for Gitlab CI/CD to pick up
+    - coverage report --skip-empty --precision=2 | grep TOTAL
+
+healthcheck:
+  extends: .defaults_coverage
+  stage: verification
+  script:
+    # Run the internal health check
+    - coverage run --data-file=".coverage.verify" -m pyhope --verify
+
+coverage:
+  extends: .defaults_coverage
+  stage: verification
+  before_script: *minimal-before-script
+  coverage: '/TOTAL.+ ([0-9]{1,3}(?:\.[0-9]{1,2})?%)/'
+  dependencies:
+    - examples
+    - healthcheck
+  needs:
+    - job: examples
+      artifacts: true
+    - job: healthcheck
+      artifacts: true
+  script:
+    # Install coverage
+    - uv pip install --no-cache-dir coverage
+    # Combine coverage reports from all example directories
+    - echo "Combining coverage reports..."
+    - coverage combine --keep
+
+    # Generate the coverage report in XML format
+    - echo "Generating coverage report..."
+    - coverage xml
+    - coverage report --skip-empty --precision=2
+
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # FLEXI convergence tests
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 convergence:
   extends: .defaults
-  stage: convergence
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:41-x86_64
+  stage: verification
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:42-x86_64
   artifacts:
     paths:
       - convergence_artifacts.log
+  # Reggie can sometimes be too busy
+  retry: 2
   script:
     - | # Literal YAML multiline block scalar indicator
       artifact_file="convergence_artifacts.log"
@@ -301,7 +369,7 @@ convergence:
         for N in {1..4}; do
           echo ""
           echo "=== Running Convergence Test N=$N ===" | tee -a ../convergence.log
-          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/build/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
         done
         cd ..
         # Merge convergence.log for artifacts
@@ -385,3 +453,19 @@ convergence:
         # Clean-up the log file
         rm -f convergence.log
       done
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# PyHOPE documentation
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+documentation:
+  extends: .defaults
+  stage: documentation
+  artifacts:
+    paths:
+      - site
+  before_script: *minimal-before-script
+  script:
+    # Install MkDocs
+    - uv pip install --no-cache-dir mkdocs-material mkdocs-autorefs mkdocs-glightbox
+    # Build documentation
+    - mkdocs build

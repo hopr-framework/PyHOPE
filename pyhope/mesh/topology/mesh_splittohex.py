@@ -25,8 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
-import traceback
 from collections import defaultdict
 from functools import cache
 from typing import Final, Tuple, cast
@@ -53,19 +51,24 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.mesh.mesh_vars import nGeo
-    from pyhope.readintools.readintools import GetLogical, CountOption
+    from pyhope.readintools.readintools import CreateLogical, GetLogical, CountOption
     # ------------------------------------------------------
 
-    if CountOption('doSplitToHex') == 0:
+    # Create logical here to avoid it showing up in the help
+    CreateLogical('SplitToHex', multiple=False, default=False)
+
+    if CountOption('doSplitToHex') == 0 and CountOption('SplitToHex') == 0:
         return mesh
 
     hopout.separator()
     hopout.info('SPLITTING ELEMENTS TO HEXAHEDRA...')
     hopout.sep()
 
-    splitToHex = GetLogical('doSplitToHex')
+    splitToHex = GetLogical('doSplitToHex') or \
+                 GetLogical(  'SplitToHex')
     if not splitToHex:
         hopout.separator()
+        return mesh
 
     # Native meshio data
     cdict: Final[dict] = mesh.cells_dict
@@ -80,15 +83,12 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Sanity check
     # > Check if the requested polynomial order is 1
     if nGeo > 1:
-        hopout.warning('nGeo = {} not supported for element splitting'.format(nGeo))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('nGeo = {} not supported for element splitting'.format(nGeo), traceback=True)
 
     # > Check if the mesh contains any pyramids or hexahedra
     if any(s.startswith(x) for x in ['pyramid', 'hexahedron'] for s in cdict.keys()):
         unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in ['pyramid', 'hexahedron'])]
-        hopout.warning('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
-        sys.exit(1)
+        hopout.error('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
 
     faceType = ['triangle'  , 'quad'  ]
     faceNum  = [          3 ,       4 ]
@@ -291,9 +291,8 @@ def tet_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
                       np.arange(  0,  4, dtype=int)                # index 14
                    )
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order))
 
 
 @cache
@@ -360,9 +359,8 @@ def prism_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
                       np.array((  3,  4,  5), dtype=int),           # index 13
                    )
         case _:
-            print('Order {} not supported for element splitting'.format(order))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            import pyhope.output.output as hopout
+            hopout.error('Order {} not supported for element splitting'.format(order))
 
 
 @cache

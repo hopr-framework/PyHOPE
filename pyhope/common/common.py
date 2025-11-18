@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import sys
 from io import TextIOWrapper
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -104,6 +103,9 @@ def DebugEnabled() -> bool:
     """ Check if program runs with debugger attached
         > https://stackoverflow.com/a/77627075/23851165
     """
+    # Standard libraries -----------------------------------
+    import sys
+    # ------------------------------------------------------
     try:
         if sys.gettrace() is not None:
             return True
@@ -111,7 +113,7 @@ def DebugEnabled() -> bool:
         pass
 
     try:
-        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:
+        if sys.monitoring.get_tool(sys.monitoring.DEBUGGER_ID) is not None:  # pyright: ignore[reportAttributeAccessIssue] # ty: ignore [unresolved-attribute]
             return True
     except AttributeError:
         pass
@@ -120,7 +122,26 @@ def DebugEnabled() -> bool:
 
 
 def IsInteractive() -> bool:
-    return cast(TextIOWrapper, sys.__stdin__).isatty()
+    """ Check if the program is running in an interactive terminal
+    """
+    # Standard libraries -----------------------------------
+    import sys
+    # ------------------------------------------------------
+    return cast(TextIOWrapper, sys.__stdin__).isatty() and cast(TextIOWrapper, sys.__stdout__).isatty()
+
+
+def IsDisplay() -> bool:
+    """ Check if the program is running in a display environment
+    """
+    # Standard libraries -----------------------------------
+    import sys
+    # ------------------------------------------------------
+    # Check if running on Linux, otherwise assume a display
+    if not sys.platform.startswith('linux'):
+        return True
+
+    # Check for environment variables that indicate a graphical display
+    return bool(os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'))
 
 
 # > https://stackoverflow.com/a/5419576/23851165
@@ -130,32 +151,32 @@ def IsInteractive() -> bool:
 #     return methods
 
 
-def find_key(dict: dict[int, str], item) -> int | None:
-    """ Find the first occurrence of a key in dictionary
-    """
-    if type(item) is np.ndarray:
-        for key, val in dict.items():
-            if np.all(val == item):
-                return key
-    else:
-        for key, val in dict.items():
-            if        val == item :  # noqa: E271
-                return key
-    return None
+# def find_key(dict: dict[int, str], item) -> int | None:
+#     """ Find the first occurrence of a key in dictionary
+#     """
+#     if type(item) is np.ndarray:
+#         for key, val in dict.items():
+#             if np.all(val == item):
+#                 return key
+#     else:
+#         for key, val in dict.items():
+#             if        val == item :  # noqa: E271
+#                 return key
+#     return None
 
 
-def find_keys(dict: dict[int, str], item) -> tuple[int, ...] | None:
-    """ Find all occurrence of a key in dictionary
-    """
-    if type(item) is np.ndarray:
-        keys = tuple(key for key, val in dict.items() if np.all(val == item))
-        if len(keys) > 0:
-            return keys
-    else:
-        keys = tuple(key for key, val in dict.items() if        val == item )  # noqa: E271
-        if len(keys) > 0:
-            return keys
-    return None
+# def find_keys(dict: dict[int, str], item) -> tuple[int, ...] | None:
+#     """ Find all occurrence of a key in dictionary
+#     """
+#     if type(item) is np.ndarray:
+#         keys = tuple(key for key, val in dict.items() if np.all(val == item))
+#         if len(keys) > 0:
+#             return keys
+#     else:
+#         keys = tuple(key for key, val in dict.items() if        val == item )  # noqa: E271
+#         if len(keys) > 0:
+#             return keys
+#     return None
 
 
 # def find_value(dict, item):
@@ -198,3 +219,27 @@ def find_indices(seq, item) -> tuple[int, ...]:
             locs.append(loc)
             start_at = loc
     return tuple(locs)
+
+
+# def lines_that_equal(     string: str, fp: list, start_idx=0) -> list[int]:
+#     """ Find all occurrences of a string in a file-like object
+#     """
+#     return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
+
+
+def lines_that_contain(   string: str, fp: list, start_idx=0) -> list[int]:
+    """ Find all occurrences of a string in a file-like object
+    """
+    return [num for num, line in enumerate(fp[start_idx:], start=start_idx) if string in line]
+
+
+# def lines_that_start_with(string: str, fp: list, start_idx=0) -> list[int]:
+#     """ Find all occurrences of a string at the start of a line in a file-like object
+#     """
+#     return [num for num, line in enumerate(fp[start_idx:]) if line.startswith(string)]
+
+
+# def lines_that_end_with(  string: str, fp: list, start_idx=0) -> list[int]:
+#     """ Find all occurrences of a string at the end of a line in a file-like object
+#     """
+#     return [num for num, line in enumerate(fp[start_idx:]) if line.rstrip().endswith(string)]

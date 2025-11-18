@@ -26,8 +26,6 @@
 # Standard libraries
 import os
 import subprocess
-import sys
-import traceback
 from typing import Optional, Union, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -59,25 +57,59 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strtobool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
+def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
         True values  are 'y', 'yes', 't', 'true', 'on', and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
         Raises ValueError if 'val' is anything else.
     """
-    if type(val) is bool:
+    if isinstance(val, bool):
         return val
-    if type(val) is int:
+    if isinstance(val, int):
         val = str(val)
-    if type(val) is str:
+    if isinstance(val, str):
         val = val.lower()
 
-    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+    if   val in ('y', 'yes', 't', 'true' , 'on' , '1'):  # noqa: E271
         return True
-    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+    elif val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
         return False
     else:
         raise ValueError('invalid truth value %r' % (val,))
+
+
+def strToFloatOrPi(helpstr: str) -> float:
+    """ Parses a string that may contain 'pi' or a numerical value.
+    """
+    # split string at case-insensitive 'pi'
+    splitstr = helpstr.lower().split('pi')
+
+    match len(splitstr):
+        # Determine prefactor of pi, interpreting empty string as one
+        case 2:
+            if splitstr[0]:
+                value = float(splitstr[0])*np.pi
+            else:
+                value = np.pi
+
+        # No 'pi' found in splitstr, parse as float
+        case 1:
+            value = float(splitstr[0])
+
+        case _:
+            raise ValueError('Failed to parse input string %s' % (helpstr))
+
+    return value
+
+
+def is_numeric(var_value: str) -> bool:
+    """ Check if a string can be converted to a float
+    """
+    try:
+        float(var_value)
+        return True
+    except ValueError:
+        return False
 
 
 # ==================================================================================================================================
@@ -109,14 +141,10 @@ def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
     # - multiple parameter
     if init:
         if name in config.prms and not multiple:
-            hopout.warning('Parameter "{}" already define and not a multiple option, exiting...'.format(name))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Parameter "{}" already define and not a multiple option, exiting...'.format(name), traceback=True)
     else:
         if name not in config.prms:
-            hopout.warning('Parameter "{}" is not defined, exiting...'.format(name))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Parameter "{}" is not defined, exiting...'.format(name), traceback=True)
 
 
 def CheckUsed(name: str) -> None:
@@ -126,9 +154,7 @@ def CheckUsed(name: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['counter'] > 1 and not config.prms[name]['multiple']:
-        hopout.warning('Parameter "{}" already used and not a multiple option, exiting...'.format(name))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Parameter "{}" already used and not a multiple option, exiting...'.format(name), traceback=True)
 
 
 def CheckType(name: str, calltype: str) -> None:
@@ -138,9 +164,7 @@ def CheckType(name: str, calltype: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['type'] is not calltype:
-        hopout.warning('Call type of parameter "{}" does not match definition, exiting...'.format(name))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Call type of parameter "{}" does not match definition, exiting...'.format(name), traceback=True)
 
 
 def CheckDimension(name: str, result: int) -> None:
@@ -150,9 +174,7 @@ def CheckDimension(name: str, result: int) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['number'] != result:
-        hopout.warning('Parameter "{}" has array length mismatch, exiting...'.format(name))
-        traceback.print_stack(file=sys.stdout)
-        sys.exit(1)
+        hopout.error('Parameter "{}" has array length mismatch, exiting...'.format(name), traceback=True)
 
 
 def CreateSection(string: str) -> None:
@@ -173,7 +195,7 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
     config.prms[string] = dict(type='str',
                                name=string,
                                help=help,
-                               default=default,
+                               default=str(default),
                                counter=0,
                                multiple=multiple)
 
@@ -187,7 +209,7 @@ def CreateReal(string: str, help: Optional[str] = None, default: Optional[float]
     config.prms[string] = dict(type='real',
                                name=string,
                                help=help,
-                               default=default,
+                               default=str(default),
                                counter=0,
                                multiple=multiple)
 
@@ -201,7 +223,7 @@ def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = 
     config.prms[string] = dict(type='int',
                                name=string,
                                help=help,
-                               default=default,
+                               default=str(default),
                                counter=0,
                                multiple=multiple)
 
@@ -232,6 +254,7 @@ def CreateIntFromString(string: str, help: Optional[str] = None, default: Option
                                help=help,
                                default=default,
                                counter=0,
+                               source=None,
                                multiple=multiple)
 
 
@@ -291,7 +314,10 @@ def CountOption(string: str) -> int:
     return counter
 
 
-def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Optional[int] = None):
+def GetParam(name    : str,
+             calltype: str,
+             default : Optional[str] = None,
+             number  : Optional[int] = None) -> str:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout
@@ -310,17 +336,13 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
 
             input = [s for s in config.params.get('general', name).split('\n') if s != '']
             if num >= len(input):
-                hopout.warning(f'Index {num+1} is out of range for option "{name}"')
-                # traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error(f'Index {num+1} is out of range for option "{name}"', traceback=False)
             value = input[num]
         else:
             value = config.params.get('general', name)
             # Single values cannot contain spaces
             if '\n' in value:
-                hopout.warning(f'Option "{name}" is already set, but is not a multiple option!')
-                # traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error(f'Option "{name}" is already set, but is not a multiple option!', traceback=False)
 
         # int2str has custom output
         if calltype != 'int2str':
@@ -328,6 +350,8 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
                 hopout.printoption(name, '{0:}'.format(value), '*CUSTOM')
             else:
                 hopout.printoption(name, value               , '*CUSTOM')
+        else:
+            config.prms[name]['source'] = '*CUSTOM'
     else:
         if default:
             value = default
@@ -342,9 +366,10 @@ def GetParam(name: str, calltype: str, default: Optional[str] = None, number: Op
                     else:
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
-                hopout.warning(f'Keyword "{name}" not found in file and no default given, exiting...')
-                # traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
+                hopout.error(f'Keyword "{name}" not found in file and no default given, exiting...', traceback=False)
+        # int2str has custom output
+        if calltype == 'int2str':
+            config.prms[name]['source'] = 'DEFAULT'
     return value
 
 
@@ -355,7 +380,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return float(value)
+    return strToFloatOrPi(str(value))
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -365,7 +390,7 @@ def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetLogical(name: str, default: Optional[str] = None, number: Optional[int] = None) -> bool:
     value = GetParam(name=name, default=default, number=number, calltype='bool')
-    return strtobool(value)
+    return strToBool(value)
 
 
 def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -374,26 +399,33 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     import pyhope.output.output as hopout
     # ------------------------------------------------------
     value  = GetParam(name=name, default=default, number=number, calltype='int2str')
-    source = 'DEFAULT' if config.prms[name]['counter'] == 0 else '*CUSTOM'
+    # source = 'DEFAULT' if config.prms[name]['counter'] == 0 else '*CUSTOM'
+
+    if config.prms[name].get('source') is None:
+        raise LookupError('Malformed Int2Str option')
+    source = config.prms[name].get('source')
 
     # Check if we already received the int. Otherwise, get the value from the mapping
     mapping = config.prms[name]['mapping']
-    if type(value) is int:
-        hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
-    else:
-        if not value.isdigit():
-            value = [s for s, v in mapping.items() if v.lower() == value.lower()]
-            if len(value) == 0:
-                hopout.warning('Unknown value for parameter {}, exiting...'.format(name))
-                traceback.print_stack(file=sys.stdout)
-                sys.exit(1)
-            else:
-                value = int(value[0])
-                hopout.printoption(name, '{} [{}]'.format(value, mapping[value]), source)
-        else:
-            hopout.printoption(name, '{} [{}]'.format(value, mapping[int(value)]), source)
+    options = {v.lower(): int(k) for k, v in mapping.items()}
 
-    return int(value)
+    result = None
+    try:
+        result = int(value)
+    except (ValueError, TypeError):
+        result = options.get(str(value).lower())
+
+    if result is None or result not in mapping.keys():  # pragma: no cover
+        outStr = ', '.join([f'{k} [{v}]' for k, v in mapping.items()])
+        print()
+        print(hopout.warn(f'Allowed values for parameter "{name}":'))
+        print(hopout.warn(f'{outStr}'))
+        hopout.error(f'Unknown value "{value}" for parameter "{name}", exiting...')
+
+    result = int(result)
+
+    hopout.printoption(name, '{} [{}]'.format(result, mapping[result]), source)
+    return result
 
 
 def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
@@ -409,22 +441,15 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     # Commas separate 1st dimension, double commas separate 2nd dimension
     if ',,' in value:
         value = [s.split(',') for s in value.split(',,')]
-        try:
-            value = np.array(value).astype(float)
-        except ValueError as e:
-            print()
-            print(hopout.warn(f'{e}'))
-            hopout.warning(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
-            sys.exit(1)
     else:
         value = value.split(',')
-        try:
-            value = np.array(value).astype(float)
-        except ValueError as e:
-            print()
-            print(hopout.warn(f'{e}'))
-            hopout.warning(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
-            sys.exit(1)
+    try:
+        value = np.vectorize(strToFloatOrPi)(value)
+    except ValueError as e:  # pragma: no cover
+        print()
+        print(hopout.warn(f'{e}'))
+        hopout.error(f'Failed to read "{name}" array, possibly malformed comma-separated data. Exiting...')
+
     CheckDimension(name, value.size)
     return value
 
@@ -432,7 +457,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
 def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
-    # Split the array definitiosn
+    # Split the array definition
     value = value.split('(/')[1]
     value = value.split('/)')[0]
 
@@ -477,26 +502,36 @@ class ReadConfig():
                 # Remove all whitespaces
                 line = ''.join(line.split())
 
+                # Skip empty lines early
+                if not line:
+                    continue
+
                 # HOPR supported inline comments as prefix before '%'
                 # For legacy reasons also support such comment constructs
                 if '%' in line:
                     line = line.split('%', 1)[1].strip()
+                    if not line:
+                        continue
 
                 # Split of [#, ;, !] comments
                 for symbol in self.sym_comm:
                     if symbol in line:
                         line = line.split(symbol, 1)[0].strip()
+                        break
+
+                # Skip if line becomes empty after comment removal
+                if not line:
+                    continue
 
                 # HOPR supported inline variable definitions with prefix 'DEFVAR='
                 # For legacy reasons also support such variable definition constructs
                 if line.strip().startswith('DEFVAR='):
-                    if ':' not in line:
-                        hopout.warning('DEFVAR= syntax error while parsing parameter file. Missing ":"')
-                        sys.exit(1)
-                    parts = line.split(':')
+                    if ':' not in line:  # pragma: no cover
+                        hopout.error('DEFVAR= syntax error while parsing parameter file. Missing ":"')
 
-                    var_type_part = parts[0].replace('DEFVAR=', '').strip()
-                    var_def_part  = parts[1].strip()
+                    var_type_part, var_def_part = line.split(':', 1)
+                    var_type_part = var_type_part.replace('DEFVAR=', '').strip()
+                    var_def_part  = var_def_part.strip()
 
                     # Check if comment is in value part
                     for symbol in self.sym_comm:
@@ -505,48 +540,48 @@ class ReadConfig():
                             break  # Stop at the first symbol found
 
                     # Extract variable type and optional array size
+                    arr_size = None
                     if '~' in var_type_part:
                         # Vector
                         _, size_part = var_type_part.split('~')
                         arr_size = int(size_part.strip(')'))  # Convert size to int
-                    else:
-                        # Scalar
-                        arr_size = None
 
                     # Extract variable name and value (handling spaces around `=`)
-                    if '=' in var_def_part:
-                        var_name, var_value = [s.strip() for s in var_def_part.split('=', 1)]
-                    else:
-                        hopout.warning(f'DEFVAR= syntax error while parsing "{var_def_part}"')
-                        sys.exit(1)
+                    if '=' not in var_def_part:  # pragma: no cover
+                        hopout.error(f'DEFVAR= syntax error while parsing "{var_def_part}"')
+
+                    var_name, var_value = var_def_part.split('=', 1)
+                    var_name  = var_name.strip()
+                    var_value = var_value.strip()
 
                     # Ensure unique variable names
-                    for existing_var in variables:
-                        if var_name in set(existing_var):
-                            hopout.warning(f'Variable "{var_name}" is ambiguous')
-                            sys.exit(1)
+                    if var_name in set(variables):  # pragma: no cover
+                        hopout.error(f'Variable "{var_name}" is ambiguous')
 
                     # Convert values to proper types
                     if arr_size:  # Handle array
                         values = [float(v) if '.' in v else int(v) for v in var_value.split(',')]
-                        if len(values) != arr_size:
-                            hopout.warning(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
-                            sys.exit(1)
+                        if len(values) != arr_size:  # pragma: no cover
+                            hopout.error(f'Expected {arr_size} values for array "{var_name}", got {len(values)}')
                         variables[var_name] = values
                     else:  # Single value
-                        variables[var_name] = float(var_value) if '.' in var_value else int(var_value)
+                        if is_numeric(var_value):
+                            try:
+                                variables[var_name] = int(var_value)
+                            except ValueError:
+                                variables[var_name] = float(var_value)
 
                     # We have to sort the variables according to the length of the keys in order to avoid
                     # substring replacement in the parameter file. This way it can be assured that long strings
                     # get replaced first.
                     # variables = sorted(variables.items(), key=lambda item: len(item[0]), reverse=True)
                     variables = dict(sorted(variables.items(), key=lambda item: len(item[0]), reverse=True))
-
                     continue  # Skip adding this line to config
 
                 # Replace variables in the parameter file
                 for var, value in variables.items():
-                    if isinstance(value, list):  # Convert arrays to string format
+                    # Convert arrays to string format
+                    if isinstance(value, list):
                         replacement = f'(/{",".join(map(str, value))}/)'
                     else:
                         replacement = str(value)
@@ -585,8 +620,7 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.warning('No parameter or mesh file given')
-            sys.exit(1)
+            hopout.error('No parameter or mesh file given')
 
         # Check if file exists on drive
         if not os.path.isfile(self.input):
@@ -597,8 +631,7 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.warning('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
-            sys.exit(1)
+            hopout.error('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
 
         # Check if input is mesh or parameter file
         parameter_mode = False
@@ -613,8 +646,7 @@ class ReadConfig():
                     f.read()
                 parameter_mode = True
             except UnicodeDecodeError:
-                hopout.warning('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
-                sys.exit(1)
+                hopout.error('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
 
         # Handle parameter data
         if parameter_mode:
@@ -647,7 +679,7 @@ class ReadConfig():
             # Get geometric order and boundary conditions
             with h5py.File(self.input, 'r') as f:
                 # Here we use item for legacy reasons as HOPR stores scalars as arrays with one element
-                NGeo    = cast(int, f.attrs['Ngeo'].item())
+                NGeo    = cast(int, cast(np.ndarray, f.attrs['Ngeo']).item())
                 BCNames = [s.decode('utf-8').strip() for s in cast(h5py.Dataset, f['BCNames'])[:]]
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
 
@@ -687,7 +719,7 @@ class ReadConfig():
         #                 try:
         #                     str_int = int(parser.get('general', key))
         #                 except ValueError:
-        #                     hopout.warning('Keywords {} cannot be converted to integer'.format(key))
+        #                     hopout.error('Keywords {} cannot be converted to integer'.format(key))
         #
         #         hopout.printoption(key, parser.get('general', key),
         #                            '*CUSTOM', std_length)
@@ -697,7 +729,7 @@ class ReadConfig():
         #             hopout.printoption(key, value['default'],
         #                                'DEFAULT', std_length)
         #         else:
-        #             hopout.warning('Keyword "{}" not found in file, exiting...'
+        #             hopout.error('Keyword "{}" not found in file, exiting...'
         #                            .format(key))
 
         return parser

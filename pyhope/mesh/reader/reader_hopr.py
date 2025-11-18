@@ -25,17 +25,15 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import copy
 import gc
 import itertools
 import os
 import shutil
-import sys
-import tempfile
+from collections import defaultdict
 # from dataclasses import dataclass, field
 from functools import cache
 from string import digits
-from typing import cast
+from typing import Any, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -73,102 +71,15 @@ def NDOFperElemType(elemType: str, nGeo: int) -> int:
             raise ValueError(f'Unknown element type {elemType}')
 
 
-# @dataclass
-# class FaceOrdering:
-#     side_type: str
-#     nGeo     : int
-#     order    : np.ndarray = field(init=False)
-#
-#     def __post_init__(self):
-#         self.order = self.compute_ordering()
-#
-#     def compute_ordering(self) -> np.ndarray:
-@cache
-def FaceOrdering(side_type: str, nGeo: int) -> np.ndarray:
-    """
-    Compute the permutation ordering to convert from tensor-product ordering
-    to meshio ordering for a face of a given type ('quad' or 'triangle')
-    and polynomial order nGeo.
-
-    For quadrilaterals, total nodes = (nGeo+1)**2.
-      - For nGeo==1, the natural ordering is [0, 1, 2, 3].
-      - For nGeo>1, the ordering is:
-          * Corners: bottom-left, bottom-right, top-right, top-left;
-          * Then the bottom edge (excluding corners, left-to-right);
-          * Then the right  edge (excluding corners, bottom-to-top);
-          * Then the top    edge (excluding corners, right-to-left);
-          * Then the left   edge (excluding corners, top-to-bottom);
-          * Finally, the interior nodes in row-major order.
-
-    For triangles, total nodes = (nGeo+1)*(nGeo+2)//2.
-      - For nGeo==1, the natural ordering is [0, 1, 2].
-      - For nGeo>1, we generate the tensor ordering as all (i,j) pairs
-        with i+j <= nGeo (in lexicographical order) and then reorder so that:
-          * Vertices come first: (0,0), (nGeo,0), (0,nGeo);
-          * Followed by edge nodes (in order along each edge);
-          * And then the interior nodes in their natural order.
-    """
-    if side_type.lower() == 'quad':
-        # Total nodes on face: (nGeo+1)**2
-        if nGeo == 1:
-            return np.arange(4)
-        else:
-            n           = nGeo
-            grid        = np.arange((n+1)**2).reshape(n+1, n+1)
-            # Corners: bottom-left, bottom-right, top-right, top-left
-            corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
-            # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
-            bottom_edge = grid[0, 1:n]
-            # Right edge: column n, rows 1 to n-1 (bottom-to-top)
-            right_edge  = grid[1:n, n]
-            # Top edge: row n, columns n-1 to 1 (right-to-left)
-            top_edge    = grid[n, n-1:0:-1]
-            # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
-            left_edge   = grid[n-1:0:-1, 0]
-            # Interior nodes: remaining nodes in row-major order
-            interior    = grid[1:n, 1:n].flatten()
-            # Assemble ordering: corners, edges, interior
-            # order       = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            order       = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            return order
-
-    elif side_type.lower() == 'triangle':
-        # Total nodes on face: (nGeo+1)*(nGeo+2)//2
-        if nGeo == 1:
-            return np.arange(3)
-        else:
-            p           = nGeo
-            # Build the tensor ordering as a list of (i, j) for which i+j <= p.
-            nodes       = []
-            for i in range(p+1):
-                for j in range(p+1 - i):
-                    nodes.append((i, j))
-            # Define vertices in the reference triangle:
-            vertices    = [(0, 0), (p, 0), (0, p)]
-            # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
-            edge01      = [(i, 0) for i in range(1, p)]
-            # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
-            edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
-            # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
-            edge20      = [(0, j) for j in range(1, p)]
-            # Interior nodes: those not on the boundary
-            boundary    = set(vertices + edge01 + edge12 + edge20)
-            interior    = [node for node in nodes if node not in boundary]
-            # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
-            desired     = vertices + edge01 + edge12 + edge20 + interior
-            order       = [nodes.index(nd) for nd in desired]
-            return np.array(order)
-    else:
-        raise ValueError(f'Unsupported side type: {side_type}')
-
-
 def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
+    # Standard libraries -----------------------------------
+    import tempfile
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
-    from pyhope.mesh.mesh_common import LINTEN
-    from pyhope.mesh.mesh_common import faces, face_to_nodes
+    from pyhope.mesh.mesh_common import LINTEN, FaceOrdering
+    from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
@@ -178,7 +89,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
     cells    = mesh.cells_dict
-    cellsets = {}
+    cellsets = defaultdict(lambda: defaultdict(list))
 
     nodeCoords   = mesh.points
     offsetnNodes = nodeCoords.shape[0]
@@ -191,11 +102,10 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Instantiate ELEMTYPE
     elemTypeClass = ELEMTYPE()
 
-    for fname in fnames:
+    for fnum, fname in enumerate(fnames):
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
-            hopout.warning('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
-            sys.exit(1)
+            hopout.error('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
 
         # Create a temporary directory and keep it existing until manually cleaned
         tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -206,8 +116,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
         with h5py.File(tname, mode='r') as f:
             # Check if file contains the Hopr version
             if 'HoprVersion' not in f.attrs:
-                hopout.warning('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
-                sys.exit(1)
+                hopout.error('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
 
             # Read the globalNodeIDs
             nodeInfo   = np.array(f['GlobalNodeIDs'])
@@ -232,7 +141,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     hopout.sep()
                     hopout.routine('The following vectors were found:')
                     for iVV, vv in enumerate(mesh_vars.vvs):
-                        hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'READ IN')
+                        hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'READ IN')
                     hopout.sep()
                 # old hopr files might not contain the VV
                 except KeyError:
@@ -269,8 +178,19 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             sideInfo   = np.array(f['SideInfo'])
             BCNames    = [s.strip().decode('utf-8') for s in cast(h5py.Dataset, f['BCNames'])]
 
-            # Cache the mapping here, so we consider the mesh order
-            linCache   = {}
+            # Pre-compute LINTEN mappings for all element types
+            # > Cache the mapping here, so we consider the mesh order
+            linCache  = {}
+            elemOrder = 100 if mesh_vars.nGeo == 1 else 200
+            elemTypes = tuple([s + elemOrder for s in (4, 5, 6, 8)])
+            for elemType in elemTypes:
+                try:
+                    _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
+                    mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+                    linCache[elemType] = mapLin
+                # Only hexahedrons supported for specific nGeo
+                except ValueError:
+                    pass
 
             with alive_bar(len(elemInfo), title='│             Processing Elements', length=33) as bar:
                 # Construct the elements, meshio format
@@ -283,24 +203,21 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     elemType = elemTypeClass.inam[elemNum]
                     if len(elemType) > 1:
                         elemType  = elemType[0].rstrip(digits)
-                        elemType += str(NDOFperElemType(elemType, mesh_vars.nGeo))
+                        elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+                        elemType += str(elemDOFs)
                     else:
                         elemType  = elemType[0]
+                        elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
 
                     # ChangeBasis currently only supported for hexahedrons
-                    if elemNum in linCache:
-                        mapLin = linCache[elemNum]
-                    else:
-                        _, mapLin = LINTEN(elemNum, order=mesh_vars.nGeo)
-                        mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
-                        linCache[elemNum] = mapLin
+                    mapLin = linCache[elemNum]
 
                     if nGeo == mesh_vars.nGeo:
                         elemIDs   = np.arange(elem[4], elem[5])
                         elemNodes = elemIDs[mapLin[:len(elemIDs)]]
                         elemNodes = np.expand_dims(nodeInfo[elemNodes] - 1 + offsetnNodes, axis=0)
                     else:
-                        nElemNode = (mesh_vars.nGeo+1)**3
+                        nElemNode = NDOFperElemType(elemType, mesh_vars.nGeo)
                         # elemIDs   = np.arange(points.shape[0], points.shape[0]+nElemNode, dtype=np.uint64)
                         elemIDs   = np.arange(len(pointl), len(pointl)+nElemNode, dtype=np.uint64)
                         elemNodes = elemIDs[mapLin[:nElemNode]]
@@ -313,20 +230,24 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         try:
                             meshNodes = change_basis_3D(VdmEqHdf5ToEqMesh, meshNodes)
                             meshNodes = meshNodes.transpose(1, 2, 3, 0)
-                            meshNodes = meshNodes.reshape((int((mesh_vars.nGeo+1)**3.), 3))
+                            meshNodes = meshNodes.reshape((elemDOFs), 3)
                             # points    = np.append(points, meshNodes, axis=0)
                             # IMPORTANT: We need to extend the list of points, not append to it
                             pointl.extend(meshNodes.tolist())
                         except UnboundLocalError:
                             raise UnboundLocalError('Something went wrong with the change basis')
 
-                    if elemType in cells:
-                        cells[elemType].append(elemNodes.astype(np.uint64))
-                    else:
-                        cells[elemType] = [elemNodes.astype(np.uint64)]
+                    cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
+
+                    # When merging grids with zoneID = 1, we want them to have separate IDs after the merge
+                    zoneName: str = str(max(fnum+1, elem[1]))
+
+                    # Add the elem to the cellset
+                    # > CS1: We create a dictionary of the zones and types that we want
+                    cellsets[zoneName][elemType].append(len(cells[elemType]) - 1)
 
                     # Attach the boundary sides
-                    sCounter = 0
+                    sCounter  = 0
                     sideRange = iter(range(elem[2], elem[3]))  # Create an iterator for the loop
                     for index in sideRange:
                         # Obtain the side type
@@ -347,16 +268,13 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         sideName  = sideBase + sideHO
 
                         # Map the face ordering from tensor-product to meshio
-                        order     = FaceOrdering(sideBase, mesh_vars.nGeo)
-                        corners   = elemNodes[0][face_to_nodes(face, elemType, mesh_vars.nGeo)]
+                        order     = FaceOrdering(sideBase, order=1)
+                        corners   = elemNodes[0][face_to_cgns(face, elemType)]
                         corners   = corners.flatten()[order]
                         sideNodes = np.expand_dims(corners, axis=0)
 
                         # Add the side to the cells
-                        if sideName in cells:
-                            cells[sideName].append(sideNodes.astype(np.uint64))
-                        else:
-                            cells[sideName] = [sideNodes.astype(np.uint64)]
+                        cells.setdefault(sideName, []).append(sideNodes.astype(np.uint64))
 
                         # Increment the side counter
                         sCounter        += 1
@@ -374,11 +292,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                         # Add the side to the cellset
                         # > CS1: We create a dictionary of the BC sides and types that we want
-                        if BCName not in cellsets:
-                            cellsets[BCName] = {}
-                        if sideName not in cellsets[BCName]:
-                            cellsets[BCName][sideName] = []
-                        cellsets[BCName][sideName].append(nSides[sideNum]-1)
+                        cellsets[BCName][sideName].append(nSides[sideNum] - 1)
 
                     # Update progress bar
                     bar()
@@ -395,44 +309,41 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # After processing all elements, convert each list of arrays to one array
     # > Convert the list of cells to numpy arrays
-    for cell_type in cells:
-        cells[cell_type] = np.concatenate([a if a.ndim == 2 else a.reshape(1, -1) for a in cells[cell_type]], axis=0)
-
-    # Convert the list of cellsets to numpy arrays
-    for bc in cellsets:
-        for side in cellsets[bc]:
-            cellsets[bc][side] = np.array(cellsets[bc][side], dtype=np.uint64)
+    cells: dict = {cell_type: np.concatenate([a.reshape(1, -1) if a.ndim == 1 else a for a                      in cell_arrays])  # noqa: E272
+                                                                                     for cell_type, cell_arrays in cells.items()}
 
     # Convert points_list back to a NumPy array
     points = np.array(pointl)
 
-    # > CS2: We create a meshio.Mesh object without cell_sets
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells)     # noqa: E251
-                         # cell_sets = cellsets)  # noqa: E114, E116, E251
+    # > CS2: We build the cell sets depending on the cells
+    cell_sets:  dict[str, list] = mesh.cell_sets
+    cell_types: list[Any      ] = list(cells.keys())
+    nCellTypes: int             = len(cell_types)
+    cell_tidx:  dict[Any, int ] = {ctype: idx for idx, ctype in enumerate(cell_types)}
 
-    # > CS3: We build the cell sets depending on the cells
-    cell_sets  = mesh.cell_sets
-    cell_types = [s for s in mesh.cells_dict.keys()]
-    cell_list  = [None for _ in cell_types]
+    # Convert the dict of cellsets to numpy arrays
+    for bc, bc_dict in cellsets.items():
+        # Initialize entry for this BC if not exists
+        if bc not in cell_sets:
+            # Assign the entry to the cell set
+            cell_sets[bc] = [None] * nCellTypes
 
-    for key, val in cellsets.items():
-        for v_key, v_val in val.items():
-            if key in cell_sets.keys():
-                entry = cell_sets[key]
-            else:
-                entry = copy.copy(cell_list)
+        entry = cell_sets[bc]
+
+        # Process all cell types for this BC
+        for side, indices in bc_dict.items():
+            BCIndices = np.fromiter(indices, dtype=np.uint64, count=len(indices))
+
+            # Get cell type index
+            type_idx = cell_tidx[side]
 
             # Find matching cell type and populate the corresponding entry
-            if entry[cell_types.index(v_key)] is not None:
-                entry[cell_types.index(v_key)] = np.append(cast(np.ndarray, entry[cell_types.index(v_key)]), v_val)  # type: ignore
+            if entry[type_idx] is not None:
+                entry[type_idx] = np.concatenate([entry[type_idx], BCIndices])
             else:
-                entry[cell_types.index(v_key)] = v_val
+                entry[type_idx] = BCIndices
 
-            # Assign the entry to the cell set
-            cell_sets[key] = entry  # type: ignore
-
-    # > CS4: We create the final meshio.Mesh object with cell_sets
+    # > CS3: We create the final meshio.Mesh object with cell_sets
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = cells,      # noqa: E251
                          cell_sets = cell_sets)  # noqa: E251

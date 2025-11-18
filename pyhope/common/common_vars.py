@@ -26,10 +26,12 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import importlib.metadata
+import os
 import pathlib
 import re
+import subprocess
 from functools import cache
-from typing import Callable, Final, final
+from typing import Callable, Final, Optional, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -62,8 +64,9 @@ def singleton(cls) -> Callable:
 @singleton
 class Common():
     def __init__(self: Self) -> None:
-        self._version: Final      = self.__version__
         self._program: Final[str] = self.__program__
+        self._version: Final      = self.__version__
+        self._commit:  Final      = self.__commit__
 
     @property
     @cache
@@ -87,6 +90,23 @@ class Common():
         return Version(version)
 
     @property
+    @cache
+    def __commit__(self) -> Optional[str]:
+        # Retrieve commit from git
+        process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+                                   shell=False,
+                                   cwd=os.path.dirname(os.path.realpath(__file__)),
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.DEVNULL)
+
+        commit = process.communicate()[0].strip().decode('ascii')
+
+        # Return the commit if valid
+        if process.returncode != 0:
+            return None
+        return commit
+
+    @property
     def __program__(self) -> str:
         return 'PyHOPE'
 
@@ -98,6 +118,10 @@ class Common():
     def version(self) -> str:
         return str(self._version)
 
+    @property
+    def commit(self) -> str:
+        return str(self._commit)
+
 
 @final
 class Gitlab():
@@ -105,13 +129,21 @@ class Gitlab():
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
-    LIB_VERSION: str = '4.13.1.post1'
-    LIB_SUPPORT: dict[str, dict[str, str]] = {
-        "linux": {
-            "x86_64" : "6d96f1f0a3a3d96f942a6cb62deaf959380d94bbe329d61fdcf3b1dd9762981d",
-            "aarch64": "104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da"
+    LIB_VERSION: dict[str, dict[str, str]] = {
+        'linux': {
+            'x86_64' : '4.15.0.post1',
+            'aarch64': '4.13.1.post1'
         },
-        "darwin": {
-            "arm64"  : "cf91a48a6207c3eae9321a3c97df105320a8c3777b6b5d7411ca7343ebddf187"
+        'darwin': {
+            'arm64'  : '4.13.1.post1'
+        },
+    }
+    LIB_SUPPORT: dict[str, dict[str, str]] = {
+        'linux': {
+            'x86_64' : '4890119b9203788dbffea7e42f398680c5c5dd575cf4c8a5ebc83308db1a1d4b',
+            'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'
+        },
+        'darwin': {
+            'arm64'  : 'cf91a48a6207c3eae9321a3c97df105320a8c3777b6b5d7411ca7343ebddf187'
         }
     }

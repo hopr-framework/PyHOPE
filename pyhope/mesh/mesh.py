@@ -25,8 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import sys
-import traceback
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,17 +44,17 @@ def DefineMesh() -> None:
     from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
     from pyhope.readintools.readintools import CreateLogical, CreateReal
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
-    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode
+    from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode, MeshSort
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateIntFromString('Mode',                            help='Mesh generation mode (1 - Internal, 3 - External [MeshIO])')
-    CreateIntOption(    'Mode', number=MeshMode.MODE_INT,  name='Internal')
-    CreateIntOption(    'Mode', number=MeshMode.MODE_EXT,  name='External')
+    CreateIntFromString('Mode',                            help=f'Mesh generation mode [{", ".join(s.name for s in MeshMode)}]')
+    CreateIntOption(    'Mode', number=MeshMode.Internal.value,  name=MeshMode.Internal.name)
+    CreateIntOption(    'Mode', number=MeshMode.External.value,  name=MeshMode.External.name)
     # Internal mesh generator
     CreateInt(      'nZones',                              help='Number of mesh zones')
     CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
-                                                                                         '... ,, x_8,y_8,z_8/)')  # noqa: E127
+                                                                                         '... ,, x_8,y_8,z_8/)')
     CreateRealArray('X0',              3,   multiple=True, help='Origin of a zone. Equivalent to a corner node.')
     CreateRealArray('DX',              3,   multiple=True, help='Extension of the zone in each spatial direction ' +
                                                                  'starting from the origin X0 corner node')
@@ -77,9 +75,16 @@ def DefineMesh() -> None:
     CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
     # Periodicity
     CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
-    CreateLogical(  'doPeriodicCorrect',    default=True,  help='Enables periodic correction')
+    CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
     # Connections
-    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions')
+    CreateIntFromString('MeshSorting',      default=MeshSort.SFC.name,
+                                            help=f'Mesh sorting mode [{", ".join(s.name for s in MeshSort if s.value != 0)}]')
+    CreateIntOption(    'MeshSorting', number=MeshSort.NONE.value , name=MeshSort.NONE.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.SFC.value  , name=MeshSort.SFC.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.IJK.value  , name=MeshSort.IJK.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.LEX.value  , name=MeshSort.LEX.name)
+    CreateIntOption(    'MeshSorting', number=MeshSort.Snake.value, name=MeshSort.Snake.name)
+    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions (legacy)')
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
     # Mortars
     CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
@@ -92,6 +97,7 @@ def DefineMesh() -> None:
     # Checking
     CreateSection('Mesh Checks')
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckConnectivity'  ,  default=True,  help='Check if the side connectivity, including correct flip')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
     # Transformation
@@ -105,12 +111,15 @@ def DefineMesh() -> None:
     # Stretching
     CreateSection('Stretching')
     CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
-                                                                                             'zone per spatial direction.')  # noqa: E127
+                                                                                             'zone per spatial direction.')
     CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
-                                                                                                 'each spatial direction.')  # noqa: E127
-    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')  # noqa: E127
+                                                                                                 'each spatial direction.')
+    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')
     CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
-                                                                                                               'direction')  # noqa: E127
+                                                                                                               'direction')
+    # Edge connectivity
+    CreateSection('Finite Element Method (FEM) Connectivity')
+    CreateLogical(  'doFEMConnect',         default=False, help='Generate finite element method (FEM) connectivity')
 
 
 def InitMesh() -> None:
@@ -134,8 +143,7 @@ def InitMesh() -> None:
     if not NGeo and not BCOrder:
         mesh_vars.nGeo = 1
     elif NGeo and BCOrder and NGeo != BCOrder - 1:
-        hopout.warning('NGeo / BoundaryOrder must be equal to NGeo + 1!')
-        sys.exit(1)
+        hopout.error('NGeo / BoundaryOrder must be equal to NGeo + 1!')
     else:
         if NGeo is not None:
             mesh_vars.nGeo = NGeo
@@ -143,15 +151,13 @@ def InitMesh() -> None:
             mesh_vars.nGeo = BCOrder - 1
 
         if mesh_vars.nGeo < 1:
-            hopout.warning('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
-            sys.exit(1)
+            hopout.error('Effective boundary order < 1. Try increasing the NGeo / BoundaryOrder parameter!')
 
     # Check if the requested output format can supported the requested polynomial order
     match io_vars.outputformat:
-        case io_vars.MeshFormat.FORMAT_VTK:
+        case io_vars.MeshFormat.VTK.value:
             if mesh_vars.nGeo > 2:
-                hopout.warning('Output format VTK does not support polynomial order > 2!')
-                sys.exit(1)
+                hopout.error('Output format VTK does not support polynomial order > 2!')
 
     # hopout.info('INIT MESH DONE!')
 
@@ -176,14 +182,12 @@ def GenerateMesh() -> None:
     hopout.info('GENERATE MESH...')
 
     match mesh_vars.mode:
-        case MeshMode.MODE_INT:  # Internal Cartesian Mesh
+        case MeshMode.Internal.value:  # Internal Cartesian Mesh
             mesh = MeshCartesian()
-        case MeshMode.MODE_EXT:  # External mesh
+        case MeshMode.External.value:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
-            hopout.warning('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode))
-            traceback.print_stack(file=sys.stdout)
-            sys.exit(1)
+            hopout.error('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode), traceback=True)
 
     # Split hexahedral elements if requested
     mesh = MeshChangeElemType(mesh)

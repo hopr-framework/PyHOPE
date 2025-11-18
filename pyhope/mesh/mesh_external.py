@@ -26,7 +26,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import sys
+# import sys
+from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -45,9 +46,11 @@ def MeshExternal() -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common_tools import sizeof_fmt
     from pyhope.config.config import prmfile
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.reader.reader_gmsh import compatibleGMSH, ReadGMSH, BCCGNS
+    from pyhope.mesh.reader.reader_gambit import ReadGambit
     from pyhope.mesh.reader.reader_hopr import ReadHOPR
     from pyhope.readintools.readintools import CountOption, GetIntArray, GetRealArray, GetStr
     # ------------------------------------------------------
@@ -93,19 +96,32 @@ def MeshExternal() -> meshio.Mesh:
             fnames[iFile] = os.path.abspath(os.path.join(os.path.dirname(prmfile), fname))
             print(hopout.warn('Mesh not found in the CWD, but found in the prmfile directory.'))
         else:
-            hopout.warning('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
-            sys.exit(1)
+            hopout.error('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
 
     if not all(compatibleGMSH(fname) for fname in fnames):
         if any(compatibleGMSH(fname) for fname in fnames):
             hopout.warning('Mixed file formats detected, this is untested and may not work')
             # sys.exit(1)
 
+    # Check the file sizes
+    fsizes = [os.stat(f).st_size for f in fnames]
+    minsize: Final[int] = 128
+    if any(s < minsize for s in fsizes):
+        # Loop over the meshes and emit the warnings
+        for f, s in zip(fnames, fsizes):
+            print(hopout.warn(f'Mesh file "{os.path.basename(f)}" appears too small [{sizeof_fmt(s)}]. Continuing anyways...'))
+
     # Gmsh has to come first as we cannot extend the mesh
     fgmsh = [s for s in fnames if compatibleGMSH(s)]
     if len(fgmsh) > 0:
         mesh = ReadGMSH(fgmsh)
     fnames = list(filter(lambda x: not compatibleGMSH(x), fnames))
+
+    # Gambit meshes can extend the Gmsh mesh
+    fgambit = [s for s in fnames if s.endswith('.neu')]
+    if len(fgambit) > 0:
+        mesh = ReadGambit(fgambit, mesh)
+    fnames = list(filter(lambda x: x not in fgambit, fnames))
 
     # HOPR meshes can extend the Gmsh mesh
     fhopr  = [s for s in fnames if s.endswith('.h5')]
@@ -115,30 +131,34 @@ def MeshExternal() -> meshio.Mesh:
 
     # If there are still files left, we have an unknown format
     if len(fnames) > 0:
-        hopout.warning('Unknown file format {}, exiting...'.format(fnames))
-        sys.exit(1)
+        hopout.error('Unknown file format {}, exiting...'.format(fnames))
 
     # Regenerate the boundary conditions
     if mesh_vars.CGNS.regenerate_BCs:
         mesh = BCCGNS(mesh, fgmsh)
 
+    # Check if mesh has any boundary conditions
+    if len(bcs) == 0:
+        hopout.error('No boundary conditions defined in the parameter file.')
+
     # Reconstruct periodicity vectors from mesh
-    hasPeriodic = np.any([bcs[s].type[0] == 1 for s in range(nBCs)])
+    hasPeriodic = np.any([cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)])
     if len(mesh_vars.vvs) == 0 and hasPeriodic:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))
         # Get max number of periodic alphas
-        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(bc.type[3]) for bc in bcs])))]
+        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
-            hopout.printoption('vv[{}]'.format(iVV+1),'{0:}'.format(np.round(vv['Dir'],6)), 'RECOVER')
+            hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
         hopout.sep()
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()
 
     return mesh
+
 
 def recontruct_periodicity(mesh: meshio.Mesh) -> list:
     # Local imports ----------------------------------------
@@ -152,19 +172,18 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
     for iVV, vv in enumerate(vvs):
 
         # Identify positive and negative periodic boundaries
-        boundaries = {1: None, -1: None}
-        for bc in [s for s in bcs if abs(s.type[3]) == iVV + 1]:
-            sign = np.sign(bc.type[3])
+        boundaries: dict[int, Optional[str]] = {1: None, -1: None}
+        for bc in [s for s in bcs if abs(cast(np.ndarray, s.type)[3]) == iVV + 1]:
+            sign = np.sign(cast(np.ndarray, bc.type)[3])
             if boundaries[sign] is not None:
-                hopout.warning("Multiple periodic boundaries found for the same direction. Exiting...")
-                sys.exit(1)
-            boundaries[sign] = bc.name
+                hopout.error("Multiple periodic boundaries found for the same direction. Exiting...")
+            boundaries[sign] = cast(str, bc.name)
 
         # Compute mean coordinates for both boundaries as a tuple
         mean_coords = tuple(
             np.mean(mesh.points[
                 np.array(sorted({
-                    node for iBlock, cell_block in enumerate(mesh.cells)
+                    node for iBlock, _ in enumerate(mesh.cells)
                     if (mesh.cell_sets[bc] and mesh.cell_sets[bc][iBlock] is not None)
                     for node in mesh.cells[iBlock].data[mesh.cell_sets[bc][iBlock]].flatten()
                 }))
