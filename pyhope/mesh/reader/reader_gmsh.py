@@ -28,6 +28,7 @@
 import gc
 import os
 import re
+import resource
 import shutil
 import subprocess
 import time
@@ -94,6 +95,9 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
+
+    # Setup stacksize
+    resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     hopout.sep()
     gmsh.initialize()
@@ -252,7 +256,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del nbCorners
 
         # Build a k-dimensional tree of all face centroids on the opposing side
-        stree = KDTree(nbCenters)
+        stree = KDTree(nbCenters, balanced_tree=False, compact_nodes=False)
 
     # Now, the same thing for triangular elements
     tConnLen  = 0
@@ -272,7 +276,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del tbCorners
 
         # Build a k-dimensional tree of all face centroids
-        ttree = KDTree(tbCenters)
+        ttree = KDTree(tbCenters, balanced_tree=False, compact_nodes=False)
 
     tol: Final[float] = mesh_vars.tolExternal
 

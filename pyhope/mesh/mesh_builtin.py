@@ -28,6 +28,7 @@
 import copy
 import gc
 import math
+import resource
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -58,6 +59,9 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetIntFromStr, GetRealArray, GetStr
     # ------------------------------------------------------
+
+    # Setup stacksize
+    resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     gmsh.initialize()
 
@@ -361,10 +365,9 @@ def MeshCartesian() -> meshio.Mesh:
 
     if debugvisu and IsDisplay():
         gmsh.fltk.run()
-
-    # Re-set the order for newly created elements
-    gmsh.model.mesh.setOrder(mesh_vars.nGeo)
-    gmsh.model.geo.synchronize()
+        # Re-set the order for newly created elements
+        gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+        gmsh.model.geo.synchronize()
 
     # Sanity check if the mesh contains volume elements
     # > User might have modified the mesh inside the FLTK GUI

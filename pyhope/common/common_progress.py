@@ -44,32 +44,59 @@ barElems: Final[int] = int(1.E5)
 class ProgressBar:
     """ Provide a progress bar outside of the context manager
     """
+    __slots__ = ('bar', '_cm', '_len', '_cur', '_chunk', '_pend')
+
     def __init__(self,
                  title       : Optional[str],
                  value       : int,
                  length      : int  = 33,
                  threshold   : int  = barElems,
+                 chunk       : int  = 0,
                  enrich_print: bool = True) -> None:
         # Local imports ----------------------------------------
         from pyhope.common.common import IsInteractive
         # ------------------------------------------------------
-        if value <= threshold or not IsInteractive():
-            self.bar = None
-            return None
+        self._len   = value
+        self._cur   = 0
+        self._chunk = chunk
+        self._pend  = 0
+        self._cm    = None
+        self.bar    = None
 
-        self._cm   : Final         = alive_bar(title=title, total=value, length=length, enrich_print=enrich_print)
+        if value > threshold and IsInteractive():
+            self._cm = alive_bar(title=title, total=value, length=length, enrich_print=enrich_print)
 
-        # Initialize the progress bar
-        self.bar = self._cm.__enter__()
+            # Initialize the progress bar
+            self.bar = self._cm.__enter__()
 
     def step(self, steps: int = 1) -> None:
-        if self.bar is not None:
+        # Assume sane calls (steps > 0, no large overshoot); keep logic minimal and fast
+        if self.bar is None:
+            return None
+
+        if not self._chunk:
             self.bar(steps)
+            self._cur += steps
+            return None
+
+        # Chunked updates: emit in multiples of _chunk, flush remainder at the end
+        self._pend += steps
+        self._cur  += steps
+
+        if self._pend >= self._chunk:
+            full = (self._pend // self._chunk) * self._chunk
+            if full:
+                self.bar(full)
+                self._pend -= full
+
+        if self._cur >= self._len and self._pend:
+            self.bar(self._pend)
+            self._pend = 0
 
     def title(self, title: str) -> None:
         if self.bar is not None:
             self.bar.title(title)
 
     def close(self) -> None:
-        if self.bar is not None:
+        if self._cm is not None:
             _ = self._cm.__exit__(None, None, None)

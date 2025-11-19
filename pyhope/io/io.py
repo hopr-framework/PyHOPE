@@ -360,8 +360,9 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     for iSide, side in enumerate(sides):
         # Connected sides
         if side.connection is None:                                # BC side
-            sideInfo[iSide, SIDE.NBELEMID      ] = 0
-            sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
+            # Array is already zeroed
+            # sideInfo[iSide, SIDE.NBELEMID      ] = 0
+            # sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
             sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
         elif side.locMortar is not None:                           # Small mortar side
             nbSideID = side.connection
@@ -387,8 +388,9 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
             # Periodic/inner sides still have a BCID
             if side.bcid is not None:
                 sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
-            else:
-                sideInfo[iSide, SIDE.BCID      ] = 0
+            # Array is already zeroed
+            # else:
+            #     sideInfo[iSide, SIDE.BCID      ] = 0
 
     # Pre-allocate arrays
     nNodes: Final[int] = elem_nodes.sum(dtype=int)  # number of non-unique nodes
@@ -407,10 +409,11 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     nodeCount = 0
     for elem in elems:
         # Mesh coordinates are stored in meshIO sorting
-        elemType = elem.type
-        mapLin   = linCache[elemType]
+        elemType   = elem.type
+        mapLin     = linCache[elemType]
 
-        elemNodes  = np.asarray(elem.nodes)
+        # elemNodes  = np.asarray(elem.nodes)
+        elemNodes  = elem.nodes
         nElemNodes = elemNodes.size
         indices    = nodeCount + mapLin[:nElemNodes]
 

@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
 from io import TextIOWrapper
-from typing import cast
+from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -185,11 +185,11 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq, item) -> int:
+def find_index(seq: Union[list, np.ndarray], item) -> int:
     """ Find the first occurrences of a key in a list
     """
-    if type(seq) is np.ndarray:
-        seq = seq.tolist()
+    # if type(seq) is np.ndarray:
+    #     seq = seq.tolist()
 
     if type(item) is np.ndarray:
         for index, val in enumerate(seq):
@@ -202,7 +202,7 @@ def find_index(seq, item) -> int:
     return -1
 
 
-def find_indices(seq, item) -> tuple[int, ...]:
+def find_indices(seq: Union[list, np.ndarray], item) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:
@@ -212,7 +212,7 @@ def find_indices(seq, item) -> tuple[int, ...]:
     locs = []
     while True:
         try:
-            loc = seq.index(item, start_at+1)
+            loc = cast(list, seq).index(item, start_at+1)
         except ValueError:
             break
         else:

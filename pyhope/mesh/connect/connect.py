@@ -63,6 +63,8 @@ def flip_analytic(side: int, nbside: np.ndarray) -> int:
     # Local imports ----------------------------------------
     from pyhope.common.common import find_index
     # ------------------------------------------------------
+    # PERF: Finding in list is faster than numpy
+    # return int(np.nonzero(nbside == side)[0])
     return find_index(nbside, side)
 
 
@@ -279,7 +281,9 @@ def ConnectMesh() -> None:
             print(hopout.warn(f'Detected boundary conditions {[bc.name for bc in bcs]}'))
         hopout.error('Could not find any 2D boundary conditions, exiting...')
 
-    bar = ProgressBar(value=len(sides), title='│                 Preparing Sides')
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(sides)/(400)))))
+    bar = ProgressBar(value=len(sides), title='│                 Preparing Sides', length=33, chunk=chunk, threshold=1)
 
     # Map sides to BC
     # > Create a dict containing only the face corners
@@ -293,15 +297,14 @@ def ConnectMesh() -> None:
     #     side_corners = dict(results)
     # else:
     #     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
-    side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems
-                                                                       for side in cast(Union[list, np.ndarray], elem.sides)}
-    # > Create a dict containing only the periodic corners
-    peri_corners = {}
-
     # Build the reverse dictionary
     corner_side = defaultdict(list)
-    for side, corners in side_corners.items():
-        corner_side[corners].append(side)
+    for elem in elems:
+        for side in cast(Union[list, np.ndarray], elem.sides):
+            corner_side[hash(tuple(sorted(sides[side].corners)))].append(side)
+
+    # > Create a dict containing only the periodic corners
+    peri_corners = {}
 
     # Find the mapping to the (N-1)-dim elements
     csetMap = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
@@ -340,8 +343,7 @@ def ConnectMesh() -> None:
             # Map the unique BC sides to our non-unique elem sides
             for iSide in iBCsides:
                 # Get the corner nodes
-                corners = np.sort(mapFaces[iSide][:nCorners])
-                corners = hash(corners.tobytes())
+                corners = hash(tuple(sorted(mapFaces[iSide][:nCorners])))
 
                 if corners not in corner_side:
                     print()
@@ -378,8 +380,7 @@ def ConnectMesh() -> None:
                     # Add the periodic nodes of the periodic sides to the side_corners
                     # > Only negative BC_alpha allowed here
                     if bcs[bcID].type[0] == 1 and bcs[bcID].type[3] > 0:
-                        pNodes = np.fromiter((mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners]), dtype=int)
-                        pNodes = hash(np.sort(pNodes).tobytes())
+                        pNodes = hash(tuple(sorted(mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners])))
                         peri_corners[sideID] = pNodes
                         # Update the reverse dictionary immediately
                         corner_side[pNodes].append(sideID)

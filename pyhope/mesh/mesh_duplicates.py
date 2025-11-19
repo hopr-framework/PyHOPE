@@ -32,6 +32,7 @@ from typing import Dict, Final, Tuple, cast
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# import fastremap as fr
 from scipy.spatial import KDTree
 from scipy.sparse.csgraph import connected_components
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -55,14 +56,14 @@ def _unionFind(parent: np.ndarray, x: int) -> int:
 def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
     ra, rb = _unionFind(parent, a), _unionFind(parent, b)
     if ra == rb:
-        return
+        return None
     if rank[ra] < rank[rb]:
-        parent[ra] = rb
+        parent[ra]  = rb
     elif rank[ra] > rank[rb]:
-        parent[rb] = ra
+        parent[rb]  = ra
     else:
-        parent[rb] = ra
-        rank[ra] += 1
+        parent[rb]  = ra
+        rank[  ra] += 1
 
 
 def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
@@ -79,7 +80,7 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
             return np.zeros(1, dtype=int)
 
     # Create a KDTree for the mesh points
-    tree = KDTree(points)
+    tree = KDTree(points, balanced_tree=False, compact_nodes=False)
 
     match method:
         case 'union_find':
@@ -146,6 +147,7 @@ def EliminateDuplicates() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common_unique import unique
     from pyhope.mesh.connect.connect import find_bc_index
     # ------------------------------------------------------
     hopout.routine('Removing duplicate points')
@@ -228,7 +230,9 @@ def EliminateDuplicates() -> None:
     periNodes = nodeTrans.copy()
 
     # Eliminate duplicate points
-    points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
+    # points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
+    # points, inverseIndices = fr.unique(points, axis=0, return_inverse=True)
+    points, inverseIndices = unique(points, return_inverse=True)
     # PERF: This should be faster but produces slightly wrong results
     # # > Create a 1D view of the 2D points array where each row is a single item
     # voidView = np.ascontiguousarray(points).view(np.dtype((np.void, points.dtype.itemsize * points.shape[1])))
@@ -274,6 +278,7 @@ def EliminateDuplicates() -> None:
     # Eliminate duplicates
     # > reps[i] is the chosen representative index for point i
     indices, inverseIndices = np.unique(reps, return_inverse=True)
+    # indices, inverseIndices = fr.unique(reps, return_inverse=True)
     mesh_vars.mesh.points = points[indices]
     del reps, indices
 

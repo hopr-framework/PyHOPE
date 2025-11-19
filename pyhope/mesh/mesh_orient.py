@@ -52,10 +52,11 @@ def check_orientation(ionodes : np.ndarray,
     """
     mapLin   = LINMAP(elemType, order=mesh_vars.nGeo)
     iopoints = mesh_vars.mesh.points
-    points   = iopoints[ionodes[mapLin]]
+    mapnodes = ionodes[mapLin]
+    points   = iopoints[mapnodes]
 
     # Center of element
-    cElem    = np.mean(points, axis=(0, 1, 2))
+    cElem    = points.reshape(-1, 3).mean(axis=0)
 
     success  = True
     sface    = None
@@ -63,17 +64,15 @@ def check_orientation(ionodes : np.ndarray,
     for face in faces(elemType):
         # Center of face
         indices, doTransp = dir_to_nodes(face, elemType, mesh_vars.nGeo)
-        fnodes = ionodes[mapLin][indices]
-        if doTransp:
-            fnodes = fnodes.transpose()
+        fnodes  = mapnodes[indices] if not doTransp else mapnodes[indices].transpose()
         fpoints = iopoints[fnodes]
 
         # Tangent and normal vectors
-        # cFace  = np.mean(fpoints, axis=(0, 1))
-        # nVecFace = cElem - cFace
-        nVecFace = cElem - np.mean(fpoints, axis=(0, 1))
+        nVecFace = cElem - fpoints.reshape(-1, 3).mean(axis=0)
         # nVecFace = nVecFace / np.linalg.norm(nVecFace)
-        nVecFace = nVecFace / np.sqrt(np.dot(nVecFace, nVecFace))
+        # nVecFace = nVecFace / np.sqrt(np.dot(nVecFace, nVecFace))
+        # > Manually compute dot product
+        nVecFace = nVecFace / np.sqrt(nVecFace[0]*nVecFace[0] + nVecFace[1]*nVecFace[1] + nVecFace[2]*nVecFace[2])
 
         vec1 = fpoints[-1, 0, :] - fpoints[0, 0, :]
         vec2 = fpoints[0, -1, :] - fpoints[0, 0, :]
@@ -86,8 +85,9 @@ def check_orientation(ionodes : np.ndarray,
         normal[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0]
 
         # Dot product and check if normal points outwards
-        dotprod = np.dot(nVecFace, normal)
-        if dotprod < 0:
+        # > Manually compute dot product
+        dotprod = nVecFace[0]*normal[0] + nVecFace[1]*normal[1] + nVecFace[2]*normal[2]
+        if dotprod < 0.:
             success = False
             sface   = face
             break
@@ -154,7 +154,8 @@ def OrientMesh() -> None:
             # Run in parallel with a chunk size
             # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
             res   = run_in_parallel(process_chunk,
-                                    tasks, chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),
+                                    tasks,
+                                    chunk_size=max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),
                                    )
         else:
             res   = np.fromiter(((check_orientation(ioelems[iElem - nElems], elemType), iElem)

@@ -40,6 +40,12 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    from pyhope.mesh.mesh_vars import BC
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.output.output as hopout
@@ -80,11 +86,11 @@ def ConnectMortar( nConnSide  : list
     points: Final[np.ndarray] = mesh_vars.mesh.points
 
     # Set BC and periodic sides
-    bcs: Final[list[type | None]] = mesh_vars.bcs
-    vvs: Final[list             ] = mesh_vars.vvs
+    bcs: Final[list[BC | None]] = mesh_vars.bcs
+    vvs: Final[list           ] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter))
+    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter), balanced_tree=False, compact_nodes=False)
     indexList: Final[IndexedLists] = IndexedLists()
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
