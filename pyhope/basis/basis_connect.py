@@ -176,7 +176,8 @@ def CheckConnect() -> None:
 
     if len(res) > 0:
         # Flatten per-element results (skip None placeholders)
-        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None for result in elem_results)
+        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
+                               for result       in elem_results)  # noqa: E272
 
         nGeo:      Final[int]        = mesh_vars.nGeo
         sides:     Final[list]       = mesh_vars.sides
@@ -199,7 +200,7 @@ def CheckConnect() -> None:
                     continue
                 nconn += 1
 
-        for result in results:
+        for result in cast(tuple[tuple], results):
             # Unpack the results
             side    = sides[result[1]]
             elem    = elems[side.elemID]
