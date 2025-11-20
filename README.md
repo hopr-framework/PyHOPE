@@ -4,8 +4,6 @@ PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. And
 
 PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. Furthermore, PyHOPE utilizes [Gmsh](https://gmsh.info) for the initial mesh generation and conversion before converting it to its internal representation. The internal representation is loosely based on [meshio](https://github.com/nschloe/meshio) but augmented with additional information required for high-order meshes.
 
-This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
-
 # Installation
 PyHOPE is built using standard Python packages. You can install PyHOPE by following these steps. 
 
@@ -184,4 +182,30 @@ from pyhope import Basis, Mesh
 with Mesh('1-01-cartbox_mesh.h5') as m:
     elems = m.elems
     lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
+```
+
+# Cite
+This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the following article.
+```bibtex
+@article{kopper2025pyhope:joss,
+  title        = {{PyHOPE}: A Python Toolkit for Three-Dimensional Unstructured High-Order Meshes},
+  author       = {Kopper, Patrick and Blind, Marcel P. and Schwarz, Anna and Kurz, Marius and Rodach, Felix and Copplestone, Stephen M. and Beck, Andrea D.},
+  journal      = {Journal of Open Source Software},
+  year         = {2025},
+  volume       = {10}, 
+  number       = {115}, 
+  pages        = {8769},
+  publisher    = {The Open Journal},
+  doi          = {10.21105/joss.08769}
+}
+```
+In addition, you can also directly refer to this repository as
+```bibtex
+@misc{kopper2025pyhope:repo,
+  title        = {{PyHOPE}: A Python Toolkit for Three-Dimensional Unstructured High-Order Meshes},
+  author       = {Kopper, Patrick and Blind, Marcel P. and Schwarz, Anna and Kurz, Marius and Rodach, Felix and Copplestone, Stephen M. and Beck, Andrea D.},
+  year         = {2025},
+  howpublished = {\url{https://github.com/hopr-framework/PyHOPE}},
+  doi          = {10.5281/zenodo.17414843}
+}
 ```
