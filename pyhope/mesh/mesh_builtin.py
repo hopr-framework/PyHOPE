@@ -369,14 +369,29 @@ def MeshCartesian() -> meshio.Mesh:
         gmsh.model.mesh.setOrder(mesh_vars.nGeo)
         gmsh.model.geo.synchronize()
 
-    # Sanity check if the mesh contains volume elements
+    # Consistency check if the mesh contains volume elements
     # > User might have modified the mesh inside the FLTK GUI
-    gmsh_elems = np.asarray((gmsh.option.getNumber('Mesh.NbTetrahedra'),
-                             gmsh.option.getNumber('Mesh.NbPrisms'    ),
-                             gmsh.option.getNumber('Mesh.NbPyramids'  ),
-                             gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
-    if not np.any(gmsh_elems):
+    # gmshElems = np.asarray((gmsh.option.getNumber('Mesh.NbTetrahedra'),
+    #                         gmsh.option.getNumber('Mesh.NbPrisms'    ),
+    #                         gmsh.option.getNumber('Mesh.NbPyramids'  ),
+    #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
+    gmshTypes = gmsh.model.mesh.getElementTypes()
+    gmshElems = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
+                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+                              if dim == 3])
+    if not np.any(gmshElems):
         hopout.error('Generated mesh does not contain volume elements, exiting...')
+
+    # Consistency check if the mesh elements have the correct order
+    gmshIssue  = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
+                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+                              if dim == 3 and order != mesh_vars.nGeo])
+
+    if gmshIssue.size > 0:
+        for elem in gmshIssue:
+            print(hopout.warn(f'Wrong Gmsh order {elem[1]} for element {elem[0].replace(" ", "")}'))
+        elemOrders = set([int(elem[1]) for elem in gmshIssue])
+        hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order {set([mesh_vars.nGeo])}')
 
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)
