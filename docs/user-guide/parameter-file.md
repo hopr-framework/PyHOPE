@@ -108,7 +108,8 @@ Mesh parameters controlling the respective mesh generation mode.
 | `Mode`                                   | int &#124; string                  | —                                    | `1` (internal) &#124; `3` (external)    | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators. |
 | `NGeo`                                   | int                                | `1`                                   | ≥ 1                                    | Polynomial order used for representation of curved elements. Higher orders improve geometric fidelity. |
 | `BoundaryOrder`                          | int                                | `2`                                   | ≥ 2                                    | Legacy parameter for polynomial order used for representation of curved elements. Prefer `NGeo` where applicable; kept for backward compatibility. |
-| `doSortIJK`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Reorder elements primarily along I, then J, then K instead of the default space-filling Hilbert curve. |
+| `MeshSorting`                            | sting                              | `SFC`                                 | `SFC`, `IJK`, `LEX`, `Snake`, `None`   | Mesh sorting mode to reorder the elements. |
+| `doSortIJK`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Reorder elements primarily along I, then J, then K instead of the default space-filling Hilbert curve (legacy). |
 
 ### Internal Mesh Generator (Mode = `1` | `internal`)
 

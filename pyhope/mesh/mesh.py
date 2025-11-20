@@ -78,7 +78,7 @@ def DefineMesh() -> None:
     CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
     # Connections
     CreateIntFromString('MeshSorting',      default=MeshSort.SFC.name,
-                                            help=f'Mesh sorting mode [{", ".join(s.name for s in MeshSort if s.value != 0)}]')
+                                            help=f'Mesh sorting mode [{", ".join([s.name for s in MeshSort if s.value != 0] + ["None"])}]')  # noqa: E501
     CreateIntOption(    'MeshSorting', number=MeshSort.NONE.value , name=MeshSort.NONE.name)
     CreateIntOption(    'MeshSorting', number=MeshSort.SFC.value  , name=MeshSort.SFC.name)
     CreateIntOption(    'MeshSorting', number=MeshSort.IJK.value  , name=MeshSort.IJK.name)
