@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
 import re
-from typing import Final, Optional
+from typing import Final, Optional, cast
 from collections.abc import Iterable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -287,8 +287,8 @@ def CheckWatertight() -> None:
 
     if len(res) > 0:
         # Flatten per-element results (skip None placeholders)
-        results = tuple(result for elem_results in res if  isinstance(elem_results, Iterable)  # noqa: E271
-                                                       and elem_results is not None for result in elem_results)
+        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
+                               for result       in elem_results)  # noqa: E272
 
         # Compute total number of checked connections without materializing all results
         nconn = 0
@@ -307,7 +307,7 @@ def CheckWatertight() -> None:
                     continue
                 nconn += 1
 
-        for result in results:
+        for result in cast(tuple[tuple], results):
             # Unpack the results
             side    = sides[result[1]]
             elem    = elems[side.elemID]
