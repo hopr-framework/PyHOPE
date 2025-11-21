@@ -96,9 +96,13 @@ def DefineMesh() -> None:
     # Checking
     CreateSection('Mesh Checks')
     CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
-    CreateLogical(  'CheckConnectivity'  ,  default=True,  help='Check if the side connectivity, including correct flip')
+    CreateLogical(  'CheckConnectivity',    default=True,  help='Check if the side connectivity, including correct flip')
     CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
+    # Curving
+    # Legacy option: SplitElemFile
+    # > https://hopr.readthedocs.io/en/latest/tutorials/externalmesheswithcurvedboundaries.html#curving-using-subdivided-surface-mesh
+    CreateStr(       'SplitElemFile',                       help='Name of subdivided surface mesh file')
     # Transformation
     CreateSection('Transformation')
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
@@ -172,6 +176,7 @@ def GenerateMesh() -> None:
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
     from pyhope.mesh.mesh_vars import MeshMode
+    from pyhope.mesh.mesh_rbf import MeshCurveRBF
     from pyhope.mesh.topology.mesh_splittohex import MeshSplitToHex
     from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
     # ------------------------------------------------------
@@ -191,6 +196,8 @@ def GenerateMesh() -> None:
     mesh = MeshChangeElemType(mesh)
     # Split simplex elements if requested
     mesh = MeshSplitToHex(mesh)
+    # Curve with radial basis functions if requested
+    mesh = MeshCurveRBF(mesh)
     mesh_vars.mesh = mesh
 
     # Final count

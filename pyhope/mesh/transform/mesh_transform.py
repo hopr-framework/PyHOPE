@@ -182,22 +182,22 @@ def TransformMesh() -> None:
     meshRotC  = GetRealArray('meshRotCenter')
 
     if not np.array_equal(meshRot3D, [0.0, 0.0, 0.0]):
-      a = meshRot3D[0]*np.pi/180
-      b = meshRot3D[1]*np.pi/180
-      c = meshRot3D[2]*np.pi/180
-      meshRot      = np.zeros((3,3))
-      meshRot[0,0] = np.cos(a)*np.cos(b)
-      meshRot[0,1] = np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
-      meshRot[0,2] = np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
-      meshRot[1,0] = np.sin(a)*np.cos(b)
-      meshRot[1,1] = np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
-      meshRot[1,2] = np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
-      meshRot[2,0] = -np.sin(b)
-      meshRot[2,1] = np.cos(b)*np.sin(c)
-      meshRot[2,2] = np.cos(b)*np.cos(c)
+        a = meshRot3D[0]*np.pi/180
+        b = meshRot3D[1]*np.pi/180
+        c = meshRot3D[2]*np.pi/180
+        meshRot       = np.zeros((3, 3))
+        meshRot[0, 0] = np.cos(a)*np.cos(b)
+        meshRot[0, 1] = np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
+        meshRot[0, 2] = np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
+        meshRot[1, 0] = np.sin(a)*np.cos(b)
+        meshRot[1, 1] = np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
+        meshRot[1, 2] = np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
+        meshRot[2, 0] = -np.sin(b)
+        meshRot[2, 1] = np.cos(b)*np.sin(c)
+        meshRot[2, 2] = np.cos(b)*np.cos(c)
     else:
-      meshRot   = GetRealArray('meshRot')
-      meshRot   = np.array(meshRot).reshape(3, 3)
+        meshRot = GetRealArray('meshRot')
+        meshRot = np.array(meshRot).reshape(3, 3)
 
     # Scale mesh
     if meshScale != 1.0:

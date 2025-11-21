@@ -93,7 +93,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     from pyhope.io.io_vars import debugvisu
     from pyhope.mesh.topology.mesh_serendipity import convertSerendipityToFullLagrange
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
-    from pyhope.readintools.readintools import GetLogical
+    from pyhope.readintools.readintools import CountOption, GetLogical
     # ------------------------------------------------------
 
     # Setup stacksize
@@ -198,7 +198,8 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
                                                for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
                               if dim == 3 and order != mesh_vars.nGeo])
 
-    if gmshIssue.size > 0:
+    # RBF curving is applied at the end, leave the mesh for now
+    if gmshIssue.size > 0 and CountOption('SplitElemFile') == 0:
         for elem in gmshIssue:
             print(hopout.warn(f'Wrong Gmsh order {elem[1]} for element {elem[0].replace(" ", "")}'))
         elemOrders = set([int(elem[1]) for elem in gmshIssue])
