@@ -257,6 +257,27 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
 
 
+@cache
+def NDOFperElemType(elemType: str, nGeo: int) -> int:
+    """ Calculate the number of degrees of freedom for a given element type
+    """
+    match elemType:
+        case _ if elemType.startswith('triangle'):
+            return round((nGeo+1)*(nGeo+2)/2.)
+        case _ if elemType.startswith('quad'):
+            return round((nGeo+1)**2)
+        case _ if elemType.startswith('tetra'):
+            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
+        case _ if elemType.startswith('pyramid'):
+            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
+        case _ if elemType.startswith('wedge'):
+            return round((nGeo+1)**2 *(nGeo+2)/2.)
+        case _ if elemType.startswith('hexahedron'):
+            return round((nGeo+1)**3)
+        case _:
+            raise ValueError(f'Unknown element type {elemType}')
+
+
 # @dataclass
 # class FaceOrdering:
 #     side_type: str

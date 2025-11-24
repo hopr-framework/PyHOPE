@@ -31,7 +31,6 @@ import os
 import shutil
 from collections import defaultdict
 # from dataclasses import dataclass, field
-from functools import cache
 from string import digits
 from typing import Any, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -50,27 +49,6 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-@cache
-def NDOFperElemType(elemType: str, nGeo: int) -> int:
-    """ Calculate the number of degrees of freedom for a given element type
-    """
-    match elemType:
-        case _ if elemType.startswith('triangle'):
-            return round((nGeo+1)*(nGeo+2)/2.)
-        case _ if elemType.startswith('quad'):
-            return round((nGeo+1)**2)
-        case _ if elemType.startswith('tetra'):
-            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
-        case _ if elemType.startswith('pyramid'):
-            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
-        case _ if elemType.startswith('wedge'):
-            return round((nGeo+1)**2 *(nGeo+2)/2.)
-        case _ if elemType.startswith('hexahedron'):
-            return round((nGeo+1)**3)
-        case _:
-            raise ValueError(f'Unknown element type {elemType}')
-
-
 def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Standard libraries -----------------------------------
     import tempfile
@@ -78,7 +56,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
-    from pyhope.mesh.mesh_common import LINTEN, FaceOrdering
+    from pyhope.mesh.mesh_common import LINTEN, FaceOrdering, NDOFperElemType
     from pyhope.mesh.mesh_common import faces, face_to_cgns
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
