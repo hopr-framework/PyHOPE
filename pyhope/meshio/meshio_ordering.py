@@ -257,8 +257,7 @@ class NodeOrdering:
     )
 
     def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
-        """
-        Return the meshIO node ordering for a given element type.
+        """ Return the meshIO node ordering for a given element type
         """
 
         if isinstance(elemType, (int, np.integer)):
@@ -288,6 +287,44 @@ class NodeOrdering:
 
         ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
+
+    def ordering_meshio_to_gmsh(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+        """ Return the Gmsh node ordering for a given element type
+            > Inverse of ordering_gmsh_to_meshio
+        """
+
+        if isinstance(elemType, (int, np.integer)):
+            elemType = self._gmsh_typing[int(elemType)]
+
+        # 0D/1D/2D elements
+        if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
+            return cast(np.ndarray, idx)
+
+        # Check if we have a fixed ordering
+        if elemType in self._meshio_ordering:
+            perm      = np.asarray(self._meshio_ordering[elemType], dtype=int)  # meshio <- gmsh
+            inv       = np.empty_like(perm)
+            inv[perm] = np.arange(perm.size, dtype=int)                    # gmsh <- meshio
+            return idx[:, inv]
+
+        # Check if we are requesting higher-order simplices than currently implemented
+        if not elemType.startswith('hexahedron'):
+            raise ValueError(f'Unknown element type {elemType}')
+
+        # For hexahedrons with analytic ordering
+        nNodes = 8 if elemType.partition('hexahedron')[2] == '' else int(elemType.partition('hexahedron')[2])
+
+        if self.deviation(nNodes ** (1/3) - 1) < self.deviation((nNodes - 8)/12 + 1):
+            nGeo = round(nNodes ** (1/3) - 1)
+            incomplete = False
+        else:
+            nGeo = round((nNodes - 8)/12 + 1)
+            incomplete = True
+
+        perm      = np.asarray(HEXREORDER(nGeo, incomplete=incomplete), dtype=int)
+        inv       = np.empty_like(perm)
+        inv[perm] = np.arange(perm.size, dtype=int)
+        return idx[:, inv]
 
     def deviation(self, x: float) -> float:
         return abs(x - round(x))

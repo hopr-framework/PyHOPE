@@ -84,7 +84,10 @@ def IO() -> None:
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
     from pyhope.io.io_debug import DebugIO
+    from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
+    from pyhope.meshio.meshio_convert import meshio_to_gmsh
+    from pyhope.meshio.meshio_nodes import NumNodesPerCell
     # ------------------------------------------------------
 
     hopout.separator()
@@ -192,33 +195,36 @@ def IO() -> None:
             mesh.write(fname, file_format='vtk42')
 
         case MeshFormat.GMSH.value:
+            # Local imports ----------------------------------------
+            from pyhope.meshio.meshio_convert import MeshioGmshOrderingPatch
+            # ------------------------------------------------------
+            # Monkey-patching MeshIO
+            MeshioGmshOrderingPatch()
+
             mesh  = mesh_vars.mesh
             fname = '{}_mesh.msh'.format(pname)
 
-            # Mixed elements required gmsh:dim_tags
-            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
-            mesh.point_data.update({'gmsh:dim_tags': np.array([[0, i] for i in range(len(mesh.points))])})
+            # Instantiate the Gmsh cell type mapping
+            gmshCellTypes = GMSHCELLTYPES()
 
-            # Mixed elements require gmsh:physical and gmsh:geometrical
-            # > FIXME: THIS ARE DUMMY ENTRIES AND ONLY GENERATE A POINT MESH
-            cell_types = mesh.cells_dict.keys()
-            cell_data  = [np.ones(mesh.cells_dict[cell_type].data.shape[1], dtype=int) for cell_type in cell_types
-]
-            mesh.cell_data_dict.update({'gmsh:physical':    cell_data})
-            mesh.cell_data_dict.update({'gmsh:geometrical': cell_data})
+            # Print the final output
+            hopout.sep()
+            numNodes = NumNodesPerCell()
+            for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
+                cellType  = ''.join([s for s in cell.type if not s.isdigit()])
+                cellNodes = numNodes[cellType]
+                elemOrder = 100 if not any(s.isdigit() for s in cell.type) else 200
+                elemType  = cellNodes + elemOrder
+                hopout.info(f'{ELEMTYPE(elemType)}: {len(cell):12d}')
+
+            gmshMesh = meshio_to_gmsh(mesh)
 
             hopout.sep()
             hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
-
-            hopout.warning('GMSH output is not yet fully supported, only a point mesh is generated!')
-
-            mesh.write(fname, file_format='gmsh')
+            gmshMesh.write(fname, file_format='gmsh', binary=False)
 
         case _:  # Default
             hopout.error('Unknown output format {}, exiting...'.format(io_vars.outputformat))
-
-    # hopout.sep()
-    # hopout.info('OUTPUT MESH DONE!')
 
 
 def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
