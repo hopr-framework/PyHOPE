@@ -125,7 +125,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             nodeCoords = np.array(f['NodeCoords'])
 
             # Read nGeo
-            nGeo       = int(cast(int, f.attrs['Ngeo']))
+            nGeo       = int(cast(np.ndarray, f.attrs['Ngeo']).squeeze())
 
             # Try reading in periodic vector if it is not provided in file
             if len(mesh_vars.vvs) == 0:
