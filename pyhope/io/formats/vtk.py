@@ -25,11 +25,12 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-# from functools import cache
-# from typing import Tuple
+from functools import cache
+from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -39,229 +40,113 @@
 # ==================================================================================================================================
 
 
-# def edgePointVTK(order: int, edge: int, node: int) -> np.ndarray:
-#     match edge:
-#         case 0:  # z- / base
-#             return np.array([node      , 0         ], dtype=int)
-#         case 1:  # y+ / base
-#             return np.array([order     , node      ], dtype=int)
-#         case 2:  # z+ / base
-#             return np.array([order-node, order     ], dtype=int)
-#         case 3:  # y- / base
-#             return np.array([0         , order-node], dtype=int)
-#         case _:
-#             sys.exit(1)
-#
-#
-# @cache
-# def HEXMAPVTK(order: int) ->  -> Tuple[np.ndarray, np.ndarray]:
-#     """ VTK -> IJK ordering for high-order hexahedrons
-#         > Loosely based on [Gmsh] "generatePointsHexCGNS"
-#         > [Jens Ulrich Kreber] "paraview-scripts/node_ordering.py"
-#
-#         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
-#         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
-#     """
-#     map = np.zeros((order, order, order), dtype=int)
-#
-#     if order == 1:
-#         map[0, 0, 0] = 0
-#         tensor       = map
-#         return map, tensor
-#
-#     # Principal vertices
-#     map[0      , 0      , 0      ] = 1
-#     map[order-1, 0      , 0      ] = 2
-#     map[order-1, order-1, 0      ] = 3
-#     map[0      , order-1, 0      ] = 4
-#     map[0      , 0      , order-1] = 5
-#     map[order-1, 0      , order-1] = 6
-#     map[order-1, order-1, order-1] = 7
-#     map[0      , order-1, order-1] = 8
-#
-#     if order == 2:
-#         # Python indexing, 1 -> 0
-#         map -= 1
-#         # Reshape into 1D array, tensor-product style
-#         tensor = []
-#         for k in range(order):
-#             for j in range(order):
-#                 for i in range(order):
-#                     tensor.append(int(map[i, j, k]))
-#
-#         return map, np.asarray(tensor)
-#
-#     # Internal points of base quadrangle edges (x-)
-#     count = 8
-#     for iFace in range(4):
-#         for iNode in range(1, order-1):
-#             # Assemble mapping to tuple, base quadrangle -> z = 0
-#             count += 1
-#             edge  = edgePointVTK(order-1, iFace, iNode)
-#             index = (int(edge[0]), int(edge[1]), 0)
-#             map[index] = count
-#
-#     # Internal points of top quadrangle edges
-#     for iFace in range(4):
-#         for iNode in range(1, order-1):
-#             # Assemble mapping to tuple, top  quadrangle -> z = order
-#             count += 1
-#             edge  = edgePointVTK(order-1, iFace, iNode)
-#             index = (int(edge[0]), int(edge[1]), order-1)
-#             map[index] = count
-#
-#     # Internal points of mounting edges
-#     for iFace in range(4):
-#         edge  = edgePointVTK(order-1, (iFace+3) % 4, order-1)
-#         for iNode in range(1, order-1):
-#             # Assemble mapping to tuple, mounting edges -> z ascending
-#             count += 1
-#             index = (int(edge[0]), int(edge[1]), iNode)
-#             map[index] = count
-#     # > VTK9 swapped 3/4
-#     # (0      ,0)
-#     # for iNode in range(1, order-1):
-#     #     # Assemble mapping to tuple, mounting edges -> z ascending
-#     #     count += 1
-#     #     index = (0           , 0           , iNode)
-#     #     map[index] = count
-#     # # (order-1,0)
-#     # for iNode in range(1, order-1):
-#     #     # Assemble mapping to tuple, mounting edges -> z ascending
-#     #     count += 1
-#     #     index = (order-1     , 0           , iNode)
-#     #     map[index] = count
-#     # # (order-1,order-1)
-#     # for iNode in range(1, order-1):
-#     #     # Assemble mapping to tuple, mounting edges -> z ascending
-#     #     count += 1
-#     #     index = (order-1     , order-1     , iNode)
-#     #     map[index] = count
-#     # # (order-1,order-1)
-#     # for iNode in range(1, order-1):
-#     #     # Assemble mapping to tuple, mounting edges -> z ascending
-#     #     count += 1
-#     #     index = (order-1     , order-1     , iNode)
-#     #     map[index] = count
-#
-#     # WARNING:THIS IS HOW IT SHOULD BE
-#     # Internal points of upstanding faces
-#     # > x- face
-#     k = 0
-#     # Fill the map
-#     for j in range(order-2):
-#         for i in range(order-2):
-#             count += 1
-#             index = (k    , i+1  , j+1  )
-#             map[index] = count
-#     # > x+ face
-#     k = order-1
-#     # Fill the map
-#     for j in range(order-2):
-#         for i in range(order-2):
-#             count += 1
-#             index = (k    , i+1  , j+1  )
-#             map[index] = count
-#     # > y- face
-#     k = 0
-#     # Fill the map
-#     for j in range(order-2):
-#         for i in range(order-2):
-#             count += 1
-#             index = (i+1  , k    , j+1  )
-#             map[index] = count
-#     # > y+ face
-#     k = order-1
-#     # Fill the map
-#     for j in range(order-2):
-#         for i in range(order-2):
-#             count += 1
-#             index = (i+1  , k    , j+1  )
-#             map[index] = count
-#     # Internal points of base quadrangle (z-)
-#     k = 0
-#     # Fill the map
-#     for j in range(order-2):
-#         for i in range(order-2):
-#             count += 1
-#             index = (i+1  , j+1  , k    )
-#             map[index] = count
-#
-#     # Internal points of top  quadrangle (z+)
-#     k = order-1
-#     # Fill the map
-#     for j in range(order-2):
-#         for i in range(order-2):
-#             count += 1
-#             index = (i+1  , j+1  , k    )
-#             map[index] = count
-#
-#     # # FIXME: THIS IS HOW MESHIO GIVES IT
-#     # # Internal points of base quadrangle (z-)
-#     # k = 0
-#     # # Fill the map
-#     # for j in range(order-2):
-#     #     for i in range(order-2):
-#     #         count += 1
-#     #         index = (i+1  , j+1  , k    )
-#     #         map[index] = count
-#     # # > y- face
-#     # k = 0
-#     # # Fill the map
-#     # for j in range(order-2):
-#     #     for i in range(order-2):
-#     #         count += 1
-#     #         index = (i+1  , k    , j+1  )
-#     #         map[index] = count
-#     # # > x+ face
-#     # k = order-1
-#     # # Fill the map
-#     # for j in range(order-2):
-#     #     for i in range(order-2):
-#     #         count += 1
-#     #         index = (k    , i+1  , j+1  )
-#     #         map[index] = count
-#     # # > y+ face
-#     # k = order-1
-#     # # Fill the map
-#     # for j in range(order-2):
-#     #     for i in range(order-2):
-#     #         count += 1
-#     #         index = (i+1  , k    , j+1  )
-#     #         map[index] = count
-#     # # > x- face
-#     # k = 0
-#     # # Fill the map
-#     # for j in range(order-2):
-#     #     for i in range(order-2):
-#     #         count += 1
-#     #         index = (k    , i+1  , j+1  )
-#     #         map[index] = count
-#     # # Internal points of top  quadrangle (z+)
-#     # k = order-1
-#     # # Fill the map
-#     # for j in range(order-2):
-#     #     for i in range(order-2):
-#     #         count += 1
-#     #         index = (i+1  , j+1  , k    )
-#     #         map[index] = count
-#
-#     # Internal volume points as a tensor product
-#     for k in range(1, order-1):
-#         for j in range(1, order-1):
-#             for i in range(1, order-1):
-#                 count += 1
-#                 index = (i  , j  , k  )
-#                 map[index] = count
-#
-#     # Python indexing, 1 -> 0
-#     map -= 1
-#
-#     # Reshape into 1D array, tensor-product style
-#     tensor = []
-#     for k in range(order):
-#         for j in range(order):
-#             for i in range(order):
-#                 tensor.append(int(map[i, j, k]))
-#
-#     return map, np.asarray(tensor)
+@cache                                                       # pragma: no cover
+def HEXMAPVTK(order: int) -> Tuple[np.ndarray, np.ndarray]:  # pragma: no cover
+    """ VTK -> IJK ordering for high-order hexahedrons
+        > Loosely based on [Gmsh] "generatePointsHexCGNS"
+        > [Jens Ulrich Kreber] "paraview-scripts/node_ordering. py"
+
+        > The following code is actually based on FLEXI MOD_VTK and trixi. jl.  Note from trixi:
+        > > This order doesn't make any sense.  This is completely different from what is shown in
+        > > https://blog.kitware.com/wp-content/uploads/2018/09/Source_Issue_43.pdf but this is the way it works.
+
+        > HEXTEN :  np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+        > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
+    """
+    if order == 1:
+        map          = np.zeros((1, 1, 1), dtype=int)
+        map[0, 0, 0] = 0
+        tensor       = np.array([0])
+        return map, tensor
+
+    # Pre-allocate map array
+    map = np.zeros((order, order, order), dtype=int)
+    idx = 0
+
+    # Principal vertices
+    map[0      , 0      , 0      ] = 0
+    map[order-1, 0      , 0      ] = 1
+    map[order-1, order-1, 0      ] = 2
+    map[0      , order-1, 0      ] = 3
+    map[0      , 0      , order-1] = 4
+    map[order-1, 0      , order-1] = 5
+    map[order-1, order-1, order-1] = 6
+    map[0      , order-1, order-1] = 7
+    idx += 8
+
+    if order > 2:
+        # Number of interior nodes per edge
+        nEdge = order - 2
+        inner = np.arange(1, order-1)
+
+        # Internal points of mounting edges
+        map[inner  , 0      , 0      ] = np.arange(idx, idx+nEdge)  # Edge 1:  x-edge, y=0  , z=0
+        idx += nEdge
+        map[order-1, inner  , 0      ] = np.arange(idx, idx+nEdge)  # Edge 2:  y-edge, x=max, z=0
+        idx += nEdge
+        map[inner  , order-1, 0      ] = np.arange(idx, idx+nEdge)  # Edge 3:  x-edge, y=max, z=0
+        idx += nEdge
+        map[0      , inner  , 0      ] = np.arange(idx, idx+nEdge)  # Edge 4:  y-edge, x=0  , z=0
+        idx += nEdge
+        map[inner  , 0      , order-1] = np.arange(idx, idx+nEdge)  # Edge 5:  x-edge, y=0  , z=max
+        idx += nEdge
+        map[order-1, inner  , order-1] = np.arange(idx, idx+nEdge)  # Edge 6:  y-edge, x=max, z=max
+        idx += nEdge
+        map[inner  , order-1, order-1] = np.arange(idx, idx+nEdge)  # Edge 7:  x-edge, y=max, z=max
+        idx += nEdge
+        map[0      , inner  , order-1] = np.arange(idx, idx+nEdge)  # Edge 8:  y-edge, x=0  , z=max
+        idx += nEdge
+        map[0      , 0      , inner  ] = np.arange(idx, idx+nEdge)  # Edge 9:  z-edge, x=0  , y=0
+        idx += nEdge
+        map[order-1, 0      , inner  ] = np.arange(idx, idx+nEdge)  # Edge 10: z-edge, x=max, y=0
+        idx += nEdge
+        # INFO: The following two are switched compared to trixi because ParaView changed the ordering from VTK8 to VTK9 convention
+        # https://gitlab.kitware.com/paraview/paraview/-/issues/20728
+        map[order-1, order-1, inner  ] = np.arange(idx, idx+nEdge)  # Edge 11: z-edge, x=max, y=max
+        idx += nEdge
+        map[0      , order-1, inner  ] = np.arange(idx, idx+nEdge)  # Edge 12: z-edge, x=0  , y=max
+        idx += nEdge
+
+        # Number of interior nodes per face
+        nFace = nEdge * nEdge
+
+        # Faces:
+        # > First index varies fastest, so emulate Fortran column-major via 'C' ravel on 'xy' meshgrid
+        ii, jj = np.meshgrid(inner, inner, indexing='xy')
+        iFace  = ii.ravel(order='C')
+        jFace  = jj.ravel(order='C')
+        del ii, jj
+
+        map[0      , iFace, jFace] = np.arange(idx, idx+nFace)  # Face 1: x=0   (Left)   - yz plane
+        idx += nFace
+        map[order-1, iFace, jFace] = np.arange(idx, idx+nFace)  # Face 2: x=max (Right)  - yz plane
+        idx += nFace
+        map[iFace, 0      , jFace] = np.arange(idx, idx+nFace)  # Face 3: y=0   (Front)  - xz plane
+        idx += nFace
+        map[iFace, order-1, jFace] = np.arange(idx, idx+nFace)  # Face 4: y=max (Back)   - xz plane
+        idx += nFace
+        map[iFace, jFace, 0      ] = np.arange(idx, idx+nFace)  # Face 5: z=0   (Bottom) - xy plane
+        idx += nFace
+        map[iFace, jFace, order-1] = np.arange(idx, idx+nFace)  # Face 6: z=max (Top)    - xy plane
+        idx += nFace
+
+        # Volume
+        # > Fortran order: i varies fastest, then j, then k
+        nVol = nEdge ** 3
+        ii, jj, kk = np.meshgrid(inner, inner, inner, indexing='ij')
+        iVol = ii.ravel(order='F')
+        jVol = jj.ravel(order='F')
+        kVol = kk.ravel(order='F')
+        del ii, jj, kk
+
+        map[iVol, jVol, kVol] = np.arange(idx, idx+nVol)
+        idx += nVol
+
+    # Reshape into 1D array, tensor-product style
+    tensor = np.zeros(order ** 3, dtype=int)
+    for k in range(order):
+        for j in range(order):
+            for i in range(order):
+                tensor[map[i, j, k]] = i + j * order + k * order * order
+
+    return map, tensor
