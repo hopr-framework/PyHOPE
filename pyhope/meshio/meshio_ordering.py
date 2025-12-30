@@ -28,7 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
 from functools import cache
-from typing import Dict, List, Union, Optional, cast
+from typing import Dict, List, Union, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -265,11 +265,11 @@ class NodeOrdering:
 
         # 0D/1D/2D elements
         if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
-            return cast(np.ndarray, idx)
+            return idx
 
         # Check if we have a fixed ordering
         if elemType in self._meshio_ordering:
-            return cast(np.ndarray, idx[:, self._meshio_ordering[elemType]])
+            return idx[:, self._meshio_ordering[elemType]]
 
         # Check if we are requesting higher-order simplices than currently implemented
         if not elemType.startswith('hexahedron'):
@@ -298,7 +298,7 @@ class NodeOrdering:
 
         # 0D/1D/2D elements
         if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
-            return cast(np.ndarray, idx)
+            return idx
 
         # Check if we have a fixed ordering
         if elemType in self._meshio_ordering:
@@ -410,10 +410,10 @@ class NodeOrdering:
 
         # 0D/1D/2D elements
         if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
-            return cast(np.ndarray, idx)
+            return idx
 
         # Check if we have a fixed ordering
         if elemType in self._gambit_ordering:
-            return cast(np.ndarray, idx[self._gambit_ordering[elemType]])
+            return idx[self._gambit_ordering[elemType]]
 
         raise ValueError(f'Unknown element type {elemType}')
