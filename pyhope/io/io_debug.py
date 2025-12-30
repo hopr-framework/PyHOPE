@@ -227,9 +227,9 @@ def DebugIO() -> None:
                 bc   = bcs[bcID]
                 sidedata['ElemID'  ][sidx].append(melem.elemID + 1)
                 sidedata['BCID'    ][sidx].append(bcID         + 1)
-                sidedata['BCType'  ][sidx].append(bc.type[0]      )  # ty: ignore [non-subscriptable]
-                sidedata['BCState' ][sidx].append(bc.type[2]      )  # ty: ignore [non-subscriptable]
-                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )  # ty: ignore [non-subscriptable]
+                sidedata['BCType'  ][sidx].append(bc.type[0]      )  # ty: ignore [not-subscriptable]
+                sidedata['BCState' ][sidx].append(bc.type[2]      )  # ty: ignore [not-subscriptable]
+                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )  # ty: ignore [not-subscriptable]
 
         if hasFEM:
             # Create the FEM vertices

@@ -231,8 +231,8 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
                           cells  = cast(dict, celll))  # noqa: E251
 
     # Mixed elements require gmsh:physical and gmsh:geometrical
-    gmshMesh.cell_data.update({'gmsh:physical'   : celldphys})   # pyright: ignore[reportArgumentType, reportCallIssue]
-    gmshMesh.cell_data.update({'gmsh:geometrical': celldgeom})   # pyright: ignore[reportArgumentType, reportCallIssue]
+    gmshMesh.cell_data.update({'gmsh:physical'   : cast(list, celldphys)})   # pyright: ignore[reportArgumentType, reportCallIssue]
+    gmshMesh.cell_data.update({'gmsh:geometrical': cast(list, celldgeom)})   # pyright: ignore[reportArgumentType, reportCallIssue]
 
     # Provide entity information for nodes (gmsh:dim_tags)
     # Strategy:

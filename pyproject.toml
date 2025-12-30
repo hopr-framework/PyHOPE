@@ -164,6 +164,6 @@ ignore_names = [
     # Exclude debug function
     "time_function",
     # Exclude monkey-patching MeshIO
-    "__init__", "data_counter", "h5_file"
+    "__init__", "data_counter", "h5_file", "_meshio_to_gmsh_order",
     ]
 sort_by_size = true

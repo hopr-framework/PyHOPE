@@ -296,7 +296,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     # Fill the IJK-sorting array
     elemIJK = None
     if hasattr(mesh_vars, 'nElemsIJK'):
-        elemIJK = np.vstack([elem.elemIJK for elem in elems]).astype(np.int32)
+        elemIJK = np.vstack([cast(int, elem.elemIJK) for elem in elems]).astype(np.int32)
 
     # Set the global side ID
     globalSideID     = 0

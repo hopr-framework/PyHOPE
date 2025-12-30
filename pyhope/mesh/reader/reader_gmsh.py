@@ -420,7 +420,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
         # Data attached to the zoneBC node
         elif f'{zoneBC}/PointList' in zone['ZoneBC']:
-            cgnsBC = sorted(int(s) for s in zone['ZoneBC'][zoneBC]['PointList'][' data'])
+            cgnsBC = sorted(int(s.squeeze()) for s in zone['ZoneBC'][zoneBC]['PointList'][' data'])
 
             # Identify how surface elements are stored
             surface_key = 'GridShells' if 'GridShells' in zone else 'SurfaceElements' if 'SurfaceElements' in zone else None

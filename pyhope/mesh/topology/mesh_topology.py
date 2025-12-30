@@ -637,7 +637,7 @@ def prism_faces(order: int) -> tuple[np.ndarray, ...]:
 @cache
 def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
     nodes = np.arange((order + 1) ** 3, dtype=int)
-    return [tuple(nodes)]
+    return [tuple(nodes.tolist())]
 
 
 # Dummy function for hexahedral elements
