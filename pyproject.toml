@@ -14,6 +14,7 @@ dependencies = [
     'h5py',
     'hilbertcurve',
     'meshio',
+    'numba',
     'numpy>=2.0.0',
     'packaging',
     'plotext',
