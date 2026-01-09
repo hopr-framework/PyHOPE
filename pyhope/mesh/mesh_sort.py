@@ -30,12 +30,12 @@ from typing import Final, List, Optional, Tuple, cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-# from numba import jit, types
 import numpy as np
 import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+# from pyhope.common.common_numba import jit, types
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def SortMeshBySFC() -> None:
     elem_bary      = calc_elem_bary(elems)
 
     # Calculate the space-filling curve resolution for the given KIND
-    kind = 4
+    kind: Final[int] = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions according to the chosen resolution

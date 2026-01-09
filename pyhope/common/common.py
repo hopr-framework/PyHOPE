@@ -66,6 +66,7 @@ def InitCommon() -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.common.common_vars as common_vars
+    from pyhope.common.common_numba import PkgsCheckNumba
     from pyhope.gmsh.gmsh_install import PkgsCheckGmsh
     from pyhope.readintools.readintools import GetInt
     # ------------------------------------------------------
@@ -95,6 +96,9 @@ def InitCommon() -> None:
 
     # Check if we are using the NRG Gmsh version and install it if not
     PkgsCheckGmsh()
+
+    # Check if we are using numba
+    PkgsCheckNumba()
 
     # hopout.info('INIT PROGRAM DONE!')
 

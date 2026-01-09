@@ -30,13 +30,14 @@ from typing import Final, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from numba import jit, types
 import numpy as np
 import scipy as sp
 # from threadpoolctl import ThreadpoolController
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_numba import NUMBA_AVAILABLE
+from pyhope.common.common_numba import jit, types
 from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ==================================================================================================================================
 
@@ -126,9 +127,9 @@ def barycentric_weights(_: int, xGP: np.ndarray) -> np.ndarray:
     wBary = np.prod(diff_matrix, axis=1)
 
     # Take the reciprocal to get the final barycentric weights
-    wBary = 1.0 / wBary
+    # wBary = 1.0 / wBary
 
-    return wBary
+    return 1.0 / wBary
 
 
 def polynomial_derivative_matrix(order: int, xGP: np.ndarray) -> np.ndarray:
@@ -164,8 +165,9 @@ def lagrange_interpolation_polys(x: Union[float, np.ndarray], order: int, xGP: n
         tmp += lagrange[iGP]
 
     # Normalize
-    lagrange = lagrange/tmp
-    return lagrange
+    # lagrange = lagrange/tmp
+
+    return lagrange/tmp
 
 
 def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:
@@ -501,92 +503,108 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
     return D
 
 
-@jit((types.float64[:, :, :, ::1])(types.float64[:, ::1], types.float64[:, :, :, :]), nopython=True, cache=True, nogil=True)
-def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
-    """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
-        to another 3D tensor product node positions (number of nodes N_out+1)
-        defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
-        xi is defined in the 1D reference element xi=[-1,1]
-    """
-    # INFO: numpy-version, not compatible with numba
-    # # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
-    # # x3D_Buf1 = np.tensordot(Vdm, x3D_In , axes=(1, 1))
-    # # x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
-    # n_In     = Vdm.shape[1]
-    # X1       = x3D_In.reshape(x3D_In.shape[0], n_In, n_In * n_In)
-    # x3D_Buf1 = (Vdm @ X1).reshape(x3D_In.shape[0], Vdm.shape[0], n_In, n_In)  # (dim1, n_Out, n_In, n_In)
-    #
-    # # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
-    # x3D_Buf2 = np.tensordot(Vdm, x3D_Buf1, axes=(1, 2))
-    # x3D_Buf2 = np.moveaxis(x3D_Buf2, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
-    #
-    # # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
-    # # x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
-    # # x3D_Out  = np.moveaxis(x3D_Out , 0, 3)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
-    # x3D_Out = x3D_Buf2 @ Vdm.T
-    # # PERF: This is actually slower than the individual contractions
-    # # x3D_Out  = np.einsum('pi,qj,rk,dijk->dpqr', Vdm, Vdm, Vdm, x3D_In, optimize=True)
-    #
-    # return x3D_Out
+if not NUMBA_AVAILABLE:
+    def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
+        """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
+            to another 3D tensor product node positions (number of nodes N_out+1)
+            defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
+            xi is defined in the 1D reference element xi=[-1,1]
+        """
+        # INFO: numpy-version, not compatible with numba
+        # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
+        # x3D_Buf1 = np.tensordot(Vdm, x3D_In , axes=(1, 1))
+        # x3D_Buf1 = np.moveaxis(x3D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
+        n_In     = Vdm.shape[1]
+        X1       = x3D_In.reshape(x3D_In.shape[0], n_In, n_In * n_In)
+        x3D_Buf1 = (Vdm @ X1).reshape(x3D_In.shape[0], Vdm.shape[0], n_In, n_In)  # (dim1, n_Out, n_In, n_In)
 
-    dim1, n_In, _, _ = x3D_In.shape
-    n_Out = Vdm.shape[0]
+        # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
+        x3D_Buf2 = np.tensordot(Vdm, x3D_Buf1, axes=(1, 2))
+        x3D_Buf2 = np.moveaxis(x3D_Buf2, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
 
-    # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
-    buf1 = np.zeros((dim1, n_Out, n_In, n_In), dtype=x3D_In.dtype)
-    for d in range(dim1):
-        for k in range(n_In):
-            buf1[d, :, :, k] = Vdm @ np.ascontiguousarray(x3D_In[d, :, :, k])
+        # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
+        # x3D_Out  = np.tensordot(Vdm, x3D_Buf2, axes=(1, 3))
+        # x3D_Out  = np.moveaxis(x3D_Out , 0, 3)  # Correct the shape to (dim1, n_Out, n_Out, n_Out)
+        # x3D_Out = x3D_Buf2 @ Vdm.T
+        # PERF: This is actually slower than the individual contractions
+        # x3D_Out  = np.einsum('pi,qj,rk,dijk->dpqr', Vdm, Vdm, Vdm, x3D_In, optimize=True)
 
-    # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
-    buf2 = np.zeros((dim1, n_Out, n_Out, n_In), dtype=x3D_In.dtype)
-    for d in range(dim1):
-        for k in range(n_Out):
-            buf2[d, k, :, :] = Vdm @ np.ascontiguousarray(buf1[d, k, :, :])
+        return x3D_Buf2 @ Vdm.T
 
-    # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
-    buf3_Flat = buf2.reshape(-1, n_In) @ Vdm.T
+else:
+    @jit((types.float64[:, :, :, ::1])(types.float64[:, ::1], types.float64[:, :, :, :]), nopython=True, cache=True, nogil=True)
+    def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
+        """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
+            to another 3D tensor product node positions (number of nodes N_out+1)
+            defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
+            xi is defined in the 1D reference element xi=[-1,1]
+        """
+        dim1, n_In, _, _ = x3D_In.shape
+        n_Out = Vdm.shape[0]
 
-    return buf3_Flat.reshape(dim1, n_Out, n_Out, n_Out)
+        # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x3D_In)
+        buf1 = np.zeros((dim1, n_Out, n_In, n_In), dtype=x3D_In.dtype)
+        for d in range(dim1):
+            for k in range(n_In):
+                buf1[d, :, :, k] = Vdm @ np.ascontiguousarray(x3D_In[d, :, :, k])
+
+        # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x3D_Buf1)
+        buf2 = np.zeros((dim1, n_Out, n_Out, n_In), dtype=x3D_In.dtype)
+        for d in range(dim1):
+            for k in range(n_Out):
+                buf2[d, k, :, :] = Vdm @ np.ascontiguousarray(buf1[d, k, :, :])
+
+        # Third contraction along the kN_In axis (axis 1 of Vdm, axis 3 of x3D_Buf2)
+        buf3_Flat = buf2.reshape(-1, n_In) @ Vdm.T
+
+        return buf3_Flat.reshape(dim1, n_Out, n_Out, n_Out)
 
 
-@jit((types.float64[:, :, ::1])(types.float64[:, ::1], types.float64[:, :, :]), nopython=True, cache=True, nogil=True)
-def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
-    """ Interpolate a 2D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
-        to another 2D tensor product node positions (number of nodes N_out+1)
-        defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
-        xi is defined in the 1D reference element xi=[-1,1]
-    """
-    # INFO: numpy-version, not compatible with numba
-    # # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x2D_In)
-    # # x2D_Buf1 = np.tensordot(Vdm, x2D_In, axes=(1, 1))
-    # # x2D_Buf1 = np.moveaxis(x2D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
-    # x2D_Buf1 = Vdm @ x2D_In
-    #
-    # # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x2D_Buf1)
-    # # x2D_Out = np.tensordot(Vdm, x2D_Buf1, axes=(1, 2))
-    # # x2D_Out = np.moveaxis(x2D_Out, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
-    # x2D_Out = x2D_Buf1 @ Vdm.T
-    # # PERF: This is actually slower than the individual contractions
-    # # x2D_Out = np.einsum('pi,qj,dij->dpq', Vdm, Vdm, x2D_In, optimize=True)
-    #
-    # return x2D_Out
+if not NUMBA_AVAILABLE:
+    def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
+        """ Interpolate a 2D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
+            to another 2D tensor product node positions (number of nodes N_out+1)
+            defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
+            xi is defined in the 1D reference element xi=[-1,1]
+        """
+        # INFO: numpy-version, not compatible with numba
+        # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x2D_In)
+        # x2D_Buf1 = np.tensordot(Vdm, x2D_In, axes=(1, 1))
+        # x2D_Buf1 = np.moveaxis(x2D_Buf1, 0, 1)  # Correct the shape to (dim1, n_Out, n_In, n_In)
+        x2D_Buf1 = Vdm @ x2D_In
 
-    dim1, n_In, _ = x2D_In.shape
-    n_Out = Vdm.shape[0]
+        # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of x2D_Buf1)
+        # x2D_Out = np.tensordot(Vdm, x2D_Buf1, axes=(1, 2))
+        # x2D_Out = np.moveaxis(x2D_Out, 0, 2)  # Correct the shape to  (dim1, n_Out, n_Out, n_In)
+        # x2D_Out = x2D_Buf1 @ Vdm.T
+        # PERF: This is actually slower than the individual contractions
+        # x2D_Out = np.einsum('pi,qj,dij->dpq', Vdm, Vdm, x2D_In, optimize=True)
 
-    # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x2D_In)
-    x2D_Flat = np.ascontiguousarray(x2D_In)
-    buf1 = np.zeros((dim1, n_Out, n_In), dtype=x2D_In.dtype)
-    for d in range(dim1):
-        buf1[d] = Vdm @ x2D_Flat[d]
+        return x2D_Buf1 @ Vdm.T
 
-    # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of buf1)
-    # Result shape: (dim1, n_Out, n_Out)
-    # Reshaping to 2D for a single GEMM call: (dim1 * n_Out, n_In) @ (n_In, n_Out)
-    x2D_Out = buf1.reshape(-1, n_In) @ Vdm.T
+else:
+    @jit((types.float64[:, :, ::1])(types.float64[:, ::1], types.float64[:, :, :]), nopython=True, cache=True, nogil=True)
+    def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
+        """ Interpolate a 2D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
+            to another 2D tensor product node positions (number of nodes N_out+1)
+            defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
+            xi is defined in the 1D reference element xi=[-1,1]
+        """
+        dim1, n_In, _ = x2D_In.shape
+        n_Out = Vdm.shape[0]
 
-    return x2D_Out.reshape(dim1, n_Out, n_Out)
+        # First contraction along the iN_In axis (axis 1 of Vdm, axis 1 of x2D_In)
+        x2D_Flat = np.ascontiguousarray(x2D_In)
+        buf1 = np.zeros((dim1, n_Out, n_In), dtype=x2D_In.dtype)
+        for d in range(dim1):
+            buf1[d] = Vdm @ x2D_Flat[d]
+
+        # Second contraction along the jN_In axis (axis 1 of Vdm, axis 2 of buf1)
+        # Result shape: (dim1, n_Out, n_Out)
+        # Reshaping to 2D for a single GEMM call: (dim1 * n_Out, n_In) @ (n_In, n_Out)
+        x2D_Out = buf1.reshape(-1, n_In) @ Vdm.T
+
+        return x2D_Out.reshape(dim1, n_Out, n_Out)
 
 
 def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
@@ -631,11 +649,11 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     cross_eta_zeta[2] = dXdEtaAP[0] * dXdZetaAP[1] - dXdEtaAP[1] * dXdZetaAP[0]
 
     # Fill output Jacobian array
-    jacOut = np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
+    # jacOut = np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
     # PERF: This is actually slower than the individual contractions
     # jacOut = np.sum(dXdXiAP * cross_eta_zeta, axis=0)
 
-    return jacOut
+    return np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
 
 
 def evaluate_jacobian_simplex(xGeo_In: np.ndarray, _: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
@@ -651,9 +669,10 @@ def evaluate_jacobian_simplex(xGeo_In: np.ndarray, _: np.ndarray, D_EqToGL: np.n
     cross_eta_zeta[1] = dXdEtaAP[2] * dXdZetaAP[0] - dXdEtaAP[0] * dXdZetaAP[2]
     cross_eta_zeta[2] = dXdEtaAP[0] * dXdZetaAP[1] - dXdEtaAP[1] * dXdZetaAP[0]
 
-    jacOut = np.sum(dXdXiAP * cross_eta_zeta, axis=0)
+    # Fill output Jacobian array
+    # jacOut = np.sum(dXdXiAP * cross_eta_zeta, axis=0)
 
-    return jacOut
+    return np.sum(dXdXiAP * cross_eta_zeta, axis=0)
 
 # INFO: ALTERNATIVE VERSION, CACHING VDM, D
 # class JacobianEvaluator:

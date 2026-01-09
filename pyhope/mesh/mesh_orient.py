@@ -33,11 +33,11 @@ from typing import Final, Optional
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
-from numba import jit, types
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.common.common_numba import jit, types
 from pyhope.mesh.mesh_common import LINMAP
 from pyhope.mesh.mesh_common import dir_to_nodes, faces
 # ----------------------------------------------------------------------------------------------------------------------------------

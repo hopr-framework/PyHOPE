@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 readme = "README.md"
 authors = [
     {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},
-]
+    ]
 dependencies = [
     'alive-progress',
     'h5py',
@@ -23,7 +23,7 @@ dependencies = [
     # 'sortedcontainers',
     'typing-extensions',
     # 'threadpoolctl'
-]
+    ]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -35,6 +35,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13"
 ]
+
+[project.optional-dependencies]
+numba = [ 'numba'
+    ]
 
 [project.urls]
 homepage = "https://numericsresearchgroup.org"

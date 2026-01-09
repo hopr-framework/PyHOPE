@@ -31,7 +31,6 @@ from typing import Dict, Final, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from numba import jit, types
 import numpy as np
 # import fastremap as fr
 from scipy.spatial import KDTree
@@ -39,6 +38,7 @@ from scipy.sparse.csgraph import connected_components
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_numba import jit, types
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
                 # All isolated: each point is its own representative
                 return np.arange(nPoints, dtype=int)
 
-            labels     = _run_union_find_logic(nPoints, pairs.astype(np.int64))
+            labels     = _run_union_find_logic(nPoints, pairs)
             components = nPoints
 
         case 'sparse':  # pragma: no cover
@@ -209,7 +209,14 @@ def EliminateDuplicates() -> None:
             # Only process 2D faces (quad or triangle)
             if any(s in tuple(cdict)[iMap] for s in ('quad', 'triangle')):
                 mapFaces = cells[iMap].data
-                currentBCNodes.update(node for iSide in cset[iMap] for node in mapFaces[iSide])
+
+                # cset[iMap] is list-like, make it an ndarray for fancy indexing
+                sideIDs = np.asarray(cset[iMap], dtype=np.int64)
+                if sideIDs.size == 0:
+                    continue
+
+                # Gather all nodes on those faces and unique them
+                currentBCNodes.update(np.unique(mapFaces[sideIDs].ravel()).tolist())
 
         # Ignore nodes that have already been processed for this boundary
         if bc_key not in BCNodes:
