@@ -85,10 +85,11 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     if nGeo > 1:
         hopout.error('nGeo = {} not supported for element splitting'.format(nGeo), traceback=True)
 
-    # > Check if the mesh contains any pyramids or hexahedra
-    if any(s.startswith(x) for x in ['pyramid', 'hexahedron'] for s in cdict.keys()):
-        unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in ['pyramid', 'hexahedron'])]
-        hopout.error('{}, are not supported for splitting, exiting...'.format(', '.join(unsupported)))
+    # > Check if the mesh contains any pyramids
+    unsElems: Final[tuple] = ('pyramid')
+    if any(s.startswith(x) for x in unsElems for s in cdict.keys()):
+        unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unsElems)]
+        hopout.error('Element type[s] "{}" are not supported for splitting, exiting...'.format(', '.join(unsupported)))
 
     faceType = ['triangle'  , 'quad'  ]
     faceNum  = [          3 ,       4 ]
@@ -137,15 +138,22 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
         for node in subFace:
             nodeToFace[node].add(subFace)
 
-    elemSplitter = { 'tetra': (tet_to_hex_points  , tet_to_hex_split  , tet_to_hex_faces  ),
-                     'wedge': (prism_to_hex_points, prism_to_hex_split, prism_to_hex_faces)}
+    elemSplitter = { 'tetra'     : (tet_to_hex_points  , tet_to_hex_split  , tet_to_hex_faces  ),
+                     'wedge'     : (prism_to_hex_points, prism_to_hex_split, prism_to_hex_faces),
+                     'hexahedron': (hex_to_hex_points  , hex_to_hex_split  , hex_to_hex_faces  ),
+                   }
+
+    # z-Splitting
+    # > Detect hybrid meshes that contain hexahedra. In this case, we can only work if we have prisms and hexahedra
+    volTypes   = tuple(cell.type for cell in mesh.cells if cell.type not in ('vertex', 'line', 'triangle', 'quad'))
+    elemzSplit = bool(len(set(volTypes)) > 1 and any(t == 'hexahedron' for t in volTypes))
+    unszElems  = ('tetrahedron', 'pyramid')
+    if elemzSplit and any(s.startswith(x) for x in unszElems for s in cdict.keys()):
+        unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unszElems)]
+        hopout.error('Element type[s] "{}" are not supported for splitting, exiting...'.format(', '.join(unsupported)))
 
     for cell in elems_old:
         ctype, cdata = cell.type, cell.data
-
-        # if ctype.startswith('hexahedron'):
-        #     continue
-
         splitPoints, splitElems, splitFaces = elemSplitter.get(ctype, (None, None, None))
 
         # Only process valid splits
@@ -153,9 +161,9 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             continue
 
         # Setup split functions
-        subIdxs            = splitElems()
-        oldFIdxs, subFIdxs = splitFaces()
-        subPts             = splitPoints(order=1)
+        subIdxs            = splitElems(          z_split=elemzSplit)
+        oldFIdxs, subFIdxs = splitFaces(          z_split=elemzSplit)
+        subPts             = splitPoints(order=1, z_split=elemzSplit)
 
         # Iterate over element types
         for elem in cdata:
@@ -270,8 +278,9 @@ def hexa_faces() -> tuple[np.ndarray, ...]:
 
 
 @cache
-def tet_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
-    """
+def tet_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ...]:
+    """ Given the 4 corner nodes of a single tetrahedron element (indexed 0..3),
+        return the 10 additional points after splitting
     """
     match order:
         case 1:
@@ -288,7 +297,7 @@ def tet_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
                       np.array((  1,  2,  3), dtype=int),           # index 12
                       np.array((  0,  2,  3), dtype=int),           # index 13
                       # Inside node
-                      np.arange(  0,  4, dtype=int)                # index 14
+                      np.arange(  0,  4     , dtype=int)            # index 14
                    )
         case _:
             import pyhope.output.output as hopout
@@ -296,9 +305,9 @@ def tet_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
 
 
 @cache
-def tet_to_hex_faces() -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+def tet_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
     """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
-        return the 4 triangular faces and the 12 quadrilateral faces.
+        return the 4 triangular faces and the 12 quadrilateral faces
     """
     # Triangular faces
     oldFaces  = [  np.array((  0,  1,  2    ), dtype=int),
@@ -330,9 +339,9 @@ def tet_to_hex_faces() -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
 
 
 @cache
-def tet_to_hex_split() -> list[np.ndarray]:
+def tet_to_hex_split(z_split: bool = False) -> list[np.ndarray]:
     """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
-        return a list of new hexahedral element connectivity lists.
+        return a list of new hexahedral element connectivity lists
     """
     return [np.array((  0,  4, 10,  6,  7, 11, 14, 13), dtype=int),
             np.array((  1,  5, 10,  4,  8, 12, 14, 11), dtype=int),
@@ -342,31 +351,56 @@ def tet_to_hex_split() -> list[np.ndarray]:
 
 
 @cache
-def prism_to_hex_points(order: int) -> tuple[np.ndarray, ...]:
-    """
+def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ...]:
+    """ Given the 6 corner nodes of a single prism element (indexed 0..6),
+        return the 8 additional points after splitting
     """
     match order:
         case 1:
-            return (  # Nodes on edges
-                      np.array((  0,  1    ), dtype=int),           # index 6
-                      np.array((  1,  2    ), dtype=int),           # index 7
-                      np.array((  0,  2    ), dtype=int),           # index 8
-                      np.array((  3,  4    ), dtype=int),           # index 9
-                      np.array((  4,  5    ), dtype=int),           # index 10
-                      np.array((  3,  5    ), dtype=int),           # index 11
-                      # Nodes on faces
-                      np.array((  0,  1,  2), dtype=int),           # index 12
-                      np.array((  3,  4,  5), dtype=int),           # index 13
-                   )
+            if not z_split:
+                return (  # Nodes on edges
+                          np.array((  0,  1    ), dtype=int),           # index 6
+                          np.array((  1,  2    ), dtype=int),           # index 7
+                          np.array((  0,  2    ), dtype=int),           # index 8
+                          np.array((  3,  4    ), dtype=int),           # index 9
+                          np.array((  4,  5    ), dtype=int),           # index 10
+                          np.array((  3,  5    ), dtype=int),           # index 11
+                          # Nodes on faces
+                          np.array((  0,  1,  2), dtype=int),           # index 12
+                          np.array((  3,  4,  5), dtype=int),           # index 13
+                       )
+            else:
+                # z_split: add vertical mid-edges + inside node
+                return (  # Nodes on edges
+                          np.array((  0,  1    ), dtype=int),           # index 6
+                          np.array((  1,  2    ), dtype=int),           # index 7
+                          np.array((  0,  2    ), dtype=int),           # index 8
+                          np.array((  3,  4    ), dtype=int),           # index 9
+                          np.array((  4,  5    ), dtype=int),           # index 10
+                          np.array((  3,  5    ), dtype=int),           # index 11
+                          # Nodes on faces
+                          np.array((  0,  1,  2), dtype=int),           # index 12
+                          np.array((  3,  4,  5), dtype=int),           # index 13
+                          # Nodes on vertical edges
+                          np.array((  0,  3    ), dtype=int),           # index 14
+                          np.array((  1,  4    ), dtype=int),           # index 15
+                          np.array((  2,  5    ), dtype=int),           # index 16
+                          # Inside node
+                          np.arange(  0,  6     , dtype=int),           # index 17
+                          # Nodes on rectangular face centers
+                          np.array((  0,  1,  3,  4), dtype=int),       # index 18
+                          np.array((  1,  2,  4,  5), dtype=int),       # index 19
+                          np.array((  0,  2,  3,  5), dtype=int),       # index 20
+                       )
         case _:
             import pyhope.output.output as hopout
             hopout.error('Order {} not supported for element splitting'.format(order))
 
 
 @cache
-def prism_to_hex_faces() -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
     """ Given the 6 corner node indices of a single prism element (indexed 0..5),
-        return the 6 -> new <- quadrilateral faces.
+        return the original faces and the corresponding new quadrilateral sub-faces.
     """
     # Faces
     oldFaces  = [  # Triangular faces
@@ -378,35 +412,176 @@ def prism_to_hex_faces() -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
                    np.array((  2,  0,  3,  5), dtype=int),
                 ]
 
-    # Quadrilateral faces
-    newFaces  = [  # First triangle
-                 [ np.array((  0,  6, 12,  8), dtype=int),
-                   np.array((  1,  7, 12,  6), dtype=int),
-                   np.array((  2,  8, 12,  7), dtype=int)],
-                   # Second triangle
-                 [ np.array((  3,  9, 13, 11), dtype=int),
-                   np.array((  4, 10, 13,  9), dtype=int),
-                   np.array((  5, 11, 13, 10), dtype=int)],
-                   # First quad face
-                 [ np.array((  0,  6,  9,  3), dtype=int),
-                   np.array((  6,  1,  4,  9), dtype=int)],
+    if not z_split:
+        newFaces  = [  # First triangle
+                     [ np.array((  0,  6, 12,  8), dtype=int),
+                       np.array((  1,  7, 12,  6), dtype=int),
+                       np.array((  2,  8, 12,  7), dtype=int)],
+                       # Second triangle
+                     [ np.array((  3,  9, 13, 11), dtype=int),
+                       np.array((  4, 10, 13,  9), dtype=int),
+                       np.array((  5, 11, 13, 10), dtype=int)],
+                       # First quad face
+                     [ np.array((  0,  6,  9,  3), dtype=int),
+                       np.array((  6,  1,  4,  9), dtype=int)],
                    # Second quad face
-                 [ np.array((  1,  7, 10,  4), dtype=int),
-                   np.array((  7,  2,  5, 10), dtype=int)],
-                   # Third quad face
-                 [ np.array((  0,  8, 11,  3), dtype=int),
-                   np.array((  8,  2,  5, 11), dtype=int)]
+                     [ np.array((  1,  7, 10,  4), dtype=int),
+                       np.array((  7,  2,  5, 10), dtype=int)],
+                       # Third quad face
+                     [ np.array((  0,  8, 11,  3), dtype=int),
+                       np.array((  8,  2,  5, 11), dtype=int)]
+                    ]
+    else:
+        newFaces  = [  # First triangle
+                     [ np.array((  0,  6, 12,  8), dtype=int),
+                       np.array((  1,  7, 12,  6), dtype=int),
+                       np.array((  2,  8, 12,  7), dtype=int)],
+                       # Second triangle
+                     [ np.array((  3,  9, 13, 11), dtype=int),
+                       np.array((  4, 10, 13,  9), dtype=int),
+                       np.array((  5, 11, 13, 10), dtype=int)],
+                       # First quad face
+                     [ np.array((  0,  6, 18, 14), dtype=int),
+                       np.array((  6,  1, 15, 18), dtype=int),
+                       np.array(( 14, 18,  9,  3), dtype=int),
+                       np.array(( 18, 15,  4,  9), dtype=int)],
+                       # First quad face
+                     [ np.array((  1,  7, 19, 15), dtype=int),
+                       np.array((  7,  2, 16, 19), dtype=int),
+                       np.array(( 15, 19, 10,  4), dtype=int),
+                       np.array(( 19, 16,  5, 10), dtype=int)],
+                       # Third quad face
+                     [ np.array((  2,  8, 20, 16), dtype=int),
+                       np.array((  8,  0, 14, 20), dtype=int),
+                       np.array(( 16, 20, 11,  5), dtype=int),
+                       np.array(( 20, 14,  3, 11), dtype=int)]
+        ]
+
+    return oldFaces, newFaces
+
+
+@cache
+def prism_to_hex_split(z_split: bool = False) -> tuple[np.ndarray, ...]:
+    """ Given the 6 corner node indices of a single prism element (indexed 0..5),
+        return a list of new hexahedral element connectivity lists
+    """
+    if not z_split:
+        return (np.array((  0,  6, 12,  8,  3,  9, 13, 11), dtype=int),
+                np.array((  1,  7, 12,  6,  4, 10, 13,  9), dtype=int),
+                np.array((  2,  8, 12,  7,  5, 11, 13, 10), dtype=int),
+               )
+    else:
+        # z_split: split each of the 3 base hexahedra into two stacked hexahedra
+        return (np.array((  0,  6, 12,  8, 14, 18, 17, 20), dtype=int),
+                np.array(( 14, 18, 17, 20,  3,  9, 13, 11), dtype=int),
+
+                np.array((  1,  7, 12,  6, 15, 19, 17, 18), dtype=int),
+                np.array(( 15, 19, 17, 18,  4, 10, 13,  9), dtype=int),
+
+                np.array((  2,  8, 12,  7, 16, 20, 17, 19), dtype=int),
+                np.array(( 16, 20, 17, 19,  5, 11, 13, 10), dtype=int),
+               )
+
+
+@cache
+def hex_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ...]:
+    """ Given the 8 corner nodes of a single hexahedron element (indexed 0..7),
+        return the 19 additional points after splitting
+    """
+    match order:
+        case 1:
+            return (  # Nodes on edges
+                      np.array((  0,  1        ), dtype=int),       # index 8
+                      np.array((  1,  2        ), dtype=int),       # index 9
+                      np.array((  2,  3        ), dtype=int),       # index 10
+                      np.array((  3,  0        ), dtype=int),       # index 11
+
+                      np.array((  4,  5        ), dtype=int),       # index 12
+                      np.array((  5,  6        ), dtype=int),       # index 13
+                      np.array((  6,  7        ), dtype=int),       # index 14
+                      np.array((  7,  4        ), dtype=int),       # index 15
+
+                      np.array((  0,  4        ), dtype=int),       # index 16
+                      np.array((  1,  5        ), dtype=int),       # index 17
+                      np.array((  2,  6        ), dtype=int),       # index 18
+                      np.array((  3,  7        ), dtype=int),       # index 19
+                      # Nodes on faces
+                      np.array((  0,  1,  2,  3), dtype=int),       # index 20
+                      np.array((  4,  5,  6,  7), dtype=int),       # index 21
+                      np.array((  0,  1,  5,  4), dtype=int),       # index 22
+                      np.array((  1,  2,  6,  5), dtype=int),       # index 23
+                      np.array((  2,  3,  7,  6), dtype=int),       # index 24
+                      np.array((  3,  0,  4,  7), dtype=int),       # index 25
+                      # Inside node
+                      np.arange(  0,  8         , dtype=int)        # index 26
+                   )
+
+        case _:
+            import pyhope.output.output as hopout
+            hopout.error(f'Order {order} not supported for hexahedron refinement')
+
+
+@cache
+def hex_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+    """ Given the 8 corner node indices of a single hexahedron element (indexed 0..7),
+        return the 6 quadrilateral faces and the 24 quadrilateral faces after splitting
+    """
+    # Quadrilateral faces
+    oldFaces  = [  np.array((  0,  1,  2,  3), dtype=int),
+                   np.array((  4,  5,  6,  7), dtype=int),
+                   np.array((  0,  1,  5,  4), dtype=int),
+                   np.array((  1,  2,  6,  5), dtype=int),
+                   np.array((  2,  3,  7,  6), dtype=int),
+                   np.array((  3,  0,  4,  7), dtype=int),
+                ]
+
+    # Quadrilateral faces
+    newFaces  = [  # Bottom face
+                 [ np.array((  0,  8, 20, 11), dtype=int),
+                   np.array((  8,  1,  9, 20), dtype=int),
+                   np.array(( 20,  9,  2, 10), dtype=int),
+                   np.array(( 11, 20, 10,  3), dtype=int)],
+                   # Top face
+                 [ np.array((  4, 12, 21, 15), dtype=int),
+                   np.array(( 12,  5, 13, 21), dtype=int),
+                   np.array(( 21, 13,  6, 14), dtype=int),
+                   np.array(( 15, 21, 14,  7), dtype=int)],
+                   # Side Face
+                 [ np.array((  0,  8, 22, 16), dtype=int),
+                   np.array((  8,  1, 17, 22), dtype=int),
+                   np.array(( 22, 17,  5, 12), dtype=int),
+                   np.array(( 16, 22, 12,  4), dtype=int)],
+                   # Side Face
+                 [ np.array((  1,  9, 23, 17), dtype=int),
+                   np.array((  9,  2, 18, 23), dtype=int),
+                   np.array(( 23, 18,  6, 13), dtype=int),
+                   np.array(( 17, 23, 13,  5), dtype=int)],
+                   # Side Face
+                 [ np.array((  2, 10, 24, 18), dtype=int),
+                   np.array(( 10,  3, 19, 24), dtype=int),
+                   np.array(( 24, 19,  7, 14), dtype=int),
+                   np.array(( 18, 24, 14,  6), dtype=int)],
+                   # Face (3,0,4,7)
+                 [ np.array((  3, 11, 25, 19), dtype=int),
+                   np.array(( 11,  0, 16, 25), dtype=int),
+                   np.array(( 25, 16,  4, 15), dtype=int),
+                   np.array(( 19, 25, 15,  7), dtype=int)]
                 ]
 
     return oldFaces, newFaces
 
 
 @cache
-def prism_to_hex_split() -> tuple[np.ndarray, ...]:
-    """ Given the 6 corner node indices of a single prism element (indexed 0..5),
-        return a list of new hexahedral element connectivity lists.
+def hex_to_hex_split(z_split: bool = False) -> tuple[np.ndarray, ...]:
+    """ Given the 8 corner node indices of a single hexahedron element (indexed 0..7),
+        return a list of new hexahedral element connectivity lists
     """
-    return (np.array((  0,  6, 12,  8,  3,  9, 13, 11), dtype=int),
-            np.array((  1,  7, 12,  6,  4, 10, 13,  9), dtype=int),
-            np.array((  2,  8, 12,  7,  5, 11, 13, 10), dtype=int),
+    return (np.array((  0,  8, 20, 11, 16, 22, 26, 25), dtype=int),
+            np.array((  8,  1,  9, 20, 22, 17, 23, 26), dtype=int),
+            np.array(( 20,  9,  2, 10, 26, 23, 18, 24), dtype=int),
+            np.array(( 11, 20, 10,  3, 25, 26, 24, 19), dtype=int),
+            np.array(( 16, 22, 26, 25,  4, 12, 21, 15), dtype=int),
+            np.array(( 22, 17, 23, 26, 12,  5, 13, 21), dtype=int),
+            np.array(( 26, 23, 18, 24, 21, 13,  6, 14), dtype=int),
+            np.array(( 25, 26, 24, 19, 15, 21, 14,  7), dtype=int),
            )
