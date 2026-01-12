@@ -41,7 +41,7 @@ import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching meshio.xdmf.main.XdmfWriter
 from pyhope.io.io_xdmf import XdmfWriterInit
-meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue] # ty: ignore[unresolved-attribute]
+meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportAttributeAccessIssue]
 # ==================================================================================================================================
 
 
@@ -227,9 +227,9 @@ def DebugIO() -> None:
                 bc   = bcs[bcID]
                 sidedata['ElemID'  ][sidx].append(melem.elemID + 1)
                 sidedata['BCID'    ][sidx].append(bcID         + 1)
-                sidedata['BCType'  ][sidx].append(bc.type[0]      )  # ty: ignore [not-subscriptable]
-                sidedata['BCState' ][sidx].append(bc.type[2]      )  # ty: ignore [not-subscriptable]
-                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )  # ty: ignore [not-subscriptable]
+                sidedata['BCType'  ][sidx].append(bc.type[0]      )
+                sidedata['BCState' ][sidx].append(bc.type[2]      )
+                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )
 
         if hasFEM:
             # Create the FEM vertices
@@ -335,7 +335,7 @@ def DebugIO() -> None:
 
     fname = f'{pname}_DebugMesh.xdmf'
     hopout.routine(f'Writing XDMF mesh to "{fname}"')
-    meshio.xdmf.main.XdmfWriter(fname, debugOut)  # ty: ignore[unresolved-attribute]
+    meshio.xdmf.main.XdmfWriter(fname, debugOut)
 
     # (Optional:) Write wrapper for multiblock file
     # blocks = [(0, 'VolumeMesh' , f'{pname}_DebugElem.vtu'),

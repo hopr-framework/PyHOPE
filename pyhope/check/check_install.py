@@ -157,10 +157,10 @@ def downloadGitDir(user    : str,
                 print(hopout.warn(f'Unknown item type "{itemType}" for item "{name}". Skipping.'))
 
         if progress:
-            bar.step()  # type: ignore
+            bar.step()
 
     if progress:
-        bar.close()     # type: ignore
+        bar.close()
 
 
 def hdf5Stats(obj: h5py.Dataset) -> Optional[dict[str, float]]:
@@ -336,7 +336,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
             if os.path.isfile(toml_path):
                 try:
                     with open(toml_path, mode='rb') as f:
-                        tomlData = tomllib.load(f)   # ty: ignore[possibly-missing-attribute]
+                        tomlData = tomllib.load(f)
                 except Exception:
                     # If TOML is present but invalid,
                     # Python 3.11+: Skip the tutorial
