@@ -37,6 +37,7 @@ import numpy as np
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.common.common_numba import jit, types
 from pyhope.basis.basis_basis import change_basis_2D
 from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
@@ -49,6 +50,18 @@ def init_worker(function, VdmEqToGP, DGP, weights) -> None:
     function.VdmEqToGP = VdmEqToGP
     function.DGP       = DGP
     function.weights   = weights
+
+
+@jit(types.Tuple((types.float64, types.float64, types.float64))(
+    types.float64[:, :, ::1],
+    types.float64[:, :, ::1],
+    types.float64[:,    ::1]
+), nopython=True, cache=True, nogil=True)
+def eval_dotprod(dXdetaGP: np.ndarray, dXdxiGP: np.ndarray, weights: np.ndarray) -> tuple[np.ndarray, ...]:
+    NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
+    NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
+    NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
+    return NSurf0, NSurf1, NSurf2
 
 
 def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.ndarray) -> np.ndarray:
@@ -91,9 +104,7 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.n
     # return -np.sum(nVecW, axis=(1, 2))              # Sum over the last two axes
 
     # Compute the weighted cross product integral directly
-    NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
-    NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
-    NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
+    NSurf0, NSurf1, NSurf2 = eval_dotprod(dXdetaGP, dXdxiGP, weights)
 
     return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
 

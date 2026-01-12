@@ -36,13 +36,36 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.common.common_numba import jit, types
+from pyhope.mesh.mesh_common import LINMAP
+from pyhope.mesh.mesh_common import dir_to_nodes, faces
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
-import pyhope.mesh.mesh_vars as mesh_vars
-from pyhope.mesh.mesh_common import LINMAP
-from pyhope.mesh.mesh_common import dir_to_nodes, faces
 # ==================================================================================================================================
+
+
+@jit((types.float64)(types.float64[:, :, ::1], types.float64[::1]), nopython=True, cache=True, nogil=True)
+def eval_dotprod(fpoints, nVecFace) -> np.float64:
+    # nVecFace = nVecFace / np.linalg.norm(nVecFace)
+    # > Manually compute norm
+    nVecFace = nVecFace / np.sqrt(nVecFace[0]*nVecFace[0] + nVecFace[1]*nVecFace[1] + nVecFace[2]*nVecFace[2])
+
+    vec1 = fpoints[-1, 0, :] - fpoints[0, 0, :]
+    vec2 = fpoints[0, -1, :] - fpoints[0, 0, :]
+
+    # normal = np.cross(vec1, vec2)
+    # > Manually compute cross product
+    normal = np.empty_like(vec1)
+    normal[0] = vec1[1] * vec2[2] - vec1[2] * vec2[1]
+    normal[1] = vec1[2] * vec2[0] - vec1[0] * vec2[2]
+    normal[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0]
+
+    # Dot product and check if normal points outwards
+    # > Manually compute dot product
+    dotprod = nVecFace[0]*normal[0] + nVecFace[1]*normal[1] + nVecFace[2]*normal[2]
+    return dotprod
 
 
 def check_orientation(ionodes : np.ndarray,
@@ -72,21 +95,8 @@ def check_orientation(ionodes : np.ndarray,
         # nVecFace = nVecFace / np.linalg.norm(nVecFace)
         # nVecFace = nVecFace / np.sqrt(np.dot(nVecFace, nVecFace))
         # > Manually compute dot product
-        nVecFace = nVecFace / np.sqrt(nVecFace[0]*nVecFace[0] + nVecFace[1]*nVecFace[1] + nVecFace[2]*nVecFace[2])
+        dotprod = eval_dotprod(fpoints, nVecFace)
 
-        vec1 = fpoints[-1, 0, :] - fpoints[0, 0, :]
-        vec2 = fpoints[0, -1, :] - fpoints[0, 0, :]
-
-        # normal = np.cross(vec1, vec2)
-        # > Manually compute cross product
-        normal = np.empty_like(vec1)
-        normal[0] = vec1[1] * vec2[2] - vec1[2] * vec2[1]
-        normal[1] = vec1[2] * vec2[0] - vec1[0] * vec2[2]
-        normal[2] = vec1[0] * vec2[1] - vec1[1] * vec2[0]
-
-        # Dot product and check if normal points outwards
-        # > Manually compute dot product
-        dotprod = nVecFace[0]*normal[0] + nVecFace[1]*normal[1] + nVecFace[2]*normal[2]
         if dotprod < 0.:
             success = False
             sface   = face

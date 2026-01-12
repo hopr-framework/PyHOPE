@@ -277,7 +277,9 @@ def CheckHealth() -> None:
         print(hopout.warn( 'If you are running from a source checkout, install the package first (pip install -e .) to ' +
                            'enable requirement checks.'))
 
-    for pack in pkgs:
+    # For optional dependencies, split the first part
+    pkgs = set(p.split(';')[0] if len(p.split(';')) > 0 else p for p in pkgs)
+    for pack in sorted(pkgs):
         # packaging.Requirement will handle extras and environment markers
         try:
             req = Requirement(pack)

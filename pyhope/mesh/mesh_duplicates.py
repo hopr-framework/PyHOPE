@@ -38,12 +38,14 @@ from scipy.sparse.csgraph import connected_components
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_numba import jit, types
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
 
+@jit((types.int64)(types.int64[::1], types.int64), nopython=True, cache=True, nogil=True)
 def _unionFind(parent: np.ndarray, x: int) -> int:
     # Path compression
     par = parent  # local ref
@@ -53,6 +55,7 @@ def _unionFind(parent: np.ndarray, x: int) -> int:
     return x
 
 
+@jit((types.void)(types.int64[::1], types.int64[::1], types.int64, types.int64), nopython=True, cache=True, nogil=True)
 def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
     ra, rb = _unionFind(parent, a), _unionFind(parent, b)
     if ra == rb:
@@ -64,6 +67,24 @@ def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
     else:
         parent[rb]  = ra
         rank[  ra] += 1
+
+
+@jit(types.int64[::1](types.int64, types.int64[:, ::1]), nopython=True, cache=True, nogil=True)
+def _run_union_find_logic(nPoints, pairs):
+    # Disjoint Set (Union-Find)
+    parent = np.arange(nPoints)
+    rank   = np.zeros(nPoints, dtype=np.int64)
+
+    # Union all pairs
+    for i in range(pairs.shape[0]):
+        _unionUnion(parent, rank, pairs[i, 0], pairs[i, 1])
+
+    # Final pass: compress and compute representatives (minimum index per root)
+    # > Find root for every point
+    for i in range(nPoints):
+        parent[i] = _unionFind(parent, i)
+
+    return parent
 
 
 def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
@@ -92,19 +113,8 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
                 # All isolated: each point is its own representative
                 return np.arange(nPoints, dtype=int)
 
-            # Disjoint Set (Union-Find)
-            parent = np.arange(nPoints, dtype=int)
-            rank   = np.zeros(nPoints, dtype=int)
-
-            # Union all pairs
-            for a, b in pairs:
-                _unionUnion(parent, rank, int(a), int(b))
-
-            # Final pass: compress and compute representatives (minimum index per root)
-            # > Find root for every point
-            for i in range(nPoints):
-                parent[i] = _unionFind(parent, i)
-            components, labels = nPoints, parent
+            labels     = _run_union_find_logic(nPoints, pairs)
+            components = nPoints
 
         case 'sparse':  # pragma: no cover
             # Construct a sparse adjacency matrix where edges connect points within 'tol'
@@ -199,7 +209,14 @@ def EliminateDuplicates() -> None:
             # Only process 2D faces (quad or triangle)
             if any(s in tuple(cdict)[iMap] for s in ('quad', 'triangle')):
                 mapFaces = cells[iMap].data
-                currentBCNodes.update(node for iSide in cset[iMap] for node in mapFaces[iSide])
+
+                # cset[iMap] is list-like, make it an ndarray for fancy indexing
+                sideIDs = np.asarray(cset[iMap], dtype=np.int64)
+                if sideIDs.size == 0:
+                    continue
+
+                # Gather all nodes on those faces and unique them
+                currentBCNodes.update(np.unique(mapFaces[sideIDs].ravel()).tolist())
 
         # Ignore nodes that have already been processed for this boundary
         if bc_key not in BCNodes:

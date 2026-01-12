@@ -35,13 +35,17 @@ import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+# from pyhope.common.common_numba import jit, types
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
 
-def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.ndarray:
+# @jit((types.int64[:, ::1])(types.float64[:, ::1], types.float64[::1], types.float64[::1]), nopython=True, cache=True, parallel=True)
+def Coords2Int(coords : npt.NDArray[np.float64],
+               spacing: npt.NDArray[np.float64],
+               xmin   : npt.NDArray[np.float64]) -> npt.NDArray[np.int64]:
     """ Compute the integer discretization in each direction
     """
     return np.round((coords - xmin) * spacing).astype(np.int64)
@@ -162,10 +166,10 @@ def SortMeshBySFC() -> None:
     xmax = points.max(axis=0)
 
     # Calculate the element barycenters and associated element offsets
-    elem_bary  = calc_elem_bary(elems)
+    elem_bary      = calc_elem_bary(elems)
 
     # Calculate the space-filling curve resolution for the given KIND
-    kind = 4
+    kind: Final[int] = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions according to the chosen resolution

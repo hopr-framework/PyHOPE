@@ -24,6 +24,12 @@ PyHOPE is built using standard Python packages. You can install PyHOPE by follow
     python -m pip install pyhope
     ```
 
+> [!NOTE]  
+> PyHOPE can optionally use [Numba](https://numba.pydata.org) to accelerate some compute-heavy routines. If Numba is not available in your environment, PyHOPE will fall back to pure NumPy implementations.
+> ```bash
+> python -m pip install pyhope[numba]
+> ```
+
 # Testing
 PyHOPE features internal health checks to verify that everything works as expected. The checks can be invoked directly from the terminal.
 ```bash
