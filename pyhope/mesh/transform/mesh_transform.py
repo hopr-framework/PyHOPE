@@ -259,7 +259,7 @@ def TransformMesh() -> None:
         hopout.error('Available default transformation templates:' + ','.join(templist))
 
     # Perform actual post-deformation
-    mesh.points = PostDeformMod.PostDeform(mesh.points)  # ty: ignore [unresolved-attribute]
+    mesh.points = PostDeformMod.PostDeform(mesh.points)
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')

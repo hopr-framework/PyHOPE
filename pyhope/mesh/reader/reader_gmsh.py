@@ -47,7 +47,7 @@ from scipy.spatial import KDTree
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching MeshIO
-meshio._mesh.topological_dimension.update({'wedge15'   : 3,  # ty: ignore [unresolved-attribute]
+meshio._mesh.topological_dimension.update({'wedge15'   : 3,
                                            'pyramid13' : 3,
                                            'pyramid55' : 3})
 # ==================================================================================================================================

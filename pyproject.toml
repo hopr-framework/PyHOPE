@@ -14,7 +14,6 @@ dependencies = [
     'h5py',
     'hilbertcurve',
     'meshio',
-    'numba',
     'numpy>=2.0.0',
     'packaging',
     'plotext',
@@ -131,6 +130,9 @@ deprecateTypingAliases          = false
 reportImportCycles              = false
 reportUnsafeMultipleInheritance = false
 enableExperimentalFeatures      = false
+
+[tool.uv]
+python-preference          = 'system'
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
