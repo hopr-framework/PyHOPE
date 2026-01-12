@@ -45,6 +45,7 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     MeshSorting                      =                  SFC ! Mesh sorting mode [SFC, IJK, LEX, Snake]
     doSortIJK                        =                    F ! Sort the mesh elements along the I,J,K directions (legacy)
     doSplitToHex                     =                    F ! Split simplex elements into hexahedral elements
+    doSplitToHexZ                    =                    F ! Split hexahedral elements into h-refined elements
     doMortars                        =                    T ! Enables mortars
     !------------------------------------------------------------------------------
     ! Boundaries

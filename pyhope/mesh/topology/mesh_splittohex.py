@@ -64,8 +64,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.info('SPLITTING ELEMENTS TO HEXAHEDRA...')
     hopout.sep()
 
-    splitToHex = GetLogical('doSplitToHex') or \
-                 GetLogical(  'SplitToHex')
+    splitToHex = (GetLogical('doSplitToHex') if CountOption('doSplitToHex') else False > 0) or \
+                 (GetLogical(  'SplitToHex') if CountOption(  'SplitToHex') else False > 0)
     if not splitToHex:
         hopout.separator()
         return mesh
@@ -145,15 +145,54 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # z-Splitting
     # > Detect hybrid meshes that contain hexahedra. In this case, we can only work if we have prisms and hexahedra
-    volTypes   = tuple(cell.type for cell in mesh.cells if cell.type not in ('vertex', 'line', 'triangle', 'quad'))
-    elemzSplit = bool(len(set(volTypes)) > 1 and any(t == 'hexahedron' for t in volTypes))
-    unszElems  = ('tetrahedron', 'pyramid')
-    if elemzSplit and any(s.startswith(x) for x in unszElems for s in cdict.keys()):
-        unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unszElems)]
-        hopout.error('Element type[s] "{}" are not supported for splitting, exiting...'.format(', '.join(unsupported)))
+    volTypes    = tuple(cell.type for cell in mesh.cells if cell.type not in ('vertex', 'line', 'triangle', 'quad'))
+    splitToHexZ = bool(len(set(volTypes)) > 1 and any(t == 'hexahedron' for t in volTypes))
+    hexBCSet    = {}
+    hexBCQuads  = set()
+    if splitToHexZ:
+        unszElems  = ('tetrahedron', 'pyramid')
+        if any(s.startswith(x) for x in unszElems for s in cdict.keys()):
+            unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unszElems)]
+            hopout.error('Element type[s] "{}" are not supported for z-splitting, exiting...'.format(', '.join(unsupported)))
+
+        # Inquire if elements should be split in z-director or we should build mortar interfaces
+        CreateLogical('SplitToHexZ', multiple=False, default=True)
+        splitToHexZ = (GetLogical('doSplitToHexZ')                                          ) and \
+                      (GetLogical(  'SplitToHexZ') if CountOption(  'SplitToHexZ') else True) > 0
+
+        # Keep ordered quad connectivities
+        if not splitToHexZ:
+            for ctype, conn in cdict.items():
+                if ctype.startswith('quad'):
+                    for q in conn:
+                        hexBCSet[frozenset(q)] = np.array(q, dtype=int)
 
     for cell in elems_old:
         ctype, cdata = cell.type, cell.data
+
+        if ctype.startswith('hexahedron'):
+            # Carry over the original hexahedra volume cells unchanged
+            if not splitToHexZ:
+                elems_lst.setdefault('hexahedron', []).extend(cdata)
+
+                # Detect which existing quad boundary faces are attached to these hexahedra
+                for elem in cdata:
+                    for face in hexa_faces():
+                        fNodes = np.array(elem)[face]
+                        fSet   = frozenset(fNodes)
+
+                        candidate_sets = [nodeToFace[node] for node in fSet if node in nodeToFace]
+                        if not candidate_sets:
+                            continue
+
+                        common_candidates = set.intersection(*candidate_sets)
+                        for candidate in common_candidates:
+                            if fSet.issubset(candidate):
+                                hexBCQuads.add(candidate)
+
+                # Skip the rest of the hexahedrons
+                continue
+
         splitPoints, splitElems, splitFaces = elemSplitter.get(ctype, (None, None, None))
 
         # Only process valid splits
@@ -161,9 +200,9 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             continue
 
         # Setup split functions
-        subIdxs            = splitElems(          z_split=elemzSplit)
-        oldFIdxs, subFIdxs = splitFaces(          z_split=elemzSplit)
-        subPts             = splitPoints(order=1, z_split=elemzSplit)
+        subIdxs            = splitElems(          z_split=splitToHexZ)
+        oldFIdxs, subFIdxs = splitFaces(          z_split=splitToHexZ)
+        subPts             = splitPoints(order=1, z_split=splitToHexZ)
 
         # Iterate over element types
         for elem in cdata:
@@ -233,6 +272,23 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Update the progress bar
             bar.step()
+
+    # Add back the existing quad boundary faces attached to carried-over hexahedra
+    if not splitToHexZ and hexBCQuads:
+        for qset in hexBCQuads:
+            qnodes = hexBCSet.get(qset, None)
+
+            if qnodes is None:
+                continue
+
+            faceIndex = int(nFaces[1])
+            elems_lst['quad'].append(np.array(qnodes, dtype=int))
+            nFaces[1] += 1
+
+            # Update boundary sets for this quad face
+            for name in csets_old.get(qset, []):
+                csets_lst.setdefault(name, [[], []])
+                csets_lst[name][1].append(faceIndex)
 
     # Close the progress bar
     bar.close()
@@ -424,7 +480,7 @@ def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[li
                        # First quad face
                      [ np.array((  0,  6,  9,  3), dtype=int),
                        np.array((  6,  1,  4,  9), dtype=int)],
-                   # Second quad face
+                       # Second quad face
                      [ np.array((  1,  7, 10,  4), dtype=int),
                        np.array((  7,  2,  5, 10), dtype=int)],
                        # Third quad face
@@ -445,7 +501,7 @@ def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[li
                        np.array((  6,  1, 15, 18), dtype=int),
                        np.array(( 14, 18,  9,  3), dtype=int),
                        np.array(( 18, 15,  4,  9), dtype=int)],
-                       # First quad face
+                       # Second quad face
                      [ np.array((  1,  7, 19, 15), dtype=int),
                        np.array((  7,  2, 16, 19), dtype=int),
                        np.array(( 15, 19, 10,  4), dtype=int),
@@ -561,7 +617,7 @@ def hex_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list
                    np.array(( 10,  3, 19, 24), dtype=int),
                    np.array(( 24, 19,  7, 14), dtype=int),
                    np.array(( 18, 24, 14,  6), dtype=int)],
-                   # Face (3,0,4,7)
+                   # Side Face
                  [ np.array((  3, 11, 25, 19), dtype=int),
                    np.array(( 11,  0, 16, 25), dtype=int),
                    np.array(( 25, 16,  4, 15), dtype=int),
