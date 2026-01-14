@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-01-14
+### Added
+- Add numba to lower to machine-code [500b1d4]
+- Add Jacobians for mixed element meshes [631bdd1]
+- Add Gmsh output for meshes [bc6d8de]
+- Add node ordering for VTK Lagrange Hexahedrons [b10a246]
+- Add JOSS paper to documentation [4f86c2d]
+
+### Changed
+- Improve code performance of Jacobian calculation [0843b0d]
+- Reduce multiprocessing memory pressure [b407a77]
+- Update Gmsh to v4.15.0 [204570a]
+- Update ty linting for numba [9be42fa]
+- Update CI/CD consistency checks to current versions of ty, ruff, [based]pyright, and vulture [9daefde]
+- Switch CI/CD to Python 3.14 and reduce docker image size [3468340]
+
+### Fixed
+- Restrict number of threads during concurrent BLAS execution [f866ac2]
+
 ## [0.8.0] - 2025-10-21
 This release brings PyHOPE to functional parity with the HOPR features currently in active use. Any additional used but missing features will be treated as bugs.
 ### Added
