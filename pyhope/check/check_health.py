@@ -219,7 +219,8 @@ def _PackageInstalledVersion(package: str) -> Optional["Version"]:
 
 def PackageHealth(   pkg:    str,
                      version: Union[Version, None],
-                     pypiver: Union[Version, None]  # noqa: E272
+                     pypiver: Union[Version, None],  # noqa: E272
+                     optional: Optional[bool] = False,
                  ) -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -235,7 +236,8 @@ def PackageHealth(   pkg:    str,
     elif version:  # pragma: no cover
         hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI info unavailable)')
     else:  # pragma: no cover
-        hopout.info(f'{hopout.Symbols.ERR} {pkg} [v{version}] is not installed')
+        symbol = hopout.Symbols.ERR if optional is False else hopout.Symbols.INFO
+        hopout.info(f'{symbol} {pkg} (PyPI: v{pypiver}) is not installed')
 
 
 def CheckHealth() -> None:
@@ -277,9 +279,9 @@ def CheckHealth() -> None:
         print(hopout.warn( 'If you are running from a source checkout, install the package first (pip install -e .) to ' +
                            'enable requirement checks.'))
 
-    # For optional dependencies, split the first part
-    pkgs = set(p.split(';')[0] if len(p.split(';')) > 0 else p for p in pkgs)
-    for pack in sorted(pkgs):
+    # Filter for required packages
+    deps = set(p for p in pkgs if len(p.split(';')) == 1)
+    for pack in sorted(deps):
         # packaging.Requirement will handle extras and environment markers
         try:
             req = Requirement(pack)
@@ -295,6 +297,28 @@ def CheckHealth() -> None:
         pkgver  = _PackageInstalledVersion(pkg)
         pypiver = PyPIVersion(pkg)
         PackageHealth(pkg, pkgver, pypiver)
+
+    # For optional dependencies, split the first part
+    opts = set(p.split(';')[0] for p in pkgs if len(p.split(';')) > 1)
+    if len(opts):
+        hopout.info('')
+        hopout.info('Optional Packages:')
+        for pack in sorted(opts):
+            # packaging.Requirement will handle extras and environment markers
+            try:
+                req = Requirement(pack)
+            except Exception:  # pragma: no cover
+                # If parsing fails, fall back to a simple split at first space or semicolon
+                raw_name = pack.split()[0].split(';')[0]
+                name = raw_name.split('(')[0].strip()
+                req  = None
+                pkg  = name
+            else:  # pragma: no cover
+                pkg  = req.name
+
+            pkgver  = _PackageInstalledVersion(pkg)
+            pypiver = PyPIVersion(pkg)
+            PackageHealth(pkg, pkgver, pypiver, optional=True)
 
     hopout.info('')
     hopout.small_banner('Dependencies')
