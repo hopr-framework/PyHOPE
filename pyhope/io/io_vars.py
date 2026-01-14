@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, unique
 from functools import cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -45,6 +45,7 @@ debugmesh    : bool                              # Mesh output debug mesh
 debugvisu    : bool                              # Enable and show debug output / visualization
 
 
+@unique
 class MeshFormat(Enum):
     HDF5 = 0
     VTK  = 1
@@ -64,6 +65,7 @@ class ELEM:
     TYPES: tuple[int, ...] = (104, 204, 105, 115, 205, 106, 116, 206, 108, 118, 208)
 
 
+@unique
 class SIDE(IntEnum):
     INFOSIZE       = 5
     TYPE           = 0

@@ -28,7 +28,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, unique
 from functools import cache
 from typing import Dict, Final, Optional, Union, Tuple, final
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -79,11 +79,13 @@ tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
 
+@unique
 class MeshMode(Enum):
     Internal = 1
     External = 3
 
 
+@unique
 class MeshSort(Enum):
     NONE  = 0
     SFC   = 1

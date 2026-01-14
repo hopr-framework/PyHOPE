@@ -173,5 +173,7 @@ ignore_names = [
     "time_function",
     # Exclude monkey-patching MeshIO
     "__init__", "data_counter", "h5_file", "_meshio_to_gmsh_order",
+    # Exclude VTK ordering (used externally)
+    "HEXMAPVTK"
     ]
 sort_by_size = true
