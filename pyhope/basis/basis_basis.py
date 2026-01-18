@@ -607,6 +607,15 @@ else:
         return x2D_Out.reshape(dim1, n_Out, n_Out)
 
 
+def change_basis_1D(Vdm: np.ndarray, x1D_In: np.ndarray) -> np.ndarray:
+    """ Interpolate a 1D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
+        to another 1D tensor product node positions (number of nodes N_out+1)
+        defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
+        xi is defined in the 1D reference element xi=[-1,1]
+    """
+    return Vdm @ x1D_In
+
+
 def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
     """ Calculate the Jacobian of the mapping for a given element
     """

@@ -174,7 +174,7 @@ def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
 
 
 @cache
-def HEXMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def HEXAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
     """ MESHIO -> IJK ordering for high-order hexahedrons
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)

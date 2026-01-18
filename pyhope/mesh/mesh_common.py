@@ -28,7 +28,7 @@
 from __future__ import annotations
 import sys
 from functools import cache
-from typing import Union, Tuple, Any, Final
+from typing import Any, Final, Optional, Union, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -661,81 +661,81 @@ def calc_elem_bary(elems: list) -> np.ndarray:
 
 
 @cache
-def LINTEN(elemType: int, order: int = 1) -> tuple[np.ndarray, dict[np.int64, int]]:
+def LINTEN(elemType: int,
+           order: int = 1,
+           format: Optional[str] = 'meshio'
+           ) -> tuple[np.ndarray, dict[np.int64, int]]:
     """ MESHIO -> IJK ordering for element volume nodes
     """
     # Local imports ----------------------------------------
     # from pyhope.io.formats.cgns import genHEXMAPCGNS
-    # from pyhope.io.formats.vtk import genHEXMAPVTK
-    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
+    from pyhope.io.formats.vtk import HEXAMAPVTK
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXAMAPMESHIO
     # ------------------------------------------------------
     # Check if we try to access a curved element with a straight-sided mapping
     if order > 1 and elemType < 200:
         raise ValueError(f'Error in LINTEN: order {order} is not supported for elemType {elemType}')
 
+    match format:
+        case 'meshio':
+            TETRMAP = TETRMAPMESHIO
+            PYRAMAP = PYRAMAPMESHIO
+            PRISMAP = PRISMAPMESHIO
+            HEXAMAP = HEXAMAPMESHIO
+        case 'vtk':
+            TETRMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+                         ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
+            PYRAMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+                         ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
+            PRISMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+                         ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
+            HEXAMAP = HEXAMAPVTK
+        case _:
+            raise ValueError(f'Unsupported mesh format: {format}')
+
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            # return np.array((0, 1, 2, 3))
             TETRTEN = np.array((0, 1, 2, 3))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
             return TETRTEN, TENTETR
         case 105:  # Pyramid
-            # return np.array((0, 1, 3, 2, 4))
             PYRATEN = np.array((0, 1, 3, 2, 4))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
             return PYRATEN, TENPYRA
         case 106:  # Prism
-            # return np.array((0, 1, 2, 3, 4, 5))
             PRISTEN = np.array((0, 1, 2, 3, 4, 5))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
             return PRISTEN, TENPRIS
         case 108:  # Hexaeder
-            # return np.array((0, 1, 3, 2, 4, 5, 7, 6))
             HEXTEN = np.array((0, 1, 3, 2, 4, 5, 7, 6))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
             return HEXTEN, TENHEX
         # Curved elements, use mapping
         case 204:  # Tetraeder
-            _, TETRTEN = TETRMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            _, TETRTEN = TETRMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
             return TETRTEN, TENTETR
         case 205:  # Pyramid
-            _, PYRATEN = PYRAMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            _, PYRATEN = PYRAMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
             return PYRATEN, TENPYRA
         case 206:  # Prism
-            _, PRISTEN = PRISMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            _, PRISTEN = PRISMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
             return PRISTEN, TENPRIS
         case 208:  # Hexaeder
-            # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
-            # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
-
-            # # CGNS
-            # _, HEXTEN = HEXMAPCGNS(order+1)
-
-            # # VTK
-            # _, HEXTEN = HEXMAPVTK(order+1)
-
-            # MESHIO
-            _, HEXTEN = HEXMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # > HEXTEN : np.ndarray # FORMAT <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+            # > HEXMAP : np.ndarray # FORMAT <-> IJK ordering for high-order hexahedrons (3D mapping)
+            _, HEXTEN = HEXAMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
             return HEXTEN, TENHEX
         case _:  # Default
@@ -750,7 +750,7 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
     # Local imports ----------------------------------------
     # from pyhope.io.formats.cgns import HEXMAPCGNS
     # from pyhope.io.formats.vtk import HEXMAPVTK
-    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXAMAPMESHIO
     # ------------------------------------------------------
     # Check if we try to access a curved element with a straight-sided mapping
     if order > 1 and elemType < 200:
@@ -807,7 +807,7 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
             # HEXMAP  , _ = HEXMAPVTK(order+1)
 
             # MESHIO
-            HEXMAP  , _ = HEXMAPMESHIO(order+1)
+            HEXMAP  , _ = HEXAMAPMESHIO(order+1)
             return HEXMAP
         case _:  # Default
             print('Error in LINMAP, unknown elemType')
