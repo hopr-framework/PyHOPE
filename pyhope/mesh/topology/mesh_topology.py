@@ -40,7 +40,7 @@ import numpy as np
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching MeshIO
-meshio._mesh.topological_dimension.update({'wedge15'   : 3,    # ty: ignore [unresolved-attribute]
+meshio._mesh.topological_dimension.update({'wedge15'   : 3,
                                            'pyramid13' : 3,
                                            'pyramid55' : 3})
 # ==================================================================================================================================
@@ -166,8 +166,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # If meshcells is empty, we fake it assign it to Zone1
     if len(meshcells) == 0:
-        meshcells = tuple(('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
-                                                                                   if k.startswith('hexahedron'))
+        meshcells = tuple(('Zone1', {k: np.array([i for i in range(len(v))])}) for k, v in mesh.cells_dict.items()
+                                                                                        if k.startswith('hexahedron'))
 
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
