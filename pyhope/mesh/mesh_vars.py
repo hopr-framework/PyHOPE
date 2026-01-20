@@ -73,6 +73,9 @@ nElemsIJK: Optional[npt.NDArray]                  # Number of elements in each s
 doMortars: bool                                   # Flag if mortars are enabled
 doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
 
+# Mesh extrusion
+doExtrude: bool
+
 # Internal variables
 tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
 tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)

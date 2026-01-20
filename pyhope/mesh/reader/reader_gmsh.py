@@ -157,13 +157,16 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
 
         # Enable agglomeration
         mesh_vars.already_curved = GetLogical('MeshIsAlreadyCurved')
-        hopout.sep()
         if mesh_vars.already_curved and mesh_vars.nGeo > 1:
             if ext == '.cgns':
                 gmsh.option.setNumber('Mesh.CgnsImportOrder', mesh_vars.nGeo)
             # Set the element order
             # > Technically, this is only required in generate_mesh but let's be precise here
             gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+
+        # Enable extrusion
+        mesh_vars.doExtrude = GetLogical('doExtrude')
+        hopout.sep()
 
         gmsh.merge(fname)
 
@@ -237,16 +240,22 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     #                         gmsh.option.getNumber('Mesh.NbPyramids'  ),
     #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
     gmshTypes = gmsh.model.mesh.getElementTypes()
-    gmshElems = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
-                              if dim == 3])
-    if not np.any(gmshElems):
-        hopout.error('Generated mesh does not contain volume elements, exiting...')
+    gmshElems = np.asarray([(elemName, dim, order) for type                          in gmshTypes                                       # noqa: E272
+                                                   for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]])  # noqa: E501
+    gmshDim   = max([int(s) for s in gmshElems[:, 1]])
+    match gmshDim:
+        case 3:
+            pass
+        case 2:
+            if not mesh_vars.doExtrude:
+                hopout.error('Generated mesh does not contain volume elements, exiting...')
+        case _:
+            hopout.error(f'Generated mesh does not contain {"volume" if not mesh_vars.doExtrude else "surface"} elements, exiting...')  # noqa: E501
 
     # Consistency check if the mesh elements have the correct order
     gmshIssue  = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
                                                for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
-                              if dim == 3 and order != mesh_vars.nGeo])
+                              if dim == gmshDim and order != mesh_vars.nGeo])
 
     if gmshIssue.size > 0:
         for elem in gmshIssue:
