@@ -174,10 +174,10 @@ def GenerateMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.mesh.extrude.mesh_extrude import MeshExtrude
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
     from pyhope.mesh.mesh_vars import MeshMode
-    from pyhope.mesh.topology.mesh_extrude import MeshExtrude
     from pyhope.mesh.topology.mesh_splittohex import MeshSplitToHex
     from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
     # ------------------------------------------------------

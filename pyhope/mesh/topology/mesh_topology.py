@@ -285,7 +285,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         # Check if the subFace is indeed a subset of the candidate from csets_old
                         if faceSet.issubset(candidate):
                             # Use the associated boundary name
-                            # (Assuming all boundary names are stored in a list for this candidate. Adjust if needed.)
                             names = csets_old[candidate]
                             # Update csets_lst for each name in the list.
                             for name in names:

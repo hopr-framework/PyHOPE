@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from collections import defaultdict
 from functools import cache
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,24 +57,21 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     gmshCellTypes = GMSHCELLTYPES()
 
     # Check if the mesh is already 3D
-    volume_cells  = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]
-    if volume_cells:
+    if [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
         return mesh
 
     # Check if the mesh contains 2D elements to extrude
-    surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
-    if surface_cells:
-        if not mesh_vars.doExtrude:
-            hopout.error('Mesh contains suitable surface cells for extrusion but doExtrude=F, exiting...')
-    else:
+    if       [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D] and not mesh_vars.doExtrude:  # noqa: E271
+        hopout.error('Mesh contains suitable surface cells for extrusion but doExtrude=F, exiting...')
+    elif not [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]:
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
 
     hopout.info('Extruding surface to volume mesh')
 
     # Copy original points
     pointl    = cast(list, mesh.points.tolist())
-    # elems_old = mesh.cells.copy()
-    # cell_sets = getattr(mesh, 'cell_sets', {})
+    elems_old = mesh.cells.copy()
+    cell_sets = getattr(mesh, 'cell_sets', {})
 
     # Get base key to distinguish between linear and high-order elements
     ho_key = 100 if nGeo == 1 else 200
@@ -108,8 +106,27 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                   ho_key + 8: lambda x: 1}
     nFace   = (nGeo+1)*(nGeo+2)/2
 
+    # Convert the (1D, 2D) boundary cell set into a dictionary
+    csets_old = {}
+
+    for cname, cblock in cell_sets.items():
+        # Each set_blocks is a list of arrays, one entry per cell block
+        for blockID, block in enumerate(cblock):
+            # TODO: Are we actually skipping anything here?
+            if elems_old[blockID].type[:4] not in ('line', 'tria', 'quad'):
+                continue
+
+            # Ignore the empty zones
+            if block is None:
+                continue
+
+            # Sort them as a set for membership checks
+            for face in block:
+                nodes = mesh.cells_dict[elems_old[blockID].type][face]
+                csets_old.setdefault(frozenset(nodes), []).append(cname)
+
     # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('line') for key in v.keys())
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v.keys())
                                                                      or any(key.startswith('quad') for key in v.keys()))
 
     # If meshcells is empty, we fake it assign it to Zone1
@@ -121,19 +138,25 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
+    # Build an inverted index to map each node to all face keys (from csets_old) that contain it
+    nodeToFace = defaultdict(set)
+    for subFace in csets_old:
+        for node in subFace:
+            nodeToFace[node].add(subFace)
+
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
         mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
 
         extrude, faces = elemExtruder.get(mtype, (None, None))
-        # FIXME: Use the actual element type to get the faces
-        faceMap = faceMaper.get(108, None)
+        elemType = ho_key + (8 if cast(str, mtype).startswith('quad') else 6)
+        faceMap  = faceMaper.get(elemType, None)
 
         # Sanity check
         if faceMap is None:
             raise ValueError('Missing faceMap for element type {}'.format(mtype))
 
-        cdata   = mesh.get_cells_type(mtype)[mcell]
+        cdata = mesh.get_cells_type(mtype)[mcell]
 
         if extrude is None or faces is None:
             hopout.error('Element type {} not supported for extruding'.format(mtype), traceback=True)
@@ -155,24 +178,88 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             elems_lst.setdefault(elemName, []).extend([extElem])
 
             # Create the new faces
-            subFaces = tuple(np.array(extElem)[face] for face in faces(nGeo))
+            subFaces   = [np.array(extElem)[face] for face in faces(nGeo)]
+            bottomName = str
 
-            for subFace in subFaces:
+            # BC: First, find the 2D (bottom) face
+            # > Iterate over a copy, so elements can be removed
+            for subFace in subFaces[:]:
                 faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                # faceSet = frozenset(subFace)
+                faceSet = frozenset(subFace)
 
-                # Use the associated boundary name
-                # (Assuming all boundary names are stored in a list for this candidate. Adjust if needed.)
-                # FIXME: Load the actual boundary conditions
-                # names = csets_old[candidate]
-                names = ['zplus']
-                # Update csets_lst for each name in the list.
-                for name in names:
-                    csets_lst.setdefault(name, [[], []])
+                # Get candidate cset keys using the nodes in the face
+                candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+                # Filter only 2D set
+                candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) > 2})]
+                if not candidate_sets:
+                    continue
+
+                common_candidates = set.intersection(*candidate_sets)
+                for candidate in common_candidates:
+                    # Check if the subFace is indeed a subset of the candidate from csets_old
+                    if faceSet.issubset(candidate):
+                        # Use the associated boundary name
+                        names = csets_old[candidate]
+
+                        if len(names) > 1:
+                            hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...')
+
+                        # Update csets_lst for each name in the list.
+                        (name,) = names
+                        csets_lst.setdefault(name.strip(), [[], []])
+                        csets_lst[name][faceVal].append(nFaces[faceVal])
+
+                        # Remove the 2D face but store the (unique) name
+                        bottomName       = name
+                        subFaces.remove(subFace)
+
+                        nFaces[faceVal] += 1
+                        elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+
+            # BC: Next, iterate over the 1D (side faces)
+            for subFace in subFaces[:]:
+                faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+                faceSet = frozenset(subFace)
+
+                # Get candidate cset keys using the nodes in the face
+                candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+                # Filter only 1D set
+                candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) == 2})]
+                if not candidate_sets:
+                    continue
+
+                common_candidates = set.intersection(*candidate_sets)
+                for candidate in common_candidates:
+                    # Check if the subFace is indeed a subset of the candidate from csets_old
+                    if candidate.issubset(faceSet):
+                        # Use the associated boundary name
+                        names = csets_old[candidate]
+
+                        if len(names) > 1:
+                            hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...')
+
+                        # Update csets_lst for each name in the list.
+                        (name,) = names
+                        csets_lst.setdefault(name.strip(), [[], []])
+                        csets_lst[name][faceVal].append(nFaces[faceVal])
+
+                        # Remove the 1D face
+                        subFaces.remove(subFace)
+
+                        nFaces[faceVal] += 1
+                        elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+
+            # BC: We should have one face left, assign the bottom BC
+            match len(subFaces):
+                case 1:
+                    (subFace,) = subFaces
+                    csets_lst.setdefault(bottomName, [[], []])
                     csets_lst[name][faceVal].append(nFaces[faceVal])
 
-                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
-                nFaces[faceVal] += 1
+                    nFaces[faceVal] += 1
+                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                case _:
+                    hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...')
 
             # Update the progress bar
             bar.step()
@@ -206,7 +293,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     return mesh
 
 
-# @cache
 def extrude_hex(points: np.ndarray,
                 order: int) -> tuple[np.ndarray, ...]:
     match order:
