@@ -356,7 +356,7 @@ def GetParam(name    : str,
         if default:
             value = default
         else:
-            if config.prms[name]['default'] is not None:
+            if config.prms[name]['default'] is not None and config.prms[name]['default'] != 'None':
                 value = config.prms[name]['default']
 
                 # int2str has custom output
