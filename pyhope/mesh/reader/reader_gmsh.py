@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
+import itertools
 import os
 import re
 import resource
@@ -54,7 +55,7 @@ meshio._mesh.topological_dimension.update({'wedge15'   : 3,
 
 
 def compatibleGMSH(file: str) -> bool:
-    ioFormat = {1 : '.msh',
+    ioFormat = {1 : ['.msh', '.geo'],
                 2 : '.unv',
                 # 10: 'auto',
                 16: '.vtk',
@@ -77,9 +78,13 @@ def compatibleGMSH(file: str) -> bool:
                 # 49: '.neu',   # Cubit/Gambit reader is broken beyond repair
                 50: '.matlab'}
 
-    # get file extension
     _, ext = os.path.splitext(file)
-    return ext in ioFormat.values()
+
+    # Normalize each value to an iterable of extensions (avoid iterating over characters of strings)
+    values = (v if isinstance(v, (list, tuple, set)) else (v,) for v in ioFormat.values())
+    exts   = tuple(itertools.chain.from_iterable(values))
+
+    return ext in exts
 
 
 def ReadGMSH(fnames: list) -> meshio.Mesh:
@@ -149,22 +154,26 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         # entities  = gmsh.model.getEntities()
         # nBCs_CGNS = len([s for s in entities if s[0] == 2])
 
-        # Check if GMSH read all BCs
-        # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
-        # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
-        if ext == '.cgns':
-            # WARNING: THIS PROBABLY NEVER WORKS, SO JUST USE OUR OWN APPROACH
-            # if nBCs_CGNS == len(mesh_vars.bcs):
-            #     for entDim, entTag in entities:
-            #         # Surfaces are dim-1
-            #         if entDim == 3:
-            #             continue
-            #
-            #         entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
-            #         gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
-            # else:
-            #     mesh_vars.CGNS.regenerate_BCs = True
-            mesh_vars.CGNS.regenerate_BCs = True
+        match ext:
+            # Check if GMSH needs to generate the mesh
+            case '.geo':
+                gmsh.model.mesh.generate()
+            # Check if GMSH read all BCs
+            # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
+            # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
+            case '.cgns':
+                # WARNING: THIS PROBABLY NEVER WORKS, SO JUST USE OUR OWN APPROACH
+                # if nBCs_CGNS == len(mesh_vars.bcs):
+                #     for entDim, entTag in entities:
+                #         # Surfaces are dim-1
+                #         if entDim == 3:
+                #             continue
+                #
+                #         entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
+                #         gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
+                # else:
+                #     mesh_vars.CGNS.regenerate_BCs = True
+                mesh_vars.CGNS.regenerate_BCs = True
 
         # gmsh.model.geo.synchronize()
         gmsh.model.occ.synchronize()
