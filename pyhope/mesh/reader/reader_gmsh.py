@@ -32,7 +32,9 @@ import re
 import resource
 import shutil
 import subprocess
+import tempfile
 import time
+from pathlib import Path
 from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -158,6 +160,28 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
             # Check if GMSH needs to generate the mesh
             case '.geo':
                 gmsh.model.mesh.generate()
+
+                # CAVE: When generating from .geo, node sorting is not correctly applied. As a workaround,
+                #       generate a temporary .msh file and merge it back
+                tmp = tempfile.NamedTemporaryFile(prefix=Path(fname).stem, suffix='.msh', delete=False)
+                tmpName = tmp.name
+                tmp.close()
+
+                try:
+                    gmsh.write(tmpName)
+
+                    # Clear the in-memory model, then re-load the mesh from the .msh
+                    gmsh.clear()
+                    gmsh.merge(tmpName)
+
+                    # Synchronize after merge
+                    gmsh.model.occ.synchronize()
+                finally:
+                    try:
+                        os.unlink(tmpName)
+                    except OSError:
+                        pass
+
             # Check if GMSH read all BCs
             # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
             # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
