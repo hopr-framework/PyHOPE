@@ -362,7 +362,7 @@ def ConnectMesh() -> None:
                 # sideID  = find_keys(face_corners, corners)
                 sideIDs = corner_side[corners]
                 # Multiple sides with the same corners are only allowed for inner [0,100] and periodic [1] BCs
-                match bcs[bcID].type[0]:
+                match cast(np.ndarray, bcs[bcID].type)[0]:
                     case 0 | 100:  # Inner side
                         pass
                     case 1:        # Periodic side
@@ -379,13 +379,14 @@ def ConnectMesh() -> None:
 
                     # Add the periodic nodes of the periodic sides to the side_corners
                     # > Only negative BC_alpha allowed here
-                    if bcs[bcID].type[0] == 1 and bcs[bcID].type[3] > 0:
+                    if cast(np.ndarray, bcs[bcID].type)[0] == 1 and \
+                       cast(np.ndarray, bcs[bcID].type)[3]  > 0:
                         pNodes = hash(tuple(sorted(mesh_vars.periNodes[(s, key)] for s in mapFaces[iSide][:nCorners])))
                         peri_corners[sideID] = pNodes
                         # Update the reverse dictionary immediately
                         corner_side[pNodes].append(sideID)
 
-                    if bcs[bcID].type[0] not in (1, 100):
+                    if cast(np.ndarray, bcs[bcID].type)[0] not in (1, 100):
                         bar.step()
 
     # Try to connect the inner / periodic sides

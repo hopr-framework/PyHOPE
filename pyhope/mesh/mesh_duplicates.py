@@ -198,10 +198,11 @@ def EliminateDuplicates() -> None:
             hopout.error(f'Could not find BC {bc_key} in list, exiting...')
 
         # Only process periodic boundaries in the positive direction
-        if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
+        if cast(np.ndarray, bcs[bcID].type)[0] != 1 or \
+           cast(np.ndarray, bcs[bcID].type)[3]  < 0:
             continue
 
-        iVV = bcs[bcID].type[3]
+        iVV = cast(np.ndarray, bcs[bcID].type)[3]
         VV  = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
 
         currentBCNodes = set()
