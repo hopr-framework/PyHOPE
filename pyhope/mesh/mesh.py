@@ -120,10 +120,14 @@ def DefineMesh() -> None:
                                                                                                                'direction')
     # Extrusion
     CreateSection('Extrusion')
-    CreateLogical(  'doExtrude',            default=True,  help='Enables mesh extrusion')
+    CreateLogical(   'MeshExtrude',          default=True,     help='Enables mesh extrusion')
+    CreateStr(       'MeshExtrudeTemplate',  default='linear', help='Mesh extrusion template')
+    CreateReal(      'MeshExtrudeLength',    default=1.0,      help='Mesh extrusion length')
+    CreateInt(       'MeshExtrudeElems',     default=1  ,      help='Mesh extrusion number of element')
+    CreateInt(       'MeshExtrudeBCIndex',                     help='Mesh extrusion boundary index')
     # Edge connectivity
     CreateSection('Finite Element Method (FEM) Connectivity')
-    CreateLogical(  'doFEMConnect',         default=False, help='Generate finite element method (FEM) connectivity')
+    CreateLogical(   'doFEMConnect',         default=False, help='Generate finite element method (FEM) connectivity')
 
 
 def InitMesh() -> None:

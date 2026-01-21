@@ -165,7 +165,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
             gmsh.model.mesh.setOrder(mesh_vars.nGeo)
 
         # Enable extrusion
-        mesh_vars.doExtrude = GetLogical('doExtrude')
+        mesh_vars.doExtrude = GetLogical('MeshExtrude')
         hopout.sep()
 
         gmsh.merge(fname)
