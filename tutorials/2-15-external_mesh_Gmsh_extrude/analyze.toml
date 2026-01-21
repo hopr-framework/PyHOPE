@@ -1,0 +1,23 @@
+[ElemInfo]
+min = 0.0
+max = 108.0
+mean = 31.25
+stddev = 35.831686008646344
+
+[GlobalNodeIDs]
+min = 1.0
+max = 20.0
+mean = 11.071428571428571
+stddev = 5.072769775702314
+
+[NodeCoords]
+min = 0.0
+max = 2.0
+mean = 0.5952380952380952
+stddev = 0.5355231875503916
+
+[SideInfo]
+min = -22.0
+max = 61.0
+mean = 6.848484848484849
+stddev = 13.52107493512574
