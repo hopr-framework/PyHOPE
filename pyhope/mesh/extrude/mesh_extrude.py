@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
 from functools import cache
+from string import digits
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -36,9 +37,12 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Instantiate ELEMTYPE
+elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
 
@@ -48,6 +52,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.io.io_gmsh import GMSHCELLTYPES
+    from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.mesh.mesh_vars import nGeo
     # ------------------------------------------------------
 
@@ -99,7 +104,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     csets_lst = {}
 
     # Set up the element extrusion function
-    elemExtruder = {'quad': (extrude_hex  , hex_faces    )}
+    elemExtruder = {'tria': (extrude_pris, pris_faces ),
+                    'quad': (extrude_hexa, hexa_faces )}
     faceMaper = { ho_key + 4: lambda x: 0,
                   ho_key + 5: lambda x: 0 if x == 0 else 1,
                   ho_key + 6: lambda x: 0 if x == 0 else 1,
@@ -148,9 +154,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         _    , mdict = meshcell
         mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
 
-        extrude, faces = elemExtruder.get(mtype, (None, None))
-        elemType = ho_key + (8 if cast(str, mtype).startswith('quad') else 6)
-        faceMap  = faceMaper.get(elemType, None)
+        extrude, faces = elemExtruder.get(mtype[:4], (None, None))
+        elemNum = ho_key + (8 if cast(str, mtype).startswith('quad') else 6)
+        faceMap = faceMaper.get(elemNum, None)
 
         # Sanity check
         if faceMap is None:
@@ -160,6 +166,16 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
         if extrude is None or faces is None:
             hopout.error('Element type {} not supported for extruding'.format(mtype), traceback=True)
+
+        # Obtain the element type
+        elemType = elemTypeClass.inam[elemNum]
+        if len(elemType) > 1:
+            elemType  = elemType[0].rstrip(digits)
+            elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+            elemType += str(elemDOFs)
+        else:
+            elemType  = elemType[0]
+            elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
 
         # Face block: Iterate over each element
         for elem in cdata:
@@ -172,10 +188,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             extElem  = elem.tolist() + np.add(newNodes, nPoints).tolist()
             nPoints += len(newNodes)
 
-            # FIXME: Set the correct element type depending on the surface element
-            elemName = 'hexahedron'
             # The list is crucial here, we want to build a list of lists
-            elems_lst.setdefault(elemName, []).extend([extElem])
+            elems_lst.setdefault(elemType, []).extend([extElem])
 
             # Create the new faces
             subFaces   = [np.array(extElem)[face] for face in faces(nGeo)]
@@ -211,7 +225,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
                         # Remove the 2D face but store the (unique) name
                         bottomName       = name
-                        subFaces.remove(subFace)
+                        idx = next(i for i, f in enumerate(subFaces) if f is subFace)
+                        subFaces.pop(idx)
 
                         nFaces[faceVal] += 1
                         elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
@@ -244,7 +259,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                         csets_lst[name][faceVal].append(nFaces[faceVal])
 
                         # Remove the 1D face
-                        subFaces.remove(subFace)
+                        idx = next(i for i, f in enumerate(subFaces) if f is subFace)
+                        subFaces.pop(idx)
 
                         nFaces[faceVal] += 1
                         elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
@@ -253,6 +269,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             match len(subFaces):
                 case 1:
                     (subFace,) = subFaces
+                    faceVal    = faceMap(0) if len(subFace) == nFace else faceMap(1)
                     csets_lst.setdefault(bottomName, [[], []])
                     csets_lst[name][faceVal].append(nFaces[faceVal])
 
@@ -293,8 +310,21 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     return mesh
 
 
-def extrude_hex(points: np.ndarray,
-                order: int) -> tuple[np.ndarray, ...]:
+def extrude_pris(points: np.ndarray,
+                 order: int) -> tuple[np.ndarray, ...]:
+    match order:
+        case 1:
+            # Repeat the bottom layer twice
+            nodes   = np.arange(3, dtype=np.int64).tolist()
+            # FIXME: Use the actual extrusionVector
+            extrude = points + np.array([0.0, 0.0, 1.0], dtype=points.dtype)
+        # FIXME: Implement the other orders
+
+    return nodes, extrude
+
+
+def extrude_hexa(points: np.ndarray,
+                 order: int) -> tuple[np.ndarray, ...]:
     match order:
         case 1:
             # Repeat the bottom layer twice
@@ -307,7 +337,33 @@ def extrude_hex(points: np.ndarray,
 
 
 @cache
-def hex_faces(order: int) -> tuple[np.ndarray, ...]:
+def pris_faces(order: int) -> tuple[np.ndarray, ...]:
+    """
+    Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
+    """
+    match order:
+        case 1:
+            return (# Triangular faces  # noqa: E261
+                    np.array((  0,  1,  2    ), dtype=int),
+                    np.array((  3,  4,  5    ), dtype=int),
+                    # Quadrilateral faces
+                    np.array((  0,  1,  4,  3), dtype=int),
+                    np.array((  1,  2,  5,  4), dtype=int),
+                    np.array((  2,  0,  3,  5), dtype=int))
+        # INFO: It would be better to return the actual high-order faces here but PyHOPE will automatically fallback to the corner
+        #       nodes if the inner nodes are not available
+        case _:
+            return (# Triangular faces  # noqa: E261
+                    np.array((  0,  1,  2    ), dtype=int),
+                    np.array((  3,  4,  5    ), dtype=int),
+                    # Quadrilateral faces
+                    np.array((  0,  1,  4,  3), dtype=int),
+                    np.array((  1,  2,  5,  4), dtype=int),
+                    np.array((  2,  0,  3,  5), dtype=int))
+
+
+@cache
+def hexa_faces(order: int) -> tuple[np.ndarray, ...]:
     """ Given the indices of a hexahedral element, return a tuple with the 6 faces as arrays
     """
     match order:

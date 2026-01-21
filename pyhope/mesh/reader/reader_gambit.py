@@ -47,27 +47,6 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 
 @cache
-def NDOFperElemType(elemType: str, nGeo: int) -> int:
-    """ Calculate the number of degrees of freedom for a given element type
-    """
-    match elemType:
-        case _ if elemType.startswith('triangle'):
-            return round((nGeo+1)*(nGeo+2)/2.)
-        case _ if elemType.startswith('quad'):
-            return round((nGeo+1)**2)
-        case _ if elemType.startswith('tetra'):
-            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
-        case _ if elemType.startswith('pyramid'):
-            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
-        case _ if elemType.startswith('wedge'):
-            return round((nGeo+1)**2 *(nGeo+2)/2.)
-        case _ if elemType.startswith('hexahedron'):
-            return round((nGeo+1)**3)
-        case _:
-            raise ValueError(f'Unknown element type {elemType}')
-
-
-@cache
 def gambit_faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of an element
     """
@@ -94,6 +73,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.common.common import lines_that_contain
     from pyhope.mesh.mesh_common import face_to_cgns
     from pyhope.mesh.mesh_common import FaceOrdering
+    from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.meshio.meshio_ordering import NodeOrdering
     # ------------------------------------------------------
 
