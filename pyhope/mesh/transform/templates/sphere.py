@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
-
+#
 # ==================================================================================================================================
 # Mesh generation library
 # ==================================================================================================================================
@@ -39,19 +39,21 @@ import numpy as np
 
 
 def PostDeform(points: np.ndarray) -> np.ndarray:
+    """ This function applies a deformation transformation to the input points
+        > 3D box, x,y in [-1,1]^3, to sphere with radius PostDeform_R0 all points outside [-1,1]^4 will be mapped directly to a
+          sphere
     """
-    Apply post-deformation transformation to input points.
-    3D box, x,y in [-1,1]^3, to Sphere with radius PostDeform_R0
-    all points outside [-1,1]^4 will be mapped directly to a sphere
-    """
+    # Local imports ----------------------------------------
+    from pyhope.readintools.readintools import CreateReal, GetReal
+    # ------------------------------------------------------
 
-    # TODO: Readin parameters from a configuration file
-    PostDeform_R0 = 1.0  # Define based on the expected scaling factor
-
+    # Readin parameters
+    CreateReal('PostDeform_R0', default=1.0, multiple=False, help='Radius of the sphere')
+    PostDeform_R0 = GetReal('PostDeform_R0')
 
     nTotal = points.shape[0]
-    X_out = np.zeros_like(points)
-    Pi = np.pi
+    X_out  = np.zeros_like(points)
+    Pi     = np.pi
 
     for i in range(nTotal):
         x = points[i, :].copy()
@@ -63,7 +65,7 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             sina = np.sin(0.25 * Pi * x[1] / 0.5)
             cosb = np.cos(0.25 * Pi * x[2] / 0.5)
             sinb = np.sin(0.25 * Pi * x[2] / 0.5)
-            dx1 = np.array([cosa * cosb, sina * cosb, cosa * sinb])
+            dx1  = np.array([cosa * cosb, sina * cosb, cosa * sinb])
             dx1 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array([0.5, x[1], x[2]])
 
             # Upper side at y=0.5
@@ -71,7 +73,7 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             sina = np.sin(0.25 * Pi * x[2] / 0.5)
             cosb = np.cos(0.25 * Pi * x[0] / 0.5)
             sinb = np.sin(0.25 * Pi * x[0] / 0.5)
-            dx2 = np.array([cosa * sinb, cosa * cosb, sina * cosb])
+            dx2  = np.array([cosa * sinb, cosa * cosb, sina * cosb])
             dx2 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array([x[0], 0.5, x[2]])
 
             # Side at z=0.5
@@ -79,14 +81,14 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             sina = np.sin(0.25 * Pi * x[0] / 0.5)
             cosb = np.cos(0.25 * Pi * x[1] / 0.5)
             sinb = np.sin(0.25 * Pi * x[1] / 0.5)
-            dx3 = np.array([sina * cosb, cosa * sinb, cosa * cosb])
+            dx3  = np.array([sina * cosb, cosa * sinb, cosa * cosb])
             dx3 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array([x[0], x[1], 0.5])
 
             alpha = 0.35
-            dx = alpha * (
-                dx1 * np.array([2 * x[0], 1.0, 1.0]) +
-                dx2 * np.array([1.0, 2 * x[1], 1.0]) +
-                dx3 * np.array([1.0, 1.0, 2 * x[2]])
+            dx    = alpha * (
+                   dx1 * np.array([2 * x[0], 1.0, 1.0]) +
+                   dx2 * np.array([1.0, 2 * x[1], 1.0]) +
+                   dx3 * np.array([1.0, 1.0, 2 * x[2]])
             )
 
             # Apply deformation

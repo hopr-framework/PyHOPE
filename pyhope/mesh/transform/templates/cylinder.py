@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
-
+#
 # ==================================================================================================================================
 # Mesh generation library
 # ==================================================================================================================================
@@ -39,20 +39,31 @@ import numpy as np
 
 
 def PostDeform(points: np.ndarray) -> np.ndarray:
-    """
-    This function applies a deformation transformation to the input points based on the given Fortran logic.
-    The transformation maps a 2D square region to a cylindrical or toroidal coordinate system.
+    """ This function applies a deformation transformation to the input points
+        > The transformation maps a 2D square region to a cylindrical or toroidal coordinate system
     """
 
-    # TODO: Readin parameters from a configuration file
-    PostDeform_R0 = 1.0       # Define appropriate values
-    PostDeform_Rtorus = -1.0  # Adjust as needed
-    PostDeform_Lz = 1.0       # Cylinder height scale
-    PostDeform_sq = 0.0       # Spiral rotation parameter
-    MeshPostDeform = 1        # Deformation mode
+    # Local imports ----------------------------------------
+    from pyhope.readintools.readintools import CreateReal, GetReal
+    # from pyhope.readintools.readintools import CreateInt, GetInt
+    # ------------------------------------------------------
+
+    # Readin parameters
+    CreateReal( 'PostDeform_R0',      default= 1.0, multiple=False, help='Cylinder radius')                      # noqa: E251
+    CreateReal( 'PostDeform_Rtorus',  default=-1.0, multiple=False, help='z must be inside [0,1] and periodic')  # noqa: E251
+    CreateReal( 'PostDeform_Lz',      default= 1.0, multiple=False)                                              # noqa: E251
+    CreateReal( 'PostDeform_sq',      default= 0.0, multiple=False)                                              # noqa: E251
+    # FIXME: Implement calling the other transformation types
+    # CreateInt(  'MeshPostDeform',     default=1   , multiple=False, help='Deformation mode')                     # noqa: E251
+    PostDeform_R0     = GetReal('PostDeform_R0')
+    PostDeform_Rtorus = GetReal('PostDeform_Rtorus')
+    PostDeform_Lz     = GetReal('PostDeform_Lz')
+    PostDeform_sq     = GetReal('PostDeform_sq')
+    # MeshPostDeform    = GetInt( 'MeshPostDeform')
+    MeshPostDeform    = 1
 
     nTotal = points.shape[0]
-    X_out = np.zeros_like(points)
+    X_out  = np.zeros_like(points)
 
     for i in range(nTotal):
         x = points[i, :].copy()
@@ -86,21 +97,19 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
             dx *= alpha
 
         xout = PostDeform_R0 * np.sqrt(0.5) * (x[:2] + dx)
+        match MeshPostDeform:
+            case 1:
+                arg = 2. * np.pi * x[2] * PostDeform_sq
+            case 11:
+                arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2)
+            case 12:
+                arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2) * (1 + 0.5 * xout[0])
+            case _:
+                arg = 0
 
-        if MeshPostDeform == 1:
-            arg = 2. * np.pi * x[2] * PostDeform_sq
-        elif MeshPostDeform == 11:
-            arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2)
-        elif MeshPostDeform == 12:
-            arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2) * (1 + 0.5 * xout[0])
-        else:
-            arg = 0
-
-        rotmat = np.array([
-            [np.cos(arg), -np.sin(arg)],
-            [np.sin(arg),  np.cos(arg)]
-        ])
-        xout = np.matmul(rotmat, xout)
+        rotmat = np.array([[np.cos(arg), -np.sin(arg)],
+                          [ np.sin(arg),  np.cos(arg)]        ])
+        xout   = np.matmul(rotmat, xout)
 
         if PostDeform_Rtorus < 0:
             xout = np.append(xout, x[2] * PostDeform_Lz)
