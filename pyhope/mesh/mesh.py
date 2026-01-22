@@ -86,6 +86,7 @@ def DefineMesh() -> None:
     CreateIntOption(    'MeshSorting', number=MeshSort.Snake.value, name=MeshSort.Snake.name)
     CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions (legacy)')
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
+    CreateLogical(  'doSplitToHexZ',        default=True , help='Split hexahedral elements into h-refined elements')
     # Mortars
     CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
     # Boundaries

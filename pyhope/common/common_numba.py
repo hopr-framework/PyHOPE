@@ -69,7 +69,7 @@ prange = range
 
 # # Try enabling numba immediately
 try:
-    import numba as nb  # ty:ignore[unresolved-import, unused-ignore-comment]
+    import numba as nb  # ty:ignore
 
     jit    = nb.jit
     njit   = nb.njit
