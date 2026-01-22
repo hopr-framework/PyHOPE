@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
-
+#
 # ==================================================================================================================================
 # Mesh generation library
 # ==================================================================================================================================
@@ -28,6 +28,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from functools import cache
+from typing import Callable, Optional, Union
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -272,27 +273,29 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 subFaces = tuple(np.array(subElem)[face] for face in faces(nGeo))
 
                 for subFace in subFaces:
-                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                    faceSet = frozenset(subFace)
-
-                    # Get candidate cset keys using the nodes in the face
-                    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
-                    if not candidate_sets:
-                        continue
-
-                    common_candidates = set.intersection(*candidate_sets)
-                    for candidate in common_candidates:
-                        # Check if the subFace is indeed a subset of the candidate from csets_old
-                        if faceSet.issubset(candidate):
-                            # Use the associated boundary name
-                            names = csets_old[candidate]
-                            # Update csets_lst for each name in the list.
-                            for name in names:
-                                csets_lst.setdefault(name, [[], []])
-                                csets_lst[name][faceVal].append(nFaces[faceVal])
-
-                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
-                    nFaces[faceVal] += 1
+                    appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
+                                csets_old = csets_old, csets_lst = csets_lst, elems_lst = elems_lst)      # noqa: E251, E271
+                    # faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+                    # faceSet = frozenset(subFace)
+                    #
+                    # # Get candidate cset keys using the nodes in the face
+                    # candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+                    # if not candidate_sets:
+                    #     continue
+                    #
+                    # common_candidates = set.intersection(*candidate_sets)
+                    # for candidate in common_candidates:
+                    #     # Check if the subFace is indeed a subset of the candidate from csets_old
+                    #     if faceSet.issubset(candidate):
+                    #         # Use the associated boundary name
+                    #         names = csets_old[candidate]
+                    #         # Update csets_lst for each name in the list.
+                    #         for name in names:
+                    #             csets_lst.setdefault(name, [[], []])
+                    #             csets_lst[name][faceVal].append(nFaces[faceVal])
+                    #
+                    # elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    # nFaces[faceVal] += 1
 
             elems_lst.setdefault(elemName, []).extend(subElems)
 
@@ -683,3 +686,77 @@ def hex_faces(order: int) -> tuple[npt.NDArray, ...]:
         case _:
             import pyhope.output.output as hopout
             hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+
+
+def appendBCSet(subFace:      np.ndarray,
+                faceMap:      Callable,
+                nFace:        int,
+                nFaces:       np.ndarray,
+                nodeToFace:   defaultdict,
+                faceType:     list,
+                # Cell sets
+                csets_old:    dict,
+                csets_lst:    dict,
+                elems_lst:    dict,
+                # Optional bookkeeping
+                bcFaces:      Optional[list] = None,
+                bcFaceIdx:    Optional[int]  = None,
+                bcSide:       Optional[str]  = None,
+                # Optional checks
+                requireDim:   Optional[Union[Callable, int]] = None,
+                requireMatch: bool = False,
+                allowMulti  : bool = True,
+               ):
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+
+    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+    faceSet = frozenset(subFace)
+
+    # Get candidate cset keys using the nodes in the face
+    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+    # Filter set if requested
+    if callable(requireDim):
+        candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if requireDim(len(fs))})]
+    else:
+        match requireDim:
+            case 1 | 2:
+                candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) == requireDim})]
+            case _:  # None
+                pass
+
+    if not candidate_sets:
+        if requireMatch:
+            raise ValueError('Unable to identify BC for face')
+        return None
+
+    common_candidates = set.intersection(*candidate_sets)
+    common_match      = False
+    for candidate in common_candidates:
+        # Check if the subFace is indeed a subset of the candidate from csets_old
+        # > Matching 1D BC with 2D faces requires this check to be inverted
+        if (candidate.issubset(faceSet) if requireDim in (1, 2) else faceSet.issubset(candidate)):
+            common_match = True
+            # Use the associated boundary name
+            names = csets_old[candidate]
+
+            if not allowMulti and len(names) > 1:
+                hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
+
+            # Update csets_lst for each name in the list.
+            for name in names:
+                csets_lst.setdefault(name.strip(), [[], []])
+                csets_lst[name][faceVal].append(nFaces[faceVal])
+
+                # Store the 1D faces
+                if bcFaces is not None and bcFaceIdx is not None and bcSide is not None:
+                    bcFaces[bcFaceIdx] = {'name': name.strip(),
+                                          'side': bcSide.strip(),
+                                         }
+
+                nFaces[faceVal] += 1
+                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+
+    if requireMatch and not common_match:
+        raise ValueError('Unable to identify BC for face')

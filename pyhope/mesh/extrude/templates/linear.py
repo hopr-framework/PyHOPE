@@ -50,4 +50,3 @@ def ExtrudeTemplate(number: int,
     zShift = np.linspace(start=0., stop=length, num=number+1)
 
     return np.column_stack((xShift, yShift, zShift))
-

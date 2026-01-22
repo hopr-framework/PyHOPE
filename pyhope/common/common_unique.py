@@ -80,4 +80,3 @@ def unique(a: npt.NDArray[np.float64], return_inverse: bool = False)  -> npt.NDA
     inverse[order] = groupID
 
     return unique_rows, inverse
-

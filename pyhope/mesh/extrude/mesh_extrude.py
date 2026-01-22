@@ -55,6 +55,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.mesh.mesh_vars import nGeo
+    from pyhope.mesh.topology.mesh_topology import appendBCSet
     from pyhope.readintools.readintools import GetInt, GetReal, GetStr
     # ------------------------------------------------------
 
@@ -226,75 +227,17 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndex-1].name
 
                 # BC: Set the BC for the bottom face
-                faceVal = faceMap(0) if len(botFace) == nFace else faceMap(1)
-                faceSet = frozenset(botFace)
-                # Get candidate cset keys using the nodes in the face
-                candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
-                # Filter only 2D set
-                candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) > 2})]
-                if not candidate_sets:
-                    raise ValueError('Unable to identify BC for bottom face')
-
-                common_candidates = set.intersection(*candidate_sets)
-                for candidate in common_candidates:
-                    # Check if the botFace is indeed a subset of the candidate from csets_old
-                    if faceSet.issubset(candidate):
-                        # Use the associated boundary name
-                        names = csets_old[candidate]
-
-                        if len(names) > 1:
-                            hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
-
-                        # Update csets_lst for each name in the list.
-                        (name,) = names
-                        csets_lst.setdefault(name.strip(), [[], []])
-                        csets_lst[name][faceVal].append(nFaces[faceVal])
-
-                        # Store the 2D face and the (unique) name
-                        bcFaces[botIdx] = {'name': name.strip(),
-                                           'side': 'bottom'
-                                          }
-
-                        nFaces[faceVal] += 1
-                        elems_lst[faceType[faceVal]].append(np.array(botFace, dtype=int))
-
-                # Clean-up for memory safety
-                del faceVal, faceSet, candidate_sets, common_candidates
+                appendBCSet(botFace, faceMap, nFace, nFaces, nodeToFace, faceType,
+                            csets_old  = csets_old      , csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
+                            bcFaces    = bcFaces        , bcFaceIdx    = botIdx   , bcSide     = 'bottom',   # noqa: E251, E271
+                            requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
                 # BC: Next, iterate over the 1D (side faces)
                 for iFace, subFace in enumerate(subFaces):
-                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                    faceSet = frozenset(subFace)
-
-                    # Get candidate cset keys using the nodes in the face
-                    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
-                    # Filter only 1D set
-                    candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) == 2})]
-                    if not candidate_sets:
-                        continue
-
-                    common_candidates = set.intersection(*candidate_sets)
-                    for candidate in common_candidates:
-                        # Check if the subFace is indeed a subset of the candidate from csets_old
-                        if candidate.issubset(faceSet):
-                            # Use the associated boundary name
-                            names = csets_old[candidate]
-
-                            if len(names) > 1:
-                                hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
-
-                            # Update csets_lst for each name in the list.
-                            (name,) = names
-                            csets_lst.setdefault(name.strip(), [[], []])
-                            csets_lst[name][faceVal].append(nFaces[faceVal])
-
-                            # Store the 1D faces
-                            bcFaces[iFace] = {'name': name.strip(),
-                                              'side': 'side'
-                                             }
-
-                            nFaces[faceVal] += 1
-                            elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                    appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
+                                csets_old  = csets_old, csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
+                                bcFaces    = bcFaces  , bcFaceIdx    = iFace    , bcSide     = 'side',     # noqa: E251, E271
+                                requireDim = 2        , requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
                 for extElem in extElems[1:]:
                     # Overwrite the element with the new indices
