@@ -25,15 +25,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import importlib.util
-import os
-import sys
 from collections import defaultdict
 from functools import cache
 from string import digits
 from typing import cast
-from typing import Optional
-from types import ModuleType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,7 +51,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
-    from pyhope.config.config import prmfile
+    from pyhope.common.common_template import LoadTemplate
     from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.mesh.mesh_vars import nGeo
@@ -82,53 +77,17 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Read in the mesh post-deformation flag
     hopout.sep()
-    meshExtrNum      = GetInt( 'MeshExtrudeElems')
-    meshExtrLength   = GetReal('MeshExtrudeLength')
-    meshExtrTemplate = GetStr( 'MeshExtrudeTemplate')
-    meshExtrBCIndex  = GetInt( 'MeshExtrudeBCIndex')
+    extrNElems   = GetInt( 'MeshExtrudeElems')
+    extrLength   = GetReal('MeshExtrudeLength')
+    extrTemplate = GetStr( 'MeshExtrudeTemplate')
+    extrBCIndex  = GetInt( 'MeshExtrudeBCIndex')
 
     # Continue with extrusion
     hopout.sep()
-    hopout.routine('  Template: {}'.format(meshExtrTemplate))
-
-    # Define locations of the transformation files ( Priority: prmfile folder > CWD > templates )
-    ExtrudeLocations = [
-        os.path.join(os.path.dirname(prmfile), f'{meshExtrTemplate}.py'),                # Search folder of parameter file
-        os.path.join(os.getcwd(), f'{meshExtrTemplate}.py'),                             # Search in CWD
-        os.path.join(os.path.dirname(__file__), 'templates', f'{meshExtrTemplate}.py')   # Search in 'templates'
-    ]
-
-    # Check if the transformation file exists
-    ExtrudeMod: Optional[ModuleType] = None
-    for loc in ExtrudeLocations:
-        if os.path.exists(loc):
-            spec = importlib.util.spec_from_file_location(meshExtrTemplate, loc)
-            # Skip to the next location if spec is None
-            if spec is None:
-                continue
-
-            ExtrudeMod = importlib.util.module_from_spec(spec)
-            sys.modules[meshExtrTemplate] = ExtrudeMod
-            spec.loader.exec_module(ExtrudeMod)
-
-            # Output filename of template
-            hopout.routine('     found: {}'.format(loc))
-
-            # Stop once the module is successfully loaded
-            break
-
-    # If the transformation file is not found, exit
-    if ExtrudeMod is None:
-        hopout.warning(f'Extrusion template "{meshExtrTemplate}" not found!')
-        # Print all available default templates for post-deformation
-        templist = []
-        for file in os.listdir(os.path.join(os.path.dirname(__file__), 'templates')):
-            if file.endswith('.py'):
-                templist.append(f'  {file[:-3]}')
-        hopout.error('Available default extrusion templates:' + ','.join(templist))
+    hopout.routine('  Template: {}'.format(extrTemplate))
 
     # Setup the extrusion
-    meshExtrShifts = ExtrudeMod.ExtrudeTemplate(meshExtrNum, meshExtrLength)
+    extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate(extrNElems, extrLength)
 
     # Copy original points
     pointl    = cast(list, mesh.points.tolist())
@@ -136,10 +95,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     cell_sets = getattr(mesh, 'cell_sets', {})
 
     # Get base key to distinguish between linear and high-order elements
-    ho_key = 100 if nGeo == 1 else 200
-
-    nPoints  = len(pointl)
-    nFaces   = np.zeros(2, dtype=int)
+    ho_key  = 100 if nGeo == 1 else 200
+    nPoints = len(pointl)
+    nFaces  = np.zeros(2, dtype=int)
     match nGeo:
         case 1:
             faceType = ['triangle'  , 'quad'  ]
@@ -154,24 +112,22 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             faceType = ['triangle15', 'quad25']
             faceNum  = [         15 ,      25 ]
         case _:
-            hopout.error('nGeo = {} not supported for element splitting'.format(nGeo))
+            hopout.error('nGeo = {} not supported for mesh extrusion'.format(nGeo))
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
     csets_lst = {}
 
     # Set up the element extrusion function
-    elemExtruder = {'tria': (extrude_pris, pris_faces ),
-                    'quad': (extrude_hexa, hexa_faces )}
-    faceMaper = { ho_key + 4: lambda x: 0,
-                  ho_key + 5: lambda x: 0 if x == 0 else 1,
-                  ho_key + 6: lambda x: 0 if x == 0 else 1,
-                  ho_key + 8: lambda x: 1}
-    nFace   = (nGeo+1)*(nGeo+2)/2
+    elemExtruder = {'tria'     : (extrude_pris, pris_faces ),
+                    'quad'     : (extrude_hexa, hexa_faces )}
+    faceMaper    = { ho_key + 6: lambda x: 0 if x == 0 else 1,
+                     ho_key + 8: lambda x: 1}
+    # Expected number of nodes for a triangle face
+    nFace = (nGeo+1)*(nGeo+2)/2
 
     # Convert the (1D, 2D) boundary cell set into a dictionary
     csets_old = {}
-
     for cname, cblock in cell_sets.items():
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
@@ -205,7 +161,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
-
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     # Build an inverted index to map each node to all face keys (from csets_old) that contain it
@@ -214,23 +169,23 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         for node in subFace:
             nodeToFace[node].add(subFace)
 
-    # We need to unwrap meshcells
+    # We need to unwrap meshcells for each zone, i.e. each 2D boundary condition
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
 
+        # Iterate over all cell types in this BC
         for iType in range(len(mdict)):
             mtype, mcell = list(cast(dict, mdict).keys())[iType], list(cast(dict, mdict).values())[iType]
+            cdata = mesh.get_cells_type(mtype)[mcell]
 
+            # Set up the extrusion function
             extrude, faces = elemExtruder.get(mtype[:4], (None, None))
             elemNum = ho_key + (8 if cast(str, mtype).startswith('quad') else 6)
             faceMap = faceMaper.get(elemNum, None)
 
-            # Sanity check
+            # Consistency checks
             if faceMap is None:
                 raise ValueError('Missing faceMap for element type {}'.format(mtype))
-
-            cdata = mesh.get_cells_type(mtype)[mcell]
-
             if extrude is None or faces is None:
                 hopout.error('Element type {} not supported for extruding'.format(mtype), traceback=True)
 
@@ -247,7 +202,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Face block: Iterate over each element
             for elem in cdata:
                 # Generate new nodes
-                extElems, newPoints = extrude(elem, points[elem], meshExtrShifts, nPoints, nGeo)
+                extElems, newPoints = extrude(elem, points[elem], extrShifts, nPoints, nGeo)
                 nPoints += len(newPoints)
 
                 # Append the new point to the point list
@@ -263,43 +218,48 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 # Create the new faces
                 subFaces   = [np.array(extElem)[face] for face in faces(nGeo)]
                 bcFaces    = [{} for s in range(len(subFaces))]
-                bottomName = mesh_vars.bcs[meshExtrBCIndex-1].name
 
-                # BC: First, find the 2D (bottom) face
-                # > Iterate over a copy, so elements can be removed
-                for iFace, subFace in enumerate(subFaces):
-                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                    faceSet = frozenset(subFace)
+                # BC: First, identify the 2D (bottom) faces
+                # > We know this is the first face and 1/5 face
+                botIdx , botFace = 0, subFaces[0]
+                topIdx           = 1 if mtype.startswith('tria') else 5
+                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndex-1].name
 
-                    # Get candidate cset keys using the nodes in the face
-                    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
-                    # Filter only 2D set
-                    candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) > 2})]
-                    if not candidate_sets:
-                        continue
+                # BC: Set the BC for the bottom face
+                faceVal = faceMap(0) if len(botFace) == nFace else faceMap(1)
+                faceSet = frozenset(botFace)
+                # Get candidate cset keys using the nodes in the face
+                candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+                # Filter only 2D set
+                candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) > 2})]
+                if not candidate_sets:
+                    raise ValueError('Unable to identify BC for bottom face')
 
-                    common_candidates = set.intersection(*candidate_sets)
-                    for candidate in common_candidates:
-                        # Check if the subFace is indeed a subset of the candidate from csets_old
-                        if faceSet.issubset(candidate):
-                            # Use the associated boundary name
-                            names = csets_old[candidate]
+                common_candidates = set.intersection(*candidate_sets)
+                for candidate in common_candidates:
+                    # Check if the botFace is indeed a subset of the candidate from csets_old
+                    if faceSet.issubset(candidate):
+                        # Use the associated boundary name
+                        names = csets_old[candidate]
 
-                            if len(names) > 1:
-                                hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
+                        if len(names) > 1:
+                            hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
 
-                            # Update csets_lst for each name in the list.
-                            (name,) = names
-                            csets_lst.setdefault(name.strip(), [[], []])
-                            csets_lst[name][faceVal].append(nFaces[faceVal])
+                        # Update csets_lst for each name in the list.
+                        (name,) = names
+                        csets_lst.setdefault(name.strip(), [[], []])
+                        csets_lst[name][faceVal].append(nFaces[faceVal])
 
-                            # Store the 2D face and the (unique) name
-                            bcFaces[iFace] = {'name': name.strip(),
-                                              'side': 'bottom'
-                                             }
+                        # Store the 2D face and the (unique) name
+                        bcFaces[botIdx] = {'name': name.strip(),
+                                           'side': 'bottom'
+                                          }
 
-                            nFaces[faceVal] += 1
-                            elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                        nFaces[faceVal] += 1
+                        elems_lst[faceType[faceVal]].append(np.array(botFace, dtype=int))
+
+                # Clean-up for memory safety
+                del faceVal, faceSet, candidate_sets, common_candidates
 
                 # BC: Next, iterate over the 1D (side faces)
                 for iFace, subFace in enumerate(subFaces):
@@ -358,30 +318,12 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
                 # BC: We should have one face left, assign the bottom BC
                 # > We need to hardcode this since we might have internal faces
-                topIndex = 1 if mtype.startswith('tria') else 5
-                subFaces = [np.array(extElems[-1])[face] for face in faces(nGeo)]
-                subFace  = subFaces[topIndex]
-                faceVal    = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                csets_lst.setdefault(bottomName, [[], []])
-                csets_lst[bottomName][faceVal].append(nFaces[faceVal])
+                faceVal    = faceMap(0) if len(topFace) == nFace else faceMap(1)
+                csets_lst.setdefault(topName, [[], []])
+                csets_lst[topName][faceVal].append(nFaces[faceVal])
 
                 nFaces[faceVal] += 1
-                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
-
-                # topFaces = [(i, s) for i, s in enumerate(bcFaces) if len(s) == 0]
-                # match len(topFaces):
-                #     case 1:
-                #         (topFace,) = topFaces
-                #         subFaces   = [np.array(extElems[-1])[face] for face in faces(nGeo)]
-                #         subFace    = subFaces[topFace[0]]
-                #         faceVal    = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                #         csets_lst.setdefault(bottomName, [[], []])
-                #         csets_lst[name][faceVal].append(nFaces[faceVal])
-                #
-                #         nFaces[faceVal] += 1
-                #         elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
-                #     case _:
-                #         hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
+                elems_lst[faceType[faceVal]].append(np.array(topFace, dtype=int))
 
             # Update the progress bar
             bar.step()
