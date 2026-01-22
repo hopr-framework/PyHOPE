@@ -39,16 +39,17 @@ import numpy as np
 
 
 def PostDeform(points: np.ndarray) -> np.ndarray:
+    """ This function applies a deformation transformation to the input points
+        > 3D box, x,y in [-1,1]^3, to Sphere with radius PostDeform_R0 all points outside [-1,1]^3 and inside [-4,4]^3 are smoothly
+          mapped back to a cube of of size [-4,4]*PostDeform_R0/sqrt(3)
     """
-    Apply post-deformation transformation to input points.
-    3D box, x,y in [-1,1]^3, to Sphere with radius PostDeform_R0
-    all points outside [-1,1]^3 and inside [-4,4]^3 are smoothly mapped back to a cube of
-    of size [-4,4]*PostDeform_R0/sqrt(3)
-    """
+    # Local imports ----------------------------------------
+    from pyhope.readintools.readintools import CreateReal, GetReal
+    # ------------------------------------------------------
 
-    # TODO: Readin parameters from a configuration file
-    PostDeform_R0 = 1.0  # Define based on the expected scaling factor
-
+    # Readin parameters
+    CreateReal('PostDeform_R0', default=1.0, multiple=False, help='Radius of the sphere')
+    PostDeform_R0 = GetReal('PostDeform_R0')
 
     nTotal = points.shape[0]
     X_out = np.zeros_like(points)

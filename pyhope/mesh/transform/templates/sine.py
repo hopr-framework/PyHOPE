@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
-
+#
 # ==================================================================================================================================
 # Mesh generation library
 # ==================================================================================================================================
@@ -48,6 +48,7 @@ def PostDeform(points: np.ndarray) -> np.ndarray:
     from pyhope.readintools.readintools import CreateInt, CreateReal, GetInt, GetReal
     # ------------------------------------------------------
 
+    # Readin parameters
     CreateInt( 'meshSineType', default=30 , multiple=False, help='Sine deformation type [30, 31, 32, 33, 34, 40, 41, 42, 43]')
     CreateReal('meshSineEps',               multiple=False, help='Sine deformation epsilon')
     type = GetInt( 'meshSineType')

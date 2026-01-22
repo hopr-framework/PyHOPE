@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
-
+#
 # ==================================================================================================================================
 # Mesh generation library
 # ==================================================================================================================================
@@ -39,15 +39,15 @@ import numpy as np
 
 
 def PostDeform(points: np.ndarray) -> np.ndarray:
-    """
-    Apply post-deformation transformation to input points.
-    3D box, x,y in [-1,1]^3, to Sphere with radius PostDeform_R0
-    all points outside [-1,1]^4 will be mapped directly to a sphere
+    """ This function applies a deformation transformation to the input points
+        > 3D box, x,y in [-1,1]^3, to sphere with radius PostDeform_R0 all points outside [-1,1]^4 will be mapped directly to a
+          sphere
     """
     # Local imports ----------------------------------------
     from pyhope.readintools.readintools import CreateReal, GetReal
     # ------------------------------------------------------
 
+    # Readin parameters
     CreateReal('PostDeform_R0', default=1.0, multiple=False, help='Radius of the sphere')
     PostDeform_R0 = GetReal('PostDeform_R0')
 
