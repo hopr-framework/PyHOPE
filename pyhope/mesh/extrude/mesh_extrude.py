@@ -132,17 +132,21 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     for cname, cblock in cell_sets.items():
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
-            if elems_old[blockID].type[:4] not in ('line', 'tria', 'quad'):
+            etype = elems_old[blockID].type
+            if etype[:4] not in ('line', 'tria', 'quad'):
                 continue
 
             # Ignore the empty zones
             if block is None:
                 continue
 
+            # Determine how many corner nodes to keep
+            nCorners = 2 if 'line' in etype else (3 if 'tria' in etype else 4)
+
             # Sort them as a set for membership checks
             for face in block:
-                # nodes = mesh.cells_dict[elems_old[blockID].type][face]
-                nodes = mesh.cells[blockID].data[face]
+                # Slice to only include corners for the search dictionary
+                nodes = mesh.cells[blockID].data[face][:nCorners]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     # Create the element sets
@@ -323,6 +327,8 @@ def extrude_pris(nodes:   np.ndarray,
                 newPoints.extend((points + shifts[i+1, :]).squeeze().tolist())
 
         # FIXME: Implement the other orders
+        case _:
+            raise ValueError('Extrusion not implemented for NGeo={order}')
 
     return newNodes, newPoints
 
@@ -350,6 +356,8 @@ def extrude_hexa(nodes:   np.ndarray,
                 newPoints.extend((points + shifts[i+1, :]).squeeze().tolist())
 
         # FIXME: Implement the other orders
+        case _:
+            raise ValueError('Extrusion not implemented for NGeo={order}')
 
     return newNodes, newPoints
 
