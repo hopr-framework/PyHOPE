@@ -39,4 +39,4 @@ Physical Curve("BC_Right")  = {6};              // Triangle outer boundary
 
 Physical Surface("BC_Front") = {1,2};           // Entire front (2D) domain
 
-Mesh.ElementOrder = 1;                          // Linear elements
+Mesh.ElementOrder = 2;                          // Linear elements

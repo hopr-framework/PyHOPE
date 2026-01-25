@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -38,13 +39,18 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def ExtrudeTemplate(number: int,
-                    length: float) -> np.ndarray:
+def ExtrudeTemplate() -> np.ndarray:
     """ This is the default extrusion function which has to be present in every extrusion template
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
+    # Local imports ----------------------------------------
+    from pyhope.readintools.readintools import GetInt, GetReal
+    # ------------------------------------------------------
 
-    # Do nothing. Just a sanity check and return the points.
+    number: Final[int]   = GetInt( 'MeshExtrudeElems')
+    length: Final[float] = GetReal('MeshExtrudeLength')
+
+    # Linear extrusion
     xShift = np.linspace(start=0., stop=0.    , num=number+1)
     yShift = np.linspace(start=0., stop=0.    , num=number+1)
     zShift = np.linspace(start=0., stop=length, num=number+1)

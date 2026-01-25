@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+import gc
 from collections import defaultdict
 from functools import cache
 from typing import Callable, Optional, Union
@@ -275,27 +276,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 for subFace in subFaces:
                     appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
                                 csets_old = csets_old, csets_lst = csets_lst, elems_lst = elems_lst)      # noqa: E251, E271
-                    # faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                    # faceSet = frozenset(subFace)
-                    #
-                    # # Get candidate cset keys using the nodes in the face
-                    # candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
-                    # if not candidate_sets:
-                    #     continue
-                    #
-                    # common_candidates = set.intersection(*candidate_sets)
-                    # for candidate in common_candidates:
-                    #     # Check if the subFace is indeed a subset of the candidate from csets_old
-                    #     if faceSet.issubset(candidate):
-                    #         # Use the associated boundary name
-                    #         names = csets_old[candidate]
-                    #         # Update csets_lst for each name in the list.
-                    #         for name in names:
-                    #             csets_lst.setdefault(name, [[], []])
-                    #             csets_lst[name][faceVal].append(nFaces[faceVal])
-                    #
-                    # elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
-                    # nFaces[faceVal] += 1
 
             elems_lst.setdefault(elemName, []).extend(subElems)
 
@@ -326,6 +306,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     hopout.sep()
 

@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 from collections import defaultdict
 from functools import cache
 from string import digits
@@ -56,7 +57,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.mesh.mesh_vars import nGeo
     from pyhope.mesh.topology.mesh_topology import appendBCSet
-    from pyhope.readintools.readintools import GetInt, GetReal, GetStr
+    from pyhope.readintools.readintools import GetInt, GetStr
     # ------------------------------------------------------
 
     points: np.ndarray = mesh.points
@@ -78,8 +79,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Read in the mesh post-deformation flag
     hopout.sep()
-    extrNElems   = GetInt( 'MeshExtrudeElems')
-    extrLength   = GetReal('MeshExtrudeLength')
     extrTemplate = GetStr( 'MeshExtrudeTemplate')
     extrBCIndex  = GetInt( 'MeshExtrudeBCIndex')
 
@@ -88,7 +87,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.routine('  Template: {}'.format(extrTemplate))
 
     # Setup the extrusion
-    extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate(extrNElems, extrLength)
+    extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate()
 
     # Copy original points
     pointl    = cast(list, mesh.points.tolist())
@@ -125,7 +124,10 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     faceMaper    = { ho_key + 6: lambda x: 0 if x == 0 else 1,
                      ho_key + 8: lambda x: 1}
     # Expected number of nodes for a triangle face
-    nFace = (nGeo+1)*(nGeo+2)/2
+    # INFO: We reduce the new faces to first-order. Yes, this breaks direkt meshio output. But we are not using this anyways.
+    #       If you want to use mesh.write() for debug purposes, comment out the BC face creation.
+    # nFace = (nGeo+1)*(nGeo+2)/2
+    nFace = 3
 
     # Convert the (1D, 2D) boundary cell set into a dictionary
     csets_old = {}
@@ -300,6 +302,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
 
+    # Run garbage collector to release memory
+    gc.collect()
+
     hopout.sep()
     return mesh
 
@@ -312,19 +317,58 @@ def extrude_pris(nodes:   np.ndarray,
 
     newPoints   = []
     newNodes    = [[] for s in range(len(shifts)-1)]
-    newNodes[0] = nodes.squeeze().tolist()
 
     match order:
         case 1:
             # Append the bottom layer the first element
-            newNodes[ 0].extend(np.add(np.arange(3, dtype=np.int64), nPoints).tolist())
-            newPoints.extend((points + shifts[1, :]).squeeze().tolist())
+            newNodes[0] = nodes[:3].squeeze().tolist()
+            newNodes[0].extend(np.add(np.arange(3, dtype=np.int64), nPoints).tolist())
+            newPoints.extend((points[:3] + shifts[1, :]).squeeze().tolist())
 
             # Stack all the other elements
             for i in range(1, shifts.shape[0]-1):
                 newNodes[i]  = np.add(np.arange(3, dtype=np.int64), nPoints+(i-1)*3).tolist()
                 newNodes[i] += np.add(np.arange(3, dtype=np.int64), nPoints+(i  )*3).tolist()
-                newPoints.extend((points + shifts[i+1, :]).squeeze().tolist())
+                newPoints.extend((points[:3] + shifts[i+1, :]).squeeze().tolist())
+
+        case 2:
+            # Append the bottom/top corners of the first element
+            newNodes[0] = nodes[:3].squeeze().tolist()
+            newNodes[0].extend(np.add(np.arange( 0,  3), nPoints).tolist())
+            newPoints.extend((points[:3] + shifts[1, :]).squeeze().tolist())
+            # Edges bottom/top
+            newNodes[0].extend(nodes[3:6].squeeze().tolist())
+            newNodes[0].extend(np.add(np.arange( 3,  6), nPoints).tolist())
+            newPoints.extend((points[3:6] + shifts[1, :]).squeeze().tolist())
+            # Edges upright
+            newNodes[0].extend(np.add(np.arange( 6,  9), nPoints).tolist())
+            newPoints.extend((points[:3] + 0.5*shifts[1, :]).squeeze().tolist())
+            # Face centers
+            newNodes[0].extend(np.add(np.arange( 9, 12), nPoints).tolist())
+            newPoints.extend([(points[3] + 0.5*shifts[1, :]).squeeze()])
+            newPoints.extend([(points[4] + 0.5*shifts[1, :]).squeeze()])
+            newPoints.extend([(points[5] + 0.5*shifts[1, :]).squeeze()])
+
+            # Stack all the other elements
+            for i in range(1, shifts.shape[0]-1):
+                # Calculate offsets for current layer indices
+                offsetPoint = i * 12
+                # Bottom/top corners
+                newNodes[i] = newNodes[i-1][3:6]
+                newNodes[i].extend(np.add(np.arange( 0,  3), nPoints+offsetPoint).tolist())
+                newPoints.extend((points[:3] + shifts[i+1, :]).squeeze().tolist())
+                # Edges bottom/top
+                newNodes[i].extend(newNodes[i-1][ 9:12])
+                newNodes[i].extend(np.add(np.arange( 3,  6), nPoints+offsetPoint).tolist())
+                newPoints.extend((points[3:6] + shifts[i+1, :]).squeeze().tolist())
+                # Edges upright
+                newNodes[i].extend(np.add(np.arange( 6,  9), nPoints+offsetPoint).tolist())
+                newPoints.extend((points[:3] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze().tolist())
+                # Face centers
+                newNodes[i].extend(np.add(np.arange( 9, 12), nPoints+offsetPoint).tolist())
+                newPoints.extend([(points[3] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newPoints.extend([(points[4] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newPoints.extend([(points[5] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
 
         # FIXME: Implement the other orders
         case _:
@@ -341,19 +385,72 @@ def extrude_hexa(nodes:   np.ndarray,
 
     newPoints   = []
     newNodes    = [[] for s in range(len(shifts)-1)]
-    newNodes[0] = nodes.squeeze().tolist()
 
     match order:
         case 1:
             # Append the bottom layer the first element
-            newNodes[ 0].extend(np.add(np.arange(4, dtype=np.int64), nPoints).tolist())
-            newPoints.extend((points + shifts[1, :]).squeeze().tolist())
+            newNodes[0] = nodes[:4].squeeze().tolist()
+            newNodes[0].extend(np.add(np.arange(4, dtype=np.int64), nPoints).tolist())
+            newPoints.extend((points[:4] + shifts[1, :]).squeeze().tolist())
 
             # Stack all the other elements
             for i in range(1, shifts.shape[0]-1):
                 newNodes[i]  = np.add(np.arange(4, dtype=np.int64), nPoints+(i-1)*4).tolist()
                 newNodes[i] += np.add(np.arange(4, dtype=np.int64), nPoints+(i  )*4).tolist()
-                newPoints.extend((points + shifts[i+1, :]).squeeze().tolist())
+                newPoints.extend((points[:4] + shifts[i+1, :]).squeeze().tolist())
+
+        case 2:
+            # Append the bottom/top corners of the first element
+            newNodes[0] = nodes[:4].squeeze().tolist()
+            newNodes[0].extend(np.add(np.arange( 0,  4), nPoints).tolist())
+            newPoints.extend((points[:4] + shifts[1, :]).squeeze().tolist())
+            # Edges bottom/top
+            newNodes[0].extend(nodes[4:8].squeeze().tolist())
+            newNodes[0].extend(np.add(np.arange( 4,  8), nPoints).tolist())
+            newPoints.extend((points[4:8] + shifts[1, :]).squeeze().tolist())
+            # Edges upright
+            newNodes[0].extend(np.add(np.arange( 8, 12), nPoints).tolist())
+            newPoints.extend((points[:4] + 0.5*shifts[1, :]).squeeze().tolist())
+            # Face centers
+            newNodes[0].extend(np.add(np.arange(12, 16), nPoints).tolist())
+            newNodes[0].append(int(nodes[8]))
+            newNodes[0].append(nPoints + 16)
+            newPoints.extend([(points[7] + 0.5*shifts[1, :]).squeeze()])
+            newPoints.extend([(points[5] + 0.5*shifts[1, :]).squeeze()])
+            newPoints.extend([(points[4] + 0.5*shifts[1, :]).squeeze()])
+            newPoints.extend([(points[6] + 0.5*shifts[1, :]).squeeze()])
+            newPoints.extend([(points[8] +     shifts[1, :]).squeeze()])
+            # Volume center
+            newNodes[0].append(nPoints + 17)
+            newPoints.extend([(points[8] + 0.5*shifts[1, :]).squeeze()])
+
+            # Stack all the other elements
+            for i in range(1, shifts.shape[0]-1):
+                # Calculate offsets for current layer indices
+                offsetPoint = i * 18
+                # Bottom/top corners
+                newNodes[i] = newNodes[i-1][4:8]
+                newNodes[i].extend(np.add(np.arange( 0,  4), nPoints+offsetPoint).tolist())
+                newPoints.extend((points[:4] + shifts[i+1, :]).squeeze().tolist())
+                # Edges bottom/top
+                newNodes[i].extend(newNodes[i-1][12:16])
+                newNodes[i].extend(np.add(np.arange( 4,  8), nPoints+offsetPoint).tolist())
+                newPoints.extend((points[4:8] + shifts[i+1, :]).squeeze().tolist())
+                # Edges upright
+                newNodes[i].extend(np.add(np.arange( 8, 12), nPoints+offsetPoint).tolist())
+                newPoints.extend((points[:4] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze().tolist())
+                # Face centers
+                newNodes[i].extend(np.add(np.arange(12, 16), nPoints+offsetPoint).tolist())
+                newNodes[i].append(newNodes[i-1][25])
+                newNodes[i].append(nPoints + 16 + offsetPoint)
+                newPoints.extend([(points[7] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newPoints.extend([(points[5] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newPoints.extend([(points[4] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newPoints.extend([(points[6] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newPoints.extend([(points[8] +      shifts[i+1, :]).squeeze()])
+                # Volume center
+                newNodes[i].append(nPoints + 17 + offsetPoint)
+                newPoints.extend([(points[8] +      shifts[i+1, :]).squeeze()])
 
         # FIXME: Implement the other orders
         case _:
