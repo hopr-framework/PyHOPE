@@ -28,6 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import namedtuple
 from contextlib import contextmanager
+from functools import update_wrapper
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -35,25 +36,57 @@ from contextlib import contextmanager
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 from pyhope.basis.basis_basis import legendre_gauss_nodes, legendre_gauss_lobatto_nodes
-from pyhope.basis.basis_basis import barycentric_weights, polynomial_derivative_matrix
+from pyhope.basis.basis_basis import barycentric_weights
+from pyhope.basis.basis_basis import polynomial_derivative_matrix, polynomial_derivative_matrix_prism
+from pyhope.basis.basis_basis import polynomial_derivative_matrix_pyram, polynomial_derivative_matrix_tetra
 from pyhope.basis.basis_basis import lagrange_interpolation_polys, calc_vandermonde
-from pyhope.basis.basis_basis import change_basis_3D, change_basis_2D
-from pyhope.basis.basis_basis import evaluate_jacobian
+from pyhope.basis.basis_basis import change_basis_3D, change_basis_2D, change_basis_1D
+from pyhope.basis.basis_basis import equi_nodes_prism, equi_nodes_pyram, equi_nodes_tetra
+from pyhope.basis.basis_basis import evaluate_jacobian, evaluate_jacobian_simplex
+from pyhope.mesh.mesh_common import LINMAP
 # ==================================================================================================================================
 
 
-class Basis:
+def _staticwrapper(func):
+    """ Custom helper to lift the (annotations, doc, etc.) to the staticmethod
+    """
+    # Create a wrapper that carries the metadata
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    # Lift metadata (annotations, doc, etc.) to the wrapper
+    update_wrapper(wrapper, func)
+
+    # Convert the metadata-rich wrapper into a staticmethod
+    return staticmethod(wrapper)
+
+
+class Basis:  # pragma: no cover
     """ Basis class to hold all basis related functions and variables
     """
-    legendre_gauss_nodes         = staticmethod(legendre_gauss_nodes)
-    legendre_gauss_lobatto_nodes = staticmethod(legendre_gauss_lobatto_nodes)
-    barycentric_weights          = staticmethod(barycentric_weights)
-    polynomial_derivative_matrix = staticmethod(polynomial_derivative_matrix)
-    lagrange_interpolation_polys = staticmethod(lagrange_interpolation_polys)
-    calc_vandermonde             = staticmethod(calc_vandermonde)
-    change_basis_3D              = staticmethod(change_basis_3D)
-    change_basis_2D              = staticmethod(change_basis_2D)
-    evaluate_jacobian            = staticmethod(evaluate_jacobian)
+    legendre_gauss_nodes               = _staticwrapper(legendre_gauss_nodes)
+    legendre_gauss_lobatto_nodes       = _staticwrapper(legendre_gauss_lobatto_nodes)
+    barycentric_weights                = _staticwrapper(barycentric_weights)
+    polynomial_derivative_matrix       = _staticwrapper(polynomial_derivative_matrix)
+    polynomial_derivative_matrix_prism = _staticwrapper(polynomial_derivative_matrix_prism)
+    polynomial_derivative_matrix_pyram = _staticwrapper(polynomial_derivative_matrix_pyram)
+    polynomial_derivative_matrix_tetra = _staticwrapper(polynomial_derivative_matrix_tetra)
+    lagrange_interpolation_polys       = _staticwrapper(lagrange_interpolation_polys)
+    calc_vandermonde                   = _staticwrapper(calc_vandermonde)
+    change_basis_3D                    = _staticwrapper(change_basis_3D)
+    change_basis_2D                    = _staticwrapper(change_basis_2D)
+    change_basis_1D                    = _staticwrapper(change_basis_1D)
+    equi_nodes_prism                   = _staticwrapper(equi_nodes_prism)
+    equi_nodes_pyram                   = _staticwrapper(equi_nodes_pyram)
+    equi_nodes_tetra                   = _staticwrapper(equi_nodes_tetra)
+    evaluate_jacobian                  = _staticwrapper(evaluate_jacobian)
+    evaluate_jacobian_simplex          = _staticwrapper(evaluate_jacobian_simplex)
+
+
+class Mapping:  # pragma: no cover
+    """ Mapping class to hold all mapping related functions and variables
+    """
+    mesh_format_to_tensor_product      = _staticwrapper(LINMAP)
 
 
 # Define a named tuple to hold the mesh data
@@ -61,13 +94,14 @@ MeshContainer = namedtuple('Mesh',
                           ['mesh',   # The generated mesh object
                            'nGeo',   # Polynomial order
                            'bcs',    # Boundary conditions
+                           'vvs',    # Periodic vectors
                            'elems',  # Elements
                            'sides'   # Sides
                           ])
 
 
 @contextmanager  # pragma: no cover
-def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
+def Mesh(*args: str, stdout: bool = False, stderr: bool = True):  # pragma: no cover
     """ Mesh context manager to generate a mesh from a given file
 
         Args:
@@ -139,10 +173,11 @@ def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
                 ConnectMesh()
 
         # Export mesh variables
-        mesh = mesh_vars.mesh
+        mesh  = mesh_vars.mesh
 
         nGeo  = mesh_vars.nGeo
         bcs   = mesh_vars.bcs
+        vvs   = mesh_vars.vvs
 
         elems = mesh_vars.elems
         sides = mesh_vars.sides
@@ -150,6 +185,7 @@ def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
         yield MeshContainer(mesh  = mesh,   # noqa: E251
                             nGeo  = nGeo,   # noqa: E251
                             bcs   = bcs,    # noqa: E251
+                            vvs   = vvs,    # noqa: E251
                             elems = elems,  # noqa: E251
                             sides = sides   # noqa: E251
                            )

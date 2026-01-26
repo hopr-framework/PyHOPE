@@ -41,7 +41,7 @@ import numpy as np
 
 
 @cache                                                       # pragma: no cover
-def HEXMAPVTK(order: int) -> Tuple[np.ndarray, np.ndarray]:  # pragma: no cover
+def HEXAMAPVTK(order: int) -> Tuple[np.ndarray, np.ndarray]:  # pragma: no cover
     """ VTK -> IJK ordering for high-order hexahedrons
         > Loosely based on [Gmsh] "generatePointsHexCGNS"
         > [Jens Ulrich Kreber] "paraview-scripts/node_ordering. py"

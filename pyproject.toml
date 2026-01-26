@@ -173,7 +173,8 @@ ignore_names = [
     "time_function",
     # Exclude monkey-patching MeshIO
     "__init__", "data_counter", "h5_file", "_meshio_to_gmsh_order",
-    # Exclude VTK ordering (used externally)
-    "HEXMAPVTK"
+    # Exclude library functions
+    "Basis", "Mapping", "Mesh",
+    "mesh_format_to_tensor_product"
     ]
 sort_by_size = true
