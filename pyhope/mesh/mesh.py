@@ -66,7 +66,6 @@ def DefineMesh() -> None:
             continue
         CreateIntOption('ElemType', number=val, name=key)
     # Gmsh
-    CreateLogical(  'EliminateNearDuplicates', default=True, help='Enables elimination of near duplicate points')
     # External mesh readin through GMSH
     CreateStr(      'Filename',             multiple=True, help='Name of external mesh file')
     CreateLogical(  'MeshIsAlreadyCurved',  default=False, help='Enables mesh agglomeration')

@@ -132,6 +132,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├────
 │               doPeriodicCorrect │ False                           │ DEFAULT │
 │                       doMortars │ True                            │ DEFAULT │
+│                Processing Sides |█████████████████████████████████| 3072/3072 [100%] in 0.0s (24000.00/s)
 ├────
 │  Number of sides                :         3072
 │  Number of inner sides          :         2688
@@ -182,7 +183,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ```
 
 ## Python Library Usage
-PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [source code](https://github.com/hopr-framework/PyHOPE/blob/main/pyhope/__init__.py).
+PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [PyHOPE documentation](https://hopr-framework.github.io/PyHOPE/user-guide/library_usage).
 ```python
 from pyhope import Basis, Mesh
 with Mesh('1-01-cartbox_mesh.h5') as m:

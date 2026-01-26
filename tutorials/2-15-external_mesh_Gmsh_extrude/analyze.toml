@@ -6,15 +6,15 @@ stddev = 73.51587130227956
 
 [GlobalNodeIDs]
 min = 1.0
-max = 82.0
-mean = 43.22962962962963
-stddev = 21.466232135264168
+max = 84.0
+mean = 44.6
+stddev = 22.240503591420765
 
 [NodeCoords]
 min = 0.0
 max = 2.0
-mean = 0.5897119341563186
-stddev = 0.4724695641356597
+mean = 0.5888888888888288
+stddev = 0.47218954135280516
 
 [SideInfo]
 min = -22.0

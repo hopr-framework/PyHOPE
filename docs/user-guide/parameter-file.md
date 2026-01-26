@@ -35,14 +35,13 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     DX                               =                      ! Extension of the zone in each spatial direction starting from the origin X0 corner node
     nElems                           =                      ! Number of elements in each direction
     ElemType                         =           hexahedron ! Element type
-    EliminateNearDuplicates          =                    T ! Enables elimination of near duplicate points
     Filename                         =                      ! Name of external mesh file
     MeshIsAlreadyCurved              =                    F ! Enables mesh agglomeration
     NGeo                             =                    1 ! Order of spline-reconstruction for curved surfaces
     BoundaryOrder                    =                    2 ! Order of spline-reconstruction for curved surfaces (legacy)
     vv                               =                      ! Vector for periodic BC
     doPeriodicCorrect                =                    F ! Enables periodic correction
-    MeshSorting                      =                  SFC ! Mesh sorting mode [SFC, IJK, LEX, Snake]
+    MeshSorting                      =                  SFC ! Mesh sorting mode [SFC, IJK, LEX, Snake, None]
     doSortIJK                        =                    F ! Sort the mesh elements along the I,J,K directions (legacy)
     doSplitToHex                     =                    F ! Split simplex elements into hexahedral elements
     doSplitToHexZ                    =                    F ! Split hexahedral elements into h-refined elements
@@ -66,6 +65,7 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     meshScale                        =                  1.0 ! Scale the mesh
     meshTrans                        =         (/0.,0.,0./) ! Translate the mesh
     meshRot                          = (/1.,0.,0.,0.,1.,0.,0.,0.,1./) ! Rotate the mesh around rotation center
+    meshRot3D                        =         (/0.,0.,0./) ! Rotate the mesh around rotation center and coordiante axis, defined angle in degrees
     meshRotCenter                    =         (/0.,0.,0./) ! Rotate the mesh around rotation center
     MeshPostDeform                   =                 none ! Mesh post-transformation template
     !------------------------------------------------------------------------------
@@ -75,6 +75,14 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     Factor                           =                      ! Stretching factor of zone for geometric stretching for each spatial direction.
     l0                               =                      ! Smallest desired element in zone per spatial direction.
     DXmaxToDXmin                     =                      ! Ratio between the smallest and largest element per spatial direction
+    !------------------------------------------------------------------------------
+    ! Extrusion
+    !------------------------------------------------------------------------------
+    MeshExtrude                      =                    T ! Enables mesh extrusion
+    MeshExtrudeTemplate              =               linear ! Mesh extrusion template
+    MeshExtrudeLength                =                  1.0 ! Mesh extrusion length
+    MeshExtrudeElems                 =                    1 ! Mesh extrusion number of element
+    MeshExtrudeBCIndex               =                      ! Mesh extrusion boundary index
     !------------------------------------------------------------------------------
     ! Finite Element Method (FEM) Connectivity
     !------------------------------------------------------------------------------
@@ -158,13 +166,24 @@ Transform mesh coordinates with translation, rotation, and scaling, or apply a u
 | `meshRotCenter`                          | vector                             | `(/.../)`                             | `(/ x, y, z /)`                        | Pivot point for rotation. Set to the model's logical pivot/centroid to avoid unintended offsets. |
 | `MeshPostDeform`                         | string                             | `none`                                | template name                          | Optional post-transform deformation template applied after scale/translate/rotate. |
 
+## Extrusion
+
+Extrude a 2D mesh into a 3D mesh by applying a user-defined template.
+
+| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
+| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
+| `MeshExtrude`                            | bool                               | `T`                                   | `T` &#124; `F`                         | Enables mesh extrusion. |
+| `MeshExtrudeTemplate`                    | string                             | `linear`                              | template name                          | Mesh extrusion template defining the extrusion extent of each element. |
+| `MeshExtrudeLength`                      | float                              | `1.0`                                 | > 0                                    | Mesh extrusion length defining the total length of the extruded domain. |
+| `MeshExtrudeElems`                       | int                                | `1`                                   | > 0                                    | Number of elements to be generated in extrusion direction. |
+| `MeshExtrudeBCIndex`                     | int                                | —                                     | > 0                                    | Boundary index of the far boundary condition after extrusion
+
 ## Post-Processing
 
 Post-processing options for mesh cleanup and optimization.
 
 | <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `EliminateNearDuplicates`                | bool                               | `T`                                   | `T` &#124; `F`                         | Merge nodes closer than an internal tolerance to avoid sliver elements and improve connectivity consistency. |
 | `doPeriodicCorrect`                      | bool                               | `F`                                   | `T` &#124; `F`                         | Apply corrective adjustments for periodic matching after initial pairing. |
 | `doSplitToHex`                           | bool                               | `F`                                   | `T` &#124; `F`                         | Split simplex elements into hexahedra when supported to homogenize element types for hex-only toolchains. |
 

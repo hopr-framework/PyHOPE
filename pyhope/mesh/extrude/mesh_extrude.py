@@ -315,60 +315,73 @@ def extrude_pris(nodes:   np.ndarray,
                  nPoints: int,
                  order:   int) -> tuple[list, ...]:
 
-    newPoints   = []
-    newNodes    = [[] for s in range(len(shifts)-1)]
+    nDOFsElem = round((order+1)**(3-1)*(order+2)/2.)
+    newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
 
     match order:
         case 1:
+            newPoints = np.empty((3*(shifts.shape[0]-1), 3))
+            shiftCurr = shifts[1, :]
+
             # Append the bottom layer the first element
-            newNodes[0] = nodes[:3].squeeze().tolist()
-            newNodes[0].extend(np.add(np.arange(3, dtype=np.int64), nPoints).tolist())
-            newPoints.extend((points[:3] + shifts[1, :]).squeeze().tolist())
+            newNodes[0][ :3]  = nodes[:3]
+            newNodes[0][3:6]  = np.add(np.arange(3, dtype=np.int64), nPoints)
+            newPoints[0:3, :] = points[:3] + shiftCurr
 
             # Stack all the other elements
             for i in range(1, shifts.shape[0]-1):
-                newNodes[i]  = np.add(np.arange(3, dtype=np.int64), nPoints+(i-1)*3).tolist()
-                newNodes[i] += np.add(np.arange(3, dtype=np.int64), nPoints+(i  )*3).tolist()
-                newPoints.extend((points[:3] + shifts[i+1, :]).squeeze().tolist())
+                # Calculate offset for current layer indices
+                offsetCurr =  i   *3
+                shiftCurr  = shifts[i+1, :]
+
+                newNodes[i][  : 3] = newNodes[i-1][3:6]
+                newNodes[i][ 3: 6] = np.add(np.arange(3, dtype=np.int64), nPoints+offsetCurr)
+                newPoints[offsetCurr:offsetCurr+3, :] = points[:3] + shiftCurr
 
         case 2:
+            newPoints = np.empty((12*(shifts.shape[0]-1), 3))
+            shiftCurr = shifts[1, :]
+
             # Append the bottom/top corners of the first element
-            newNodes[0] = nodes[:3].squeeze().tolist()
-            newNodes[0].extend(np.add(np.arange( 0,  3), nPoints).tolist())
-            newPoints.extend((points[:3] + shifts[1, :]).squeeze().tolist())
+            newNodes[0][  : 3]  = nodes[:3]
+            newNodes[0][ 3: 6]  = np.add(np.arange( 0,  3), nPoints)
+            newPoints[ 0: 3, :] = points[ :3] +     shiftCurr
             # Edges bottom/top
-            newNodes[0].extend(nodes[3:6].squeeze().tolist())
-            newNodes[0].extend(np.add(np.arange( 3,  6), nPoints).tolist())
-            newPoints.extend((points[3:6] + shifts[1, :]).squeeze().tolist())
+            newNodes[0][ 6: 9]  = nodes[3:6]
+            newNodes[0][ 9:12]  = np.add(np.arange( 3,  6), nPoints)
+            newPoints[ 3: 6, :] = points[3:6] +     shiftCurr
             # Edges upright
-            newNodes[0].extend(np.add(np.arange( 6,  9), nPoints).tolist())
-            newPoints.extend((points[:3] + 0.5*shifts[1, :]).squeeze().tolist())
+            newNodes[0][12:15]  = np.add(np.arange( 6,  9), nPoints)
+            newPoints[ 6: 9, :] = points[ :3] + 0.5*shiftCurr
             # Face centers
-            newNodes[0].extend(np.add(np.arange( 9, 12), nPoints).tolist())
-            newPoints.extend([(points[3] + 0.5*shifts[1, :]).squeeze()])
-            newPoints.extend([(points[4] + 0.5*shifts[1, :]).squeeze()])
-            newPoints.extend([(points[5] + 0.5*shifts[1, :]).squeeze()])
+            newNodes[0][15:18]  = np.add(np.arange( 9, 12), nPoints)
+            newPoints[ 9:10, :] = points[  3] + 0.5*shiftCurr
+            newPoints[10:11, :] = points[  4] + 0.5*shiftCurr
+            newPoints[11:12, :] = points[  5] + 0.5*shiftCurr
 
             # Stack all the other elements
             for i in range(1, shifts.shape[0]-1):
-                # Calculate offsets for current layer indices
-                offsetPoint = i * 12
+                # Calculate offset for current layer indices
+                offsetCurr =  i   *12
+                shiftCurr  = shifts[i+1, :]
+                shiftPrev  = shifts[i  , :]
+
                 # Bottom/top corners
-                newNodes[i] = newNodes[i-1][3:6]
-                newNodes[i].extend(np.add(np.arange( 0,  3), nPoints+offsetPoint).tolist())
-                newPoints.extend((points[:3] + shifts[i+1, :]).squeeze().tolist())
+                newNodes[i][  : 3] = newNodes[i-1][3:6]
+                newNodes[i][ 3: 6] = np.add(np.arange( 0,  3), nPoints+offsetCurr)
+                newPoints[offsetCurr   :offsetCurr+ 3, :] = points[ :3] +      shiftCurr
                 # Edges bottom/top
-                newNodes[i].extend(newNodes[i-1][ 9:12])
-                newNodes[i].extend(np.add(np.arange( 3,  6), nPoints+offsetPoint).tolist())
-                newPoints.extend((points[3:6] + shifts[i+1, :]).squeeze().tolist())
+                newNodes[i][ 6: 9] = newNodes[i-1][ 9:12]
+                newNodes[i][ 9:12] = np.add(np.arange( 3,  6), nPoints+offsetCurr)
+                newPoints[offsetCurr+ 3:offsetCurr+ 6, :] = points[3:6] +      shiftCurr
                 # Edges upright
-                newNodes[i].extend(np.add(np.arange( 6,  9), nPoints+offsetPoint).tolist())
-                newPoints.extend((points[:3] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze().tolist())
+                newNodes[i][12:15]  = np.add(np.arange( 6, 9), nPoints+offsetCurr)
+                newPoints[offsetCurr+ 6:offsetCurr+ 9, :] = points[ :3] + 0.5*(shiftCurr+shiftPrev)
                 # Face centers
-                newNodes[i].extend(np.add(np.arange( 9, 12), nPoints+offsetPoint).tolist())
-                newPoints.extend([(points[3] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
-                newPoints.extend([(points[4] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
-                newPoints.extend([(points[5] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
+                newNodes[i][15:18]  = np.add(np.arange( 9, 12), nPoints+offsetCurr)
+                newPoints[offsetCurr+ 9:offsetCurr+10, :] = points[  3] + 0.5*(shiftCurr+shiftPrev)
+                newPoints[offsetCurr+10:offsetCurr+11, :] = points[  4] + 0.5*(shiftCurr+shiftPrev)
+                newPoints[offsetCurr+11:offsetCurr+12, :] = points[  5] + 0.5*(shiftCurr+shiftPrev)
 
         # FIXME: Implement the other orders
         case _:
@@ -383,74 +396,85 @@ def extrude_hexa(nodes:   np.ndarray,
                  nPoints: int,
                  order:   int) -> tuple[list, ...]:
 
-    newPoints   = []
-    newNodes    = [[] for s in range(len(shifts)-1)]
+    nDOFsElem = (order+1)**3
+    newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
 
     match order:
         case 1:
-            # Append the bottom layer the first element
-            newNodes[0] = nodes[:4].squeeze().tolist()
-            newNodes[0].extend(np.add(np.arange(4, dtype=np.int64), nPoints).tolist())
-            newPoints.extend((points[:4] + shifts[1, :]).squeeze().tolist())
+            newPoints = np.empty((4*(shifts.shape[0]-1), 3))
+            shiftCurr = shifts[1, :]
 
-            # Stack all the other elements
+            # Append the bottom layer the first element
+            newNodes[0][ :4]  = nodes[:4]
+            newNodes[0][4:8]  = np.add(np.arange(4, dtype=np.int64), nPoints)
+            newPoints[0:4, :] = points[:4] + shiftCurr
+
+            # # Stack all the other elements
             for i in range(1, shifts.shape[0]-1):
-                newNodes[i]  = np.add(np.arange(4, dtype=np.int64), nPoints+(i-1)*4).tolist()
-                newNodes[i] += np.add(np.arange(4, dtype=np.int64), nPoints+(i  )*4).tolist()
-                newPoints.extend((points[:4] + shifts[i+1, :]).squeeze().tolist())
+                # Calculate offset for current layer indices
+                offsetCurr =  i   *4
+                shiftCurr  = shifts[i+1, :]
+
+                newNodes[i][  : 4] = newNodes[i-1][4:8]
+                newNodes[i][ 4: 8] = np.add(np.arange(4, dtype=np.int64), nPoints+offsetCurr)
+                newPoints[offsetCurr:offsetCurr+4, :] = points[:4] + shiftCurr
 
         case 2:
+            newPoints = np.empty((18*(shifts.shape[0]-1), 3))
+            shiftCurr = shifts[1, :]
+
             # Append the bottom/top corners of the first element
-            newNodes[0] = nodes[:4].squeeze().tolist()
-            newNodes[0].extend(np.add(np.arange( 0,  4), nPoints).tolist())
-            newPoints.extend((points[:4] + shifts[1, :]).squeeze().tolist())
+            newNodes[0][  : 4]  = nodes[:4]
+            newNodes[0][ 4: 8]  = np.add(np.arange( 0,  4), nPoints)
+            newPoints[ 0: 4, :] = points[ :4] +     shiftCurr
             # Edges bottom/top
-            newNodes[0].extend(nodes[4:8].squeeze().tolist())
-            newNodes[0].extend(np.add(np.arange( 4,  8), nPoints).tolist())
-            newPoints.extend((points[4:8] + shifts[1, :]).squeeze().tolist())
+            newNodes[0][ 8:12]  = nodes[4:8]
+            newNodes[0][12:16]  = np.add(np.arange( 4,  8), nPoints)
+            newPoints[ 4: 8, :] = points[4:8] +     shiftCurr
             # Edges upright
-            newNodes[0].extend(np.add(np.arange( 8, 12), nPoints).tolist())
-            newPoints.extend((points[:4] + 0.5*shifts[1, :]).squeeze().tolist())
+            newNodes[0][16:20]  = np.add(np.arange( 8, 12), nPoints)
+            newPoints[ 8:12, :] = points[ :4] + 0.5*shiftCurr
             # Face centers
-            newNodes[0].extend(np.add(np.arange(12, 16), nPoints).tolist())
-            newNodes[0].append(int(nodes[8]))
-            newNodes[0].append(nPoints + 16)
-            newPoints.extend([(points[7] + 0.5*shifts[1, :]).squeeze()])
-            newPoints.extend([(points[5] + 0.5*shifts[1, :]).squeeze()])
-            newPoints.extend([(points[4] + 0.5*shifts[1, :]).squeeze()])
-            newPoints.extend([(points[6] + 0.5*shifts[1, :]).squeeze()])
-            newPoints.extend([(points[8] +     shifts[1, :]).squeeze()])
+            newNodes[0][20:24]  = np.add(np.arange(12, 16), nPoints)
+            newNodes[0][24:26]  = np.array([int(nodes[8]), nPoints + 16])
+            newPoints[12:13, :] = points[  7] + 0.5*shiftCurr
+            newPoints[13:14, :] = points[  5] + 0.5*shiftCurr
+            newPoints[14:15, :] = points[  4] + 0.5*shiftCurr
+            newPoints[15:16, :] = points[  6] + 0.5*shiftCurr
+            newPoints[16:17, :] = points[  8] +     shiftCurr
             # Volume center
-            newNodes[0].append(nPoints + 17)
-            newPoints.extend([(points[8] + 0.5*shifts[1, :]).squeeze()])
+            newNodes[0][26:27]  = np.array([nPoints + 17])
+            newPoints[17:18, :] = points[ 8] + 0.5*shiftCurr
 
             # Stack all the other elements
             for i in range(1, shifts.shape[0]-1):
-                # Calculate offsets for current layer indices
-                offsetPoint = i * 18
+                # Calculate offset for current layer indices
+                offsetCurr =  i   *18
+                shiftCurr  = shifts[i+1, :]
+                shiftPrev  = shifts[i  , :]
+
                 # Bottom/top corners
-                newNodes[i] = newNodes[i-1][4:8]
-                newNodes[i].extend(np.add(np.arange( 0,  4), nPoints+offsetPoint).tolist())
-                newPoints.extend((points[:4] + shifts[i+1, :]).squeeze().tolist())
+                newNodes[i][  : 4] = newNodes[i-1][4:8]
+                newNodes[i][ 4: 8] = np.add(np.arange( 0,  4), nPoints+offsetCurr)
+                newPoints[offsetCurr   :offsetCurr+ 4, :] = points[ :4] +      shiftCurr
                 # Edges bottom/top
-                newNodes[i].extend(newNodes[i-1][12:16])
-                newNodes[i].extend(np.add(np.arange( 4,  8), nPoints+offsetPoint).tolist())
-                newPoints.extend((points[4:8] + shifts[i+1, :]).squeeze().tolist())
+                newNodes[i][ 8:12] = newNodes[i-1][12:16]
+                newNodes[i][12:16] = np.add(np.arange( 4,  8), nPoints+offsetCurr)
+                newPoints[offsetCurr+ 4:offsetCurr+ 8, :] = points[4:8] +      shiftCurr
                 # Edges upright
-                newNodes[i].extend(np.add(np.arange( 8, 12), nPoints+offsetPoint).tolist())
-                newPoints.extend((points[:4] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze().tolist())
+                newNodes[i][16:20]  = np.add(np.arange( 8, 12), nPoints+offsetCurr)
+                newPoints[offsetCurr+ 8:offsetCurr+12, :] = points[ :4] + 0.5*(shiftCurr+shiftPrev)
                 # Face centers
-                newNodes[i].extend(np.add(np.arange(12, 16), nPoints+offsetPoint).tolist())
-                newNodes[i].append(newNodes[i-1][25])
-                newNodes[i].append(nPoints + 16 + offsetPoint)
-                newPoints.extend([(points[7] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
-                newPoints.extend([(points[5] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
-                newPoints.extend([(points[4] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
-                newPoints.extend([(points[6] + 0.5*(shifts[i+1, :]+shifts[i, :])).squeeze()])
-                newPoints.extend([(points[8] +      shifts[i+1, :]).squeeze()])
+                newNodes[i][20:24]  = np.add(np.arange(12, 16), nPoints+offsetCurr)
+                newNodes[i][24:26]  =  np.array([newNodes[i-1][25], nPoints + 16 + offsetCurr])
+                newPoints[offsetCurr+12:offsetCurr+13, :] = points[  7] + 0.5*(shiftCurr+shiftPrev)
+                newPoints[offsetCurr+13:offsetCurr+14, :] = points[  5] + 0.5*(shiftCurr+shiftPrev)
+                newPoints[offsetCurr+14:offsetCurr+15, :] = points[  4] + 0.5*(shiftCurr+shiftPrev)
+                newPoints[offsetCurr+15:offsetCurr+16, :] = points[  6] + 0.5*(shiftCurr+shiftPrev)
+                newPoints[offsetCurr+16:offsetCurr+17, :] = points[  8] +      shiftCurr
                 # Volume center
-                newNodes[i].append(nPoints + 17 + offsetPoint)
-                newPoints.extend([(points[8] +      shifts[i+1, :]).squeeze()])
+                newNodes[i][26:27]  = nPoints + 17 + offsetCurr
+                newPoints[offsetCurr+17:offsetCurr+18, :] = points[  8] + 0.5*(shiftCurr+shiftPrev)
 
         # FIXME: Implement the other orders
         case _:
