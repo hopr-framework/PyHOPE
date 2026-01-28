@@ -77,9 +77,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         return mesh
 
     # Simplex elements requested
-    if any(elemType % 10 != 8 for elemType in elemTypes):
-        if mesh_vars.nGeo > 4:
-            hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+    if any(elemType % 10 != 8 for elemType in elemTypes) and nGeo > 4:
+        hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+    if nGeo > 4:
+        hopout.error('nGeo = {} not supported for element splitting'.format(nGeo))
 
     hopout.info('Converting hexahedral elements to simplex elements')
 
@@ -97,14 +98,15 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Get the element name and skip the entries for incomplete 2nd order elements
             try:
-                if elemTypes[i] % 10 == 5:     # pyramids (skip 1)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
-                elif elemTypes[i] % 10 == 6:   # prisms (skip 1)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
-                elif elemTypes[i] % 10 == 8:   # hexahedra (skip 2)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
-                else:                          # tetrahedra
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
+                match elemTypes[i] % 10:
+                    case 5:  # pyramids   (skip 1)
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
+                    case 6:   # prisms    (skip 1)
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
+                    case 8:   # hexahedra (skip 2)
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
+                    case _:   # tetrahedra
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
             except IndexError:
                 hopout.error('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
 
@@ -150,21 +152,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     nPoints  = len(pointl)
     nFaces   = np.zeros(2, dtype=int)
-    match nGeo:
-        case 1:
-            faceType = ['triangle'  , 'quad'  ]
-            faceNum  = [          3 ,       4 ]
-        case 2:
-            faceType = ['triangle6' , 'quad9' ]
-            faceNum  = [          6 ,       9 ]
-        case 3:
-            faceType = ['triangle10', 'quad16']
-            faceNum  = [         10 ,      16 ]
-        case 4:
-            faceType = ['triangle15', 'quad25']
-            faceNum  = [         15 ,      25 ]
-        case _:
-            hopout.error('nGeo = {} not supported for element splitting'.format(nGeo))
+    # Expected number of nodes
+    faceNum   = [ int((nGeo+1)*(nGeo+2)/2), int((nGeo+1)**2) ]
+    faceType  = [f'triangle{"" if nGeo == 1 else faceNum[0]}', f'quad{"" if nGeo == 1 else faceNum[1]}']
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
@@ -311,7 +301,6 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     gc.collect()
 
     hopout.sep()
-
     return mesh
 
 

@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+import gc
 from collections import defaultdict
 from functools import cache
 from typing import Final, Tuple, cast
@@ -321,8 +322,11 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     mesh = meshio.Mesh(points    = points,     # noqa: E251
                        cells     = elems_new,  # noqa: E251
                        cell_sets = csets_new)  # noqa: E251
-    hopout.separator()
 
+    # Run garbage collector to release memory
+    gc.collect()
+
+    hopout.separator()
     return mesh
 
 

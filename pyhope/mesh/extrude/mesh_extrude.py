@@ -60,8 +60,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.readintools.readintools import GetInt, GetStr
     # ------------------------------------------------------
 
-    points: np.ndarray = mesh.points
-
     # Instantiate the Gmsh cell type mapping
     gmshCellTypes = GMSHCELLTYPES()
 
@@ -74,6 +72,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         hopout.error('Mesh contains suitable surface cells for extrusion but MeshExtrude=F, exiting...')
     elif not [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]:
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
+
+    if nGeo > 2:
+        hopout.error('nGeo = {} not supported for mesh extrusion'.format(nGeo))
 
     hopout.info('Extruding surface to volume mesh')
 
@@ -90,29 +91,19 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate()
 
     # Copy original points
-    pointl    = cast(list, mesh.points.tolist())
+    points    = mesh.points
+    pointl    = cast(list, points.tolist())
     elems_old = mesh.cells.copy()
     cell_sets = getattr(mesh, 'cell_sets', {})
 
     # Get base key to distinguish between linear and high-order elements
-    ho_key  = 100 if nGeo == 1 else 200
-    nPoints = len(pointl)
-    nFaces  = np.zeros(2, dtype=int)
-    match nGeo:
-        case 1:
-            faceType = ['triangle'  , 'quad'  ]
-            faceNum  = [          3 ,       4 ]
-        case 2:
-            faceType = ['triangle6' , 'quad9' ]
-            faceNum  = [          6 ,       9 ]
-        case 3:
-            faceType = ['triangle10', 'quad16']
-            faceNum  = [         10 ,      16 ]
-        case 4:
-            faceType = ['triangle15', 'quad25']
-            faceNum  = [         15 ,      25 ]
-        case _:
-            hopout.error('nGeo = {} not supported for mesh extrusion'.format(nGeo))
+    ho_key    = 100 if nGeo == 1 else 200
+    nPoints   = len(pointl)
+    nFaces    = np.zeros(2, dtype=int)
+
+    # Expected number of nodes
+    faceNum   = [ int((nGeo+1)*(nGeo+2)/2), int((nGeo+1)**2) ]
+    faceType  = [f'triangle{"" if nGeo == 1 else faceNum[0]}', f'quad{"" if nGeo == 1 else faceNum[1]}']
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
@@ -158,10 +149,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     match len(meshcells):
         case 0:
             hopout.error('Could not found boundary condition for extrusion, exiting...')
-            # If meshcells is empty, we fake it assign it to Zone1
-            # meshcells = tuple(('Zone1', {k: np.array([i for i in range(len(v))])}) for k, v in mesh.cells_dict.items()
-            #                                                                                 if (k.startswith('tria')
-            #                                                                                 or  k.startswith('quad')))  # noqa: E271, E501
         case 1:
             pass
         case _:
@@ -321,57 +308,33 @@ def extrude_pris(nodes:   np.ndarray,
     match order:
         case 1:
             newPoints = np.empty((3*(shifts.shape[0]-1), 3))
-            shiftCurr = shifts[1, :]
 
-            # Append the bottom layer the first element
-            newNodes[0][ :3]  = nodes[:3]
-            newNodes[0][3:6]  = np.add(np.arange(3, dtype=np.int64), nPoints)
-            newPoints[0:3, :] = points[:3] + shiftCurr
-
-            # Stack all the other elements
-            for i in range(1, shifts.shape[0]-1):
+            # Append the bottom layer of the first element, then stack all the other elements
+            for i in range(shifts.shape[0]-1):
                 # Calculate offset for current layer indices
                 offsetCurr =  i   *3
                 shiftCurr  = shifts[i+1, :]
 
-                newNodes[i][  : 3] = newNodes[i-1][3:6]
+                newNodes[i][  : 3] = nodes[ :3] if i == 0 else newNodes[i-1][ 3: 6]
                 newNodes[i][ 3: 6] = np.add(np.arange(3, dtype=np.int64), nPoints+offsetCurr)
                 newPoints[offsetCurr:offsetCurr+3, :] = points[:3] + shiftCurr
 
         case 2:
             newPoints = np.empty((12*(shifts.shape[0]-1), 3))
-            shiftCurr = shifts[1, :]
 
-            # Append the bottom/top corners of the first element
-            newNodes[0][  : 3]  = nodes[:3]
-            newNodes[0][ 3: 6]  = np.add(np.arange( 0,  3), nPoints)
-            newPoints[ 0: 3, :] = points[ :3] +     shiftCurr
-            # Edges bottom/top
-            newNodes[0][ 6: 9]  = nodes[3:6]
-            newNodes[0][ 9:12]  = np.add(np.arange( 3,  6), nPoints)
-            newPoints[ 3: 6, :] = points[3:6] +     shiftCurr
-            # Edges upright
-            newNodes[0][12:15]  = np.add(np.arange( 6,  9), nPoints)
-            newPoints[ 6: 9, :] = points[ :3] + 0.5*shiftCurr
-            # Face centers
-            newNodes[0][15:18]  = np.add(np.arange( 9, 12), nPoints)
-            newPoints[ 9:10, :] = points[  3] + 0.5*shiftCurr
-            newPoints[10:11, :] = points[  4] + 0.5*shiftCurr
-            newPoints[11:12, :] = points[  5] + 0.5*shiftCurr
-
-            # Stack all the other elements
-            for i in range(1, shifts.shape[0]-1):
+            # Append the bottom layer of the first element, then stack all the other elements
+            for i in range(shifts.shape[0]-1):
                 # Calculate offset for current layer indices
                 offsetCurr =  i   *12
                 shiftCurr  = shifts[i+1, :]
                 shiftPrev  = shifts[i  , :]
 
                 # Bottom/top corners
-                newNodes[i][  : 3] = newNodes[i-1][3:6]
+                newNodes[i][  : 3] = nodes[ :3] if i == 0 else newNodes[i-1][ 3: 6]
                 newNodes[i][ 3: 6] = np.add(np.arange( 0,  3), nPoints+offsetCurr)
                 newPoints[offsetCurr   :offsetCurr+ 3, :] = points[ :3] +      shiftCurr
                 # Edges bottom/top
-                newNodes[i][ 6: 9] = newNodes[i-1][ 9:12]
+                newNodes[i][ 6: 9] = nodes[3:6] if i == 0 else newNodes[i-1][ 9:12]
                 newNodes[i][ 9:12] = np.add(np.arange( 3,  6), nPoints+offsetCurr)
                 newPoints[offsetCurr+ 3:offsetCurr+ 6, :] = points[3:6] +      shiftCurr
                 # Edges upright
@@ -402,63 +365,34 @@ def extrude_hexa(nodes:   np.ndarray,
     match order:
         case 1:
             newPoints = np.empty((4*(shifts.shape[0]-1), 3))
-            shiftCurr = shifts[1, :]
 
-            # Append the bottom layer the first element
-            newNodes[0][ :4]  = nodes[:4]
-            newNodes[0][4:8]  = np.add(np.arange(4, dtype=np.int64), nPoints)
-            newPoints[0:4, :] = points[:4] + shiftCurr
-
-            # # Stack all the other elements
-            for i in range(1, shifts.shape[0]-1):
+            # Append the bottom layer of the first element, then stack all the other elements
+            for i in range(shifts.shape[0]-1):
                 # Calculate offset for current layer indices
                 offsetCurr =  i   *4
                 shiftCurr  = shifts[i+1, :]
 
-                newNodes[i][  : 4] = newNodes[i-1][4:8]
+                newNodes[i][  : 4] = nodes[ :4] if i == 0 else newNodes[i-1][ 4: 8]
                 newNodes[i][ 4: 8] = np.add(np.arange(4, dtype=np.int64), nPoints+offsetCurr)
                 newPoints[offsetCurr:offsetCurr+4, :] = points[:4] + shiftCurr
 
         case 2:
             newPoints = np.empty((18*(shifts.shape[0]-1), 3))
-            shiftCurr = shifts[1, :]
 
-            # Append the bottom/top corners of the first element
-            newNodes[0][  : 4]  = nodes[:4]
-            newNodes[0][ 4: 8]  = np.add(np.arange( 0,  4), nPoints)
-            newPoints[ 0: 4, :] = points[ :4] +     shiftCurr
-            # Edges bottom/top
-            newNodes[0][ 8:12]  = nodes[4:8]
-            newNodes[0][12:16]  = np.add(np.arange( 4,  8), nPoints)
-            newPoints[ 4: 8, :] = points[4:8] +     shiftCurr
-            # Edges upright
-            newNodes[0][16:20]  = np.add(np.arange( 8, 12), nPoints)
-            newPoints[ 8:12, :] = points[ :4] + 0.5*shiftCurr
-            # Face centers
-            newNodes[0][20:24]  = np.add(np.arange(12, 16), nPoints)
-            newNodes[0][24:26]  = np.array([int(nodes[8]), nPoints + 16])
-            newPoints[12:13, :] = points[  7] + 0.5*shiftCurr
-            newPoints[13:14, :] = points[  5] + 0.5*shiftCurr
-            newPoints[14:15, :] = points[  4] + 0.5*shiftCurr
-            newPoints[15:16, :] = points[  6] + 0.5*shiftCurr
-            newPoints[16:17, :] = points[  8] +     shiftCurr
-            # Volume center
-            newNodes[0][26:27]  = np.array([nPoints + 17])
-            newPoints[17:18, :] = points[ 8] + 0.5*shiftCurr
+            # Append the bottom layer of the first element, then stack all the other elements
 
-            # Stack all the other elements
-            for i in range(1, shifts.shape[0]-1):
+            for i in range(shifts.shape[0]-1):
                 # Calculate offset for current layer indices
                 offsetCurr =  i   *18
                 shiftCurr  = shifts[i+1, :]
                 shiftPrev  = shifts[i  , :]
 
                 # Bottom/top corners
-                newNodes[i][  : 4] = newNodes[i-1][4:8]
+                newNodes[i][  : 4] = nodes[ :4] if i == 0 else newNodes[i-1][ 4: 8]
                 newNodes[i][ 4: 8] = np.add(np.arange( 0,  4), nPoints+offsetCurr)
                 newPoints[offsetCurr   :offsetCurr+ 4, :] = points[ :4] +      shiftCurr
                 # Edges bottom/top
-                newNodes[i][ 8:12] = newNodes[i-1][12:16]
+                newNodes[i][ 8:12] = nodes[4:8] if i == 0 else newNodes[i-1][12:16]
                 newNodes[i][12:16] = np.add(np.arange( 4,  8), nPoints+offsetCurr)
                 newPoints[offsetCurr+ 4:offsetCurr+ 8, :] = points[4:8] +      shiftCurr
                 # Edges upright
@@ -466,7 +400,7 @@ def extrude_hexa(nodes:   np.ndarray,
                 newPoints[offsetCurr+ 8:offsetCurr+12, :] = points[ :4] + 0.5*(shiftCurr+shiftPrev)
                 # Face centers
                 newNodes[i][20:24]  = np.add(np.arange(12, 16), nPoints+offsetCurr)
-                newNodes[i][24:26]  =  np.array([newNodes[i-1][25], nPoints + 16 + offsetCurr])
+                newNodes[i][24:26]  = np.array([int(nodes[8])if i == 0 else newNodes[i-1][25] , nPoints + 16 + offsetCurr])
                 newPoints[offsetCurr+12:offsetCurr+13, :] = points[  7] + 0.5*(shiftCurr+shiftPrev)
                 newPoints[offsetCurr+13:offsetCurr+14, :] = points[  5] + 0.5*(shiftCurr+shiftPrev)
                 newPoints[offsetCurr+14:offsetCurr+15, :] = points[  4] + 0.5*(shiftCurr+shiftPrev)
