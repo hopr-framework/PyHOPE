@@ -29,8 +29,14 @@ from functools import cache
 from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,7 +46,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def facePointMatrixFill(matrix: np.ndarray, start: int, end: int, count: int, orient: bool) -> tuple[np.ndarray, int]:
+def facePointMatrixFill(matrix: npt.NDArray, start: int, end: int, count: int, orient: bool) -> tuple[npt.NDArray, int]:
     """ Fill the 2D matrix representing the inner points of each faces
     """
     if end <= start:
@@ -96,7 +102,7 @@ def facePointMatrixFill(matrix: np.ndarray, start: int, end: int, count: int, or
 
 
 @cache
-def facePointMatrix(order: int, pos: int, orient: bool = True) -> np.ndarray:
+def facePointMatrix(order: int, pos: int, orient: bool = True) -> npt.NDArray:
     """ Return the 2D index of the inner points of each faces
     """
     # Create a matrix of the required size
@@ -114,7 +120,7 @@ def facePointMatrix(order: int, pos: int, orient: bool = True) -> np.ndarray:
 
 
 @cache
-def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> np.ndarray:
+def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> npt.NDArray:
     """ Traverse over all 12 edges of the hexahedron
     """
     match edge:
@@ -147,7 +153,7 @@ def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> np.ndarray:
 
 
 @cache
-def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
+def facePointMESHIO(start: int, end: int, face: int, pos: int) -> npt.NDArray:
     """ Translate the 1D position of each of the 6 hexahedron faces to each 2D index
     """
     match face:
@@ -174,7 +180,7 @@ def facePointMESHIO(start: int, end: int, face: int, pos: int) -> np.ndarray:
 
 
 @cache
-def HEXAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def HEXAMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order hexahedrons
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
@@ -260,7 +266,7 @@ def HEXAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 @cache
-def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def PRISMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order prisms
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
@@ -403,7 +409,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 @cache
-def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def PYRAMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order pyramids
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (3D mapping)
@@ -530,7 +536,7 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 @cache
-def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
+def TETRMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order tetrahedrons
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)

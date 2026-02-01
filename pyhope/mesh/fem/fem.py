@@ -32,6 +32,12 @@ from typing import Dict, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -283,14 +289,14 @@ def FEMConnect() -> None:
         elems[elemID].edgeInfo[locEdge] = (locEdge, FEMEdgeID, edgePair, edgeNodes)
 
 
-def getFEMInfo(nodeInfo: np.ndarray) -> tuple[np.ndarray,  # FEMElemInfo
-                                              int,         # nVertices
-                                              np.ndarray,  # VertexInfo
-                                              np.ndarray,  # VertexConnectInfo
-                                              int,         # nEdges
-                                              np.ndarray,  # EdgeInfo
-                                              np.ndarray   # EdgeConnectInfo
-                                             ]:
+def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
+                                               int,          # nVertices
+                                               npt.NDArray,  # VertexInfo
+                                               npt.NDArray,  # VertexConnectInfo
+                                               int,          # nEdges
+                                               npt.NDArray,  # EdgeInfo
+                                               npt.NDArray   # EdgeConnectInfo
+                                              ]:
     """ Extract the FEM connectivity information and return five arrays
 
      - FEMElemInfo      : [offsetIndEdge, lastIndEdge, offsetIndVertex, lastIndVertex]

@@ -26,13 +26,19 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from functools import cache
-from typing import Final, Union
+from typing import Any, Final, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import scipy as sp
 # from threadpoolctl import ThreadpoolController
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -42,7 +48,7 @@ from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ==================================================================================================================================
 
 
-def legendre_gauss_lobatto_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
+def legendre_gauss_lobatto_nodes(order: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """ Return Legendre-Gauss-Lobatto nodes and weights for a given order in 1D
     """
     order -= 1
@@ -76,7 +82,7 @@ def legendre_gauss_lobatto_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
     return nodes, weights
 
 
-def legendre_gauss_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
+def legendre_gauss_nodes(order: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """ Return Legendre-Gauss nodes and weights for a given order in 1D
     """
     nodes, weights = np.polynomial.legendre.leggauss(order)
@@ -84,7 +90,7 @@ def legendre_gauss_nodes(order: int) -> tuple[np.ndarray, np.ndarray]:
 
 
 @cache
-def equi_nodes_prism(order: int) -> np.ndarray:
+def equi_nodes_prism(order: int) -> npt.NDArray[np.float64]:
     """ Return equidistant nodes on a wedge/prism
     """
     xEq = np.linspace(-1, 1, num=order, dtype=np.float64)
@@ -94,7 +100,7 @@ def equi_nodes_prism(order: int) -> np.ndarray:
 
 
 @cache
-def equi_nodes_pyram(order: int) -> np.ndarray:
+def equi_nodes_pyram(order: int) -> npt.NDArray[np.float64]:
     """ Return equidistant nodes on a pyramid
     """
     xEq = np.linspace(-1, 1, num=order, dtype=np.float64)
@@ -104,7 +110,7 @@ def equi_nodes_pyram(order: int) -> np.ndarray:
 
 
 @cache
-def equi_nodes_tetra(order: int) -> np.ndarray:
+def equi_nodes_tetra(order: int) -> npt.NDArray[np.float64]:
     """ Return equidistant nodes on a tetrahedron
     """
     xEq = np.linspace(-1, 1, num=order, dtype=np.float64)
@@ -113,7 +119,7 @@ def equi_nodes_tetra(order: int) -> np.ndarray:
     return np.vstack((xEq[iXI[mask]], xEq[iETA[mask]], xEq[iZETA[mask]]))
 
 
-def barycentric_weights(_: int, xGP: np.ndarray) -> np.ndarray:
+def barycentric_weights(_: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Compute the barycentric weights for a given node set
         > Algorithm 30, Kopriva
     """
@@ -132,7 +138,7 @@ def barycentric_weights(_: int, xGP: np.ndarray) -> np.ndarray:
     return 1.0 / wBary
 
 
-def polynomial_derivative_matrix(order: int, xGP: np.ndarray) -> np.ndarray:
+def polynomial_derivative_matrix(order: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Compute the polynomial derivative matrix for a given node set
         > Algorithm 37, Kopriva
     """
@@ -148,7 +154,10 @@ def polynomial_derivative_matrix(order: int, xGP: np.ndarray) -> np.ndarray:
     return D
 
 
-def lagrange_interpolation_polys(x: Union[float, np.ndarray], order: int, xGP: np.ndarray, wBary: np.ndarray) -> np.ndarray:
+def lagrange_interpolation_polys(x:     Union[float, npt.NDArray[np.float64]],
+                                 order: int,
+                                 xGP:   npt.NDArray[np.float64],
+                                 wBary: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Computes all Lagrange functions evaluated at position x in [-1;1]
         > Algorithm 34, Kopriva
     """
@@ -170,7 +179,11 @@ def lagrange_interpolation_polys(x: Union[float, np.ndarray], order: int, xGP: n
     return lagrange/tmp
 
 
-def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndarray, xi_Out: np.ndarray) -> np.ndarray:
+def calc_vandermonde(n_In:     int,
+                     n_Out:    int,
+                     wBary_In: npt.NDArray[np.float64],
+                     xi_In:    npt.NDArray[np.float64],
+                     xi_Out:   npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Build a 1D Vandermonde matrix using the Lagrange basis functions of degree N_In,
         evaluated at the interpolation points xi_Out
     """
@@ -254,7 +267,7 @@ def calc_vandermonde(n_In: int, n_Out: int, wBary_In: np.ndarray, xi_In: np.ndar
 #      return Vdm
 
 
-def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarray:
+def polynomial_derivative_matrix_prism(order: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Compute the polynomial derivative matrix for a prism
     """
     a: Final[np.ndarray]  = xGP[0, :]
@@ -347,7 +360,7 @@ def polynomial_derivative_matrix_prism(order: int, xGP: np.ndarray) -> np.ndarra
     return D
 
 
-def polynomial_derivative_matrix_pyram(order: int, xGP: np.ndarray) -> np.ndarray:
+def polynomial_derivative_matrix_pyram(order: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Compute the polynomial derivative matrix for a pyramid
     """
     a  = np.where((1 - xGP[2, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[0, :]) / (1. - xGP[2, :] + 1.e-20) - 1.)
@@ -421,7 +434,7 @@ def polynomial_derivative_matrix_pyram(order: int, xGP: np.ndarray) -> np.ndarra
     return D
 
 
-def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarray:
+def polynomial_derivative_matrix_tetra(order: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Compute the polynomial derivative matrix for a tetra
     """
     a  = np.where(np.abs(xGP[1, :] + xGP[2, :]) <= 1.e-12, -1.0, 2 * (1 + xGP[0, :]) / (- xGP[1, :] - xGP[2, :] + 1.e-20) - 1.)
@@ -504,7 +517,7 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: np.ndarray) -> np.ndarra
 
 
 if not NUMBA_AVAILABLE:
-    def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
+    def change_basis_3D(Vdm: npt.NDArray[np.float64], x3D_In: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
             to another 3D tensor product node positions (number of nodes N_out+1)
             defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
@@ -533,7 +546,7 @@ if not NUMBA_AVAILABLE:
 
 else:
     @jit((types.float64[:, :, :, ::1])(types.float64[:, ::1], types.float64[:, :, :, :]), nopython=True, cache=True, nogil=True)
-    def change_basis_3D(Vdm: np.ndarray, x3D_In: np.ndarray) -> np.ndarray:
+    def change_basis_3D(Vdm: npt.NDArray[np.float64], x3D_In: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """ Interpolate a 3D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
             to another 3D tensor product node positions (number of nodes N_out+1)
             defined by (N_out+1) interpolation point  positions xi_Out(0:N_Out)
@@ -561,7 +574,7 @@ else:
 
 
 if not NUMBA_AVAILABLE:
-    def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
+    def change_basis_2D(Vdm: npt.NDArray[np.float64], x2D_In: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """ Interpolate a 2D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
             to another 2D tensor product node positions (number of nodes N_out+1)
             defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
@@ -584,7 +597,7 @@ if not NUMBA_AVAILABLE:
 
 else:
     @jit((types.float64[:, :, ::1])(types.float64[:, ::1], types.float64[:, :, :]), nopython=True, cache=True, nogil=True)
-    def change_basis_2D(Vdm: np.ndarray, x2D_In: np.ndarray) -> np.ndarray:
+    def change_basis_2D(Vdm: npt.NDArray[np.float64], x2D_In: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """ Interpolate a 2D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
             to another 2D tensor product node positions (number of nodes N_out+1)
             defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
@@ -607,7 +620,7 @@ else:
         return x2D_Out.reshape(dim1, n_Out, n_Out)
 
 
-def change_basis_1D(Vdm: np.ndarray, x1D_In: np.ndarray) -> np.ndarray:
+def change_basis_1D(Vdm: npt.NDArray[np.float64], x1D_In: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Interpolate a 1D tensor product Lagrange basis defined by (N_in+1) 1D interpolation point positions xi_In(0:N_In)
         to another 1D tensor product node positions (number of nodes N_out+1)
         defined by (N_out+1) interpolation point positions xi_Out(0:N_Out)
@@ -616,7 +629,9 @@ def change_basis_1D(Vdm: np.ndarray, x1D_In: np.ndarray) -> np.ndarray:
     return Vdm @ x1D_In
 
 
-def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
+def evaluate_jacobian(xGeo_In:   npt.NDArray[np.float64],
+                      VdmGLtoAP: npt.NDArray[np.float64],
+                      D_EqToGL:  npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Calculate the Jacobian of the mapping for a given element
     """
     dim1  = xGeo_In.shape[0]
@@ -665,7 +680,9 @@ def evaluate_jacobian(xGeo_In: np.ndarray, VdmGLtoAP: np.ndarray, D_EqToGL: np.n
     return np.einsum('ijkl,ijkl->jkl', dXdXiAP, cross_eta_zeta)
 
 
-def evaluate_jacobian_simplex(xGeo_In: np.ndarray, _: np.ndarray, D_EqToGL: np.ndarray) -> np.ndarray:
+def evaluate_jacobian_simplex(xGeo_In:  npt.NDArray[np.float64],
+                              _:        Any,
+                              D_EqToGL: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     # Perform tensor contraction for each derivative
     # Change basis for each direction
     dXdXiAP   = xGeo_In[:, :] @ D_EqToGL[0, :, :]

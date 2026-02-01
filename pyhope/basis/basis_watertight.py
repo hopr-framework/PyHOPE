@@ -34,6 +34,12 @@ from collections.abc import Iterable
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
@@ -57,14 +63,19 @@ def init_worker(function, VdmEqToGP, DGP, weights) -> None:
     types.float64[:, :, ::1],
     types.float64[:,    ::1]
 ), nopython=True, cache=True, nogil=True)
-def eval_dotprod(dXdetaGP: np.ndarray, dXdxiGP: np.ndarray, weights: np.ndarray) -> tuple[np.ndarray, ...]:
+def eval_dotprod(dXdetaGP: npt.NDArray[np.float64],
+                 dXdxiGP:  npt.NDArray[np.float64],
+                 weights:  npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float64], ...]:
     NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
     NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
     NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
     return NSurf0, NSurf1, NSurf2
 
 
-def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.ndarray) -> np.ndarray:
+def eval_nsurf(XGeo:    npt.NDArray[np.float64],
+               Vdm:     npt.NDArray[np.float64],
+               DGP:     npt.NDArray[np.float64],
+               weights: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Evaluate the surface integral for normals over a side of an element
     """
     # Change basis to Gauss points
@@ -110,10 +121,10 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.n
 
 
 def check_sides(elem,
-                # points   : np.ndarray,
-                VdmEqToGP: np.ndarray,
-                DGP      : np.ndarray,
-                weights  : np.ndarray,
+                # points   : npt.NDArray[np.float64],
+                VdmEqToGP: npt.NDArray[np.float64],
+                DGP      : npt.NDArray[np.float64],
+                weights  : npt.NDArray[np.float64],
                 # sides    : list
                 failed_only: bool = False,
                ) -> Optional[list[tuple]]:
@@ -256,21 +267,21 @@ def CheckWatertight() -> None:
     nGeo:      Final[int] = mesh_vars.nGeo
 
     # Compute the equidistant point set used by meshIO
-    xEq:       Final[np.ndarray] = np.linspace(-1., 1., nGeo+1)
-    wBaryEq:   Final[np.ndarray] = barycentric_weights(nGeo+1, xEq)
+    xEq:       Final[npt.NDArray[np.float64]] = np.linspace(-1., 1., nGeo+1)
+    wBaryEq:   Final[npt.NDArray[np.float64]] = barycentric_weights(nGeo+1, xEq)
 
     xGP, wGP  = legendre_gauss_nodes(nGeo+1)
-    DGP:       Final[np.ndarray] = polynomial_derivative_matrix(nGeo+1, xGP)
-    VdmEqToGP: Final[np.ndarray] = calc_vandermonde(nGeo+1, nGeo+1, wBaryEq, xEq, xGP)
+    DGP:       Final[npt.NDArray[np.float64]] = polynomial_derivative_matrix(nGeo+1, xGP)
+    VdmEqToGP: Final[npt.NDArray[np.float64]] = calc_vandermonde(nGeo+1, nGeo+1, wBaryEq, xEq, xGP)
 
     # Compute the weights
-    weights:   Final[np.ndarray] = np.outer(wGP, wGP)                   # Shape: (N_GP+1, N_GP+1)
+    weights:   Final[npt.NDArray[np.float64]] = np.outer(wGP, wGP)  # Shape: (N_GP+1, N_GP+1)
 
     # Check all sides
     elems:     Final[list] = mesh_vars.elems
     sides:     Final[list] = mesh_vars.sides
-    mesh:      Final             = mesh_vars.mesh
-    points:    Final[np.ndarray] = mesh.points
+    mesh:      Final       = mesh_vars.mesh
+    points:    Final[npt.NDArray[np.float64]] = mesh.points
     # points    = mesh_vars.mesh.points
     # checked   = np.zeros((len(sides)), dtype=bool)
 

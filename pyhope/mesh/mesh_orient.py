@@ -34,6 +34,12 @@ from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
@@ -68,7 +74,7 @@ def eval_dotprod(fpoints, nVecFace) -> np.float64:
     return dotprod
 
 
-def check_orientation(ionodes : np.ndarray,
+def check_orientation(ionodes : npt.NDArray,
                       elemType: int,
                      ) -> tuple[bool, Optional[str]]:
     """ Check the orientation of the surface normals

@@ -34,13 +34,13 @@ from typing import Dict, Final, Optional, Union, Tuple, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 if typing.TYPE_CHECKING:
     import meshio
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ periNodes: dict                                   # Mapping from the periodic no
 already_curved: bool                              # Flag if mesh is already curved
 
 # Mesh sorting
-nElemsIJK: Optional[np.ndarray]                   # Number of elements in each structured dimension
+nElemsIJK: Optional[npt.NDArray]                  # Number of elements in each structured dimension
 
 # Mesh connectitivity
 doMortars: bool                                   # Flag if mortars are enabled
@@ -117,7 +117,7 @@ class SIDE:
     #              sideID      : Optional[int] = None,
     #              locSide     : Optional[int] = None,
     #              face        : Optional[str] = None,
-    #              corners     : Optional[np.ndarray] = None,
+    #              corners     : Optional[npt.NDArray] = None,
     #              sideType    : Optional[int] = None,
     #              # Sorting
     #              globalSideID: Optional[int] = None,
@@ -135,7 +135,7 @@ class SIDE:
     #     self.sideID      : Optional[int] = sideID
     #     self.locSide     : Optional[int] = locSide
     #     self.face        : Optional[str] = face
-    #     self.corners     : Optional[np.ndarray] = corners
+    #     self.corners     : Optional[npt.NDArray] = corners
     #     self.sideType    : Optional[int] = sideType
     #     # Sorting
     #     self.globalSideID: Optional[int] = globalSideID
@@ -152,7 +152,7 @@ class SIDE:
     sideID      : Optional[int] = None
     locSide     : Optional[int] = None
     face        : Optional[str] = None
-    corners     : Optional[np.ndarray] = None
+    corners     : Optional[npt.NDArray] = None
     sideType    : Optional[int] = None
     # Sorting
     globalSideID: Optional[int] = None
@@ -198,10 +198,10 @@ class ELEM:
     type        : Optional[int]  = None
     zone        : Optional[int]  = None
     elemID      : Optional[int]  = None
-    sides       : Optional[Union[list, np.ndarray]] = None
-    nodes       : Optional[            np.ndarray]  = None
+    sides       : Optional[Union[list, npt.NDArray]] = None
+    nodes       : Optional[            npt.NDArray]  = None
     # Sorting
-    elemIJK     : Optional[np.ndarray] = None
+    elemIJK     : Optional[npt.NDArray] = None
     # Jacobian
     jacobian    : Optional[float] = None
     # FEM connectivity
@@ -247,10 +247,10 @@ class BC:
     #     self.bcid        : Optional[int]  = bcid
     #     self.type        : Optional[list] = type
     #     self.dir         : Optional[list] = dir
-    name        : Optional[str]        = None
-    bcid        : Optional[int]        = None
-    type        : Optional[np.ndarray] = None
-    dir         : Optional[list]       = None
+    name        : Optional[str]         = None
+    bcid        : Optional[int]         = None
+    type        : Optional[npt.NDArray] = None
+    dir         : Optional[list]        = None
 
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():

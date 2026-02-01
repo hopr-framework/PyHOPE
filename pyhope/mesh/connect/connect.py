@@ -53,7 +53,7 @@ import pyhope.output.output as hopout
 # ==================================================================================================================================
 
 
-def flip_analytic(side: int, nbside: np.ndarray) -> int:
+def flip_analytic(side: int, nbside: npt.NDArray) -> int:
     """ Determines the flip of the side-to-side connection based on the analytic side ID
         flip = 1 : 1st node of neighbor side = 1st node of side
         flip = 2 : 2nd node of neighbor side = 1st node of side
@@ -107,7 +107,7 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
     return None
 
 
-# def find_closest_side(points: np.ndarray, stree: KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
+# def find_closest_side(points: npt.NDArray, stree: KDTree, tol: float, msg: str, doMortars: bool = False) -> int:
 #     """ Query the tree for the closest side
 #     """
 #     trSide = stree.query(points)
@@ -124,14 +124,14 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
 #     return cast(int, trSide[1])
 
 
-# def get_side_id(corners: np.ndarray, side_dict: dict) -> int:
+# def get_side_id(corners: npt.NDArray, side_dict: dict) -> int:
 #     """ Get sorted corners and hash them to get the side ID
 #     """
 #     corners_hash = hash(np.sort(corners).tobytes())
 #     return side_dict[corners_hash][0]
 
 
-def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[np.ndarray]]:
+def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[npt.NDArray]]:
     """ Get a list of internal sides that are not connected to any
         other side together with a list of their centers
     """
@@ -146,7 +146,7 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[n
     return nConnSide, nConnCenter
 
 
-def periodic_update(sides: tuple, elems: tuple, vv: np.ndarray) -> None:
+def periodic_update(sides: tuple, elems: tuple, vv: npt.NDArray) -> None:
     """Update the mesh after connecting periodic sides
     """
     # Local imports ----------------------------------------
@@ -265,14 +265,14 @@ def ConnectMesh() -> None:
     nGeo    = mesh_vars.nGeo
 
     # Native meshio data
-    points: Final[np.ndarray] = mesh.points
-    cells:  Final[list]       = mesh.cells
-    csets:  Final[dict]       = mesh.cell_sets
-    cdict:  Final[dict]       = mesh.cells_dict
+    points: Final[npt.NDArray] = mesh.points
+    cells:  Final[list]        = mesh.cells
+    csets:  Final[dict]        = mesh.cell_sets
+    cdict:  Final[dict]        = mesh.cells_dict
 
     # Set BC and periodic sides
-    bcs:    Final[list]       = mesh_vars.bcs
-    vvs:    Final[list]       = mesh_vars.vvs
+    bcs:    Final[list]        = mesh_vars.bcs
+    vvs:    Final[list]        = mesh_vars.vvs
 
     # Consistency check for 2D boundary conditions
     prefixes: Final[list[str]] = ['quad', 'triangle']

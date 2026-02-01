@@ -33,6 +33,12 @@ from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -189,7 +195,7 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq: Union[list, np.ndarray], item) -> int:
+def find_index(seq: Union[list, npt.NDArray], item) -> int:
     """ Find the first occurrences of a key in a list
     """
     # if type(seq) is np.ndarray:
@@ -206,7 +212,7 @@ def find_index(seq: Union[list, np.ndarray], item) -> int:
     return -1
 
 
-def find_indices(seq: Union[list, np.ndarray], item) -> tuple[int, ...]:
+def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:

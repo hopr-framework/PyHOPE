@@ -42,7 +42,13 @@ from typing import Final, Optional, cast
 import h5py
 import meshio
 import numpy as np
-from scipy.spatial import KDTree
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+    from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -267,6 +273,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """
     # Standard libraries -----------------------------------
     import tempfile
+    from scipy.spatial import KDTree
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -399,7 +406,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
 
 def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
-                          points:   np.ndarray,
+                          points:   npt.NDArray,
                           cells:    list,
                           stree:    Optional[KDTree],
                           zone,     # CGNS zone
@@ -541,7 +548,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
 
 def BCCGNS_Structured(mesh:     meshio.Mesh,
-                      points:   np.ndarray,
+                      points:   npt.NDArray,
                       cells:    list,
                       stree:    Optional[KDTree],
                       zone,     # CGNS zone
