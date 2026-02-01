@@ -37,7 +37,8 @@ import numpy as np
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
-if typing.TYPE_CHECKING:
+from pyhope.common.common_numba import NUMBA_AVAILABLE
+if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
     import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports

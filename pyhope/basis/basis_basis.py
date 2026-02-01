@@ -37,12 +37,12 @@ import scipy as sp
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
-if typing.TYPE_CHECKING:
+from pyhope.common.common_numba import NUMBA_AVAILABLE
+if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
     import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
-from pyhope.common.common_numba import NUMBA_AVAILABLE
 from pyhope.common.common_numba import jit, types
 from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ==================================================================================================================================
