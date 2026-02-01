@@ -5,8 +5,8 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (C) 2022 Nico Schlömer
 # Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+# Copyright (c) 2022 Nico Schlömer (Original Version)
 #
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
 from typing import Dict, List, Union, Optional

@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import plotext as plt
+from __future__ import annotations
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -62,6 +62,7 @@ def plot_histogram(data: npt.NDArray[np.float64]) -> None:
     """ Plot a histogram of all Jacobians
     """
     # Local imports ----------------------------------------
+    import plotext as plt
     import pyhope.output.output as hopout
     from pyhope.output.output import STD_LENGTH
     # ------------------------------------------------------
