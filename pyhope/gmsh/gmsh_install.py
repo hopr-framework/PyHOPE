@@ -191,7 +191,13 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             try:
                 meta = metadata.metadata('gmsh')
                 if meta is not None:
-                    _ = subprocess.run(command + ['uninstall'] + ['gmsh'], check=True)  # noqa: E501
+                    try:
+                        _ = subprocess.run(command + ['uninstall'] + ['gmsh'], check=True)  # noqa: E501
+                    except subprocess.CalledProcessError:
+                        print(hopout.warn( 'Failed to uninstall system Gmsh. Please run the following commands manually:'))
+                        print(hopout.warn( '$ python -m pip uninstall gmsh'))
+                        print(hopout.warn(f'$ python -m pip install {pkgs}'))
+                        return None
 
             except metadata.PackageNotFoundError:
                 pass
