@@ -290,7 +290,9 @@ def CheckWatertight() -> None:
                                   elems,
                                   chunk_size  = max(1, min(1000, max(10, int(len(elems)/(40.*np_mtp))))),  # noqa: E251
                                   initializer = init_worker,                                               # noqa: E251
-                                  init_args   = (process_chunk, VdmEqToGP, DGP, weights))                  # noqa: E251
+                                  init_args   = (process_chunk, VdmEqToGP, DGP, weights),                  # noqa: E251
+                                  ordering    = False,                                                     # noqa: E251
+                                 )
     else:
         res     = [elem for elem in elems if check_sides(elem,
                                                          VdmEqToGP, DGP, weights,
