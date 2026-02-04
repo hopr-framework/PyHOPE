@@ -26,6 +26,7 @@
 # Standard libraries
 import os
 import subprocess
+import sys
 from typing import Optional, Union, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -35,7 +36,7 @@ from typing_extensions import override
 import h5py
 import numpy as np
 from collections import OrderedDict
-from configparser import ConfigParser
+from configparser import ConfigParser, ParsingError
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -599,6 +600,7 @@ class ReadConfig():
 
     def __enter__(self) -> ConfigParser:
         # Local imports ----------------------------------------
+        from pyhope.common.common import IsInteractive
         from pyhope.common.common_vars import Common
         import pyhope.config.config as config
         import pyhope.output.output as hopout
@@ -656,7 +658,18 @@ class ReadConfig():
             config.prmfile = os.path.abspath(self.parameter)
 
             # HOPR does not use conventional sections, so prepend a fake section header
-            parser.read_string('[general]\n' + '\n'.join(self._read_file()))
+            try:
+                parser.read_string('[general]\n' + '\n'.join(self._read_file()))
+            except ParsingError as e:
+                print(hopout.warn(str(e), split=False))
+                if IsInteractive():
+                    print(hopout.warn('\n'))
+                    warning  = hopout.warn('Malformed parameter file detected. Continue? (Y/n):')
+                    response = input(warning) + '\n'
+                    print() if response.lower().strip() in ('yes', 'y', '') else sys.exit()
+                else:
+                    warning  = hopout.warn('Malformed parameter file detected. Continuing anyways...')
+                    print(warning)
 
         # Handle mesh data
         if mesh_mode:

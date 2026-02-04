@@ -256,13 +256,13 @@ def connect_mortar_sides( sideIDs    : tuple
             del slaveCorners
 
             # Sort the small sides
-            slaveSides = tuple(s for i in [0, 2]
+            slaveSides = tuple(s for i in (0, 2)
                                  for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
 
         case 4:
             mortarType = 1
             # Sort the small sides
-            slaveSides = tuple(s for i in [0, 1, 3, 2]
+            slaveSides = tuple(s for i in (0, 1, 3, 2)
                                  for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
 
         case _:

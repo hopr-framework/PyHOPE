@@ -53,7 +53,7 @@ def XdmfWriterInit(self,
                    compression     : str = 'gzip',
                    compression_opts: int = 4) -> None:
 
-    if data_format not in ['XML', 'Binary', 'HDF']:
+    if data_format not in ('XML', 'Binary', 'HDF'):
         raise WriteError(f'Unknown XDMF data format "{data_format}" (use "XML", "Binary", or "HDF")')
 
     self.filename         = pathlib.Path(filename)

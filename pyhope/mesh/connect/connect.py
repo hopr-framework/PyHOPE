@@ -322,7 +322,7 @@ def ConnectMesh() -> None:
         # Ignore the volume zones
         volumeBC = False
         for iMap in csetMap[key]:
-            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
+            if not any(s in tuple(cdict)[iMap] for s in ('quad', 'triangle')):
                 volumeBC = True
                 break
         if volumeBC:

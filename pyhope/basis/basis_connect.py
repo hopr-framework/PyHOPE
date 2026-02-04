@@ -174,7 +174,7 @@ def CheckConnect() -> None:
     else:
         res     = [elem for elem in elems if check_sides(elem, failed_only=True)]
 
-    if len(res) > 0:
+    if len(res) > 0:  # pragma: no cover
         # Flatten per-element results (skip None placeholders)
         results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
                                for result       in elem_results)  # noqa: E272

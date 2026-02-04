@@ -105,7 +105,8 @@ def small_banner(string: str, length: int = STD_LENGTH) -> None:
 def warn(string:   str,
          length:   int  = STD_LENGTH,
          prefix:   str  = Colors.WARN + '│  WARNING  ┃ '  + Colors.END,
-         warnonce: bool = False) -> str:
+         warnonce: bool = False,
+         split:    bool = True) -> str:
     """ Format the input `string` as a warning with the corresponding color
 
         Args:
@@ -120,7 +121,7 @@ def warn(string:   str,
     ansiEscape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     lprefix    = len(ansiEscape.sub('', prefix))
     # Wrap the message to account for the visible prefix width
-    wrap_msg   = textwrap.fill(string, width=length - lprefix)
+    wrap_msg   = textwrap.fill(string, width=length - lprefix) if split else string
 
     # Split into lines and format
     lines = wrap_msg.splitlines()
