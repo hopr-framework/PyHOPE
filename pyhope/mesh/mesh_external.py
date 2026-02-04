@@ -105,7 +105,7 @@ def MeshExternal() -> meshio.Mesh:
 
     # Check the file sizes
     fsizes = [os.stat(f).st_size for f in fnames]
-    minsize: Final[int] = 128
+    minsize: Final[int] = 256
     if any(s < minsize for s in fsizes):
         # Loop over the meshes and emit the warnings
         for f, s in zip(fnames, fsizes):
