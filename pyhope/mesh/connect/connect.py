@@ -238,7 +238,7 @@ def ConnectMesh() -> None:
     from pyhope.common.common_progress import ProgressBar
     # from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
-    from pyhope.readintools.readintools import GetLogical
+    from pyhope.readintools.readintools import CountOption, GetLogical
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
     # from pyhope.mesh.mesh_common import sidetovol2
     from pyhope.mesh.mesh_common import face_to_nodes
@@ -273,6 +273,10 @@ def ConnectMesh() -> None:
     # Set BC and periodic sides
     bcs:    Final[list]       = mesh_vars.bcs
     vvs:    Final[list]       = mesh_vars.vvs
+
+    checkInternalBoundaries   = True
+    if CountOption('CheckInternalBoundaries') > 0:
+        checkInternalBoundaries = GetLogical('CheckInternalBoundaries')
 
     # Consistency check for 2D boundary conditions
     prefixes: Final[list[str]] = ['quad', 'triangle']
@@ -318,7 +322,7 @@ def ConnectMesh() -> None:
         # Ignore the volume zones
         volumeBC = False
         for iMap in csetMap[key]:
-            if not any(s in tuple(cdict)[iMap] for s in ['quad', 'triangle']):
+            if not any(s in tuple(cdict)[iMap] for s in ('quad', 'triangle')):
                 volumeBC = True
                 break
         if volumeBC:
@@ -370,8 +374,8 @@ def ConnectMesh() -> None:
                         sideIDs = [sideIDs[0]]
                     case _:        # Boundary side
                         # Abort if there are multiple sides with the same corners
-                        if len(sideIDs) > 1:
-                            hopout.error('Found multiple sides with the same corners, exiting...', traceback=True)
+                        if len(sideIDs) > 1 and checkInternalBoundaries:
+                            hopout.error('Found interal face with multiple BCs, exiting...', traceback=True)
 
                 for sideID in sideIDs:
                     # sides[sideID].update(bcid=bcID)

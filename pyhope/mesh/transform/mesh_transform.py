@@ -139,6 +139,9 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
 
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
 
+    if np.any(progFac == 0):
+        hopout.error('Stretching factor = 0 is invalid, exiting...')
+
     # Return stretching factor
     return progFac
 

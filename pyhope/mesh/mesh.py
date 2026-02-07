@@ -96,10 +96,11 @@ def DefineMesh() -> None:
     CreateIntArray( 'BCIndex',         6,   multiple=True, help='Index of BC for each boundary face')
     # Checking
     CreateSection('Mesh Checks')
-    CreateLogical(  'CheckElemJacobians',   default=True,  help='Check the Jacobian and scaled Jacobian for each element')
-    CreateLogical(  'CheckConnectivity'  ,  default=True,  help='Check if the side connectivity, including correct flip')
-    CreateLogical(  'CheckWatertightness',  default=True,  help='Check if the mesh is watertight')
-    CreateLogical(  'CheckSurfaceNormals',  default=True,  help='Check if the surface normals point outwards')
+    CreateLogical(  'CheckElemJacobians',      default=True,  help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical(  'CheckConnectivity'  ,     default=True,  help='Check if the side connectivity, including correct flip')
+    CreateLogical(  'CheckWatertightness',     default=True,  help='Check if the mesh is watertight')
+    CreateLogical(  'CheckSurfaceNormals',     default=True,  help='Check if the surface normals point outwards')
+    CreateLogical(  'CheckInternalBoundaries', default=True,  help='Check if interal faces have multiple BCs attached')
     # Transformation
     CreateSection('Transformation')
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')

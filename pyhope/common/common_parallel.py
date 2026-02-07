@@ -63,7 +63,8 @@ def run_in_parallel(process_chunk: Callable,            # noqa: E251
                     elems        : Union[list, tuple],  # noqa: E251
                     chunk_size   : int   = 10,          # noqa: E251
                     initializer          = None,        # noqa: E251
-                    init_args    : tuple = ()
+                    init_args    : tuple = (),          # noqa: E251
+                    ordering     : bool  = True,        # noqa: E251
                    ) -> list:
     """Run the element processing in parallel using a specified number of processes
     """
@@ -93,9 +94,10 @@ def run_in_parallel(process_chunk: Callable,            # noqa: E251
     with Pool(processes=np_mtp, initializer=initializer, initargs=init_args) as pool:
         # Map work across processes in chunks
         results = []
+        parpool = pool.map if ordering else pool.imap_unordered
         try:
             # Using imap_unordered to get results as they complete
-            for chunk_result in pool.imap_unordered(process_chunk, chunks):
+            for chunk_result in parpool(process_chunk, chunks):
                 # A (None) value indicates success
                 results.extend([r for r in chunk_result if r is not None])
                 # Update progress for each processed chunk

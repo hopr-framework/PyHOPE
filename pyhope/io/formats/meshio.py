@@ -265,7 +265,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
     """
-    if order not in [1, 2, 3, 4, 5]:
+    if order not in (1, 2, 3, 4, 5):
         raise ValueError("Only orders <= 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
@@ -289,7 +289,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
     if order == 3:
         # Loop over all edges
-        for i in [0, order-1]:
+        for i in (0, order-1):
             map[1, 0, i ] = count+1
             map[1, 1, i ] = count+2
             map[0, 1, i ] = count+3
@@ -305,7 +305,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         map[0           , int(order/2), int(order/2)] = count+3
     elif order >= 4:
         # Loop over all edges
-        for k in [0, order-1]:
+        for k in (0, order-1):
             for i in range(1, order-1):
                 map[i, 0, k ] = count+i
             count += order-2
@@ -383,7 +383,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
                 map[i, j, 0] = count
 
         # Internal points of volume
-        for k in range(1,order-1):
+        for k in range(1, order-1):
             for j in range(1, order-1):
                 for i in range(1, order-1-j):
                     count += 1
@@ -408,7 +408,7 @@ def PYRAMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (3D mapping)
     """
-    if order not in [1, 2, 3, 5]:
+    if order not in (1, 2, 3, 5):
         raise ValueError("Only orders 1, 2, and 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)
@@ -535,7 +535,7 @@ def TETRMAPMESHIO(order: int) -> Tuple[np.ndarray, np.ndarray]:
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)
     """
-    if order not in [1, 2, 3, 4, 5]:
+    if order not in (1, 2, 3, 4, 5):
         raise ValueError("Only orders <= 4 are supported")
 
     map = np.zeros((order, order, order), dtype=int)

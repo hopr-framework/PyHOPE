@@ -167,14 +167,15 @@ def CheckConnect() -> None:
     if np_mtp > 0:
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
-        res     = run_in_parallel(process_chunk,
-                                  elems,
-                                  chunk_size=max(1, min(1000, max(10, int(len(elems)/(40.*np_mtp))))),
+        res     = run_in_parallel(process_chunk,                                                           # noqa: E251
+                                  elems,                                                                   # noqa: E251
+                                  chunk_size  = max(1, min(1000, max(10, int(len(elems)/(40.*np_mtp))))),  # noqa: E251
+                                  ordering    = False,                                                     # noqa: E251
                                  )
     else:
         res     = [elem for elem in elems if check_sides(elem, failed_only=True)]
 
-    if len(res) > 0:
+    if len(res) > 0:  # pragma: no cover
         # Flatten per-element results (skip None placeholders)
         results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
                                for result       in elem_results)  # noqa: E272

@@ -46,7 +46,7 @@ def collectStats(file_path):
     with h5py.File(file_path, 'r') as f:
 
         def visit_func(name, obj):
-            if name not in ['ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo']:
+            if name not in ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo'):
                 return
 
             if isinstance(obj, h5py.Dataset):

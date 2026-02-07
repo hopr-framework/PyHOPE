@@ -83,16 +83,18 @@ def PkgsCheckGmsh() -> None:
         # Gmsh is not installed
         if IsInteractive():
             if system in Gitlab.LIB_SUPPORT and arch in Gitlab.LIB_SUPPORT[system]:
+                print(hopout.warn('\n'))
                 warning = 'Gmsh is not installed. For compatibility, the NRG Gmsh version will be installed. Continue? (Y/n):'
-                response = input('\n' + hopout.warn(warning) + '\n')
-                if response.lower() in ['yes', 'y', '']:
+                response = input(hopout.warn(warning) + '\n')
+                if response.lower().strip() in ('yes', 'y', '',):
                     PkgsInstallGmsh(system, arch, version='nrg')
                     return None
             else:
+                print(hopout.warn('\n'))
                 warning = 'Gmsh is not installed. As NRG does not provide a compatible Gmsh version,' + \
                           'the PyPI Gmsh version will be installed. Continue? (Y/n):'
-                response = input('\n' + hopout.warn(warning) + '\n')
-                if response.lower() in ['yes', 'y', '']:
+                response = input(hopout.warn(warning) + '\n')
+                if response.lower().strip() in ('yes', 'y', '',):
                     PkgsInstallGmsh(system, arch, version='pypi')
                     return None
         else:
@@ -116,11 +118,12 @@ def PkgsCheckGmsh() -> None:
 
     if not PkgsMetaData('gmsh', 'Intended Audience :: NRG'):
         if IsInteractive():
+            print(hopout.warn('\n'))
             warning  = 'Detected Gmsh package uses an outdated CGNS (v3.4). For compatibility, ' + \
                        'the package will be uninstalled and replaced with the updated NRG GMSH ' + \
                        'version. Continue? (Y/n):'
-            response = input('\n' + hopout.warn(warning) + '\n')
-            if response.lower() in ['yes', 'y', '']:
+            response = input(hopout.warn(warning) + '\n')
+            if response.lower().strip() in ('yes', 'y', '',):
                 PkgsInstallGmsh(system, arch, version='nrg')
                 return None
         else:
@@ -191,7 +194,13 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             try:
                 meta = metadata.metadata('gmsh')
                 if meta is not None:
-                    _ = subprocess.run(command + ['uninstall'] + ['gmsh'], check=True)  # noqa: E501
+                    try:
+                        _ = subprocess.run(command + ['uninstall'] + ['gmsh'], check=True)  # noqa: E501
+                    except subprocess.CalledProcessError:
+                        print(hopout.warn( 'Failed to uninstall system Gmsh. Please run the following commands manually:'))
+                        print(hopout.warn( '$ python -m pip uninstall gmsh'))
+                        print(hopout.warn(f'$ python -m pip install {pkgs}'))
+                        return None
 
             except metadata.PackageNotFoundError:
                 pass

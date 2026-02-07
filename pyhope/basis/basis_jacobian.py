@@ -246,7 +246,9 @@ def CheckJacobians() -> None:
                                tasks,
                                chunk_size  = max(1, min(1000, max(10, int(len(tasks)/(40.*np_mtp))))),  # noqa: E251
                                initializer = init_worker,                                               # noqa: E251
-                               init_args   = (process_chunk, VdmGLtoAP, D_EqToGL))                      # noqa: E251
+                               init_args   = (process_chunk, VdmGLtoAP, D_EqToGL),                      # noqa: E251
+                               ordering    = True,                                                      # noqa: E251
+                              )
     else:
         jacs = np.array(tasks)
 
