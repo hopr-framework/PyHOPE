@@ -98,11 +98,11 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
     """ Find the index of a BC from its name in the list of BCs
     """
     for iBC, bc in enumerate(bcs):
-        if key in bc.name:
+        if key == bc.name:
             return iBC
         # Try again without the leading 'BC_'
-        if key[:3] == 'BC_' and key[3:] in bc.name or \
-           key[:3] == 'bc_' and key[3:] in bc.name:
+        if key[:3] == 'BC_' and key[3:] == bc.name or \
+           key[:3] == 'bc_' and key[3:] == bc.name:
             return iBC
     return None
 
@@ -408,6 +408,14 @@ def ConnectMesh() -> None:
 
                 side0     = sides[sideIDs[0]]
                 side1     = sides[sideIDs[1]]
+
+                # Ignore true BCs on inner faces for connect
+                if side0.bcid is not None:
+                    if side1.bcid is None:
+                        hopout.error('Found internal face with one BC, exiting...')
+                    if bcs[side0.bcid].type[0] not in (0, 1, 100):
+                        continue
+
                 corners   = side0.corners
                 nbcorners = side1.corners
 

@@ -575,7 +575,8 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             cgnsBC   = bcData['FamilyName'][' data']
             cgnsName = ''.join(map(chr, cgnsBC)).lower()
         except KeyError:
-            cgnsName = zoneBC.split('_', 1)[0].lower()
+            # Remove '_' followed by one or more digits at the end of the string
+            cgnsName = re.sub(r'_\d+$', '', zoneBC).lower()
 
         # Ignore internal DEFAULT BCs
         if 'DEFAULT' in cgnsName:
