@@ -224,7 +224,7 @@ def CheckJacobians() -> None:
 
         # Hexahedron
         if elemBase == 8:
-            xGeo = nodeCoords[:nGeo**3].reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
+            xGeo = nodeCoords.reshape((nGeo, nGeo, nGeo, 3), order='F').transpose(3, 0, 1, 2)
         # All other elem types
         else:
             xGeo = nodeCoords[:NDOFS_ELEM(elemType, nGeo - 1)].transpose(1, 0)

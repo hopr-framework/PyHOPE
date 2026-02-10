@@ -676,7 +676,7 @@ def evaluate_jacobian(xGeo_In:   npt.NDArray[np.float64],
 
     # Perform tensor contraction for the second derivative (Eta direction)
     dXdEtaGL  = np.tensordot(D_EqToGL, xGeo_In, axes=(1, 2))
-    dXdEtaGL  = np.moveaxis(dXdEtaGL , 1, 0)  # Correct the shape to (3, n_Out, n_In, n_In)
+    dXdEtaGL  = np.transpose(dXdEtaGL, (1, 2, 0, 3))
     # PERF: This is actually slower than the individual contractions
     # dXdEtaGL  = np.einsum('qj,dijk->dqik', D_EqToGL, xGeo_In, optimize=True)
 
