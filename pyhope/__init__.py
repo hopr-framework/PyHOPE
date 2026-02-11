@@ -35,15 +35,6 @@ from functools import update_wrapper
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
-from pyhope.basis.basis_basis import legendre_gauss_nodes, legendre_gauss_lobatto_nodes
-from pyhope.basis.basis_basis import barycentric_weights
-from pyhope.basis.basis_basis import polynomial_derivative_matrix, polynomial_derivative_matrix_prism
-from pyhope.basis.basis_basis import polynomial_derivative_matrix_pyram, polynomial_derivative_matrix_tetra
-from pyhope.basis.basis_basis import lagrange_interpolation_polys, calc_vandermonde
-from pyhope.basis.basis_basis import change_basis_3D, change_basis_2D, change_basis_1D
-from pyhope.basis.basis_basis import equi_nodes_prism, equi_nodes_pyram, equi_nodes_tetra
-from pyhope.basis.basis_basis import evaluate_jacobian, evaluate_jacobian_simplex
-from pyhope.mesh.mesh_common import LINMAP
 # ==================================================================================================================================
 
 
@@ -64,6 +55,16 @@ def _staticwrapper(func):
 class Basis:  # pragma: no cover
     """ Basis class to hold all basis related functions and variables
     """
+    # Local imports ----------------------------------------
+    from pyhope.basis.basis_basis import legendre_gauss_nodes, legendre_gauss_lobatto_nodes
+    from pyhope.basis.basis_basis import barycentric_weights
+    from pyhope.basis.basis_basis import polynomial_derivative_matrix, polynomial_derivative_matrix_prism
+    from pyhope.basis.basis_basis import polynomial_derivative_matrix_pyram, polynomial_derivative_matrix_tetra
+    from pyhope.basis.basis_basis import lagrange_interpolation_polys, calc_vandermonde
+    from pyhope.basis.basis_basis import change_basis_3D, change_basis_2D, change_basis_1D
+    from pyhope.basis.basis_basis import equi_nodes_prism, equi_nodes_pyram, equi_nodes_tetra
+    from pyhope.basis.basis_basis import evaluate_jacobian, evaluate_jacobian_simplex
+    # ------------------------------------------------------
     legendre_gauss_nodes               = _staticwrapper(legendre_gauss_nodes)
     legendre_gauss_lobatto_nodes       = _staticwrapper(legendre_gauss_lobatto_nodes)
     barycentric_weights                = _staticwrapper(barycentric_weights)
@@ -86,6 +87,9 @@ class Basis:  # pragma: no cover
 class Mapping:  # pragma: no cover
     """ Mapping class to hold all mapping related functions and variables
     """
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_common import LINMAP
+    # ------------------------------------------------------
     mesh_format_to_tensor_product      = _staticwrapper(LINMAP)
 
 

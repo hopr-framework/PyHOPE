@@ -25,12 +25,18 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import plotext as plt
+from __future__ import annotations
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,10 +58,11 @@ def evaluate_jacobian_dispatch(nodeCoords, VdmGLtoAP, D_EqToGL, elem_type):
         raise ValueError(f"Unsupported element type {elem_type}")
 
 
-def plot_histogram(data: np.ndarray) -> None:
+def plot_histogram(data: npt.NDArray[np.float64]) -> None:
     """ Plot a histogram of all Jacobians
     """
     # Local imports ----------------------------------------
+    import plotext as plt
     import pyhope.output.output as hopout
     from pyhope.output.output import STD_LENGTH
     # ------------------------------------------------------
@@ -90,14 +97,14 @@ def plot_histogram(data: np.ndarray) -> None:
 
 
 # Use Pool initializer to attach process-local data to the worker function
-def init_worker(function, VdmGLtoAP, D_EqToGL) -> None:
+def init_worker(function, VdmGLtoAP: npt.NDArray[np.float64], D_EqToGL: npt.NDArray[np.float64]) -> None:
     """Initializer to set process-local attributes on the worker function
     """
     function.VdmGLtoAP = VdmGLtoAP
     function.D_EqToGL  = D_EqToGL
 
 
-def process_chunk(chunk) -> list[np.ndarray]:
+def process_chunk(chunk) -> list[npt.NDArray[np.float64]]:
     """Process a chunk of elements by evaluating the Jacobian for each
     """
     chunk_results = []
@@ -145,10 +152,10 @@ def CheckJacobians() -> None:
         return None
 
     # Map all points to tensor product
-    nGeo:      Final[int]        = mesh_vars.nGeo + 1
-    elems:     Final[list]       = mesh_vars.elems
-    nodes:     Final[np.ndarray] = mesh_vars.mesh.points
-    elemBases: Final[set]        = set([e.type % 100 for e in elems])
+    nGeo:      Final[int]  = mesh_vars.nGeo + 1
+    elems:     Final[list] = mesh_vars.elems
+    nodes:     Final[npt.NDArray[np.float64]] = mesh_vars.mesh.points
+    elemBases: Final[set]  = set([e.type % 100 for e in elems])
 
     # Compute the equidistant point set used by meshIO
     xEq_fn      = {4: lambda: equi_nodes_tetra(nGeo),                                          # Tetrahedron

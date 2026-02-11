@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import gc
 from collections import defaultdict
 from typing import Dict, Final, Tuple, cast
@@ -36,17 +37,21 @@ import numpy as np
 from scipy.spatial import KDTree
 from scipy.sparse.csgraph import connected_components
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+from pyhope.common.common_numba import NUMBA_AVAILABLE
+if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 from pyhope.common.common_numba import jit, types
-# ----------------------------------------------------------------------------------------------------------------------------------
-# Local definitions
-# ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
 
 @jit((types.int64)(types.int64[::1], types.int64), nopython=True, cache=True, nogil=True)
-def _unionFind(parent: np.ndarray, x: int) -> int:
+def _unionFind(parent: npt.NDArray, x: int) -> int:
     # Path compression
     par = parent  # local ref
     while par[x] != x:
@@ -56,7 +61,7 @@ def _unionFind(parent: np.ndarray, x: int) -> int:
 
 
 @jit((types.void)(types.int64[::1], types.int64[::1], types.int64, types.int64), nopython=True, cache=True, nogil=True)
-def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
+def _unionUnion(parent: npt.NDArray, rank: npt.NDArray, a: int, b: int) -> None:
     ra, rb = _unionFind(parent, a), _unionFind(parent, b)
     if ra == rb:
         return None
@@ -87,7 +92,7 @@ def _run_union_find_logic(nPoints, pairs):
     return parent
 
 
-def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
+def _findPointsTol(points: npt.NDArray, tol: float, method: str = 'union_find') -> npt.NDArray:
     """ Build an undirected connectivity graph for points within 'tol', then compute
         the connected components and pick the minimum index in each component as the
         representative
@@ -162,15 +167,15 @@ def EliminateDuplicates() -> None:
     # ------------------------------------------------------
     hopout.routine('Removing duplicate points')
 
-    bcs:   Final[list] = mesh_vars.bcs
-    vvs:   Final[list] = mesh_vars.vvs
+    bcs:   Final[list]  = mesh_vars.bcs
+    vvs:   Final[list]  = mesh_vars.vvs
 
     # Native meshio data
-    mesh               = mesh_vars.mesh
-    points: np.ndarray = mesh.points
-    cells: Final[list] = mesh.cells
-    csets: Final[dict] = mesh.cell_sets
-    cdict: Final[dict] = mesh.cells_dict
+    mesh                = mesh_vars.mesh
+    points: npt.NDArray = mesh.points
+    cells: Final[list]  = mesh.cells
+    csets: Final[dict]  = mesh.cell_sets
+    cdict: Final[dict]  = mesh.cells_dict
 
     # Find the mapping to the (N-1)-dim elements
     csetMap: Dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)

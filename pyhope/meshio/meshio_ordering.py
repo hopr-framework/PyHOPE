@@ -5,8 +5,8 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (C) 2022 Nico Schlömer
 # Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+# Copyright (c) 2022 Nico Schlömer (Original Version)
 #
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
 from typing import Dict, List, Union, Optional
@@ -33,6 +34,12 @@ from typing import Dict, List, Union, Optional
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # from pyhope.mesh.mesh_common import NDOFS_ELEM
@@ -256,7 +263,7 @@ class NodeOrdering:
                                     }
     )
 
-    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
         """ Return the meshIO node ordering for a given element type
         """
 
@@ -288,7 +295,7 @@ class NodeOrdering:
         ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
-    def ordering_meshio_to_gmsh(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+    def ordering_meshio_to_gmsh(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
         """ Return the Gmsh node ordering for a given element type
             > Inverse of ordering_gmsh_to_meshio
         """
@@ -401,7 +408,7 @@ class NodeOrdering:
 
         raise ValueError(f'Unknown element type {elemType}')
 
-    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
         """
         Return the meshIO node ordering for a given element type
         """

@@ -24,12 +24,13 @@
 # ==================================================================================================================================
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import os
 import subprocess
 import sys
 from typing import Optional, Union, cast, final
 from typing_extensions import override
-# ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -37,6 +38,12 @@ import h5py
 import numpy as np
 from collections import OrderedDict
 from configparser import ConfigParser, ParsingError
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -429,7 +436,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     return result
 
 
-def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
+def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> npt.NDArray:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------
@@ -455,7 +462,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     return value
 
 
-def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> np.ndarray:
+def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> npt.NDArray:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
     # Split the array definition

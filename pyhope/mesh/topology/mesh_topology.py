@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from collections import defaultdict
 from functools import cache
 from typing import cast
@@ -33,6 +34,12 @@ from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -396,7 +403,7 @@ def split_hex_to_tets(order: int) -> list[tuple]:
 
 
 @cache
-def tetra_faces(order: int) -> tuple[np.ndarray, ...]:
+def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
@@ -485,7 +492,7 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
 
 
 @cache
-def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
+def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
     """
@@ -591,7 +598,7 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 
 
 @cache
-def prism_faces(order: int) -> tuple[np.ndarray, ...]:
+def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
@@ -642,7 +649,7 @@ def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
 
 # Dummy function for hexahedral elements
 @cache
-def hex_faces(order: int) -> tuple[np.ndarray, ...]:
+def hex_faces(order: int) -> tuple[npt.NDArray, ...]:
     """ Given the indices of a hexahedral element, return a tuple with the 6 faces as arrays
     """
     match order:

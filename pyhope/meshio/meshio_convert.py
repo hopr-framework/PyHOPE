@@ -5,8 +5,8 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (C) 2022 Nico Schlömer
 # Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+# Copyright (c) 2022 Nico Schlömer (Original Version)
 #
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import importlib
 from typing import Dict, Final, List, Set, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -33,6 +34,12 @@ from typing import Dict, Final, List, Set, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -122,12 +129,12 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Build new arrays
     celll:      List[meshio.CellBlock] = []
-    celldphys:  List[np.ndarray      ] = []
-    celldgeom:  List[np.ndarray      ] = []
+    celldphys:  List[npt.NDArray     ] = []
+    celldgeom:  List[npt.NDArray     ] = []
 
     # Unique geometrical entity ids per dimension
     # > 0: 3D entities, 1: 2D entities
-    geom_id:    np.ndarray       = np.ones((2,), dtype=int)
+    geom_id:    npt.NDArray       = np.ones((2,), dtype=int)
     geom_tag:   List[List[int]]  = [[] for _ in range(2)]
     geom_nodes: List[List[int]]  = [[] for _ in range(2)]
 
@@ -256,7 +263,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     gmshMesh.point_data.update({'gmsh:dim_tags': dim_tags})
 
     # Add PhysicalNames so groups are not missing in the Gmsh output
-    field_data: Dict[str, np.ndarray] = {}
+    field_data: Dict[str, npt.NDArray] = {}
 
     # Add volume physical group (3D)
     if len(geom_tag[0]) > 0:

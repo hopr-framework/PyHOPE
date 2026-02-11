@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from collections import defaultdict
 from functools import cache
 from typing import Final, Tuple, cast
@@ -33,6 +34,12 @@ from typing import Final, Tuple, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -320,7 +327,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
 
 @cache
-def hexa_faces() -> tuple[np.ndarray, ...]:
+def hexa_faces() -> tuple[npt.NDArray, ...]:
     """ Given the 8 corner node indices of a single hexahedral element (indexed 0..7),
         return a list of new hexahedral face connectivity lists.
     """
@@ -334,7 +341,7 @@ def hexa_faces() -> tuple[np.ndarray, ...]:
 
 
 @cache
-def tet_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ...]:
+def tet_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray, ...]:
     """ Given the 4 corner nodes of a single tetrahedron element (indexed 0..3),
         return the 10 additional points after splitting
     """
@@ -361,7 +368,7 @@ def tet_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ..
 
 
 @cache
-def tet_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+def tet_to_hex_faces(z_split: bool = False) -> Tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
     """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
         return the 4 triangular faces and the 12 quadrilateral faces
     """
@@ -395,7 +402,7 @@ def tet_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list
 
 
 @cache
-def tet_to_hex_split(z_split: bool = False) -> list[np.ndarray]:
+def tet_to_hex_split(z_split: bool = False) -> list[npt.NDArray]:
     """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
         return a list of new hexahedral element connectivity lists
     """
@@ -407,7 +414,7 @@ def tet_to_hex_split(z_split: bool = False) -> list[np.ndarray]:
 
 
 @cache
-def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ...]:
+def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray, ...]:
     """ Given the 6 corner nodes of a single prism element (indexed 0..6),
         return the 8 additional points after splitting
     """
@@ -454,7 +461,7 @@ def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, 
 
 
 @cache
-def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
     """ Given the 6 corner node indices of a single prism element (indexed 0..5),
         return the original faces and the corresponding new quadrilateral sub-faces.
     """
@@ -517,7 +524,7 @@ def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[li
 
 
 @cache
-def prism_to_hex_split(z_split: bool = False) -> tuple[np.ndarray, ...]:
+def prism_to_hex_split(z_split: bool = False) -> tuple[npt.NDArray, ...]:
     """ Given the 6 corner node indices of a single prism element (indexed 0..5),
         return a list of new hexahedral element connectivity lists
     """
@@ -540,7 +547,7 @@ def prism_to_hex_split(z_split: bool = False) -> tuple[np.ndarray, ...]:
 
 
 @cache
-def hex_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ...]:
+def hex_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray, ...]:
     """ Given the 8 corner nodes of a single hexahedron element (indexed 0..7),
         return the 19 additional points after splitting
     """
@@ -578,7 +585,7 @@ def hex_to_hex_points(order: int, z_split: bool = False) -> tuple[np.ndarray, ..
 
 
 @cache
-def hex_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list[np.ndarray]]]:
+def hex_to_hex_faces(z_split: bool = False) -> Tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
     """ Given the 8 corner node indices of a single hexahedron element (indexed 0..7),
         return the 6 quadrilateral faces and the 24 quadrilateral faces after splitting
     """
@@ -628,7 +635,7 @@ def hex_to_hex_faces(z_split: bool = False) -> Tuple[list[np.ndarray], list[list
 
 
 @cache
-def hex_to_hex_split(z_split: bool = False) -> tuple[np.ndarray, ...]:
+def hex_to_hex_split(z_split: bool = False) -> tuple[npt.NDArray, ...]:
     """ Given the 8 corner node indices of a single hexahedron element (indexed 0..7),
         return a list of new hexahedral element connectivity lists
     """

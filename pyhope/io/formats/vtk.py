@@ -25,12 +25,19 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from functools import cache
 from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,7 +48,7 @@ import numpy as np
 
 
 @cache                                                       # pragma: no cover
-def HEXAMAPVTK(order: int) -> Tuple[np.ndarray, np.ndarray]:  # pragma: no cover
+def HEXAMAPVTK(order: int) -> Tuple[npt.NDArray, npt.NDArray]:  # pragma: no cover
     """ VTK -> IJK ordering for high-order hexahedrons
         > Loosely based on [Gmsh] "generatePointsHexCGNS"
         > [Jens Ulrich Kreber] "paraview-scripts/node_ordering. py"
@@ -50,7 +57,7 @@ def HEXAMAPVTK(order: int) -> Tuple[np.ndarray, np.ndarray]:  # pragma: no cover
         > > This order doesn't make any sense.  This is completely different from what is shown in
         > > https://blog.kitware.com/wp-content/uploads/2018/09/Source_Issue_43.pdf but this is the way it works.
 
-        > HEXTEN :  np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+        > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
     """
     if order == 1:

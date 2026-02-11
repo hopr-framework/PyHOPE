@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import bisect
 import copy
 import itertools
@@ -38,12 +39,12 @@ from typing import Optional, Final
 # import meshio
 import numpy as np
 from numpy.linalg import norm
-from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 if typing.TYPE_CHECKING:
+    import numpy.typing as npt
     from pyhope.mesh.mesh_vars import BC
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -72,6 +73,7 @@ def ConnectMortar( nConnSide  : list
             doPeriodic: Flag to enable periodic connections
     """
     # Local imports ----------------------------------------
+    from scipy.spatial import KDTree
     from pyhope.mesh.connect.connect_rbtree import LinkOffsetManager, RedBlackTree
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
@@ -83,7 +85,7 @@ def ConnectMortar( nConnSide  : list
     bar.title('│               Preparing Mortars')
 
     # Cache mesh points for performance
-    points: Final[np.ndarray] = mesh_vars.mesh.points
+    points: Final[npt.NDArray]  = mesh_vars.mesh.points
 
     # Set BC and periodic sides
     bcs: Final[list[BC | None]] = mesh_vars.bcs
@@ -335,14 +337,14 @@ def connect_mortar_sides( sideIDs    : tuple
         bisect.insort(elems[masterElemID].sides, insertion_index)
 
 
-def find_mortar_match( targetCorners: np.ndarray
+def find_mortar_match( targetCorners: npt.NDArray
                      , comboSides   : tuple
                      # , mesh         : meshio.Mesh
                      , bcID         : Optional[int] = None) -> bool:
     """ Check if the combined points of candidate sides match the target side within tolerance.
     """
 
-    points: Final[np.ndarray] = mesh_vars.mesh.points
+    points: Final[npt.NDArray] = mesh_vars.mesh.points
 
     # Passing a bcID means we are dealing with periodic boundaries
     if bcID is not None:
@@ -482,7 +484,7 @@ def points_exist_in_target(pts: tuple, slavePts: tuple) -> bool:
 
 
 # INFO: Uncached version
-def build_edges(corners: np.ndarray, points: np.ndarray) -> tuple:
+def build_edges(corners: npt.NDArray, points: npt.NDArray) -> tuple:
     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
     """
     if len(corners) < 4 or len(points) < 4:
@@ -496,13 +498,13 @@ def build_edges(corners: np.ndarray, points: np.ndarray) -> tuple:
 
 
 # INFO: Cached version
-# def arrayToTuple(array: np.ndarray) -> tuple:
+# def arrayToTuple(array: npt.NDArray) -> tuple:
 #     return tuple(array.tolist())
 #
 #
 # # @cache
 # @lru_cache(maxsize=65536)
-# def build_edges(corners: tuple, points: np.ndarray) -> list[tuple]:
+# def build_edges(corners: tuple, points: npt.NDArray) -> list[tuple]:
 #     """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
 #     """
 #     edges = [

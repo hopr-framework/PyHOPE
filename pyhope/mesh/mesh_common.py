@@ -127,7 +127,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
 
 
 @cache
-def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarray:
+def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> npt.NDArray:
     """ GMSH: Get points on edges
     """
     edge_map = {  # Tetrahedron
@@ -160,7 +160,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarra
 
 
 @cache
-def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> npt.NDArray:
     """ GMSH: Create faces from edges in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -188,7 +188,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
 
 
 @cache
-def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def face_to_corner(face, elemType: Union[str, int], dtype=int) -> npt.NDArray:
     """ GMSH: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -216,7 +216,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
 
 
 @cache
-def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> npt.NDArray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -261,14 +261,14 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
 # class FaceOrdering:
 #     side_type: str
 #     nGeo     : int
-#     order    : np.ndarray = field(init=False)
+#     order    : npt.NDArray = field(init=False)
 #
 #     def __post_init__(self):
 #         self.order = self.compute_ordering()
 #
-#     def compute_ordering(self) -> np.ndarray:
+#     def compute_ordering(self) -> npt.NDArray:
 @cache
-def FaceOrdering(side_type: str, order: int) -> np.ndarray:
+def FaceOrdering(side_type: str, order: int) -> npt.NDArray:
     """
     Compute the permutation ordering to convert from tensor-product ordering
     to meshio ordering for a face of a given type ('quad' or 'triangle')
@@ -347,7 +347,7 @@ def FaceOrdering(side_type: str, order: int) -> np.ndarray:
 
 
 @cache
-def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=int) -> npt.NDArray:
     """ Transform coordinates from RHS of slave to RHS of master
     """
     flip_map = {  # Tetrahedron
@@ -374,7 +374,7 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
 
 
 @cache
-def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=int) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     faces_map = {  # Tetrahedron
@@ -402,7 +402,7 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
 
 
 @cache
-def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int]) -> np.ndarray:
+def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int]) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     if isinstance(elemType, str):
@@ -457,7 +457,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
 
 
 @cache
-def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
+def face_to_nodes(face: str, elemType: int, nGeo: int) -> npt.NDArray:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
@@ -608,7 +608,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
-def calc_elem_bary(elems: list) -> np.ndarray:
+def calc_elem_bary(elems: list) -> npt.NDArray:
     """
     Compute barycenters of all three-dimensional elements in the mesh.
 
@@ -625,7 +625,7 @@ def calc_elem_bary(elems: list) -> np.ndarray:
     #     elem_bary[elemID] = points[elem.nodes].mean(axis=0)
     # return elem_bary
 
-    points:  Final[np.ndarray] = mesh_vars.mesh.points
+    points:  Final[npt.NDArray] = mesh_vars.mesh.points
     nElems:  Final[int]  = len(elems)
     nNodes:  Final[int]  = len(elems[0].nodes)
     uniform: Final[bool] = all(len(e.nodes) == nNodes for e in elems)
@@ -643,8 +643,8 @@ def calc_elem_bary(elems: list) -> np.ndarray:
         return elemSum * elemInv
 
     # General path: varying node counts
-    counts: Final[np.ndarray] = np.fromiter((len(e.nodes) for e in elems), dtype=np.int64, count=nElems)
-    offsets:      np.ndarray  = np.empty(nElems + 1, dtype=np.int64)
+    counts: Final[npt.NDArray] = np.fromiter((len(e.nodes) for e in elems), dtype=np.int64, count=nElems)
+    offsets:      npt.NDArray  = np.empty(nElems + 1, dtype=np.int64)
     offsets[0] = 0
     np.cumsum(counts, out=offsets[1:])
 
@@ -664,7 +664,7 @@ def calc_elem_bary(elems: list) -> np.ndarray:
 def LINTEN(elemType: int,
            order: int = 1,
            format: Optional[str] = 'meshio'
-           ) -> tuple[np.ndarray, dict[np.int64, int]]:
+           ) -> tuple[npt.NDArray, dict[np.int64, int]]:
     """ MESHIO -> IJK ordering for element volume nodes
     """
     # Local imports ----------------------------------------
@@ -732,7 +732,7 @@ def LINTEN(elemType: int,
             TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
             return PRISTEN, TENPRIS
         case 208:  # Hexaeder
-            # > HEXTEN : np.ndarray # FORMAT <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+            # > HEXTEN : npt.NDArray # FORMAT <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
             # > HEXMAP : np.ndarray # FORMAT <-> IJK ordering for high-order hexahedrons (3D mapping)
             _, HEXTEN = HEXAMAP(order+1)
             # meshio accesses them in their own ordering, so reverse the order

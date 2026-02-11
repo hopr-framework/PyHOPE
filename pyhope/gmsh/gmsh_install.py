@@ -26,8 +26,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
-import shutil
 import platform
+import shutil
 import subprocess
 from importlib import metadata
 from packaging.version import Version

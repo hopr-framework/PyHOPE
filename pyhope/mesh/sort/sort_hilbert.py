@@ -71,8 +71,8 @@ def HilbertCurveNumpy() -> None:
     def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[True])          -> npt.NDArray: ...
     # Function
     def _distances_from_points_numpy(self,
-                                     points    : Union[List, np.ndarray],
-                                     match_type: bool = False) -> Union[np.ndarray, list]:
+                                     points    : Union[List, npt.NDArray],
+                                     match_type: bool = False) -> Union[npt.NDArray, list]:
         """ Batch implementation for distances_from_points in numpy
         """
         pts = np.asarray(points)

@@ -33,6 +33,9 @@ from typing import Final, List, Optional, Tuple, cast, final
 import numpy as np
 import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # from pyhope.common.common_numba import jit, types
@@ -51,7 +54,7 @@ def Coords2Int(coords : npt.NDArray[np.float64],
     return np.round((coords - xmin) * spacing).astype(np.int64)
 
 
-def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, np.ndarray]:
+def SFCResolution(kind: int, xmin: npt.NDArray, xmax: npt.NDArray) -> tuple[int, npt.NDArray]:
     """ Compute the resolution of the SFC for the given bounding box
         and the given integer kind
     """
@@ -65,9 +68,9 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, n
 
 def UpdateElemID(elems         : list,
                  sides         : list,
-                 sorted_indices: np.ndarray,
+                 sorted_indices: npt.NDArray,
                  bar,
-                 nElemsIJK     : Optional[np.ndarray] = None,
+                 nElemsIJK     : Optional[npt.NDArray] = None,
                  ) -> Tuple[List, List]:
 
     totalElems = len(elems)
