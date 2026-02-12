@@ -491,7 +491,7 @@ def points_exist_in_target(pts: tuple, slavePts: tuple) -> bool:
 
 
 def calculate_area(corners: list) -> float:
-    """ Calculate the area of a flat surface using shoelace (Gauss's area) formula
+    """ Calculate the area of a flat surface using the cross product method
     """
     p: Final[npt.NDArray] = mesh_vars.mesh.points[corners]
 
@@ -499,9 +499,16 @@ def calculate_area(corners: list) -> float:
         case 3:  # Triangle
             return  0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
         case 4:  # Quadrilateral
-            area  = 0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
-            area += 0.5 * np.linalg.norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
-            return area
+            # Diagonal split 1: (0,1,2) + (0,2,3)
+            area1  = 0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+            area1 += 0.5 * np.linalg.norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
+
+            # Diagonal split 2: (0,1,3) + (1,2,3)
+            area2  = 0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[3]-p[0]))  # noqa: E271
+            area2 += 0.5 * np.linalg.norm(np.cross(p[2]-p[1], p[3]-p[1]))  # noqa: E271
+
+            # For bilinear quads, average both diagonal triangulations
+            return (area1 + area2) / 2
         case _:
             raise IndexError('Invalid number of side corners')
 
