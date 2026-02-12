@@ -157,6 +157,7 @@ def TransformMesh() -> None:
     # Local imports ----------------------------------------
     from pyhope.config.config import prmfile
     from pyhope.mesh.mesh_vars import mesh
+    from pyhope.mesh.transform.mesh_transform_mortar import RebuildMortarGeometry
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
     import pyhope.output.output as hopout
@@ -270,6 +271,9 @@ def TransformMesh() -> None:
 
     # Perform actual post-deformation
     mesh.points = PostDeformMod.PostDeform(mesh.points)
+
+    # If the mesh has mortars, rebuild the (curved) geometry
+    RebuildMortarGeometry()
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')
