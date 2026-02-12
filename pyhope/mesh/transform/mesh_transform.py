@@ -34,6 +34,7 @@ from types import ModuleType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -42,7 +43,6 @@ if typing.TYPE_CHECKING:
     import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
-import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
@@ -156,9 +156,9 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
 def TransformMesh() -> None:
     # Local imports ----------------------------------------
     from pyhope.config.config import prmfile
+    from pyhope.mesh.mesh_vars import mesh
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
-    from pyhope.mesh.mesh_vars import mesh
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 

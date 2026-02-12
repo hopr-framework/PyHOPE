@@ -78,7 +78,10 @@ def ConnectMortar( nConnSide  : list
     from pyhope.common.common_tools import IndexedLists
     # ------------------------------------------------------
 
-    if len(nConnSide) == 0:
+    hasMortars = True if len(nConnSide) > 0 else False
+    mesh_vars.hasMortars = hasMortars
+
+    if hasMortars == 0:
         return elems, sides
 
     # Change the title of the progress bar
@@ -341,7 +344,7 @@ def find_mortar_match( targetCorners: npt.NDArray
                      , comboSides   : tuple
                      # , mesh         : meshio.Mesh
                      , bcID         : Optional[int] = None) -> bool:
-    """ Check if the combined points of candidate sides match the target side within tolerance.
+    """ Check if the combined points of candidate sides match the target side within tolerance
     """
 
     points: Final[npt.NDArray] = mesh_vars.mesh.points
@@ -350,6 +353,10 @@ def find_mortar_match( targetCorners: npt.NDArray
     if bcID is not None:
         bcName        = mesh_vars.bcs[bcID].name
         targetCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in targetCorners), dtype=int)
+
+    # Check if the target side is larger than any combo side
+    if not all(calculate_area(s.corners) <= calculate_area(targetCorners) for s in comboSides):
+        return False
 
     # Check if exactly one combo point matches each target point
     unmatchedCorners = set(targetCorners)
@@ -481,6 +488,22 @@ def points_exist_in_target(pts: tuple, slavePts: tuple) -> bool:
     """
     # return np.all(np.isin(pts, slavePts))
     return set(pts).issubset(set(slavePts))
+
+
+def calculate_area(corners: list) -> float:
+    """ Calculate the area of a flat surface using shoelace (Gauss's area) formula
+    """
+    p: Final[npt.NDArray] = mesh_vars.mesh.points[corners]
+
+    match len(corners):
+        case 3:  # Triangle
+            return  0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+        case 4:  # Quadrilateral
+            area  = 0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+            area += 0.5 * np.linalg.norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
+            return area
+        case _:
+            raise IndexError('Invalid number of side corners')
 
 
 # INFO: Uncached version
