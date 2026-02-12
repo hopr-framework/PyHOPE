@@ -134,7 +134,7 @@ class tBox:
         blen = maxi - mini
         nbits = (np.iinfo(np.int64).bits - 1) // 3
         self.intfact = 2 ** nbits - 1
-        self.spacing = np.where(blen > 0, self.intfact / blen, self.intfact)
+        self.spacing = np.divide(self.intfact, blen, out=np.ones_like(blen, dtype=float) * self.intfact, where=blen > 0)
 
 
 def SortMeshBySFC() -> None:
