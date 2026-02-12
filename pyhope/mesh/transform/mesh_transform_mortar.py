@@ -120,28 +120,39 @@ def RebuildMortarGeometry() -> None:
                 mortarSmall = tuple(np.empty((nGeo+1, nGeo+1, 3), dtype=np.float64) for _ in range(2))
 
                 # > First in eta
-                for q in range(nGeo+1):
-                    for p in range(nGeo+1):
-                        mortarSmall[0][p, q] = mortarVdm[0][0, q] * xGeo[:, p, 0]
-                        mortarSmall[1][p, q] = mortarVdm[1][0, q] * xGeo[:, p, 0]
-
-                        for ll in range(1, nGeo+1):
-                            mortarSmall[0][p, q] += mortarVdm[0][ll, q] * xGeo[:, p, ll]
-                            mortarSmall[1][p, q] += mortarVdm[1][ll, q] * xGeo[:, p, ll]
+                # INFO: Explicit loop matching HOPR
+                # for q in range(nGeo+1):
+                #     for p in range(nGeo+1):
+                #         mortarSmall[0][p, q] = mortarVdm[0][0, q] * xGeo[:, p, 0]
+                #         mortarSmall[1][p, q] = mortarVdm[1][0, q] * xGeo[:, p, 0]
+                #
+                #         for ll in range(1, nGeo+1):
+                #             mortarSmall[0][p, q] += mortarVdm[0][ll, q] * xGeo[:, p, ll]
+                #             mortarSmall[1][p, q] += mortarVdm[1][ll, q] * xGeo[:, p, ll]
+                # INFO: Same as above but using np.einsum
+                mortarSmall[0][:] = np.einsum('cpk,kq->pqc', xGeo, mortarVdm[0])
+                mortarSmall[1][:] = np.einsum('cpk,kq->pqc', xGeo, mortarVdm[1])
 
                 # > Then in xi
-                for q in range(nGeo+1):
-                    for p in range(nGeo+1):
-                        points[mortarGeo[0][p, q]] = mortarVdm[0][0, p] * mortarSmall[0][0, q]
-                        points[mortarGeo[1][p, q]] = mortarVdm[1][0, p] * mortarSmall[0][0, q]
-                        points[mortarGeo[2][p, q]] = mortarVdm[0][0, p] * mortarSmall[1][0, q]
-                        points[mortarGeo[3][p, q]] = mortarVdm[1][0, p] * mortarSmall[1][0, q]
-
-                        for ll in range(1, nGeo+1):
-                            points[mortarGeo[0][p, q]] += mortarVdm[0][ll, p] * mortarSmall[0][ll, q]
-                            points[mortarGeo[1][p, q]] += mortarVdm[1][ll, p] * mortarSmall[0][ll, q]
-                            points[mortarGeo[2][p, q]] += mortarVdm[0][ll, p] * mortarSmall[1][ll, q]
-                            points[mortarGeo[3][p, q]] += mortarVdm[1][ll, p] * mortarSmall[1][ll, q]
+                # INFO: Explicit loop matching HOPR
+                # for q in range(nGeo+1):
+                #     for p in range(nGeo+1):
+                #         points[mortarGeo[0][p, q]] = mortarVdm[0][0, p] * mortarSmall[0][0, q]
+                #         points[mortarGeo[1][p, q]] = mortarVdm[1][0, p] * mortarSmall[0][0, q]
+                #         points[mortarGeo[2][p, q]] = mortarVdm[0][0, p] * mortarSmall[1][0, q]
+                #         points[mortarGeo[3][p, q]] = mortarVdm[1][0, p] * mortarSmall[1][0, q]
+                #
+                #         for ll in range(1, nGeo+1):
+                #             points[mortarGeo[0][p, q]] += mortarVdm[0][ll, p] * mortarSmall[0][ll, q]
+                #             points[mortarGeo[1][p, q]] += mortarVdm[1][ll, p] * mortarSmall[0][ll, q]
+                #             points[mortarGeo[2][p, q]] += mortarVdm[0][ll, p] * mortarSmall[1][ll, q]
+                #             points[mortarGeo[3][p, q]] += mortarVdm[1][ll, p] * mortarSmall[1][ll, q]
+                # INFO: Same as above but using np.einsum
+                for i, (m_idx, vdm_idx) in enumerate([(0, 0), (0, 1), (1, 0), (1, 1)]):
+                    result = np.einsum('kqc,kp->pqc', mortarSmall[m_idx], mortarVdm[vdm_idx])
+                    for q in range(nGeo+1):
+                        for p in range(nGeo+1):
+                            points[mortarGeo[i][p, q]] = result[p, q]
 
             case 2:  # 1->2 in eta
                 mortarSides = tuple(sides[sides[side.sideID+i].connection] for i in range(1, 3))
@@ -151,14 +162,21 @@ def RebuildMortarGeometry() -> None:
                 mortarGeo   = tuple(s.reshape((nGeo+1, nGeo+1), order='F')              for    s in     mortarNodes)  # noqa: E271, E272
 
                 # Interpolate big mortar side to small mortar sides
-                for q in range(nGeo+1):
-                    for p in range(nGeo+1):
-                        points[mortarGeo[0][p, q]] = mortarVdm[0][0, q] * xGeo[:, p, 0]
-                        points[mortarGeo[1][p, q]] = mortarVdm[1][0, q] * xGeo[:, p, 0]
-
-                        for ll in range(1, nGeo+1):
-                            points[mortarGeo[0][p, q]] += mortarVdm[0][ll, q] * xGeo[:, p, ll]
-                            points[mortarGeo[1][p, q]] += mortarVdm[1][ll, q] * xGeo[:, p, ll]
+                # INFO: Explicit loop matching HOPR
+                # for q in range(nGeo+1):
+                #     for p in range(nGeo+1):
+                #         points[mortarGeo[0][p, q]] = mortarVdm[0][0, q] * xGeo[:, p, 0]
+                #         points[mortarGeo[1][p, q]] = mortarVdm[1][0, q] * xGeo[:, p, 0]
+                #
+                #         for ll in range(1, nGeo+1):
+                #             points[mortarGeo[0][p, q]] += mortarVdm[0][ll, q] * xGeo[:, p, ll]
+                #             points[mortarGeo[1][p, q]] += mortarVdm[1][ll, q] * xGeo[:, p, ll]
+                # INFO: Same as above but using np.einsum
+                for i in range(2):
+                    result = np.einsum('cpk,kq->pqc', xGeo, mortarVdm[i])
+                    for q in range(nGeo+1):
+                        for p in range(nGeo+1):
+                            points[mortarGeo[i][p, q]] = result[p, q]
 
             case 3:  # 1->2 in xi
                 mortarSides = tuple(sides[sides[side.sideID+i].connection] for i in range(1, 3))
@@ -168,11 +186,18 @@ def RebuildMortarGeometry() -> None:
                 mortarGeo   = tuple(s.reshape((nGeo+1, nGeo+1), order='F')              for    s in     mortarNodes)  # noqa: E271, E272
 
                 # Interpolate big mortar side to small mortar sides
-                for q in range(nGeo+1):
-                    for p in range(nGeo+1):
-                        points[mortarGeo[0][p, q]] = mortarVdm[0][0, p] * xGeo[:, 0, q]
-                        points[mortarGeo[1][p, q]] = mortarVdm[1][0, p] * xGeo[:, 0, q]
-
-                        for ll in range(1, nGeo+1):
-                            points[mortarGeo[0][p, q]] += mortarVdm[0][ll, p] * xGeo[:, ll, q]
-                            points[mortarGeo[1][p, q]] += mortarVdm[1][ll, p] * xGeo[:, ll, q]
+                # INFO: Explicit loop matching HOPR
+                # for q in range(nGeo+1):
+                #     for p in range(nGeo+1):
+                #         points[mortarGeo[0][p, q]] = mortarVdm[0][0, p] * xGeo[:, 0, q]
+                #         points[mortarGeo[1][p, q]] = mortarVdm[1][0, p] * xGeo[:, 0, q]
+                #
+                #         for ll in range(1, nGeo+1):
+                #             points[mortarGeo[0][p, q]] += mortarVdm[0][ll, p] * xGeo[:, ll, q]
+                #             points[mortarGeo[1][p, q]] += mortarVdm[1][ll, p] * xGeo[:, ll, q]
+                # INFO: Same as above but using np.einsum
+                for i in range(2):
+                    result = np.einsum('ckq,kp->pqc', xGeo, mortarVdm[i])
+                    for q in range(nGeo+1):
+                        for p in range(nGeo+1):
+                            points[mortarGeo[i][p, q]] = result[p, q]
