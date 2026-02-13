@@ -24,8 +24,8 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
-# image: ${CI_REGISTRY_NAME}/nrg-python:3.13.7-trixie-x86_64
-image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.0-trixie-x86_64
+# image: ${CI_REGISTRY_NAME}/nrg-python:3.14.3-trixie-x86_64
+image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.3-trixie-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
@@ -177,13 +177,13 @@ python:3.12:
 python:3.13:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.9-trixie-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.12-trixie-x86_64
   <<: *compatibility-script
 # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.14:
   extends: .defaults
   stage: compatibility
-  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.0-trixie-x86_64 # default version at the moment
+  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.3-trixie-x86_64 # default version at the moment
   <<: *compatibility-script
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -330,7 +330,7 @@ coverage:
 convergence:
   extends: .defaults
   stage: verification
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:42-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:43-x86_64
   artifacts:
     paths:
       - convergence_artifacts.log
