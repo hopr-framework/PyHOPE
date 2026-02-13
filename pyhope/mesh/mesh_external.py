@@ -104,7 +104,7 @@ def MeshExternal() -> meshio.Mesh:
             # sys.exit(1)
 
     # Check the file sizes
-    fsizes = [os.stat(f).st_size for f in fnames]
+    fsizes = tuple(os.stat(f).st_size for f in fnames)
     minsize: Final[int] = 256
     if any(s < minsize for s in fsizes):
         # Loop over the meshes and emit the warnings
@@ -112,22 +112,22 @@ def MeshExternal() -> meshio.Mesh:
             print(hopout.warn(f'Mesh file "{os.path.basename(f)}" appears too small [{sizeof_fmt(s)}]. Continuing anyways...'))
 
     # Gmsh has to come first as we cannot extend the mesh
-    fgmsh = [s for s in fnames if compatibleGMSH(s)]
+    fgmsh = tuple(s for s in fnames if compatibleGMSH(s))
     if len(fgmsh) > 0:
         mesh = ReadGMSH(fgmsh)
-    fnames = list(filter(lambda x: not compatibleGMSH(x), fnames))
+    fnames = tuple(filter(lambda x: not compatibleGMSH(x), fnames))
 
     # Gambit meshes can extend the Gmsh mesh
-    fgambit = [s for s in fnames if s.endswith('.neu')]
+    fgambit = tuple(s for s in fnames if s.endswith('.neu'))
     if len(fgambit) > 0:
         mesh = ReadGambit(fgambit, mesh)
-    fnames = list(filter(lambda x: x not in fgambit, fnames))
+    fnames = tuple(filter(lambda x: x not in fgambit, fnames))
 
     # HOPR meshes can extend the Gmsh mesh
-    fhopr  = [s for s in fnames if s.endswith('.h5')]
+    fhopr  = tuple(s for s in fnames if s.endswith('.h5'))
     if len(fhopr) > 0:
         mesh = ReadHOPR(fhopr, mesh)
-    fnames = list(filter(lambda x: x not in fhopr, fnames))
+    fnames = tuple(filter(lambda x: x not in fhopr, fnames))
 
     # If there are still files left, we have an unknown format
     if len(fnames) > 0:
@@ -142,7 +142,7 @@ def MeshExternal() -> meshio.Mesh:
         hopout.error('No boundary conditions defined in the parameter file.')
 
     # Reconstruct periodicity vectors from mesh
-    hasPeriodic = np.any([cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)])
+    hasPeriodic = np.any(tuple(cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)))
     if len(mesh_vars.vvs) == 0 and hasPeriodic:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))

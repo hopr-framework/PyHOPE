@@ -89,7 +89,7 @@ def RebuildMortarGeometry() -> None:
     mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
 
     # Loop over all big mortar sides
-    for side in [s for s in sides if s.connection is not None and s.connection < 0]:
+    for side in (s for s in sides if s.connection is not None and s.connection < 0):
 
         elem = elems[side.elemID]
         if elem is None or elem.nodes is None:

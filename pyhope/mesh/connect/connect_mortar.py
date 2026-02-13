@@ -490,7 +490,7 @@ def points_exist_in_target(pts: tuple, slavePts: tuple) -> bool:
     return set(pts).issubset(set(slavePts))
 
 
-def calculate_area(corners: list) -> float:
+def calculate_area(corners: npt.NDArray[np.float64]) -> float:
     """ Calculate the area of a flat surface using the cross product method
     """
     p: Final[npt.NDArray] = mesh_vars.mesh.points[corners]

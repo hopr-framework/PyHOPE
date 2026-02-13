@@ -215,11 +215,11 @@ def TransformMesh() -> None:
         mesh.points *= meshScale
 
     # Rotate mesh
-    if not np.array_equal(meshRot, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
+    if not np.array_equal(meshRot, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
         mesh.points = meshRotC + (mesh.points-meshRotC) @ meshRot
 
     # Translate mesh
-    if not np.array_equal(meshTrans, [0.0, 0.0, 0.0]):
+    if not np.array_equal(meshTrans, (0.0, 0.0, 0.0)):
         mesh.points += meshTrans
 
     # Exit routine if no further advanced transformation is required
