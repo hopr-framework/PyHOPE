@@ -78,6 +78,9 @@ tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (
 tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
+# Mortars
+hasMortars: bool                                  # Flag if mesh has mortars
+
 
 @unique
 class MeshMode(Enum):

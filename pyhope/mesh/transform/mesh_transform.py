@@ -34,6 +34,7 @@ from types import ModuleType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -42,7 +43,6 @@ if typing.TYPE_CHECKING:
     import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
-import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
@@ -156,9 +156,10 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
 def TransformMesh() -> None:
     # Local imports ----------------------------------------
     from pyhope.config.config import prmfile
+    from pyhope.mesh.mesh_vars import mesh
+    from pyhope.mesh.transform.mesh_transform_mortar import RebuildMortarGeometry
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
-    from pyhope.mesh.mesh_vars import mesh
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 
@@ -214,11 +215,11 @@ def TransformMesh() -> None:
         mesh.points *= meshScale
 
     # Rotate mesh
-    if not np.array_equal(meshRot, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
+    if not np.array_equal(meshRot, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
         mesh.points = meshRotC + (mesh.points-meshRotC) @ meshRot
 
     # Translate mesh
-    if not np.array_equal(meshTrans, [0.0, 0.0, 0.0]):
+    if not np.array_equal(meshTrans, (0.0, 0.0, 0.0)):
         mesh.points += meshTrans
 
     # Exit routine if no further advanced transformation is required
@@ -270,6 +271,9 @@ def TransformMesh() -> None:
 
     # Perform actual post-deformation
     mesh.points = PostDeformMod.PostDeform(mesh.points)
+
+    # If the mesh has mortars, rebuild the (curved) geometry
+    RebuildMortarGeometry()
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')

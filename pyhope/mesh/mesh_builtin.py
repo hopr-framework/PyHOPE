@@ -174,16 +174,16 @@ def MeshCartesian() -> meshio.Mesh:
                               'Factor or l0 is provided.'))
 
         # Progression factor stretching or double sided stretching
-        stretchFac = np.ndarray([])
+        stretchFac = np.ndarray(())
         if 1 in stretchType:
             stretchFac = CalcStretching(nZones, zone, nElems, lEdges)
 
         # Ratio based stretching
-        DXmaxToDXmin = np.ndarray([])
+        DXmaxToDXmin = np.ndarray(())
         if 2 in stretchType or 3 in stretchType:
             DXmaxToDXmin = GetRealArray('DXmaxToDXmin', number=zone)
 
-        maxStretch = np.array([1., 1., 1.], dtype=np.float128)
+        maxStretch = np.array((1., 1., 1.), dtype=np.float128)
         for currDir in range(3):
             match stretchType[currDir]:
                 case 1:

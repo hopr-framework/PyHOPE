@@ -106,9 +106,9 @@ def IO() -> None:
             nSides: Final[int] = len(sides)
             nBCs:   Final[int] = len(bcs)
             # Number of non-unique nodes, vertices, edges
-            nNodes:    Final[int] = np.array([elem.nodes.size       for elem in elems], dtype=np.int32).sum(dtype=int)  # noqa: E272
-            nVertices: Final[int] = np.array([elem.type % 10        for elem in elems], dtype=np.int32).sum(dtype=int)  # noqa: E272
-            nEdges:    Final[int] = np.array([len(edges(elem.type)) for elem in elems], dtype=np.int32).sum(dtype=int)  # noqa: E272
+            nNodes:    Final[int] = np.array(tuple(elem.nodes.size       for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
+            nVertices: Final[int] = np.array(tuple(elem.type % 10        for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
+            nEdges:    Final[int] = np.array(tuple(len(edges(elem.type)) for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
 
             fname = '{}_mesh.h5'.format(pname)
 
@@ -118,7 +118,7 @@ def IO() -> None:
 
             # Print the final output
             hopout.sep()
-            elem_types = [(elemType, count) for elemType in ELEM.TYPES if (count := elemCounter.get(elemType, 0)) > 0]
+            elem_types = tuple((elemType, count) for elemType in ELEM.TYPES if (count := elemCounter.get(elemType, 0)) > 0)
             for elemType, count in elem_types:
                 hopout.info(f'{ELEMTYPE(elemType)}: {count:12d}')
 
@@ -269,10 +269,10 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     # nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
     # Calculate the ElemInfo
-    elem_types = np.array([elem.type                                 for elem in elems], dtype=np.int32)  # noqa: E272
-    elem_zones = np.array([elem.zone if elem.zone is not None else 1 for elem in elems], dtype=np.int32)  # noqa: E272
-    elem_sides = np.array([len(elem.sides)                           for elem in elems], dtype=np.int32)  # noqa: E272
-    elem_nodes = np.array([elem.nodes.size                           for elem in elems], dtype=np.int32)  # noqa: E272
+    elem_types = np.array(tuple(elem.type                                 for elem in elems), dtype=np.int32)  # noqa: E272
+    elem_zones = np.array(tuple(elem.zone if elem.zone is not None else 1 for elem in elems), dtype=np.int32)  # noqa: E272
+    elem_sides = np.array(tuple(len(elem.sides)                           for elem in elems), dtype=np.int32)  # noqa: E272
+    elem_nodes = np.array(tuple(elem.nodes.size                           for elem in elems), dtype=np.int32)  # noqa: E272
 
     # Fill basic element info
     elemInfo[:, ELEM.TYPE] = elem_types
@@ -296,7 +296,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     # Fill the IJK-sorting array
     elemIJK = None
     if hasattr(mesh_vars, 'nElemsIJK'):
-        elemIJK = np.vstack([cast(int, elem.elemIJK) for elem in elems]).astype(np.int32)
+        elemIJK = np.vstack(tuple(cast(int, elem.elemIJK) for elem in elems)).astype(np.int32)
 
     # Set the global side ID
     globalSideID     = 0
@@ -355,8 +355,8 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     sideInfo   = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
 
     # Calculate the SideInfo
-    side_types = np.array([side.sideType     for side in sides], dtype=np.int32)  # noqa: E272
-    side_gloID = np.array([side.globalSideID for side in sides], dtype=np.int32)  # noqa: E272
+    side_types = np.array(tuple(side.sideType     for side in sides), dtype=np.int32)  # noqa: E272
+    side_gloID = np.array(tuple(side.globalSideID for side in sides), dtype=np.int32)  # noqa: E272
 
     # Fill basic side info
     sideInfo[:, SIDE.TYPE] = side_types
