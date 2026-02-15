@@ -89,7 +89,8 @@ def ConnectMortar( nConnSide  : list
     bar.title('│               Preparing Mortars')
 
     # Cache mesh points for performance
-    points: Final[npt.NDArray]  = mesh_vars.mesh.points
+    points:    Final[npt.NDArray] = mesh_vars.mesh.points
+    periNodes: Final[dict]        = mesh_vars.periNodes
 
     # Set BC and periodic sides
     bcs: Final[list[BC | None]] = mesh_vars.bcs
@@ -126,31 +127,39 @@ def ConnectMortar( nConnSide  : list
     # INFO: Parallel version, using np_mtp workers
     # Build arrays for parallel query
     nConn   = len(nConnSide)
-    targetCenters = np.empty((nConn, 3))
-    targetArgs    = np.empty((nConn, 2))
+    targetCenters = np.empty((nConn, 3), dtype=np.float64)
+    targetCorners = np.empty((nConn, 4), dtype=np.int64)
+    targetArgs    = np.empty((nConn, 2), dtype=np.float64)  # Area, Radius
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
         targetArgs   [nConnID, 0] = calculate_area(points[side.corners])  # noqa: E211
         targetCenters[nConnID   ] = copy.copy(center)
+        targetCorners[nConnID, :] = side.corners
 
         # Get the opposite side
         bcID = side.bcid
         if bcID is not None and bcs[bcID].type[0] == 1:
+            bcName = bcs[bcID].name
             iVV = bcs[bcID].type[3]
-            VV = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
+            VV  = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
+
             # Shift the center in periodic direction
-            targetCenters[nConnID] += VV
+            targetCenters[nConnID]   += VV
+            targetCorners[nConnID, :] = np.array([periNodes[(s, bcName)] if (s, bcName) in periNodes else s for s in side.corners])
 
         # Calculate the radius of the convex hull
         targetArgs[nConnID, 1] = norm(np.ptp(points[side.corners], axis=0)) / 2.
 
     # Get all potential mortar neighbors within the radius
-    # > Potential mortar sides must belong to another element and be smaller
     workers = 1 if np_mtp <= 0 else np_mtp
     results = ctree.query_ball_point(targetCenters, r=targetArgs[:, 1], workers=workers)
     for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results)):
         targetNeighbors = tuple(s for s in neighbors
-                                   if                 nConnSide[s].elemID   != side.elemID  # noqa: E271, E501
+                                   # Potential mortar sides must not belong to the same element
+                                   if                        nConnSide[s].elemID   != side.elemID  # noqa: E271, E501
+                                   # Potential mortar sides must have at least one corner in common with the target side
+                                   and set(                  nConnSide[s].corners).intersection(targetCorners[nConnID, :])
+                                   # Potential mortar sides must have a smaller area than the target side
                                    and calculate_area(points[nConnSide[s].corners]) <  targetArgs[nConnID, 0])
         indexList.add(nConnID, targetNeighbors)
 
