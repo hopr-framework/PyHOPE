@@ -459,6 +459,8 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
 @cache
 def face_to_nodes(face: str, elemType: int, nGeo: int) -> npt.NDArray:
     """ Returns the tensor-product nodes associated with a face
+
+        CAVE: If the oriented side is required, use sidetovol2 instead!
     """
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]

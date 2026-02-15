@@ -30,7 +30,7 @@ import bisect
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, cast
 from typing import final
-from functools import cache
+from functools import cache, lru_cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -133,9 +133,8 @@ class SideNode:
     def __init__(self,
                  value: SIDE,
                  link: Optional[int]) -> None:
-        """
-        value: a SIDE object
-        link : the stored connection (an int) from the SIDE (side.connection)
+        """ value: a SIDE object
+            link : the stored connection (an int) from the SIDE (side.connection)
         """
         self.value = value
         self.link  = link   # This is the base (stored) connection value
@@ -176,9 +175,8 @@ class _RBTreeNode:
 
 @final
 class RedBlackTree:
-    """
-    This class provides a balanced binary search tree implemented as a Red-Black Tree,
-    augmented with subtree sizes to support efficient arbitrary insertions and random access.
+    """ This class provides a balanced binary search tree implemented as a Red-Black Tree,
+        augmented with subtree sizes to support efficient arbitrary insertions and random access
     """
     __slots__ = ('_root', '_size', 'offset_manager', '_node_at')
 
@@ -286,7 +284,7 @@ class RedBlackTree:
                     self._left_rotate(cast(_RBTreeNode, z.parent.parent))
         self._root.color = BLACK
 
-    @cache
+    @lru_cache(maxsize=4096)
     def _node_at_impl(self, index: int) -> SideNode:
         if not 0 <= index < self._size:
             raise IndexError('Index out of range')
@@ -304,8 +302,7 @@ class RedBlackTree:
         raise IndexError("Index not found")
 
     def node_at(self, index: int) -> SideNode:
-        """
-        Retrieve the node at the given index (via cached lookup)
+        """ Retrieve the node at the given index (via cached lookup)
         """
         return self._node_at(index)
 
@@ -313,8 +310,7 @@ class RedBlackTree:
         return self.node_at(index)
 
     def insert(self, effective_index: int, new_node: SideNode, update_offset: bool = True) -> None:
-        """
-        Insert new_node at the logical position corresponding to the effective_index in the red-black tree.
+        """ Insert new_node at the logical position corresponding to the effective_index in the red-black tree.
         """
         if not 0 <= effective_index <= self._size:
             raise IndexError('Index out of range')
@@ -361,15 +357,13 @@ class RedBlackTree:
             self.offset_manager.update(effective_index, 1)
 
     def update(self, index: int, new_value: SIDE) -> None:
-        """
-        Update the value of the node at the given index with the new SIDE object
+        """ Update the value of the node at the given index with the new SIDE object
         """
         node = self.node_at(index)
         node.value = new_value
 
     def inorder(self, t: Optional[_RBTreeNode], result: List[SideNode]) -> None:
-        """
-        Recursively traverse the red-black tree in order and append node data to the result list
+        """ Recursively traverse the red-black tree in order and append node data to the result list
         """
         if t is None:
             return
@@ -378,24 +372,21 @@ class RedBlackTree:
         self.inorder( t.right, result)
 
     def _to_list(self) -> List[SideNode]:
-        """
-        Return a Python list of the nodes (in order) via an in-order traversal of the red-black tree
+        """ Return a Python list of the nodes (in order) via an in-order traversal of the red-black tree
         """
         result: List[SideNode] = []
         self.inorder(self._root, result)
         return result
 
     def __iter__(self):
-        """
-        Iterate over the nodes in order
+        """ Iterate over the nodes in order
         """
         return iter(self.to_list())
 
     @staticmethod
     def _build_tree(nodes: tuple[_RBTreeNode, ...], start: int, end: int) -> Optional[_RBTreeNode]:
-        """Recursively build a balanced tree from the tuple of nodes
-
-        This method assumes that the nodes are in the desired in-order sequence
+        """ Recursively build a balanced tree from the tuple of nodes
+            > This method assumes that the nodes are in the desired in-order sequence
         """
         # Return if subtree is empty
         if start > end:
@@ -422,10 +413,9 @@ class RedBlackTree:
 
     @classmethod
     def from_list(cls, sides: List[SIDE], offset_manager: LinkOffsetManager) -> RedBlackTree:
-        """Optimized bulk conversion from a sorted list to a red–black tree
-
-        Assumes that the provided list is already in the desired in-order sequence.
-        All nodes are initialized as black to maintain red–black properties.
+        """ Optimized bulk conversion from a sorted list to a red–black tree
+            > Assumes that the provided list is already in the desired in-order sequence
+            > All nodes are initialized as black to maintain red–black properties
         """
         rbt   = cls(offset_manager)
 
@@ -468,36 +458,45 @@ class RedBlackTree:
     def to_list(self) -> List[SIDE]:
         """ Convert the red-black tree back into a list of SIDE objects
 
-        Instead of computing each node's effective link individually (using a binary search for each call), we batch-process updates
-        by precomputing the breakpoints and then sweeping through the nodes that require an update.
+            > Instead of computing each node's effective link individually (using a binary search for each call), we batch-process
+              updates by precomputing the breakpoints and then sweeping through the nodes that require an update
         """
         nodes = self._to_list()
 
         # Extract the current breakpoints from the offset manager.
-        # Assumed to be sorted by the stored index.
+        # > Assumed to be sorted by the stored index.
         breakpoints = self.offset_manager.breakpoints
 
         # Create a list of tuples containing (stored_link, SideNode)
-        update_nodes: list[tuple[int, SideNode]] = []
+        # update_nodes: list[tuple[int, SideNode]] = []
+        #
+        # # Only consider nodes with a valid stored connection (>= 0)
+        # for node in nodes:
+        #     # We use the stored link (node.link) for the update computation
+        #     if node.link is not None and node.link >= 0:
+        #         update_nodes.append((node.link, node))
+        #
+        # # Sort the update_nodes by the stored connection value
+        # update_nodes.sort(key=lambda tup: tup[0])
+        #
+        # bp_index = 0
+        # bp_count = len(breakpoints)
+        # # Iterate over the nodes (sorted by connection) and assign the effective link
+        # for stored_link, node in update_nodes:
+        #     # Advance the breakpoint pointer while the next breakpoint index is <= stored_link
+        #     while bp_index < bp_count - 1 and breakpoints[bp_index + 1][0] <= stored_link:
+        #         bp_index += 1
+        #     offset = breakpoints[bp_index][1]
+        #     node.value.connection = stored_link + offset
 
-        # Only consider nodes with a valid stored connection (>= 0)
+        # Batch-apply offsets to all nodes with valid stored connections
+        # > Use bisect for direct lookup to avoid sorting the node list
+        bp_keys = [bp[0] for bp in breakpoints]
         for node in nodes:
-            # We use the stored link (node.link) for the update computation
             if node.link is not None and node.link >= 0:
-                update_nodes.append((node.link, node))
-
-        # Sort the update_nodes by the stored connection value
-        update_nodes.sort(key=lambda tup: tup[0])
-
-        bp_index = 0
-        bp_count = len(breakpoints)
-        # Iterate over the nodes (sorted by connection) and assign the effective link
-        for stored_link, node in update_nodes:
-            # Advance the breakpoint pointer while the next breakpoint index is <= stored_link
-            while bp_index < bp_count - 1 and breakpoints[bp_index + 1][0] <= stored_link:
-                bp_index += 1
-            offset = breakpoints[bp_index][1]
-            node.value.connection = stored_link + offset
+                pos    = bisect.bisect_right(bp_keys, node.link) - 1
+                offset = breakpoints[pos][1] if pos >= 0 else 0
+                node.value.connection = node.link + offset
 
         # Update the sideID for all nodes based on in-order position
         for idx, node in enumerate(nodes):
