@@ -160,6 +160,8 @@ invalid-assignment         = 'ignore'
 possibly-missing-attribute = 'ignore'
 unresolved-attribute       = 'ignore'
 unsupported-operator       = 'ignore'
+unused-ignore-comment      = 'ignore'
+# unused-type-ignore-comment = 'ignore'
 
 [tool.ruff.format]
 quote-style  = "single"

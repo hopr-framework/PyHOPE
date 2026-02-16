@@ -145,7 +145,7 @@ def HilbertCurveNumpy() -> None:
         return list(map(int, h))
 
     # Attach the vectorized helper
-    HilbertCurve._distances_from_points_numpy = _distances_from_points_numpy  # type: ignore[attr-defined]
+    HilbertCurve._distances_from_points_numpy = _distances_from_points_numpy
 
     # Wrap the public API to prefer the NumPy path
     _orig_dfp = HilbertCurve.distances_from_points
@@ -167,4 +167,4 @@ def HilbertCurveNumpy() -> None:
         return distances
 
     HilbertCurve.distances_from_points = _dfp_patched
-    HilbertCurve._numpy_patch_applied  = True  # type: ignore[attr-defined]
+    HilbertCurve._numpy_patch_applied  = True
