@@ -361,7 +361,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
             if 'CGNSLibraryVersion' not in f.keys():
                 hopout.error('CGNS file does not contain library version header')
 
-            key = [s for s in f.keys() if "base" in s.lower()]
+            key = [s for s in f.keys() if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
             match len(key):
                 case 0:
                     hopout.error('Object [Base] does not exist in CGNS file')
@@ -469,7 +469,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                 hopout.error('Format of BC implementation for FaceCenters not recognized, exiting...')
 
             cgnsShells  =     zone[surface_key]['ElementConnectivity'][' data']
-            nShells     = int(zone[surface_key]['ElementRange'][' data'][0])
+            nShells     = int(zone[surface_key]['ElementRange'       ][' data'][0])
 
             # Get the location of the BC faces
             cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
@@ -494,7 +494,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                     count += nNodes + 1
 
                 elif cgnsGridLoc == 'FaceCenter':
-                    if nShells in cgnsBC:
+                    if nShells in cgns_set:
                         BCpoints = bpoints[[s-1 for s in corners]]
 
                         # For high-order elements, we only consider the 3/4 corner nodes for the centroid
@@ -508,6 +508,74 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                     nShells += 1
                     count   += nNodes + 1
+
+        # Data attached to the zoneBC node
+        elif f'{zoneBC}/ElementList' in zone['ZoneBC']:
+            cgnsBC     = sorted(int(s) for s in np.array(zone['ZoneBC'][zoneBC]['ElementList'][' data']).squeeze())
+            cgns_set   = set(cgnsBC)
+
+            # Collect all element sections present in the zone
+            elemSections = []
+            for key in zone.keys():
+                if not isinstance(zone[key], h5py.Group):
+                    continue
+                if 'ElementConnectivity' not in zone[key] or 'ElementRange' not in zone[key]:
+                    continue
+
+                elemRange = zone[key]['ElementRange'][' data'][:].astype(int)
+                elemSections.append((key, int(elemRange[0]), int(elemRange[1])))
+
+            if not elemSections:
+                hopout.error('No element sections with connectivity found for ElementList, exiting...')
+
+            # Loop over element sections and scan connectivity
+            for surface_key, elemStart, elemEnd in elemSections:
+                # Skip sections that cannot contain any BC element IDs
+                if not cgnsBC:
+                    break
+                if cgnsBC[-1] < elemStart or cgnsBC[0] > elemEnd:
+                    continue
+
+                cgnsShells = zone[surface_key]['ElementConnectivity'][' data']
+
+                # Read the surface elements, one at a time
+                count  = 0
+                elemID = elemStart
+
+                # Loop over all elements and collect centroids
+                while count < cgnsShells.shape[0] and elemID <= elemEnd:
+                    elemType = ElemTypes(cgnsShells[count])
+                    nNodes   = int(elemType['Nodes'])
+
+                    # Compute centroids
+                    if elemID in cgns_set:
+                        corners  = cgnsShells[count+1:count+nNodes+1]
+                        BCpoints = bpoints[[int(s)-1 for s in corners]]
+
+                        # For high-order elements, we only consider the 3/4 corner nodes for the centroid
+                        match len(BCpoints):
+                            case 3 | 6:       # triangle, triangle6
+                                triaCenters.append(np.mean(BCpoints[:3], axis=0))
+                            case 4 | 8 | 9:   # quad, quad8, quad9
+                                quadCenters.append(np.mean(BCpoints[:4], axis=0))
+                            case _:
+                                hopout.error('Unsupported number of corners for shell elements, exiting...')
+
+                    count  += nNodes + 1
+                    elemID += 1
+
+            # Verify that all requested element IDs were within at least one known section range
+            # for elemID in cgnsBC:
+            #     in_any_section = False
+            #     for _, s, e in elemSections:
+            #         if s <= elemID <= e:
+            #             in_any_section = True
+            #             break
+            #     if not in_any_section:
+            #         hopout.error('ElementList contains element IDs outside all known ElementRange sections, exiting...')
+
+        else:
+            hopout.error('Failed reading CGNS BC information')
 
         # Use regex to check if the string ends with _<number> and split accordingly
         match  = re.match(r'(.*)_\d+$', zoneBC)
