@@ -58,12 +58,14 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
 
     # Readin parameters
     CreateReal( 'PostDeform_R0',      default= 1.0, multiple=False, help='Cylinder radius')                      # noqa: E251
+    CreateReal( 'PostDeform_RR',      default= 0.5, multiple=False, help='Cylinder inner radius')                # noqa: E251
     CreateReal( 'PostDeform_Rtorus',  default=-1.0, multiple=False, help='z must be inside [0,1] and periodic')  # noqa: E251
     CreateReal( 'PostDeform_Lz',      default= 1.0, multiple=False)                                              # noqa: E251
     CreateReal( 'PostDeform_sq',      default= 0.0, multiple=False)                                              # noqa: E251
     # FIXME: Implement calling the other transformation types
     # CreateInt(  'MeshPostDeform',     default=1   , multiple=False, help='Deformation mode')                     # noqa: E251
     PostDeform_R0     = GetReal('PostDeform_R0')
+    PostDeform_RR     = GetReal('PostDeform_RR')
     PostDeform_Rtorus = GetReal('PostDeform_Rtorus')
     PostDeform_Lz     = GetReal('PostDeform_Lz')
     PostDeform_sq     = GetReal('PostDeform_sq')
@@ -88,7 +90,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
         rr = max(abs(x[0]), abs(x[1]))
 
         # Compute displacement based on region
-        if rr < 0.5:
+        if rr < PostDeform_RR:
             # Inner region: Blending
             dx1[0] = 0.5 * sqrt2 * np.cos(0.25 * Pi * x[1] / 0.5) - 0.5
             dx1[1] = 0.5 * sqrt2 * np.sin(0.25 * Pi * x[1] / 0.5) - x[1]
@@ -107,7 +109,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
                 dx[0] = x[1] * sqrt2 * np.sin(0.25 * Pi * x[0] / x[1]) - x[0]
                 dx[1] = x[1] * sqrt2 * np.cos(0.25 * Pi * x[0] / x[1]) - x[1]
 
-            alpha = min(1., 2. * rr - 1.)
+            alpha = min(1., 2. * rr - 1.) if PostDeform_RR > 0 else 1.
             alpha = np.sin(0.5 * Pi * alpha)
             alpha = 1.0 * alpha + 0.35 * (1. - alpha)
             dx *= alpha

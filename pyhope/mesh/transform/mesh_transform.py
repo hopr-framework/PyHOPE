@@ -160,6 +160,7 @@ def TransformMesh() -> None:
     from pyhope.mesh.transform.mesh_transform_mortar import RebuildMortarGeometry
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
+    import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 
@@ -213,6 +214,8 @@ def TransformMesh() -> None:
     # Scale mesh
     if meshScale != 1.0:
         mesh.points *= meshScale
+        for vv in mesh_vars.vvs:
+            vv['Dir'] *= meshScale
 
     # Rotate mesh
     if not np.array_equal(meshRot, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
