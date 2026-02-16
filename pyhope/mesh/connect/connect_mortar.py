@@ -129,10 +129,11 @@ def ConnectMortar( nConnSide  : list
     nConn   = len(nConnSide)
     targetCenters = np.empty((nConn, 3), dtype=np.float64)
     targetCorners = np.empty((nConn, 4), dtype=np.int64)
-    targetArgs    = np.empty((nConn, 2), dtype=np.float64)  # Area, Radius
+    targetRadius  = np.empty((nConn   ), dtype=np.float64)
+    targetArea    = np.empty((nConn   ), dtype=np.float64)
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
-        targetArgs   [nConnID, 0] = calculate_area(points[side.corners])  # noqa: E211
+        targetArea   [nConnID   ] = calculate_area(points[side.corners])  # noqa: E211
         targetCenters[nConnID   ] = copy.copy(center)
         targetCorners[nConnID, :] = side.corners
 
@@ -148,19 +149,19 @@ def ConnectMortar( nConnSide  : list
             targetCorners[nConnID, :] = np.array([periNodes[(s, bcName)] if (s, bcName) in periNodes else s for s in side.corners])
 
         # Calculate the radius of the convex hull
-        targetArgs[nConnID, 1] = norm(np.ptp(points[side.corners], axis=0)) / 2.
+        targetRadius[nConnID] = norm(np.ptp(points[side.corners], axis=0)) / 2.
 
     # Get all potential mortar neighbors within the radius
     workers = 1 if np_mtp <= 0 else np_mtp
-    results = ctree.query_ball_point(targetCenters, r=targetArgs[:, 1], workers=workers)
+    results = ctree.query_ball_point(targetCenters, r=targetRadius[:], workers=workers)
     for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results)):
         targetNeighbors = tuple(s for s in neighbors
                                    # Potential mortar sides must not belong to the same element
-                                   if                        nConnSide[s].elemID   != side.elemID  # noqa: E271, E501
+                                   if nConnSide[s].elemID != side.elemID  # noqa: E271, E501
                                    # Potential mortar sides must have at least one corner in common with the target side
-                                   and set(                  nConnSide[s].corners).intersection(targetCorners[nConnID, :])
+                                   and set(targetCorners[s, :]).intersection(targetCorners[nConnID, :])
                                    # Potential mortar sides must have a smaller area than the target side
-                                   and calculate_area(points[nConnSide[s].corners]) <  targetArgs[nConnID, 0])
+                                   and targetArea[s      ] < targetArea[nConnID])
         indexList.add(nConnID, targetNeighbors)
 
     # Obtain the target side IDs
@@ -195,7 +196,8 @@ def ConnectMortar( nConnSide  : list
         matchFound = False
 
         # Attempt to match the target side with 2-candidate combinations
-        for comboIDs in itertools.combinations(targetNeighbors, 2):
+        targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 2)  # noqa: E501
+        for comboIDs in itertools.combinations(targetTest, 2):
             # Get the candidate sides
             comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
 
@@ -226,7 +228,8 @@ def ConnectMortar( nConnSide  : list
 
         # Attempt to match the target side with 4-candidate combinations
         if not matchFound and len(targetNeighbors) >= 4:
-            for comboIDs in itertools.combinations(targetNeighbors, 4):
+            targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 1)  # noqa: E501
+            for comboIDs in itertools.combinations(targetTest, 4):
                 # Get the candidate sides
                 comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
 
@@ -563,15 +566,15 @@ if not NUMBA_AVAILABLE:
 
         match len(corners):
             case 3:  # Triangle
-                return  0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+                return  0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
             case 4:  # Quadrilateral
                 # Diagonal split 1: (0,1,2) + (0,2,3)
-                area1  = 0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
-                area1 += 0.5 * np.linalg.norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
+                area1  = 0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+                area1 += 0.5 * norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
 
                 # Diagonal split 2: (0,1,3) + (1,2,3)
-                area2  = 0.5 * np.linalg.norm(np.cross(p[1]-p[0], p[3]-p[0]))  # noqa: E271
-                area2 += 0.5 * np.linalg.norm(np.cross(p[2]-p[1], p[3]-p[1]))  # noqa: E271
+                area2  = 0.5 * norm(np.cross(p[1]-p[0], p[3]-p[0]))  # noqa: E271
+                area2 += 0.5 * norm(np.cross(p[2]-p[1], p[3]-p[1]))  # noqa: E271
 
                 # For bilinear quads, average both diagonal triangulations
                 return (area1 + area2) / 2
@@ -697,7 +700,7 @@ def find_edge_combinations(comboEdges) -> tuple:
                 # if np.allclose(bbox_min, np.minimum(bbox_min, c1)) and \
                 #    np.allclose(bbox_max, np.maximum(bbox_max, c1)):
                 #     # Calculate the distance between the start and end points
-                #     lineDist = np.linalg.norm(p1 - p2)
+                #     lineDist = norm(p1 - p2)
                 #
                 #     # Append the indices and the line distance
                 #     validCombo.append((point1, point2, lineDist))
