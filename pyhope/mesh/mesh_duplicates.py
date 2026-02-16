@@ -293,7 +293,8 @@ def EliminateDuplicates() -> None:
         bbs = min(bbs, ptp.min())
 
     # Set the tolerance to 10% of the bounding box of the smallest element
-    tol = np.max([mesh_vars.tolExternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
+    # tol = np.max([mesh_vars.tolInternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
+    tol = bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else mesh_vars.tolInternal
 
     # Find all points within the tolerance
     reps = _findPointsTol(points, tol, method='union_find')

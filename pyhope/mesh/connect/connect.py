@@ -94,7 +94,7 @@ def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
     # sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
 
 
-def find_bc_index(bcs: list, key: str) -> Optional[int]:
+def find_bc_index(bcs: Union[list, tuple], key: str) -> Optional[int]:
     """ Find the index of a BC from its name in the list of BCs
     """
     for iBC, bc in enumerate(bcs):
@@ -131,7 +131,7 @@ def find_bc_index(bcs: list, key: str) -> Optional[int]:
 #     return side_dict[corners_hash][0]
 
 
-def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[npt.NDArray]]:
+def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[tuple, tuple[npt.NDArray]]:
     """ Get a list of internal sides that are not connected to any
         other side together with a list of their centers
     """
@@ -139,10 +139,10 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[list, list[n
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
     # Update the list
-    nConnSide   = [s for s in sides if   s.connection is None  # noqa: E271
-                                    and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1))]
+    nConnSide   = tuple(s for s in sides if   s.connection is None  # noqa: E271
+                                         and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1)))
 
-    nConnCenter = [np.mean(mesh.points[s.corners], axis=0) for s in nConnSide]
+    nConnCenter = tuple(np.mean(mesh.points[s.corners], axis=0) for s in nConnSide)
     return nConnSide, nConnCenter
 
 
@@ -271,15 +271,15 @@ def ConnectMesh() -> None:
     cdict:  Final[dict]        = mesh.cells_dict
 
     # Set BC and periodic sides
-    bcs:    Final[list]        = mesh_vars.bcs
-    vvs:    Final[list]        = mesh_vars.vvs
+    bcs:    Final[tuple]       = tuple(mesh_vars.bcs)
+    vvs:    Final[tuple]       = tuple(mesh_vars.vvs)
 
     checkInternalBoundaries   = True
     if CountOption('CheckInternalBoundaries') > 0:
         checkInternalBoundaries = GetLogical('CheckInternalBoundaries')
 
     # Consistency check for 2D boundary conditions
-    prefixes: Final[list[str]] = ['quad', 'triangle']
+    prefixes: Final[tuple[str]] = ('quad', 'triangle')
     if not any(k.startswith(p) for p in prefixes for k in cdict.keys()):  # pragma: no cover
         if bcs is not None and len(bcs) > 0:
             print(hopout.warn(f'Detected boundary conditions {[bc.name for bc in bcs]}'))
@@ -487,11 +487,9 @@ def ConnectMesh() -> None:
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
     # Mortar sides
-    if doMortars:
-        # Mortar connections are not supported between mismatching side types
-        if any(len(s.corners) != len(nConnSide[0].corners) for s in nConnSide):
-            hopout.error('Mortar connections are not supported between mixed side types, exiting...')
+    mesh_vars.hasMortars = True if len(nConnSide) > 0 else False
 
+    if doMortars:
         # Connect the mortar sides
         elems, sides = ConnectMortar(nConnSide, nConnCenter, elems, sides, bar)
 
@@ -521,9 +519,6 @@ def ConnectMesh() -> None:
 
     # Close the progress bar
     bar.close()
-
-    # Run garbage collector to release memory
-    gc.collect()
 
     # Count the sides
     nsides             = len(sides)
@@ -558,6 +553,12 @@ def ConnectMesh() -> None:
 
     mesh_vars.sides = sides
     mesh_vars.elems = elems
+
+    # Clean-up
+    del sides_conn, sides_bc, sides_periodic, sides_mortar_big, sides_mortar_small
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     # hopout.sep()
     # hopout.info('CONNECT MESH DONE!')

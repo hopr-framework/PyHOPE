@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -60,7 +61,10 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
 
     nTotal = points.shape[0]
     X_out  = np.zeros_like(points)
-    Pi     = np.pi
+
+    # Pre-compute constants
+    sqrt3: Final[np.float64] = np.sqrt(3, dtype=np.float64)
+    Pi:    Final[np.float64] = np.pi
 
     for i in range(nTotal):
         x = points[i, :].copy()
@@ -73,7 +77,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             cosb = np.cos(0.25 * Pi * x[2] / 0.5)
             sinb = np.sin(0.25 * Pi * x[2] / 0.5)
             dx1  = np.array([cosa * cosb, sina * cosb, cosa * sinb])
-            dx1 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array([0.5, x[1], x[2]])
+            dx1 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array((0.5, x[1], x[2]))
 
             # Upper side at y=0.5
             cosa = np.cos(0.25 * Pi * x[2] / 0.5)
@@ -81,7 +85,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             cosb = np.cos(0.25 * Pi * x[0] / 0.5)
             sinb = np.sin(0.25 * Pi * x[0] / 0.5)
             dx2  = np.array([cosa * sinb, cosa * cosb, sina * cosb])
-            dx2 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array([x[0], 0.5, x[2]])
+            dx2 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array((x[0], 0.5, x[2]))
 
             # Side at z=0.5
             cosa = np.cos(0.25 * Pi * x[0] / 0.5)
@@ -89,17 +93,17 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             cosb = np.cos(0.25 * Pi * x[1] / 0.5)
             sinb = np.sin(0.25 * Pi * x[1] / 0.5)
             dx3  = np.array([sina * cosb, cosa * sinb, cosa * cosb])
-            dx3 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array([x[0], x[1], 0.5])
+            dx3 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array((x[0], x[1], 0.5))
 
             alpha = 0.35
             dx    = alpha * (
-                   dx1 * np.array([2 * x[0], 1.0, 1.0]) +
-                   dx2 * np.array([1.0, 2 * x[1], 1.0]) +
-                   dx3 * np.array([1.0, 1.0, 2 * x[2]])
+                   dx1 * np.array((2 * x[0], 1.0, 1.0)) +
+                   dx2 * np.array((1.0, 2 * x[1], 1.0)) +
+                   dx3 * np.array((1.0, 1.0, 2 * x[2]))
             )
 
             # Apply deformation
-            xout = (PostDeform_R0 / np.sqrt(3.0)) * (x + dx)
+            xout = (PostDeform_R0 / sqrt3) * (x + dx)
         else:
             # Outside [-0.5,0.5]^3, determine direction
             if abs(x[1]) < abs(x[0]) and abs(x[2]) < abs(x[0]):
@@ -129,7 +133,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             alpha = 1.0 * alpha + 0.35 * (1.0 - alpha)
             dx *= alpha
 
-            xout = (PostDeform_R0 / np.sqrt(3.0)) * (x + dx)
+            xout = (PostDeform_R0 / sqrt3) * (x + dx)
 
         X_out[i, :] = xout
 

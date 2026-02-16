@@ -125,14 +125,14 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
                 dx = x[2] * dx * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - x
 
             if rr <= 1.0:
-              alpha = 2.0 * rr - 1.0
-              alpha = np.sin(0.5 * Pi * alpha)
-              alpha = 1.0 * alpha + 0.35 * (1.0 - alpha)
-              dx *= alpha
+                alpha = 2.0 * rr - 1.0
+                alpha = np.sin(0.5 * Pi * alpha)
+                alpha = 1.0 * alpha + 0.35 * (1.0 - alpha)
+                dx *= alpha
             else:
-              alpha = (4.0 - rr) / (4.0 - 1.0)
-              alpha = np.sin(0.5 * Pi * alpha)
-              dx    = alpha*(dx/rr)
+                alpha = (4.0 - rr) / (4.0 - 1.0)
+                alpha = np.sin(0.5 * Pi * alpha)
+                dx    = alpha*(dx/rr)
 
             xout = (PostDeform_R0 / np.sqrt(3.0)) * (x + dx)
         else:

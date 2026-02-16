@@ -297,7 +297,7 @@ def MeshioGmshOrderingPatch() -> None:
     # Patch the common module
     try:
         common._meshio_to_gmsh_order = NodeOrdering().ordering_meshio_to_gmsh
-        common._pyhope_ordering_patched = True  # type: ignore[attr-defined]
+        common._pyhope_ordering_patched = True
     except Exception:
         # If assignment fails, bail out
         return

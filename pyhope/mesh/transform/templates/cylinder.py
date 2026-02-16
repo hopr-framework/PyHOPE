@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -57,12 +58,14 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
 
     # Readin parameters
     CreateReal( 'PostDeform_R0',      default= 1.0, multiple=False, help='Cylinder radius')                      # noqa: E251
+    CreateReal( 'PostDeform_RR',      default= 0.5, multiple=False, help='Cylinder inner radius')                # noqa: E251
     CreateReal( 'PostDeform_Rtorus',  default=-1.0, multiple=False, help='z must be inside [0,1] and periodic')  # noqa: E251
     CreateReal( 'PostDeform_Lz',      default= 1.0, multiple=False)                                              # noqa: E251
     CreateReal( 'PostDeform_sq',      default= 0.0, multiple=False)                                              # noqa: E251
     # FIXME: Implement calling the other transformation types
     # CreateInt(  'MeshPostDeform',     default=1   , multiple=False, help='Deformation mode')                     # noqa: E251
     PostDeform_R0     = GetReal('PostDeform_R0')
+    PostDeform_RR     = GetReal('PostDeform_RR')
     PostDeform_Rtorus = GetReal('PostDeform_Rtorus')
     PostDeform_Lz     = GetReal('PostDeform_Lz')
     PostDeform_sq     = GetReal('PostDeform_sq')
@@ -70,62 +73,79 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
     MeshPostDeform    = 1
 
     nTotal = points.shape[0]
-    X_out  = np.zeros_like(points)
+    X_out  = np.zeros_like(points, dtype=np.float64)
+
+    # Pre-compute constants
+    sqrt2: Final[np.float64] = np.sqrt(2, dtype=np.float64)
+    pFact: Final[np.float64] = PostDeform_R0 * np.sqrt(0.5, dtype=np.float64)
+    Pi:    Final[np.float64] = np.pi
+
+    # Pre-allocate arrays
+    dx1 = np.empty(2, dtype=np.float64)
+    dx2 = np.empty(2, dtype=np.float64)
+    dx  = np.empty(2, dtype=np.float64)
 
     for i in range(nTotal):
         x = points[i, :].copy()
         rr = max(abs(x[0]), abs(x[1]))
 
-        if rr < 0.5:
-            dx1 = np.array([
-                0.5 * np.sqrt(2) * np.cos(0.25 * np.pi * x[1] / 0.5) - 0.5,
-                0.5 * np.sqrt(2) * np.sin(0.25 * np.pi * x[1] / 0.5) - x[1]
-            ])
-            dx2 = np.array([
-                0.5 * np.sqrt(2) * np.sin(0.25 * np.pi * x[0] / 0.5) - x[0],
-                0.5 * np.sqrt(2) * np.cos(0.25 * np.pi * x[0] / 0.5) - 0.5
-            ])
+        # Compute displacement based on region
+        if rr < PostDeform_RR:
+            # Inner region: Blending
+            dx1[0] = 0.5 * sqrt2 * np.cos(0.25 * Pi * x[1] / 0.5) - 0.5
+            dx1[1] = 0.5 * sqrt2 * np.sin(0.25 * Pi * x[1] / 0.5) - x[1]
+
+            dx2[0] = 0.5 * sqrt2 * np.sin(0.25 * Pi * x[0] / 0.5) - x[0]
+            dx2[1] = 0.5 * sqrt2 * np.cos(0.25 * Pi * x[0] / 0.5) - 0.5
+
             alpha = 0.35
-            dx = alpha * (dx1 * np.array([2 * x[0], 1.]) + dx2 * np.array([1., 2 * x[1]]))
+            dx = alpha * (dx1 * np.array((2 * x[0], 1.)) + dx2 * np.array((1., 2 * x[1])))
         else:
+            # Outer region: Single displacement field
             if abs(x[1]) < abs(x[0]):
-                dx = np.array([
-                    x[0] * np.sqrt(2) * np.cos(0.25 * np.pi * x[1] / x[0]) - x[0],
-                    x[0] * np.sqrt(2) * np.sin(0.25 * np.pi * x[1] / x[0]) - x[1]
-                ])
+                dx[0] = x[0] * sqrt2 * np.cos(0.25 * Pi * x[1] / x[0]) - x[0]
+                dx[1] = x[0] * sqrt2 * np.sin(0.25 * Pi * x[1] / x[0]) - x[1]
             else:
-                dx = np.array([
-                    x[1] * np.sqrt(2) * np.sin(0.25 * np.pi * x[0] / x[1]) - x[0],
-                    x[1] * np.sqrt(2) * np.cos(0.25 * np.pi * x[0] / x[1]) - x[1]
-                ])
-            alpha = min(1., 2. * rr - 1.)
-            alpha = np.sin(0.5 * np.pi * alpha)
+                dx[0] = x[1] * sqrt2 * np.sin(0.25 * Pi * x[0] / x[1]) - x[0]
+                dx[1] = x[1] * sqrt2 * np.cos(0.25 * Pi * x[0] / x[1]) - x[1]
+
+            alpha = min(1., 2. * rr - 1.) if PostDeform_RR > 0 else 1.
+            alpha = np.sin(0.5 * Pi * alpha)
             alpha = 1.0 * alpha + 0.35 * (1. - alpha)
             dx *= alpha
 
-        xout = PostDeform_R0 * np.sqrt(0.5) * (x[:2] + dx)
+        # Apply base transformation
+        xout = pFact * (x[:2] + dx)
+
+        # Compute rotation angle
         match MeshPostDeform:
             case 1:
-                arg = 2. * np.pi * x[2] * PostDeform_sq
+                arg = 2. * Pi * x[2] * PostDeform_sq
             case 11:
-                arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2)
+                arg = 2. * Pi * x[2] * PostDeform_sq * np.sum(xout**2)
             case 12:
-                arg = 2. * np.pi * x[2] * PostDeform_sq * np.sum(xout**2) * (1 + 0.5 * xout[0])
+                arg = 2. * Pi * x[2] * PostDeform_sq * np.sum(xout**2) * (1 + 0.5 * xout[0])
             case _:
                 arg = 0
 
-        rotmat = np.array([[np.cos(arg), -np.sin(arg)],
-                          [ np.sin(arg),  np.cos(arg)]        ])
+        # Apply 2D rotation
+        rotmat = np.array(((np.cos(arg), -np.sin(arg)),
+                          ( np.sin(arg),  np.cos(arg))))
         xout   = np.matmul(rotmat, xout)
 
+        # Assemble final 3D transformation
         if PostDeform_Rtorus < 0:
-            xout = np.append(xout, x[2] * PostDeform_Lz)
+            # Cylindrical coordinates
+            X_out[i, 0] = xout[0]
+            X_out[i, 1] = xout[1]
+            X_out[i, 2] = x[2] * PostDeform_Lz
         else:
-            temp_z = xout[1]
-            xout[1] = -(xout[0] + PostDeform_Rtorus) * np.sin(2 * np.pi * x[2])
-            xout[0] = (xout[0] + PostDeform_Rtorus) * np.cos(2 * np.pi * x[2])
-            xout = np.append(xout, temp_z)
-
-        X_out[i, :] = xout
+            # Toroidal coordinates
+            temp_z      = xout[1]
+            xout[1]     = -(xout[0] + PostDeform_Rtorus) * np.sin(2 * Pi * x[2])
+            xout[0]     =  (xout[0] + PostDeform_Rtorus) * np.cos(2 * Pi * x[2])
+            X_out[i, 0] = xout[0]
+            X_out[i, 1] = xout[1]
+            X_out[i, 2] = temp_z
 
     return X_out
