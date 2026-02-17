@@ -196,7 +196,7 @@ def ConnectMortar( nConnSide  : list
         matchFound = False
 
         # Attempt to match the target side with 2-candidate combinations
-        targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 2)  # noqa: E501
+        targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) >= 2)  # noqa: E501
         for comboIDs in itertools.combinations(targetTest, 2):
             # Get the candidate sides
             comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
