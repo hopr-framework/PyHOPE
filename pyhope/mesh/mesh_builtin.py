@@ -67,8 +67,18 @@ def MeshCartesian() -> meshio.Mesh:
 
     # Setup multiprocessing
     numThreads = np_mtp if np_mtp > 0 else 1
-    gmsh.option.setNumber('General.NumThreads',   numThreads)
-    gmsh.option.setNumber('Geometry.OCCParallel', 1 if np_mtp > 0 else 0)
+    gmsh.option.setNumber('General.NumThreads'         , numThreads)              # Enable multithreading
+    gmsh.option.setNumber('Geometry.OCCParallel'       , 1 if np_mtp > 0 else 0)  # Enable multithreading
+
+    # Setup deterministic Gmsh
+    gmsh.option.setNumber('Mesh.Optimize'              , 0)                       # Skip optimizer
+    gmsh.option.setNumber('Mesh.OptimizeNetgen'        , 0)                       # Skip Netgen optimizer
+    gmsh.option.setNumber('Mesh.Smoothing'             , 0)                       # Skip mesh smoothing
+    gmsh.option.setNumber('Mesh.RandomSeed'            , 1)                       # Fixed seed for determinism
+    gmsh.option.setNumber('Mesh.RandomFactor'          , 0)                       # No perturbation
+    gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
+    gmsh.option.setNumber('Mesh.Algorithm'             , 8)                       # Force Frontal-Delaunay for Quads
+    gmsh.option.setNumber('Mesh.RecombinationAlgorithm', 1)                       # Force 0 [Simple], 1 [Blossom]
 
     # Setup mesh factory
     # gmsh.option.setString('SetFactory', 'OpenCascade')
@@ -347,13 +357,13 @@ def MeshCartesian() -> meshio.Mesh:
     if len(vvs) > 0:
         hopout.sep()
 
-    # To generate connect the generated cells, we can simply set
-    gmsh.option.setNumber('Mesh.RecombineAll'  , 1)
-    gmsh.option.setNumber('Mesh.Recombine3DAll', 1)
+    # To connect the generated cells, we can simply set
+    gmsh.option.setNumber('Mesh.RecombineAll'     , 1)
+    gmsh.option.setNumber('Mesh.Recombine3DAll'   , 1)
     gmsh.option.setNumber('Geometry.AutoCoherence', 2)
     gmsh.model.mesh.recombine()
     # Force Gmsh to output all mesh elements
-    gmsh.option.setNumber('Mesh.SaveAll', 1)
+    gmsh.option.setNumber('Mesh.SaveAll'          , 1)
 
     gmsh.model.mesh.generate(3)
 
