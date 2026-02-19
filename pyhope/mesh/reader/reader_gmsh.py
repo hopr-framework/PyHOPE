@@ -128,6 +128,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
     gmsh.option.setNumber('Mesh.Algorithm'             , 8)                       # Force Frontal-Delaunay for Quads
     gmsh.option.setNumber('Mesh.RecombinationAlgorithm', 1)                       # Force 0 [Simple], 1 [Blossom]
+    gmsh.option.setNumber('Geometry.AutoCoherence'     , 2)                       # Remove duplicate entities
 
     # Setup mesh factory
     # gmsh.option.setString('SetFactory', 'OpenCascade')
