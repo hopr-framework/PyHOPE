@@ -111,22 +111,23 @@ def DefineMesh() -> None:
     # Stretching
     CreateSection('Stretching')
     CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
-                                                                                             'zone per spatial direction.')
-    CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
-                                                                                                 'each spatial direction.')
-    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')
-    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
-                                                                                                               'direction')
+                                                                                            'zone per spatial direction.')
+    CreateRealArray( 'Factor',          3,   multiple=True,          help='Stretching factor of zone for geometric stretching for '
+                                                                          'each spatial direction.')
+    CreateRealArray( 'l0',              3,   multiple=True,          help='Smallest desired element in zone per spatial direction.')
+    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True,          help='Ratio between the smallest and largest element per '
+                                                                          'spatial direction')
     # Extrusion
     CreateSection('Extrusion')
-    CreateLogical(   'MeshExtrude',          default=True,     help='Enables mesh extrusion')
-    CreateStr(       'MeshExtrudeTemplate',  default='linear', help='Mesh extrusion template')
-    CreateReal(      'MeshExtrudeLength',    default=1.0,      help='Mesh extrusion length')
-    CreateInt(       'MeshExtrudeElems',     default=1  ,      help='Mesh extrusion number of element')
-    CreateInt(       'MeshExtrudeBCIndex',                     help='Mesh extrusion boundary index')
+    CreateLogical(   'MeshExtrude',          default=True,           help='Enables mesh extrusion')
+    CreateStr(       'MeshExtrudeTemplate',  default='linear',       help='Mesh extrusion template')
+    CreateReal(      'MeshExtrudeLength',    default=1.0,            help='Mesh extrusion length')
+    CreateRealArray( 'MeshExtrudeDir',  3,   default='(/0.,0.,1./)', help='Mesh extrusion direction')
+    CreateInt(       'MeshExtrudeElems',     default=1  ,            help='Mesh extrusion number of element')
+    CreateInt(       'MeshExtrudeBCIndex',                           help='Mesh extrusion boundary index')
     # Edge connectivity
     CreateSection('Finite Element Method (FEM) Connectivity')
-    CreateLogical(   'doFEMConnect',         default=False, help='Generate finite element method (FEM) connectivity')
+    CreateLogical(   'doFEMConnect',         default=False,          help='Generate finite element method (FEM) connectivity')
 
 
 def InitMesh() -> None:

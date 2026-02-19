@@ -31,6 +31,12 @@ from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,15 +50,16 @@ def ExtrudeTemplate() -> np.ndarray:
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
     # Local imports ----------------------------------------
-    from pyhope.readintools.readintools import GetInt, GetReal
+    from pyhope.readintools.readintools import GetInt, GetReal, GetRealArray
     # ------------------------------------------------------
 
-    number: Final[int]   = GetInt( 'MeshExtrudeElems')
-    length: Final[float] = GetReal('MeshExtrudeLength')
+    number: Final[int]         = GetInt(      'MeshExtrudeElems')
+    dir:    Final[npt.NDArray] = GetRealArray('MeshExtrudeDir')
+    length: Final[float]       = GetReal(     'MeshExtrudeLength')
 
     # Linear extrusion
-    xShift = np.linspace(start=0., stop=0.    , num=number+1)
-    yShift = np.linspace(start=0., stop=0.    , num=number+1)
-    zShift = np.linspace(start=0., stop=length, num=number+1)
+    xShift = np.linspace(start=0., stop=dir[0]*length, num=number+1)
+    yShift = np.linspace(start=0., stop=dir[1]*length, num=number+1)
+    zShift = np.linspace(start=0., stop=dir[2]*length, num=number+1)
 
     return np.column_stack((xShift, yShift, zShift))
