@@ -78,7 +78,15 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.option.setNumber('Mesh.RandomFactor'          , 0)                       # No perturbation
     gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
     gmsh.option.setNumber('Mesh.Algorithm'             , 8)                       # Force Frontal-Delaunay for Quads
+    gmsh.option.setNumber('Geometry.AutoCoherence'     , 2)                       # Remove duplicate entities
+
+    # To connect the generated cells, we can simply set
+    gmsh.option.setNumber('Mesh.RecombineAll'          , 1)
+    gmsh.option.setNumber('Mesh.Recombine3DAll'        , 1)
     gmsh.option.setNumber('Mesh.RecombinationAlgorithm', 1)                       # Force 0 [Simple], 1 [Blossom]
+    gmsh.model.mesh.recombine()
+    # Force Gmsh to output all mesh elements
+    gmsh.option.setNumber('Mesh.SaveAll'               , 1)
 
     # Setup mesh factory
     # gmsh.option.setString('SetFactory', 'OpenCascade')
@@ -356,14 +364,6 @@ def MeshCartesian() -> meshio.Mesh:
 
     if len(vvs) > 0:
         hopout.sep()
-
-    # To connect the generated cells, we can simply set
-    gmsh.option.setNumber('Mesh.RecombineAll'     , 1)
-    gmsh.option.setNumber('Mesh.Recombine3DAll'   , 1)
-    gmsh.option.setNumber('Geometry.AutoCoherence', 2)
-    gmsh.model.mesh.recombine()
-    # Force Gmsh to output all mesh elements
-    gmsh.option.setNumber('Mesh.SaveAll'          , 1)
 
     gmsh.model.mesh.generate(3)
 

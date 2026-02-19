@@ -436,7 +436,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     return result
 
 
-def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> npt.NDArray:
+def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> npt.NDArray[np.float64]:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------
@@ -462,7 +462,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     return value
 
 
-def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> npt.NDArray:
+def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] = None) -> npt.NDArray[np.int64]:
     value = GetParam(name=name, default=default, number=number, calltype='intarray')
 
     # Split the array definition

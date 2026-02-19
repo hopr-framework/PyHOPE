@@ -834,3 +834,24 @@ def NDOFS_ELEM(elemType: int, N: int, dim: int = 3) -> int:
         raise ValueError(f'Error in nodes: elemType {elemType} is not supported')
 
     return nodes_map[elemType % 100]
+
+
+@cache
+def NDOFperElemType(elemType: str, nGeo: int) -> int:
+    """ Calculate the number of degrees of freedom for a given element type
+    """
+    match elemType:
+        case _ if elemType.startswith('triangle'):
+            return round((nGeo+1)*(nGeo+2)/2.)
+        case _ if elemType.startswith('quad'):
+            return round((nGeo+1)**2)
+        case _ if elemType.startswith('tetra'):
+            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
+        case _ if elemType.startswith('pyramid'):
+            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
+        case _ if elemType.startswith('wedge'):
+            return round((nGeo+1)**2 *(nGeo+2)/2.)
+        case _ if elemType.startswith('hexahedron'):
+            return round((nGeo+1)**3)
+        case _:
+            raise ValueError(f'Unknown element type {elemType}')

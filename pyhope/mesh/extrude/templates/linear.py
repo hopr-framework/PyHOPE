@@ -25,12 +25,17 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import overload, Literal
 import numpy as np
-import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,43 +45,21 @@ import numpy.typing as npt
 # ==================================================================================================================================
 
 
-# Typing helpers
-@overload
-def unique(a: npt.NDArray[np.float64], return_inverse: Literal[False] = False) -> npt.NDArray[np.float64]: ...
-@overload
-def unique(a: npt.NDArray[np.float64], return_inverse: Literal[True])          -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]: ...               # noqa: E501
-# Function
-def unique(a: npt.NDArray[np.float64], return_inverse: bool = False)  -> npt.NDArray[np.float64] | tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:  # noqa: E501
-    """Unique rows (axis=0) for float64 2D arrays with optional inverse mapping
+def ExtrudeTemplate() -> np.ndarray:
+    """ This is the default extrusion function which has to be present in every extrusion template
+        PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
-    if a.ndim != 2:
-        raise ValueError('common_unique expects a 2D array')
+    # Local imports ----------------------------------------
+    from pyhope.readintools.readintools import GetInt, GetReal, GetRealArray
+    # ------------------------------------------------------
 
-    # Lexicographic row order: primary x (col 0), then y (col 1), then z (col 2)
-    # np.lexsort sorts by last key first, so pass (z, y, x)
-    order = np.lexsort((a[:, 2], a[:, 1], a[:, 0]))
-    sa    = a[order]
+    number: Final[int]         = GetInt(      'MeshExtrudeElems')
+    dir:    Final[npt.NDArray] = GetRealArray('MeshExtrudeDir')
+    length: Final[float]       = GetReal(     'MeshExtrudeLength')
 
-    # Identify starts of unique blocks
-    if sa.shape[0] == 0:
-        if return_inverse:
-            return sa, np.empty(0, dtype=np.int64)
-        return sa
+    # Linear extrusion
+    xShift = np.linspace(start=0., stop=dir[0]*length, num=number+1)
+    yShift = np.linspace(start=0., stop=dir[1]*length, num=number+1)
+    zShift = np.linspace(start=0., stop=dir[2]*length, num=number+1)
 
-    # Mask where a new unique row starts
-    block     = np.empty(sa.shape[0], dtype=bool)
-    block[0]  = True
-    block[1:] = np.any(sa[1:] != sa[:-1], axis=1)
-
-    unique_rows = sa[block]
-
-    if not return_inverse:
-        return unique_rows
-
-    # Build inverse mapping: each original row -> unique row index
-    # Assign group ids to sorted rows, then unsort
-    groupID = np.cumsum(block) - 1
-    inverse = np.empty(sa.shape[0], dtype=np.int64)
-    inverse[order] = groupID
-
-    return unique_rows, inverse
+    return np.column_stack((xShift, yShift, zShift))

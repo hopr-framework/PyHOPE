@@ -33,9 +33,7 @@ import re
 import resource
 import shutil
 import subprocess
-import tempfile
 import time
-from pathlib import Path
 from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -130,6 +128,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
     gmsh.option.setNumber('Mesh.Algorithm'             , 8)                       # Force Frontal-Delaunay for Quads
     gmsh.option.setNumber('Mesh.RecombinationAlgorithm', 1)                       # Force 0 [Simple], 1 [Blossom]
+    gmsh.option.setNumber('Geometry.AutoCoherence'     , 2)                       # Remove duplicate entities
 
     # Setup mesh factory
     # gmsh.option.setString('SetFactory', 'OpenCascade')
@@ -157,13 +156,16 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
 
         # Enable agglomeration
         mesh_vars.already_curved = GetLogical('MeshIsAlreadyCurved')
-        hopout.sep()
         if mesh_vars.already_curved and mesh_vars.nGeo > 1:
             if ext == '.cgns':
                 gmsh.option.setNumber('Mesh.CgnsImportOrder', mesh_vars.nGeo)
             # Set the element order
             # > Technically, this is only required in generate_mesh but let's be precise here
             gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+
+        # Enable extrusion
+        mesh_vars.doExtrude = GetLogical('MeshExtrude')
+        hopout.sep()
 
         gmsh.merge(fname)
 
@@ -176,28 +178,14 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         match ext:
             # Check if GMSH needs to generate the mesh
             case '.geo':
+                gmsh.option.setNumber('Mesh.RecombineAll'  , 1)
+                gmsh.option.setNumber('Mesh.Recombine3DAll', 1)
+                gmsh.option.setNumber('Geometry.AutoCoherence', 2)
+                gmsh.model.mesh.recombine()
+                # Force Gmsh to output all mesh elements
+                gmsh.option.setNumber('Mesh.SaveAll', 1)
+
                 gmsh.model.mesh.generate()
-
-                # CAVE: When generating from .geo, node sorting is not correctly applied. As a workaround,
-                #       generate a temporary .msh file and merge it back
-                tmp = tempfile.NamedTemporaryFile(prefix=Path(fname).stem, suffix='.msh', delete=False)
-                tmpName = tmp.name
-                tmp.close()
-
-                try:
-                    gmsh.write(tmpName)
-
-                    # Clear the in-memory model, then re-load the mesh from the .msh
-                    gmsh.clear()
-                    gmsh.merge(tmpName)
-
-                    # Synchronize after merge
-                    gmsh.model.occ.synchronize()
-                finally:
-                    try:
-                        os.unlink(tmpName)
-                    except OSError:
-                        pass
 
             # Check if GMSH read all BCs
             # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
@@ -237,16 +225,22 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     #                         gmsh.option.getNumber('Mesh.NbPyramids'  ),
     #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
     gmshTypes = gmsh.model.mesh.getElementTypes()
-    gmshElems = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
-                              if dim == 3])
-    if not np.any(gmshElems):
-        hopout.error('Generated mesh does not contain volume elements, exiting...')
+    gmshElems = np.asarray([(elemName, dim, order) for type                          in gmshTypes                                       # noqa: E272
+                                                   for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]])  # noqa: E501
+    gmshDim   = max([int(s) for s in gmshElems[:, 1]])
+    match gmshDim:
+        case 3:
+            pass
+        case 2:
+            if not mesh_vars.doExtrude:
+                hopout.error('Generated mesh does not contain volume elements, exiting...')
+        case _:
+            hopout.error(f'Generated mesh does not contain {"volume" if not mesh_vars.doExtrude else "surface"} elements, exiting...')  # noqa: E501
 
     # Consistency check if the mesh elements have the correct order
     gmshIssue  = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
                                                for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
-                              if dim == 3 and order != mesh_vars.nGeo])
+                              if dim == gmshDim and order != mesh_vars.nGeo])
 
     if gmshIssue.size > 0:
         for elem in gmshIssue:

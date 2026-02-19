@@ -25,58 +25,67 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import importlib.util
+import os
+import sys
+from typing import Optional
+from types import ModuleType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import overload, Literal
-import numpy as np
-import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Instantiate ELEMTYPE
+elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
 
-# Typing helpers
-@overload
-def unique(a: npt.NDArray[np.float64], return_inverse: Literal[False] = False) -> npt.NDArray[np.float64]: ...
-@overload
-def unique(a: npt.NDArray[np.float64], return_inverse: Literal[True])          -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]: ...               # noqa: E501
-# Function
-def unique(a: npt.NDArray[np.float64], return_inverse: bool = False)  -> npt.NDArray[np.float64] | tuple[npt.NDArray[np.float64], npt.NDArray[np.int64]]:  # noqa: E501
-    """Unique rows (axis=0) for float64 2D arrays with optional inverse mapping
-    """
-    if a.ndim != 2:
-        raise ValueError('common_unique expects a 2D array')
+def LoadTemplate(template: str,
+                 origin:   str,
+                 reason:   str):
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from pyhope.config.config import prmfile
+    # ------------------------------------------------------
+    # Define locations of the template files
+    # > Priority: prmfile folder > CWD > templates
+    templateLocations = [
+        os.path.join(os.path.dirname(prmfile), f'{template}.py'),              # Search folder of parameter file
+        os.path.join(os.getcwd(), f'{template}.py'),                           # Search in CWD
+        os.path.join(os.path.dirname(origin), 'templates', f'{template}.py')   # Search in 'templates'
+    ]
 
-    # Lexicographic row order: primary x (col 0), then y (col 1), then z (col 2)
-    # np.lexsort sorts by last key first, so pass (z, y, x)
-    order = np.lexsort((a[:, 2], a[:, 1], a[:, 0]))
-    sa    = a[order]
+    # Check if the template file exists
+    templateModule: Optional[ModuleType] = None
+    for loc in templateLocations:
+        if os.path.exists(loc):
+            spec = importlib.util.spec_from_file_location(template, loc)
+            # Skip to the next location if spec is None
+            if spec is None:
+                continue
 
-    # Identify starts of unique blocks
-    if sa.shape[0] == 0:
-        if return_inverse:
-            return sa, np.empty(0, dtype=np.int64)
-        return sa
+            templateModule = importlib.util.module_from_spec(spec)
+            sys.modules[template] = templateModule
+            spec.loader.exec_module(templateModule)
 
-    # Mask where a new unique row starts
-    block     = np.empty(sa.shape[0], dtype=bool)
-    block[0]  = True
-    block[1:] = np.any(sa[1:] != sa[:-1], axis=1)
+            # Output filename of template
+            hopout.routine('     found: {}'.format(loc))
 
-    unique_rows = sa[block]
+            # Stop once the module is successfully loaded
+            break
 
-    if not return_inverse:
-        return unique_rows
-
-    # Build inverse mapping: each original row -> unique row index
-    # Assign group ids to sorted rows, then unsort
-    groupID = np.cumsum(block) - 1
-    inverse = np.empty(sa.shape[0], dtype=np.int64)
-    inverse[order] = groupID
-
-    return unique_rows, inverse
+    # If the template file is not found, exit
+    if templateModule is None:
+        hopout.warning(f'{reason} template "{template}" not found!')
+        # Print all available default templates for post-deformation
+        templist = []
+        for file in os.listdir(os.path.join(os.path.dirname(origin), 'templates')):
+            if file.endswith('.py'):
+                templist.append(f'  {file[:-3]}')
+        hopout.error('Available default extrusion templates:' + ','.join(templist))
+    return templateModule

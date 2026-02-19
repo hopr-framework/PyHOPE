@@ -25,8 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 import os
-# import sys
 from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -156,6 +156,9 @@ def MeshExternal() -> meshio.Mesh:
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh
 

@@ -26,11 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
-import importlib.util
-import os
-import sys
-from typing import Optional
-from types import ModuleType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -155,13 +150,13 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
 
 def TransformMesh() -> None:
     # Local imports ----------------------------------------
-    from pyhope.config.config import prmfile
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.common.common_template import LoadTemplate
     from pyhope.mesh.mesh_vars import mesh
     from pyhope.mesh.transform.mesh_transform_mortar import RebuildMortarGeometry
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
-    import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     nMeshScale = CountOption('meshScale')
@@ -194,22 +189,22 @@ def TransformMesh() -> None:
     meshRotC  = GetRealArray('meshRotCenter')
 
     if not np.array_equal(meshRot3D, [0.0, 0.0, 0.0]):
-      a = meshRot3D[0]*np.pi/180
-      b = meshRot3D[1]*np.pi/180
-      c = meshRot3D[2]*np.pi/180
-      meshRot      = np.zeros((3,3))
-      meshRot[0,0] = np.cos(a)*np.cos(b)
-      meshRot[0,1] = np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
-      meshRot[0,2] = np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
-      meshRot[1,0] = np.sin(a)*np.cos(b)
-      meshRot[1,1] = np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
-      meshRot[1,2] = np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
-      meshRot[2,0] = -np.sin(b)
-      meshRot[2,1] = np.cos(b)*np.sin(c)
-      meshRot[2,2] = np.cos(b)*np.cos(c)
+        a = meshRot3D[0]*np.pi/180
+        b = meshRot3D[1]*np.pi/180
+        c = meshRot3D[2]*np.pi/180
+        meshRot       = np.zeros((3, 3))
+        meshRot[0, 0] = np.cos(a)*np.cos(b)
+        meshRot[0, 1] = np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
+        meshRot[0, 2] = np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
+        meshRot[1, 0] = np.sin(a)*np.cos(b)
+        meshRot[1, 1] = np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
+        meshRot[1, 2] = np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
+        meshRot[2, 0] = -np.sin(b)
+        meshRot[2, 1] = np.cos(b)*np.sin(c)
+        meshRot[2, 2] = np.cos(b)*np.cos(c)
     else:
-      meshRot   = GetRealArray('meshRot')
-      meshRot   = np.array(meshRot).reshape(3, 3)
+        meshRot   = GetRealArray('meshRot')
+        meshRot   = np.array(meshRot).reshape(3, 3)
 
     # Scale mesh
     if meshScale != 1.0:
@@ -236,44 +231,11 @@ def TransformMesh() -> None:
     hopout.routine('Performing advanced transformations')
     hopout.routine('  Template: {}'.format(meshPostDeform))
 
-    # Define locations of the transformation files ( Priority: prmfile folder > CWD > templates )
-    DeformLocations = [
-        os.path.join(os.path.dirname(prmfile), f'{meshPostDeform}.py'),                # Search folder of parameter file
-        os.path.join(os.getcwd(), f'{meshPostDeform}.py'),                             # Search in CWD
-        os.path.join(os.path.dirname(__file__), 'templates', f'{meshPostDeform}.py')   # Search in 'templates'
-    ]
-
-    # Check if the transformation file exists
-    PostDeformMod: Optional[ModuleType] = None
-    for loc in DeformLocations:
-        if os.path.exists(loc):
-            spec = importlib.util.spec_from_file_location(meshPostDeform, loc)
-            # Skip to the next location if spec is None
-            if spec is None:
-                continue
-
-            PostDeformMod = importlib.util.module_from_spec(spec)
-            sys.modules[meshPostDeform] = PostDeformMod
-            spec.loader.exec_module(PostDeformMod)
-
-            # Output filename of template
-            hopout.routine('     found: {}'.format(loc))
-
-            # Stop once the module is successfully loaded
-            break
-
-    # If the transformation file is not found, exit
-    if PostDeformMod is None:
-        hopout.warning(f'Post Transformation template "{meshPostDeform}" not found!')
-        # Print all available default templates for post-deformation
-        templist = []
-        for file in os.listdir(os.path.join(os.path.dirname(__file__), 'templates')):
-            if file.endswith('.py'):
-                templist.append(f'  {file[:-3]}')
-        hopout.error('Available default transformation templates:' + ','.join(templist))
+    # Setup the transformation
+    transformModule = LoadTemplate(meshPostDeform.strip().lower(), __file__, 'Post transformation')
 
     # Perform actual post-deformation
-    mesh.points = PostDeformMod.PostDeform(mesh.points)
+    mesh.points = transformModule.PostDeform(mesh.points)
 
     # If the mesh has mortars, rebuild the (curved) geometry
     RebuildMortarGeometry()

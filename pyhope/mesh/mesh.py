@@ -66,7 +66,6 @@ def DefineMesh() -> None:
             continue
         CreateIntOption('ElemType', number=val, name=key)
     # Gmsh
-    CreateLogical(  'EliminateNearDuplicates', default=True, help='Enables elimination of near duplicate points')
     # External mesh readin through GMSH
     CreateStr(      'Filename',             multiple=True, help='Name of external mesh file')
     CreateLogical(  'MeshIsAlreadyCurved',  default=False, help='Enables mesh agglomeration')
@@ -106,21 +105,29 @@ def DefineMesh() -> None:
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
     CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
     CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
-    CreateRealArray( 'meshRot3D',   nReals=3, default='(/0.,0.,0./)'                , help='Rotate the mesh around rotation center and coordiante axis, defined angle in degrees')
+    CreateRealArray( 'meshRot3D',   nReals=3, default='(/0.,0.,0./)'                , help='Rotate the mesh around rotation center and coordiante axis, defined angle in degrees')  # noqa: E501
     CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
     CreateStr(       'MeshPostDeform',   default='none',                              help='Mesh post-transformation template')
     # Stretching
     CreateSection('Stretching')
     CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
-                                                                                             'zone per spatial direction.')
-    CreateRealArray( 'Factor',          3,   multiple=True, help='Stretching factor of zone for geometric stretching for '
-                                                                                                 'each spatial direction.')
-    CreateRealArray( 'l0',              3,   multiple=True, help='Smallest desired element in zone per spatial direction.')
-    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True, help='Ratio between the smallest and largest element per spatial '
-                                                                                                               'direction')
+                                                                                            'zone per spatial direction.')
+    CreateRealArray( 'Factor',          3,   multiple=True,          help='Stretching factor of zone for geometric stretching for '
+                                                                          'each spatial direction.')
+    CreateRealArray( 'l0',              3,   multiple=True,          help='Smallest desired element in zone per spatial direction.')
+    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True,          help='Ratio between the smallest and largest element per '
+                                                                          'spatial direction')
+    # Extrusion
+    CreateSection('Extrusion')
+    CreateLogical(   'MeshExtrude',          default=True,           help='Enables mesh extrusion')
+    CreateStr(       'MeshExtrudeTemplate',  default='linear',       help='Mesh extrusion template')
+    CreateReal(      'MeshExtrudeLength',    default=1.0,            help='Mesh extrusion length')
+    CreateRealArray( 'MeshExtrudeDir',  3,   default='(/0.,0.,1./)', help='Mesh extrusion direction')
+    CreateInt(       'MeshExtrudeElems',     default=1  ,            help='Mesh extrusion number of element')
+    CreateInt(       'MeshExtrudeBCIndex',                           help='Mesh extrusion boundary index')
     # Edge connectivity
     CreateSection('Finite Element Method (FEM) Connectivity')
-    CreateLogical(  'doFEMConnect',         default=False, help='Generate finite element method (FEM) connectivity')
+    CreateLogical(   'doFEMConnect',         default=False,          help='Generate finite element method (FEM) connectivity')
 
 
 def InitMesh() -> None:
@@ -171,6 +178,7 @@ def GenerateMesh() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.mesh.extrude.mesh_extrude import MeshExtrude
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
     from pyhope.mesh.mesh_vars import MeshMode
@@ -189,6 +197,8 @@ def GenerateMesh() -> None:
         case _:  # Default
             hopout.error('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode), traceback=True)
 
+    # Extrude mesh if requested
+    mesh = MeshExtrude(mesh)
     # Split hexahedral elements if requested
     mesh = MeshChangeElemType(mesh)
     # Split simplex elements if requested

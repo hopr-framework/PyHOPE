@@ -36,5 +36,8 @@ PyHOPE understands curved meshes of arbitrary order if the external mesh generat
 
 PyHOPE can utilize the agglomeration approach provided by Gmsh to curve linear meshes. In this case, the external mesh generator is used to generate a linear mesh, which is then curved through agglomeration in Gmsh before being read into PyHOPE. To use this approach, set the `NGeo` parameter in the [parameter file](../parameter-file.md) to the desired order larger than `1`. 
 
+## Mesh Extrusion
+PyHOPE outputs purely three-dimensional meshes. However, some users might prefer to provide two-dimensional grids. PyHOPE can extrude meshes consisting of triangular and quadrilateral faces into prismatic and hexagonal meshes. This feature is activated using the parameter `MeshExtrude=T`. An extrusion template `MeshExtrudeTemplate` specifying the transformation of the one-dimensional `MeshExtrudeLength` extend into _N=_`MeshExtrudeElems` distinct elements must be provided. Additionally, since the far boundary of the extruded mesh cannot be associated with any of the existing boundaries, an additional boundary condition must be specified with the `MeshExtrudeBCIndex` parameter. Also note that this option is currently limited to `NGeo` \(\in\{1,2\}\).
+
 ## Generation of Hexahedral Meshes
 Many solvers require purely hexahedral meshes. PyHOPE can convert meshes consisting of tetrahedra, prisms and hexahedra into purely hexahedral meshes through a subdivision strategy. This feature is activated using the parameter `splitToHex=T`. Note, that pyramids cannot be decomposed to hexahedra in a straightforward way, thus this feature cannot be applied to meshes containing pyramids. Also note that this option is currently limited to `NGeo` \(\in\{1,2,4\}\).
