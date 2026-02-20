@@ -84,7 +84,6 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.option.setNumber('Mesh.RecombineAll'          , 1)
     gmsh.option.setNumber('Mesh.Recombine3DAll'        , 1)
     gmsh.option.setNumber('Mesh.RecombinationAlgorithm', 1)                       # Force 0 [Simple], 1 [Blossom]
-    gmsh.model.mesh.recombine()
     # Force Gmsh to output all mesh elements
     gmsh.option.setNumber('Mesh.SaveAll'               , 1)
 
@@ -365,6 +364,8 @@ def MeshCartesian() -> meshio.Mesh:
     if len(vvs) > 0:
         hopout.sep()
 
+    # To connect the generated cells, we can simply run
+    gmsh.model.mesh.recombine()
     gmsh.model.mesh.generate(3)
 
     # Set the element order
