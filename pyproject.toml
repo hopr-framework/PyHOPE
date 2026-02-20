@@ -149,6 +149,9 @@ exclude = [
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
 # [tool.ty.src]
 # # Monkey-patching meshio.xdmf.main.XdmfWriter
 # exclude = ['pyhope/io/io_xdmf.py']
