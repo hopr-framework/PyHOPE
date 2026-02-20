@@ -77,7 +77,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             cosb = np.cos(0.25 * Pi * x[2] / 0.5)
             sinb = np.sin(0.25 * Pi * x[2] / 0.5)
             dx1  = np.array([cosa * cosb, sina * cosb, cosa * sinb])
-            dx1 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array((0.5, x[1], x[2]))
+            dx1  = dx1 * (0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2))) - np.array((0.5, x[1], x[2]))
 
             # Upper side at y=0.5
             cosa = np.cos(0.25 * Pi * x[2] / 0.5)
@@ -85,7 +85,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             cosb = np.cos(0.25 * Pi * x[0] / 0.5)
             sinb = np.sin(0.25 * Pi * x[0] / 0.5)
             dx2  = np.array([cosa * sinb, cosa * cosb, sina * cosb])
-            dx2 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array((x[0], 0.5, x[2]))
+            dx2  = dx2 * (0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2))) - np.array((x[0], 0.5, x[2]))
 
             # Side at z=0.5
             cosa = np.cos(0.25 * Pi * x[0] / 0.5)
@@ -93,13 +93,40 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:
             cosb = np.cos(0.25 * Pi * x[1] / 0.5)
             sinb = np.sin(0.25 * Pi * x[1] / 0.5)
             dx3  = np.array([sina * cosb, cosa * sinb, cosa * cosb])
-            dx3 *= 0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2)) - np.array((x[0], x[1], 0.5))
+            dx3  = dx3 * (0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2))) - np.array((x[0], x[1], 0.5))
 
             alpha = 0.35
             dx    = alpha * (
                    dx1 * np.array((2 * x[0], 1.0, 1.0)) +
                    dx2 * np.array((1.0, 2 * x[1], 1.0)) +
                    dx3 * np.array((1.0, 1.0, 2 * x[2]))
+            )
+
+            # Edge correction (Coons mapping) - edges: x=0.5, y=0.5
+            cosa = np.sqrt(0.5)
+            sina = np.sqrt(0.5)
+            cosb = np.cos(0.25 * Pi * x[2] / 0.5)
+            sinb = np.sin(0.25 * Pi * x[2] / 0.5)
+            dx1  = np.array([cosa * cosb, sina * cosb, cosa * sinb])
+            dx1  = dx1 * (0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2))) - np.array((0.5, 0.5, x[2]))
+
+            # Edges: y=0.5, z=0.5
+            cosb = np.cos(0.25 * Pi * x[0] / 0.5)
+            sinb = np.sin(0.25 * Pi * x[0] / 0.5)
+            dx2  = np.array([cosa * sinb, cosa * cosb, sina * cosb])
+            dx2  = dx2 * (0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2))) - np.array((x[0], 0.5, 0.5))
+
+            # Edges: x=0.5, z=0.5
+            cosb = np.cos(0.25 * Pi * x[1] / 0.5)
+            sinb = np.sin(0.25 * Pi * x[1] / 0.5)
+            dx3  = np.array([sina * cosb, cosa * sinb, cosa * cosb])
+            dx3  = dx3 * (0.5 * np.sqrt(3.0 / (cosb ** 2 + (cosa * sinb) ** 2))) - np.array((0.5, x[1], 0.5))
+
+            # Faces minus edges (Coons mapping, dx=0 at corners)
+            dx -= alpha * 2.0 * (
+                   dx1 * np.array((x[0],                          x[1],                          0.5 * (abs(x[0]) + abs(x[1])))) +
+                   dx2 * np.array((0.5 * (abs(x[1]) + abs(x[2])), x[1],                          x[2]                         )) +
+                   dx3 * np.array((x[0],                          0.5 * (abs(x[0]) + abs(x[2])), x[2]                         ))
             )
 
             # Apply deformation
