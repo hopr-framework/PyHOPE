@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import os
 import unittest
+import time
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -55,21 +56,21 @@ class TestOutput(unittest.TextTestResult):
         import pyhope.output.output as hopout
         # ------------------------------------------------------
         super().addSuccess(test)
-        self.hopout.info(f'{hopout.Symbols.OK  :<9} │ {test._testMethodName.split("test_")[1]}')
+        self.hopout.info(f'{hopout.Symbols.OK  :<9}  │ {test._testMethodName.split("test_")[1]}')
 
     def addFailure(self, test, err):
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
         super().addFailure(test, err)
-        self.hopout.info(f'{hopout.Symbols.WARN:<9} │ {test._testMethodName.split("test_")[1]}')
+        self.hopout.info(f'{hopout.Symbols.WARN:<9}  │ {test._testMethodName.split("test_")[1]}')
 
     def addError(self, test, err):
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
         super().addError(test, err)
-        self.hopout.info(f'{hopout.Symbols.ERR :<9} │ {test._testMethodName.split("test_")[1]}')
+        self.hopout.info(f'{hopout.Symbols.ERR :<9}  │ {test._testMethodName.split("test_")[1]}')
 
 
 class TestLibraryMethods(unittest.TestCase):
@@ -139,27 +140,37 @@ def CheckUnittest() -> None:
     """ Verify the installation by comparing against known results
     """
     # Third-party libraries --------------------------------
-    import time
+    from contextlib import redirect_stderr
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     hopout.small_banner('Verifying unittests')
 
-    # Load and run all test methods
-    loader  = unittest.TestLoader()
-    suite   = loader.loadTestsFromTestCase(TestLibraryMethods)
-    runner  = unittest.TextTestRunner(verbosity=0, resultclass=TestOutput, stream=open(os.devnull, 'w'))
+    # Suppress output to standard output
+    with open(os.devnull, 'w') as null, redirect_stderr(null):
+        loader  = unittest.TestLoader()
+        suite   = loader.loadTestsFromTestCase(TestLibraryMethods)
+        runner  = unittest.TextTestRunner(verbosity=0, resultclass=TestOutput)
 
-    t_start = time.perf_counter()
-    result  = runner.run(suite)
-    t_end   = time.perf_counter()
+        t_start = time.perf_counter()
+        result  = runner.run(suite)
+        t_end   = time.perf_counter()
 
     # Summary line consistent with hopout style
     n_run   = result.testsRun
     n_fail  = len(result.failures) + len(result.errors)
     n_pass  = n_run - n_fail
 
-    hopout.sep()
+    # Print failure and error details
+    for test, traceback in result.failures + result.errors:
+        hopout.separator()
+        print(hopout.warn(f' {test._testMethodName.split("test_")[1]}'))
+        hopout.sep()
+        diff = traceback.split('AssertionError:')[-1].strip()
+        for line in diff.splitlines():
+            hopout.info(line)
+
+    hopout.separator()
     hopout.info(f'Ran {n_run} tests in {t_end - t_start:.3f}s')
     hopout.small_banner(f'Results: {n_pass}/{n_run} passed')
