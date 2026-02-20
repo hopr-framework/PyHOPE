@@ -183,4 +183,6 @@ ignore_names = [
     "Basis", "Mapping", "Mesh",
     "mesh_format_to_tensor_product"
     ]
+# Exclude unit tests
+exclude = ["check_unittest.py"]
 sort_by_size = true
