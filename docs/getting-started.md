@@ -30,6 +30,7 @@ PyHOPE features internal health checks to verify that everything works as expect
 pyhope --verify [tutorials]          # Run all health checks
 pyhope --verify-health               # Run Python health checks
 pyhope --verify-install [tutorials]  # Run PyHOPE mesh generation checks
+pyhope --verify-unittest             # Run PyHOPE unit tests
 ```
 
 !!! note
