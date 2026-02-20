@@ -118,6 +118,22 @@ class TestLibraryMethods(unittest.TestCase):
                                                                 [-1. , -1. , -1. ,  0. ,  0. ,  1. , -1. , -1. ,  0. , -1. ],
                                                                 [-1. , -1. , -1. , -1. , -1. , -1. ,  0. ,  0. ,  0. ,  1. , ]]))
 
+    def test_barycentric_weights(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import barycentric_weights
+        # ------------------------------------------------------
+        weights = barycentric_weights(3, np.linspace(-1, 1, num=3, dtype=np.float64))
+        np.testing.assert_array_almost_equal(weights, np.array([ 0.5                    , -1.                     , 0.5                    ]))  # noqa: E501
+
+    def test_polynomial_derivative_matrix(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import polynomial_derivative_matrix
+        # ------------------------------------------------------
+        deriv = polynomial_derivative_matrix(3,       np.array([-0.77459666924148340    ,  0.                     ,  0.77459666924148340   ]))   # noqa: E501
+        np.testing.assert_array_almost_equal(deriv,   np.array([[-1.93649167310370851   ,  2.58198889747161120    , -0.64549722436790280   ],    # noqa: E501
+                                                                [-0.64549722436790280   ,  0.                     ,  0.64549722436790280   ],    # noqa: E501
+                                                                [ 0.64549722436790280   , -2.58198889747161120    ,  1.93649167310370851   ]]))  # noqa: E501
+
 
 def CheckUnittest() -> None:
     """ Verify the installation by comparing against known results
