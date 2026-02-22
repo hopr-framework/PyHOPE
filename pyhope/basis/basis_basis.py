@@ -49,23 +49,24 @@ from pyhope.mesh.mesh_common import NDOFS_ELEM
 # ==================================================================================================================================
 
 
+@jit(types.Tuple((types.float64[:], types.float64[:]))(types.int64), nopython=True, cache=True, nogil=True)
 def legendre_gauss_lobatto_nodes(order: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """ Return Legendre-Gauss-Lobatto nodes and weights for a given order in 1D
     """
     order -= 1
     # Special cases for small N
     if order == 1:
-        return np.array((-1, 1)), np.array((1, 1))
+        return np.array((-1, 1), dtype=np.float64), np.array((1, 1), dtype=np.float64)
 
     # Compute the initial guess for the LGL nodes (roots of P'_N)
     nodes = np.cos(np.pi * np.arange(order+1) / order)
 
     # Initialize the Legendre polynomial and its derivative
-    p = np.zeros((order+1, order+1))
+    p = np.zeros((order+1, order+1), dtype=np.float64)
 
     # Iteratively solve for the LGL nodes using Newton's method
     xOld = 2 * np.ones_like(nodes)
-    tol = 1e-14
+    tol  = 1e-14
     while np.max(np.abs(nodes - xOld)) > tol:
         xOld = nodes.copy()
         p[:, 0] = 1
@@ -83,6 +84,7 @@ def legendre_gauss_lobatto_nodes(order: int) -> tuple[npt.NDArray[np.float64], n
     return nodes, weights
 
 
+@cache
 def legendre_gauss_nodes(order: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """ Return Legendre-Gauss nodes and weights for a given order in 1D
     """
@@ -120,23 +122,46 @@ def equi_nodes_tetra(order: int) -> npt.NDArray[np.float64]:
     return np.vstack((xEq[iXI[mask]], xEq[iETA[mask]], xEq[iZETA[mask]]))
 
 
-def barycentric_weights(_: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """ Compute the barycentric weights for a given node set
-        > Algorithm 30, Kopriva
-    """
-    # Create a difference matrix (x_i - x_j) for all i, j
-    diff_matrix = xGP[:, np.newaxis] - xGP[np.newaxis, :]
+if not NUMBA_AVAILABLE:
+    def barycentric_weights(_: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+        """ Compute the barycentric weights for a given node set
+            > Algorithm 30, Kopriva
+        """
+        # Create a difference matrix (x_i - x_j) for all i, j
+        diff_matrix = xGP[:, np.newaxis] - xGP[np.newaxis, :]
 
-    # Set the diagonal to 1 to avoid division by zero (diagonal elements will not be used)
-    np.fill_diagonal(diff_matrix, 1.0)
+        # Set the diagonal to 1 to avoid division by zero (diagonal elements will not be used)
+        np.fill_diagonal(diff_matrix, 1.0)
 
-    # Compute the product of all differences for each row (excluding the diagonal)
-    wBary = np.prod(diff_matrix, axis=1)
+        # Compute the product of all differences for each row (excluding the diagonal)
+        wBary = np.prod(diff_matrix, axis=1)
 
-    # Take the reciprocal to get the final barycentric weights
-    # wBary = 1.0 / wBary
+        # Take the reciprocal to get the final barycentric weights
+        # wBary = 1.0 / wBary
 
-    return 1.0 / wBary
+        return 1.0 / wBary
+else:
+    @jit(types.float64[:](types.int64, types.float64[:]), nopython=True, cache=True, nogil=True)
+    def barycentric_weights(_, xGP):
+        """ Compute the barycentric weights for a given node set
+            > Algorithm 30, Kopriva
+        """
+        n = xGP.shape[0]
+        w_bary = np.ones(n, dtype=np.float64)
+
+        # Create a difference matrix (x_i - x_j) for all i, j
+        for i in range(n):
+            # Set the diagonal to 1 to avoid division by zero (diagonal elements will not be used)
+            p = 1.0
+
+            # Compute the product of all differences for each row (excluding the diagonal)
+            for j in range(n):
+                if i != j:
+                    p *= (xGP[i] - xGP[j])
+            w_bary[i] = p
+
+        # Take the reciprocal to get the final barycentric weights
+        return 1.0 / w_bary
 
 
 def polynomial_derivative_matrix(order: int, xGP: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -155,7 +180,9 @@ def polynomial_derivative_matrix(order: int, xGP: npt.NDArray[np.float64]) -> np
     return D
 
 
-def lagrange_interpolation_polys(x:     Union[float, npt.NDArray[np.float64]],
+@jit(types.float64[:](types.float64, types.int64, types.float64[:], types.float64[:]),
+     nopython=True, cache=True, nogil=True)
+def lagrange_interpolation_polys(x:     float,
                                  order: int,
                                  xGP:   npt.NDArray[np.float64],
                                  wBary: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
@@ -163,7 +190,7 @@ def lagrange_interpolation_polys(x:     Union[float, npt.NDArray[np.float64]],
         > Algorithm 34, Kopriva
     """
     # Equal points need special treatment
-    lagrange = np.zeros(order)
+    lagrange = np.zeros(order, dtype=np.float64)
     for iGP in range(order):
         if abs(x - xGP[iGP]) < 1.E-14:
             lagrange[iGP] = 1
@@ -180,6 +207,8 @@ def lagrange_interpolation_polys(x:     Union[float, npt.NDArray[np.float64]],
     return lagrange/tmp
 
 
+@jit(types.float64[:, :](types.int64, types.int64, types.float64[:], types.float64[:], types.float64[:]),
+     nopython=True, cache=True, nogil=True)
 def calc_vandermonde(n_In:     int,
                      n_Out:    int,
                      wBary_In: npt.NDArray[np.float64],
@@ -188,7 +217,7 @@ def calc_vandermonde(n_In:     int,
     """ Build a 1D Vandermonde matrix using the Lagrange basis functions of degree N_In,
         evaluated at the interpolation points xi_Out
     """
-    Vdm = np.zeros((n_Out, n_In))
+    Vdm = np.zeros((n_Out, n_In), dtype=np.float64)
     for iXI in range(n_Out):
         Vdm[iXI, :] = lagrange_interpolation_polys(xi_Out[iXI], n_In, xi_In, wBary_In)
     return Vdm
@@ -276,11 +305,11 @@ def polynomial_derivative_matrix_prism(order: int, xGP: npt.NDArray[np.float64])
     c: Final[np.ndarray]  = xGP[2, :]
 
     nDOFs = NDOFS_ELEM(106, order-1)
-    Vdm = np.zeros((   nDOFs, nDOFs))
-    Vr  = np.zeros((   nDOFs, nDOFs))
-    Vs  = np.zeros((   nDOFs, nDOFs))
-    Vt  = np.zeros((   nDOFs, nDOFs))
-    D   = np.zeros((3, nDOFs, nDOFs))
+    Vdm = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vr  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vs  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vt  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    D   = np.zeros((3, nDOFs, nDOFs), dtype=np.float64)
 
     # Precompute required Jacobi polynomials and derivatives
     # fZETA(i) = P_i^(0,0)(c), dfZETA(i) = 0.5*(i+1)*P_{i-1}^{(1,1)}(c)
@@ -369,11 +398,11 @@ def polynomial_derivative_matrix_pyram(order: int, xGP: npt.NDArray[np.float64])
     c  = xGP[2, :]
 
     nDOFs = NDOFS_ELEM(105, order-1)
-    Vdm = np.zeros((   nDOFs, nDOFs))
-    Vr  = np.zeros((   nDOFs, nDOFs))
-    Vs  = np.zeros((   nDOFs, nDOFs))
-    Vt  = np.zeros((   nDOFs, nDOFs))
-    D   = np.zeros((3, nDOFs, nDOFs))
+    Vdm = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vr  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vs  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vt  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    D   = np.zeros((3, nDOFs, nDOFs), dtype=np.float64)
 
     iX = 0
     for iZETA in range(order):
@@ -443,11 +472,11 @@ def polynomial_derivative_matrix_tetra(order: int, xGP: npt.NDArray[np.float64])
     c  = xGP[2, :]
 
     nDOFs = NDOFS_ELEM(104, order-1)
-    Vdm = np.zeros((   nDOFs, nDOFs))
-    Vr  = np.zeros((   nDOFs, nDOFs))
-    Vs  = np.zeros((   nDOFs, nDOFs))
-    Vt  = np.zeros((   nDOFs, nDOFs))
-    D   = np.zeros((3, nDOFs, nDOFs))
+    Vdm = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vr  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vs  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    Vt  = np.zeros((   nDOFs, nDOFs), dtype=np.float64)
+    D   = np.zeros((3, nDOFs, nDOFs), dtype=np.float64)
 
     # Precompute constants
     sqrt2    = np.sqrt(2.)

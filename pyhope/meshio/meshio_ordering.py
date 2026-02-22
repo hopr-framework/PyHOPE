@@ -47,6 +47,7 @@ if typing.TYPE_CHECKING:
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_numba import jit, types
 # ==================================================================================================================================
 
 
@@ -333,7 +334,9 @@ class NodeOrdering:
         inv[perm] = np.arange(perm.size, dtype=int)
         return idx[:, inv]
 
-    def deviation(self, x: float) -> float:
+    @staticmethod
+    @jit([types.float32(types.float32), types.float64(types.float64)], nopython=True, cache=True, nogil=True)
+    def deviation(x: float) -> float:
         return abs(x - round(x))
 
     # INFO: Alternative implementation
