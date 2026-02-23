@@ -135,6 +135,158 @@ class TestLibraryMethods(unittest.TestCase):
                                                                 [-0.64549722436790280   ,  0.                     ,  0.64549722436790280   ],    # noqa: E501
                                                                 [ 0.64549722436790280   , -2.58198889747161120    ,  1.93649167310370851   ]]))  # noqa: E501
 
+    def test_change_basis_1D(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_1D
+        # ------------------------------------------------------
+        # Interpolating f(x) = x^2 from 5 equidistant nodes to 3 nodes must be exact
+        xIn    = np.linspace(-1, 1, num=5, dtype=np.float64)
+        xOut   = np.linspace(-1, 1, num=3, dtype=np.float64)
+        wBary  = barycentric_weights(5, xIn)
+        Vdm    = calc_vandermonde(5, 3, wBary, xIn, xOut)
+        fOut   = change_basis_1D(Vdm, xIn**2)
+        np.testing.assert_array_almost_equal(fOut, xOut**2)
+
+    def test_change_basis_2D(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_2D
+        # ------------------------------------------------------
+        # Interpolate f(x,y)=x+y from 5x5 grid to 3x3 grid using bilinear mapping
+        n_In   = 5
+        n_Out  = 3
+        xIn    = np.linspace(-1, 1, num=n_In   , dtype=np.float64)
+        xOut   = np.linspace(-1, 1, num=n_Out  , dtype=np.float64)
+        wBary  = barycentric_weights(n_In, xIn)
+        Vdm    = calc_vandermonde(n_In, n_Out, wBary, xIn, xOut)
+        # Build f(xi, eta) = xi + eta on the input grid
+        XI, ETA = np.meshgrid(xIn, xIn, indexing='ij')              # shape (1, n_In , n_In )
+        f_in   = (XI + ETA)[np.newaxis, :, :]                       # shape (1, n_In , n_In )
+        f_out  = change_basis_2D(Vdm, f_in)                         # shape (1, n_Out, n_Out)
+        XI2, ETA2 = np.meshgrid(xOut, xOut, indexing='ij')
+        np.testing.assert_array_almost_equal(f_out[0], XI2 + ETA2)
+
+    def test_change_basis_3D(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
+        # ------------------------------------------------------
+        # Interpolate f(x,y,z)=x+y+z from 5x5 grid to 3x3 grid using bilinear mapping
+        n_In   = 3
+        n_Out  = 2
+        xIn    = np.linspace(-1, 1, num=n_In   , dtype=np.float64)
+        xOut   = np.linspace(-1, 1, num=n_Out  , dtype=np.float64)
+        wBary  = barycentric_weights(n_In, xIn)
+        Vdm    = calc_vandermonde(n_In, n_Out, wBary, xIn, xOut)
+        # Build f(xi, eta, zeta) = xi + eta + zeta on the input grid
+        XI, ETA, ZETA = np.meshgrid(xIn, xIn, xIn, indexing='ij')   # shape (1, n_In , n_In , n_In )
+        f_in   = (XI + ETA + ZETA)[np.newaxis, :, :, :]             # shape (1, n_In , n_In , n_In )
+        f_out  = change_basis_3D(Vdm, f_in)                         # shape (1, n_Out, n_Out, n_Out)
+        XI2, ETA2, ZETA2 = np.meshgrid(xOut, xOut, xOut, indexing='ij')
+        np.testing.assert_array_almost_equal(f_out[0], XI2 + ETA2 + ZETA2)
+
+    def test_lagrange_interpolation_polys(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import barycentric_weights, lagrange_interpolation_polys
+        # ------------------------------------------------------
+        # Evaluated at the second node, the result must be the unit vector e_1
+        xGP    = np.linspace(-1, 1, num=4, dtype=np.float64)
+        wBary  = barycentric_weights(4, xGP)
+        polys  = lagrange_interpolation_polys(xGP[1], 4, xGP, wBary)
+        np.testing.assert_array_almost_equal(polys,   np.array([  0.,  1.,   0.,   0.]))  # noqa: E501
+
+        # Sum of all Lagrange basis functions at an arbitrary point must be 1
+        xGP    = np.linspace(-1, 1, num=5, dtype=np.float64)
+        wBary  = barycentric_weights(5, xGP)
+        polys  = lagrange_interpolation_polys(0.3, 5, xGP, wBary)
+        np.testing.assert_almost_equal(np.sum(polys), 1.0)
+
+    # def test_polynomial_derivative_matrix_prism(self):
+    #     # Local imports ----------------------------------------
+    #     from pyhope.basis.basis_basis import equi_nodes_prism, polynomial_derivative_matrix_prism
+    #     # ------------------------------------------------------
+    #     order  = 3
+    #     xGP    = equi_nodes_prism(order)
+    #     D      = polynomial_derivative_matrix_prism(order, xGP)
+    #     # D must have shape (3, nDOFs, nDOFs)
+    #     self.assertEqual(D.shape[0], 3)
+    #     self.assertEqual(D.shape[1], D.shape[2])
+
+    def test_polynomial_derivative_matrix_pyram(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import equi_nodes_pyram, polynomial_derivative_matrix_pyram
+        # ------------------------------------------------------
+        order  = 2
+        xGP    = equi_nodes_pyram(order)
+        D      = polynomial_derivative_matrix_pyram(order, xGP)
+        # D must have shape (3, nDOFs, nDOFs)
+        self.assertEqual(D.shape[0], 3)
+        self.assertEqual(D.shape[1], D.shape[2])
+        np.testing.assert_array_almost_equal(D, np.array([[[-0.500, -0.500,  0.000,  0.000, -0.250,],
+                                                           [ 0.500,  0.500,  0.000,  0.000,  0.250,],
+                                                           [ 0.000,  0.000, -0.500, -0.500, -0.250,],
+                                                           [ 0.000,  0.000,  0.500,  0.500,  0.250,],
+                                                           [ 0.000,  0.000,  0.000,  0.000,  0.000,]],
+ [                                                         [-0.500,  0.000, -0.500,  0.000, -0.250,],
+                                                           [ 0.000, -0.500,  0.000, -0.500, -0.250,],
+                                                           [ 0.500,  0.000,  0.500,  0.000,  0.250,],
+                                                           [ 0.000,  0.500,  0.000,  0.500,  0.250,],
+                                                           [ 0.000,  0.000,  0.000,  0.000,  0.000,]],
+ [                                                         [-0.625, -0.375, -0.375, -0.125, -0.375,],
+                                                           [ 0.125, -0.125, -0.125, -0.375, -0.125,],
+                                                           [ 0.125, -0.125, -0.125, -0.375, -0.125,],
+                                                           [-0.125,  0.125,  0.125,  0.375,  0.125,],
+                                                           [ 0.500,  0.500,  0.500,  0.500,  0.500,]]]))
+
+    def test_polynomial_derivative_matrix_tetra(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import equi_nodes_tetra, polynomial_derivative_matrix_tetra
+        # ------------------------------------------------------
+        order  = 2
+        xGP    = equi_nodes_tetra(order)
+        D      = polynomial_derivative_matrix_tetra(order, xGP)
+        # D must have shape (3, nDOFs, nDOFs)
+        self.assertEqual(D.shape[0], 3)
+        self.assertEqual(D.shape[1], D.shape[2])
+        np.testing.assert_array_almost_equal(D, np.array([[[-0.500, -0.500, -0.500, -0.500],
+                                                           [ 0.500,  0.500,  0.500,  0.500],
+                                                           [ 0.000,  0.000,  0.000,  0.000],
+                                                           [ 0.000,  0.000,  0.000,  0.000]],
+                                                          [[-0.500, -0.500, -0.500, -0.500],
+                                                           [-0.000, -0.000, -0.000, -0.000],
+                                                           [ 0.500,  0.500,  0.500,  0.500],
+                                                           [ 0.000,  0.000,  0.000,  0.000]],
+                                                          [[-0.500, -0.500, -0.500, -0.500],
+                                                           [-0.000, -0.000, -0.000, -0.000],
+                                                           [ 0.000,  0.000,  0.000,  0.000],
+                                                           [ 0.500,  0.500,  0.500,  0.500]]]))
+
+    def test_calc_vandermonde(self):
+        # Local imports ----------------------------------------
+        from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde
+        # ------------------------------------------------------
+        # When in- and out-nodes are identical the Vandermonde matrix must be the identity
+        xEq    = np.linspace(-1, 1, num=4     , dtype=np.float64)
+        wBary  = barycentric_weights(4, xEq)
+        Vdm    = calc_vandermonde(4, 4, wBary, xEq, xEq)
+        np.testing.assert_array_almost_equal(Vdm, np.eye(4))
+
+        # Vandermonde built from equidistant nodes to coarser set reproduces coarser polynomial exactly
+        xIn    = np.linspace(-1, 1, num=5     , dtype=np.float64)
+        xOut   = np.linspace(-1, 1, num=3     , dtype=np.float64)
+        wBary  = barycentric_weights(5, xIn)
+        Vdm    = calc_vandermonde(5, 3, wBary, xIn, xOut)
+        np.testing.assert_array_almost_equal(Vdm @ xIn, xOut)
+        # Interpolating from nGeo+1 equidistant HOPR nodes to nGeo_mesh+1 equidistant meshIO nodes
+        nGeo   = 3
+        mGeo   = 2
+        xEqHdf = np.linspace(-1, 1, num=nGeo+1, dtype=np.float64)
+        xEqMes = np.linspace(-1, 1, num=mGeo+1, dtype=np.float64)
+        wBary  = barycentric_weights(nGeo, xEqHdf)
+        Vdm    = calc_vandermonde(nGeo+1, mGeo+1, wBary, xEqHdf, xEqMes)
+        # Matrix shape must be (n_Out, n_In)
+        self.assertEqual(Vdm.shape, (mGeo+1, nGeo+1))
+        # Each row must sum to 1 (partition of unity)
+        np.testing.assert_array_almost_equal(Vdm.sum(axis=1), np.ones(mGeo+1))
+
 
 def CheckUnittest() -> None:
     """ Verify the installation by comparing against known results
