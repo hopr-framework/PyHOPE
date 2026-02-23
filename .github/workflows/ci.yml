@@ -38,6 +38,7 @@ on:
 # Permissions
 permissions:
   contents:  read    # default for all jobs
+  packages:  read
   # pages:     write
   # id-token:  write
 
@@ -222,9 +223,9 @@ jobs:
     needs: [compatibility]
     container:
       image: ghcr.io/hopr-framework/nrg-fedora:43-x86_64
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      # credentials:
+      #   username: ${{ github.actor }}
+      #   password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # Git LFS requires git
       - name: Install Git LFS
