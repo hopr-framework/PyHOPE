@@ -83,8 +83,8 @@ variables:
   # Setup uv
   - uv --version
   # Setup Python virtual environment
-  - uv venv venv
-  - source venv/bin/activate
+  - uv venv .venv
+  - source .venv/bin/activate
   # Regression checks needs NRG Gmsh, pre-install it
   - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.0.post1-py3-none-linux_x86_64.whl
   # Install all pre-requisites
@@ -101,8 +101,8 @@ variables:
   # Setup uv
   - uv --version
   # Setup Python virtual environment
-  - uv venv venv
-  - source venv/bin/activate
+  - uv venv .venv
+  - source .venv/bin/activate
 
 before_script: *global-before-script
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -369,7 +369,11 @@ convergence:
         for N in {1..4}; do
           echo ""
           echo "=== Running Convergence Test N=$N ===" | tee -a ../convergence.log
-          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+          # Restrict multiprocessing
+          procs=4
+          if [ "$N" -eq 1 ]; then procs=2; fi
+          # Run FLEXI
+          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs "$procs" /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
         done
         cd ..
         # Merge convergence.log for artifacts

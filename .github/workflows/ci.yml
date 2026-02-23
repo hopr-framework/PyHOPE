@@ -1,0 +1,259 @@
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of PyHOPE
+#
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+#
+# PyHOPE is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Continuous Integration/Continuous Deployment
+# ==================================================================================================================================
+
+# Workflow for continuous integration (CI)
+name: CI
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches:
+      - main
+  # Runs on pull requests
+  pull_request:
+  # Allows running this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Permissions
+permissions:
+  contents:  read    # default for all jobs
+  # pages:     write
+  # id-token:  write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Environment variables
+env:
+  UV_LINK_MODE: copy
+
+jobs:
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Linter
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+  ruff:
+    name: Lint / ruff
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.14.3-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          minimal: 'true'
+      - shell: bash
+        run: |
+          source .venv/bin/activate
+          uv pip install ruff
+          ruff --version
+          ruff check --target-version=py310 --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope
+
+  ty:
+    name: Lint / ty
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.14.3-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: ./.github/actions/setup
+        # with:
+        #   minimal: 'false'
+      - shell: bash
+        run: |
+          source .venv/bin/activate
+          uv pip --no-cache-dir install ty
+          ty --version
+          ty check --color always --project pyhope pyhope
+
+  vulture:
+    name: Lint / vulture
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.14.3-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          minimal: 'true'
+      - shell: bash
+        run: |
+          source .venv/bin/activate
+          uv pip install vulture
+          vulture --version
+          vulture .gmsh pyhope
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Compatibility
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+  compatibility:
+    name: Compatibility / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    needs: [ruff, vulture]  # ty
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python-version: "3.10", image: "python:3.10.19-slim-trixie" }
+          - { python-version: "3.11", image: "python:3.11.14-slim-trixie" }
+          - { python-version: "3.12", image: "python:3.12.12-slim-trixie" }
+          - { python-version: "3.13", image: "python:3.13.12-slim-trixie" }
+          - { python-version: "3.14", image: "python:3.14.3-slim-trixie"  }
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: ./.github/actions/setup
+      - name: Run compatibility tests
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          pyhope tutorials/1-04-cartbox_multiple_stretch/parameter.ini
+          pyhope tutorials/2-02-external_mesh_CGNS_mixed/parameter.ini
+
+# ==================================================================================================================================
+# Verification
+# ==================================================================================================================================
+  examples:
+    name: Verification / examples
+    runs-on: ubuntu-latest
+    needs: [compatibility]
+    container:
+      image: python:3.14.3-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: ./.github/actions/setup
+        with:
+          coverage: 'true'
+      - name: Run examples with coverage
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          bash ./.github/scripts/examples.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-examples
+          path: |
+            coverage.xml
+            .coverage.*
+
+  healthcheck:
+    name: Verification / healthcheck
+    runs-on: ubuntu-latest
+    needs: [compatibility]
+    container:
+      image: python:3.14.3-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: ./.github/actions/setup
+        with:
+          coverage: 'true'
+      - name: Run healthcheck with coverage
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          coverage run --data-file=".coverage.verify" -m pyhope --verify tutorials
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-healthcheck
+          path: |
+            .coverage.*
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# FLEXI convergence tests
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+  convergence:
+    name: Verification / convergence
+    runs-on: ubuntu-latest
+    needs: [compatibility]
+    container:
+      image: ghcr.io/hopr-framework/nrg-fedora:43-x86_64
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: ./.github/actions/setup
+        with:
+          coverage: 'true'
+      - name: Run FLEXI convergence tests
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          bash ./.github/scripts/convergence.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-healthcheck
+          path: |
+            .coverage.*
+
+  coverage:
+    name: Verification / coverage
+    runs-on: ubuntu-latest
+    needs: [examples, healthcheck]
+    container:
+      image: python:3.14.3-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          minimal: 'true'
+          coverage: 'true'
+      - name: Download coverage artifacts
+        # act doesn't support GitHub Actions artifact service
+        # if: ${{ !env.ACT }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+      - name: Combine and report coverage
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          uv pip install --no-cache-dir coverage
+
+          # Combine coverage reports from all jobs
+          echo "Combining coverage reports..."
+          coverage combine --keep
+
+          # Generate the coverage report in XML format
+          echo "Generating coverage report..."
+          coverage xml
+          coverage report --skip-empty --precision=2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
