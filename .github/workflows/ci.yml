@@ -77,6 +77,12 @@ jobs:
     container:
       image: python:3.14.3-slim-trixie
     steps:
+      # Git LFS requires git
+      - name: Install Git LFS
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v4
         with:
           lfs: true
@@ -126,6 +132,12 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
+      # Git LFS requires git
+      - name: Install Git LFS
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v4
         with:
           lfs: true
@@ -147,6 +159,12 @@ jobs:
     container:
       image: python:3.14.3-slim-trixie
     steps:
+      # Git LFS requires git
+      - name: Install Git LFS
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v4
         with:
           lfs: true
@@ -172,6 +190,12 @@ jobs:
     container:
       image: python:3.14.3-slim-trixie
     steps:
+      # Git LFS requires git
+      - name: Install Git LFS
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v4
         with:
           lfs: true
@@ -202,6 +226,12 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      # Git LFS requires git
+      - name: Install Git LFS
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v4
         with:
           lfs: true
