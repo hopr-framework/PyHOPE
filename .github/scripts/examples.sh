@@ -84,13 +84,13 @@ for paramfile in "${paramfiles[@]}"; do
 done
 
 # Combine coverage reports from all example directories
-# echo "Combining coverage reports..."
-# coverage combine --keep
+echo "Combining coverage reports..."
+coverage combine --keep
 
 # Generate the coverage report in XML format
-# echo "Generating coverage report..."
-# coverage xml
-# coverage report --skip-empty --precision=2
+echo "Generating coverage report..."
+coverage xml
+coverage report --skip-empty --precision=2
 
 # Output the final sorted report as a UTF-8 box-drawing table
 echo ""
@@ -118,4 +118,4 @@ else
 fi
 
 # Repeat the coverage report for Gitlab CI/CD to pick up
-# coverage report --skip-empty --precision=2 | grep TOTAL
+coverage report --skip-empty --precision=2 | grep TOTAL

@@ -120,7 +120,7 @@ jobs:
   compatibility:
     name: Compatibility / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: [ruff, vulture]  # ty
+    needs: [ruff, ty, vulture]
     strategy:
       fail-fast: false
       matrix:
@@ -169,6 +169,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+      # - uses: actions/setup-node@v6
+      #   with:
+      #     node-version: 'latest'
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -180,6 +183,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-examples
+          include-hidden-files: true
           path: |
             coverage.xml
             .coverage.*
@@ -197,6 +201,9 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
+      # - uses: actions/setup-node@v6
+      #   with:
+      #     node-version: 'latest'
       - uses: actions/checkout@v4
         with:
           lfs: true
@@ -211,6 +218,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-healthcheck
+          include-hidden-files: true
           path: |
             .coverage.*
 
@@ -223,16 +231,19 @@ jobs:
     needs: [compatibility]
     container:
       image: ghcr.io/hopr-framework/nrg-fedora:43-x86_64
-      # credentials:
-      #   username: ${{ github.actor }}
-      #   password: ${{ secrets.GITHUB_TOKEN }}
+      credentials:
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # Git LFS requires git
       - name: Install Git LFS
         shell: bash
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends git git-lfs
+          dnf update -y
+          dnf install -y git-lfs
+      # - uses: actions/setup-node@v6
+      #   with:
+      #     node-version: 'latest'
       - uses: actions/checkout@v4
         with:
           lfs: true
@@ -244,11 +255,12 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/convergence.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: coverage-healthcheck
-          path: |
-            .coverage.*
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: coverage-convergence
+      #     include-hidden-files: true
+      #     path: |
+      #       .coverage.*
 
   coverage:
     name: Verification / coverage
@@ -258,6 +270,9 @@ jobs:
       image: python:3.14.3-slim-trixie
     steps:
       - uses: actions/checkout@v4
+      # - uses: actions/setup-node@v6
+      #   with:
+      #     node-version: 'latest'
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
@@ -268,6 +283,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: coverage-*
+          # include-hidden-files: true
           merge-multiple: true
       - name: Combine and report coverage
         shell: bash
@@ -286,5 +302,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
+          # include-hidden-files: true
           path: |
             coverage.xml

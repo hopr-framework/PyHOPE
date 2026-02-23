@@ -42,7 +42,7 @@ runs:
       run: |
         # Container might not be Debian-based
         if ! command -v apt-get &> /dev/null; then exit 0; fi
-        apt-get update
+        apt-get update -y
         apt-get install -y --no-install-recommends curl
         rm -rf /var/lib/apt/lists/*
 
@@ -69,7 +69,7 @@ runs:
         if command -v node &> /dev/null; then exit 0; fi
         # Container is Debian-based (apt)
         if command -v apt-get &> /dev/null; then
-          apt-get update
+          apt-get update -y
           apt-get install -y --no-install-recommends nodejs
         fi
         # Container Fedora-based (dnf)
