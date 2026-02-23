@@ -52,6 +52,7 @@ def Check(args: argparse.Namespace
     import pyhope.output.output as hopout
     from pyhope.check.check_health import CheckHealth
     from pyhope.check.check_install import CheckInstall
+    from pyhope.check.check_unittest import CheckUnittest
     from pyhope.common.common_vars import Common
     from pyhope.gmsh.gmsh_install import PkgsCheckGmsh
     # ------------------------------------------------------
@@ -74,12 +75,24 @@ def Check(args: argparse.Namespace
     if args.verify:
         CheckHealth()
         hopout.info('')
+        CheckUnittest()
+        hopout.info('')
         CheckInstall(directory)
 
+        # Ran all the tests
+        return None
+
+    nChecks = sum(map(bool, (args.verify_health, args.verify_install, args.verify_unittest)))
     # Run only health check
-    elif args.verify_health:
+    if args.verify_health:
         CheckHealth()
+        if nChecks > 1: hopout.info('')  # noqa: E701
 
     # Run only install check
-    elif args.verify_install:
+    if args.verify_install:
         CheckInstall(directory)
+        if nChecks > 1: hopout.info('')  # noqa: E701
+
+    # Run only unittest check
+    if args.verify_unittest:
+        CheckUnittest()

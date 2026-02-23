@@ -131,6 +131,9 @@ class CommandLine:
                                       const   = True,                                         # noqa: E251
                                       metavar = 'tutorials',                                  # noqa: E251
                                       help    = 'verify the installation and exit')           # noqa: E251
+        _ = verifyParser.add_argument('--verify-unittest',
+                                      action  = 'store_true',                                 # noqa: E251
+                                      help    = 'check unittest')                             # noqa: E251
         _ = verifyParser.add_argument('--skip-checks',
                                       action  = 'store_true',                                 # noqa: E251
                                       # Hidden: Disable checks for verification

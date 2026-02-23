@@ -675,7 +675,7 @@ def appendBCSet(subFace:      np.ndarray,
                 bcFaceIdx:    Optional[int]  = None,
                 bcSide:       Optional[str]  = None,
                 # Optional checks
-                requireDim:   Optional[Union[Callable, int]] = None,
+                requireDim:   Optional[Union[Callable[[int], bool], int]] = None,
                 requireMatch: bool = False,
                 allowMulti  : bool = True,
                ):
@@ -690,7 +690,8 @@ def appendBCSet(subFace:      np.ndarray,
     candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
     # Filter set if requested
     if callable(requireDim):
-        candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if requireDim(len(fs))})]
+        dim_check      = cast(Callable[[int], bool], requireDim)
+        candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if dim_check(len(fs))})]
     else:
         match requireDim:
             case 1 | 2:
