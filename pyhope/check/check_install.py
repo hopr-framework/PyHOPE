@@ -53,7 +53,7 @@ def findGitRoot() -> Optional[str]:
         result = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
                                 capture_output=True, text=True, check=True)
         return result.stdout.strip()
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return None
 
 
@@ -215,6 +215,11 @@ def CheckInstall(path: Optional[str] = None) -> None:
 
         if root:
             path = os.path.join(root, testDir)
+
+    # Path is None, search for the tutorials directory relative to the git root
+    if not path or not os.path.isdir(path):
+        cwd  = os.path.join(os.getcwd(), testDir)
+        path = os.path.join(cwd, testDir)
 
     # Directory not exist, download to temporary path
     if not path or not os.path.isdir(path):

@@ -27,8 +27,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
-from io import TextIOWrapper
 from typing import Union, cast
+from typing import TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ def IsInteractive() -> bool:
     # Standard libraries -----------------------------------
     import sys
     # ------------------------------------------------------
-    return cast(TextIOWrapper, sys.__stdin__).isatty() and cast(TextIOWrapper, sys.__stdout__).isatty()
+    return cast(TextIO, sys.__stdin__).isatty() and cast(TextIO, sys.__stdout__).isatty()
 
 
 def IsDisplay() -> bool:
