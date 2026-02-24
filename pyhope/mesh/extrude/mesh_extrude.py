@@ -210,7 +210,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 elems_lst.setdefault(elemType, []).extend([extElem])
 
                 # Create the new faces
-                subFaces   = [np.array(extElem)[face] for face in faces(nGeo)]
+                subFaces   = tuple(np.array(extElem, dtype=np.int64)[face] for face in faces(nGeo))
                 bcFaces    = [{} for s in range(len(subFaces))]
 
                 # BC: First, identify the 2D (bottom) faces
@@ -226,10 +226,10 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                             requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
                 # BC: Next, iterate over the 1D (side faces)
-                for iFace, subFace in enumerate(subFaces):
+                for iFace, subFace in enumerate(subFaces[1::]):
                     appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
                                 csets_old  = csets_old, csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
-                                bcFaces    = bcFaces  , bcFaceIdx    = iFace    , bcSide     = 'side',     # noqa: E251, E271
+                                bcFaces    = bcFaces  , bcFaceIdx    = iFace+1  , bcSide     = 'side',     # noqa: E251, E271
                                 requireDim = 2        , requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
                 for extElem in extElems[1:]:
@@ -238,8 +238,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                     elems_lst.setdefault(elemType, []).extend([extElem])
 
                     # Create the new faces
-                    subFaces = [np.array(extElem)[face] for face in faces(nGeo)]
-                    sidFaces = [(i, s) for i, s in enumerate(bcFaces) if ('side' in s.keys() and s['side'] == 'side')]
+                    subFaces = tuple(np.array(extElem)[face] for face in faces(nGeo))
+                    sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s.keys() and s['side'] == 'side'))
 
                     for iFace, sidFace in sidFaces:
                         subFace = subFaces[iFace]
@@ -261,8 +261,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 nFaces[faceVal] += 1
                 elems_lst[faceType[faceVal]].append(np.array(topFace, dtype=int))
 
-            # Update the progress bar
-            bar.step()
+                # Update the progress bar
+                bar.step()
 
     # Close the progress bar
     bar.close()
