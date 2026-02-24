@@ -93,17 +93,23 @@ class Common():
     @cache
     def __commit__(self) -> Optional[str]:
         # Retrieve commit from git
-        process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
-                                   shell=False,
-                                   cwd=os.path.dirname(os.path.realpath(__file__)),
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.DEVNULL)
+        try:
+            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+                                       shell=False,
+                                       cwd=os.path.dirname(os.path.realpath(__file__)),
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.DEVNULL)
 
-        commit = process.communicate()[0].strip().decode('ascii')
+            commit = process.communicate()[0].strip().decode('ascii')
 
-        # Return the commit if valid
-        if process.returncode != 0:
+            # Return the commit if valid
+            if process.returncode != 0:
+                return None
+
+        # Return if git is not available
+        except FileNotFoundError:
             return None
+
         return commit
 
     @property

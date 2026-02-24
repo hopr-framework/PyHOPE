@@ -1,0 +1,108 @@
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of PyHOPE
+#
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+#
+# PyHOPE is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Continuous Integration/Continuous Deployment
+# ==================================================================================================================================
+
+# Action for PyHOPE setup
+name: Setup PyHOPE
+
+# Inputs
+inputs:
+  minimal:
+    description: Skip system deps, gmsh wheel, and PyHOPE install
+    default:    'false'
+  coverage:
+    description: Install coverage
+    default:    'false'
+
+runs:
+  using: composite
+  steps:
+    - name:  Install curl
+      shell: bash
+      run: |
+        # Container might not be Debian-based
+        if ! command -v apt-get &> /dev/null; then exit 0; fi
+        apt-get update -y
+        apt-get install -y --no-install-recommends curl
+        rm -rf /var/lib/apt/lists/*
+
+    - name:  Install system dependencies
+      if:    inputs.minimal == 'false'
+      shell: bash
+      run: |
+        # Container might not be Debian-based
+        if ! command -v apt-get &> /dev/null; then exit 0; fi
+        apt-get update
+        apt-get install -y --no-install-recommends \
+          libglu1-mesa   \
+          libglut3.12    \
+          libgomp1       \
+          libpng16-16t64 \
+          libxcursor1    \
+          libxft2        \
+          libxinerama1
+        rm -rf /var/lib/apt/lists/*
+
+    - name: Ensure NodeJS
+      shell: bash
+      run: |
+        if command -v node &> /dev/null; then exit 0; fi
+        # Container is Debian-based (apt)
+        if command -v apt-get &> /dev/null; then
+          apt-get update -y
+          apt-get install -y --no-install-recommends nodejs
+        fi
+        # Container Fedora-based (dnf)
+        if command -v dnf &> /dev/null; then
+          dnf makecache
+          dnf update -y
+          dnf install -y node
+        fi
+
+    # Slim images do not contain NodeJS
+    - uses:  astral-sh/setup-uv@v6
+
+    # - name:  Install uv
+    #   shell: bash
+    #   run: |
+    #     curl -LsSf https://astral.sh/uv/install.sh | sh
+    #     ln -s $HOME/.local/bin/uv /usr/local/bin/uv
+    #     uv --version
+
+    - name:  Setup PyHOPE
+      shell: bash
+      run: |
+        ulimit -s unlimited
+        python3 --version
+        uv venv .venv
+        source .venv/bin/activate
+
+        if [[ "${{ inputs.minimal }}" != "true" ]]; then
+          uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.0.post1-py3-none-linux_x86_64.whl
+          uv pip install --no-cache-dir -e .
+        fi
+
+        if [[ "${{ inputs.coverage }}" == "true" ]]; then
+          uv pip install --no-cache-dir coverage
+          rm -rf /var/lib/apt/lists/*
+        fi

@@ -38,6 +38,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# from pyhope.basis.basis_basis import *
 # ==================================================================================================================================
 
 
@@ -203,7 +204,7 @@ class TestLibraryMethods(unittest.TestCase):
     #     # Local imports ----------------------------------------
     #     from pyhope.basis.basis_basis import equi_nodes_prism, polynomial_derivative_matrix_prism
     #     # ------------------------------------------------------
-    #     order  = 3
+    #     order  = 2
     #     xGP    = equi_nodes_prism(order)
     #     D      = polynomial_derivative_matrix_prism(order, xGP)
     #     # D must have shape (3, nDOFs, nDOFs)
