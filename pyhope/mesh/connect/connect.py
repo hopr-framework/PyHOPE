@@ -84,14 +84,19 @@ def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
     #     flip       = flipID,                    # noqa: E251
     #     nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
     # )
-    sides[sideIDs[0]].MS         = 1                          # noqa: E251
-    sides[sideIDs[0]].connection = sideIDs[1]                 # noqa: E251
-    sides[sideIDs[0]].flip       = flipID                     # noqa: E251
-    # sides[sideIDs[0]].nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
-    sides[sideIDs[1]].MS         = 0                          # noqa: E251
-    sides[sideIDs[1]].connection = sideIDs[0]                 # noqa: E251
-    sides[sideIDs[1]].flip       = flipID                     # noqa: E251
-    # sides[sideIDs[1]].nbLocSide  = sides[sideIDs[0]].locSide  # noqa: E251
+    # Periodic sides must be sorted along the SFC
+    sideIDs: Final[list[int]] = sorted(sideIDs)
+    masterSide = sides[sideIDs[0]]
+    slaveSide  = sides[sideIDs[1]]
+
+    masterSide.MS         = 1                          # noqa: E251
+    masterSide.connection = sideIDs[1]                 # noqa: E251
+    masterSide.flip       = flipID                     # noqa: E251
+    # masterSide.nbLocSide  = sides[sideIDs[1]].locSide  # noqa: E251
+    slaveSide.MS          = 0                          # noqa: E251
+    slaveSide.connection  = sideIDs[0]                 # noqa: E251
+    slaveSide.flip        = flipID                     # noqa: E251
+    # slaveSide.nbLocSide   = sides[sideIDs[0]].locSide  # noqa: E251
 
 
 def find_bc_index(bcs: Union[list, tuple], key: str) -> Optional[int]:
