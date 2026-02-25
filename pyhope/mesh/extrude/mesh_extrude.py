@@ -30,11 +30,18 @@ from collections import defaultdict
 from functools import cache
 from string import digits
 from typing import cast
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -53,8 +60,10 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
     from pyhope.common.common_template import LoadTemplate
+    from pyhope.common.common_tools import temporary_assign
     from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.mesh.mesh_common import NDOFperElemType
+    from pyhope.mesh.mesh_orient import check_orientation
     from pyhope.mesh.mesh_vars import nGeo
     from pyhope.mesh.topology.mesh_topology import appendBCSet
     from pyhope.readintools.readintools import GetInt, GetStr
@@ -288,6 +297,21 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     mesh   = meshio.Mesh(points    = points,     # noqa: E251
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
+
+    # Temporarily assign mesh_vars.mesh
+    with temporary_assign(mesh_vars, 'mesh', mesh):
+        # Check if the surface normal of the first cell points outwards
+        for elemType in tuple(s for s in mesh.cells_dict.keys() if 'hexahedron' in s):
+            # Only check the first element, other elements get covered in OrientMesh
+            ionodes:   npt.NDArray = mesh.get_cells_type(elemType)[0]
+            elemNames: Final[dict] = mesh_vars.ELEMTYPE.name
+
+            # Convert elemType to HOPR integer format
+            if isinstance(elemType, str):
+                elemType = elemNames[elemType]
+
+            if not check_orientation(ionodes, elemType)[0]:
+                hopout.error('Extruded element has inward pointing normal vector. Wrong extrusion direction?')
 
     # Run garbage collector to release memory
     gc.collect()
