@@ -28,6 +28,7 @@
 import time
 # from sortedcontainers import SortedDict
 from collections import defaultdict
+from contextlib import contextmanager
 from typing import Final, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -89,6 +90,24 @@ def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> Tuple[d
         dict[key] = np.resize(dict[key],  (new_len, shape[1]))
 
     return dict, offset
+
+
+@contextmanager
+def temporary_assign(obj, attr, value):
+    """ Temporarily assigns the object to a given attribute
+        > Object lifetime is restricted by the contextmanager
+    """
+    orig = getattr(obj, attr, None)
+    setattr(obj, attr, value)
+    try:
+        yield
+    finally:
+        # Remove the attribute entirely if it didn't exist before
+        if orig is None:
+            delattr(obj, attr)
+        # Restore the previous attribute
+        else:
+            setattr(obj, attr, orig)
 
 
 class IndexedLists:
