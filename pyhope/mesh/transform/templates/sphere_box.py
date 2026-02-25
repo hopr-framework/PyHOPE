@@ -45,7 +45,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def PostDeform(points: npt.NDArray) -> npt.NDArray:
+def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
     """ This function applies a deformation transformation to the input points
         > 3D box, x,y in [-1,1]^3, to Sphere with radius PostDeform_R0 all points outside [-1,1]^3 and inside [-4,4]^3 are smoothly
           mapped back to a cube of of size [-4,4]*PostDeform_R0/sqrt(3)
