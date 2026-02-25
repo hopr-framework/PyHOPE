@@ -3,7 +3,7 @@
 name = "PyHOPE"
 version = "0.9.0"
 description = "Python High-Order Preprocessing Environment"
-license = {text = "GPL-3.0-only"}
+license = "GPL-3.0-only"
 requires-python = ">=3.10"
 readme = "README.md"
 authors = [
@@ -27,7 +27,6 @@ keywords = ["PyHOPE", "mesh generator"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Operating System :: POSIX :: Linux",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -48,8 +47,10 @@ documentation = "https://hopr-framework.github.io/PyHOPE"
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"
 
-[tool.setuptools]
-packages = ["pyhope"]
+# Legacy setuptools support
+[tool.setuptools.packages.find]
+include = ["pyhope*"]
+namespaces = false
 
 # Code coverage
 [tool.coverage.run]
