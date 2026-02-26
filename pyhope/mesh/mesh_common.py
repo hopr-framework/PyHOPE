@@ -160,6 +160,32 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> npt.NDArr
 
 
 @cache
+def edge_to_sign(edge: int, elemType: Union[int, str], dtype=int) -> npt.NDArray:
+    """ GMSH: Get signs on edges
+    """
+    edge_map = {  # Tetrahedron
+                  # Pyramid
+                  # Wedge / Prism
+                  # Hexahedron
+                  8: [ -1., -1.,  1.,  1.,  # Bottom  edges
+                       -1., -1.,  1.,  1.,  # Top     edges
+                       -1., -1., -1., -1.],  # Upright edges
+               }
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
+
+    if elemType % 100 not in edge_map:
+        raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
+
+    edges = edge_map[elemType % 100]
+
+    try:
+        return np.array(edges[edge], dtype=dtype)
+    except KeyError:
+        raise KeyError(f'Error in edge_to_sign: edge {edge} is not supported')
+
+
+@cache
 def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> npt.NDArray:
     """ GMSH: Create faces from edges in the given direction
     """

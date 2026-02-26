@@ -57,7 +57,7 @@ def RebuildMortarGeometry() -> None:
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 
-    if not mesh_vars.hasMortars:
+    if not hasattr(mesh_vars, 'hasMortars') or not mesh_vars.hasMortars:
         return None
 
     nGeo:   Final[int]        = mesh_vars.nGeo

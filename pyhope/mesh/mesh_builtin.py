@@ -53,7 +53,8 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.common.common import find_index, find_indices, IsDisplay
     from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_vars import debugvisu
-    from pyhope.mesh.mesh_common import edge_to_dir, face_to_corner, face_to_edge, faces
+    from pyhope.mesh.mesh_common import edge_to_dir, edge_to_sign
+    from pyhope.mesh.mesh_common import face_to_corner, face_to_edge, faces
     from pyhope.mesh.mesh_vars import BC
     from pyhope.mesh.transform.mesh_transform import CalcStretching
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
@@ -68,7 +69,7 @@ def MeshCartesian() -> meshio.Mesh:
     # Setup multiprocessing
     numThreads = np_mtp if np_mtp > 0 else 1
     gmsh.option.setNumber('General.NumThreads'         , numThreads)              # Enable multithreading
-    gmsh.option.setNumber('Geometry.OCCParallel'       , 1 if np_mtp > 0 else 0)  # Enable multithreading
+    gmsh.option.setNumber('Geometry.OCCParallel'       , 1 if np_mtp > 1 else 0)  # Enable multithreading
 
     # Setup deterministic Gmsh
     gmsh.option.setNumber('Mesh.Optimize'              , 0)                       # Skip optimizer
@@ -150,13 +151,6 @@ def MeshCartesian() -> meshio.Mesh:
         for index, corner in enumerate(corners):
             p[index] = gmsh.model.geo.addPoint(*cast(tuple[float, float, float], corner), tag=offsetp+index+1)
 
-        # Define edge connectivity based on the Gmsh corner indexing
-        edge_pairs = [
-            (0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face edges
-            (4, 5), (5, 6), (6, 7), (7, 4),  # Top face edges
-            (0, 4), (1, 5), (2, 6), (3, 7)   # Vertical edges
-        ]
-
         # Connect the corner points
         e = [None for _ in range(12)]
         # First, the plane surface
@@ -166,9 +160,6 @@ def MeshCartesian() -> meshio.Mesh:
         # Then, the connection
         for j in range(4):
             e[j+8] = gmsh.model.geo.addLine(p[j], p[j+4])
-
-        # Extract edge vectors from 'corners' for orientation checking
-        edge_vectors = [corners[end] - corners[start] for start, end in edge_pairs]
 
         # Get dimensions of domain
         gmsh.model.geo.synchronize()
@@ -238,7 +229,7 @@ def MeshCartesian() -> meshio.Mesh:
             gmsh.model.geo.mesh.setTransfiniteCurve(line,
                                                     nElems[currDir]+1,
                                                     progType,
-                                                    (np.sign(edge_vectors[index][currDir]) or 1.) * progFac)
+                                                    edge_to_sign(index, elemType) * progFac)
 
         # Create the curve loop
         el = [None for _ in range(len(faces(elemType)))]
