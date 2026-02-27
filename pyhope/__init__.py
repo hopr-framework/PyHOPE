@@ -29,6 +29,7 @@
 from collections import namedtuple
 from contextlib import contextmanager
 from functools import update_wrapper
+from typing import final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +53,8 @@ def _staticwrapper(func):
     return staticmethod(wrapper)
 
 
-class Basis:  # pragma: no cover
+@final
+class Basis:
     """ Basis class to hold all basis related functions and variables
     """
     # Local imports ----------------------------------------
@@ -84,7 +86,8 @@ class Basis:  # pragma: no cover
     evaluate_jacobian_simplex          = _staticwrapper(evaluate_jacobian_simplex)
 
 
-class Mapping:  # pragma: no cover
+@final
+class Mapping:
     """ Mapping class to hold all mapping related functions and variables
     """
     # Local imports ----------------------------------------
@@ -104,8 +107,8 @@ MeshContainer = namedtuple('Mesh',
                           ])
 
 
-@contextmanager  # pragma: no cover
-def Mesh(*args: str, stdout: bool = False, stderr: bool = True):  # pragma: no cover
+@contextmanager
+def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
     """ Mesh context manager to generate a mesh from a given file
 
         Args:
