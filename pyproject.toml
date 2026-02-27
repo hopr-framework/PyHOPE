@@ -67,6 +67,8 @@ omit = [
     '*/pyhope/common/common_parallel.py',
     # Gmsh does not get re-installed when running non-interactively
     '*/pyhope/gmsh/gmsh_install.py',
+    # Library functions are not called internally
+    '*/pyhope/__init__.py',
     ]
 exclude_also = [
     # Exclude if code block with abort
@@ -104,6 +106,9 @@ exclude_also = [
 
     # Exclude multiprocessing blocks
     'if np_mtp > 0:',
+
+    # Exclude interactive blocks
+    'if .+IsInteractive\(\)',
     ]
 
 # Code linters
