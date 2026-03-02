@@ -122,6 +122,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Setup deterministic Gmsh
     gmsh.option.setNumber('Mesh.Optimize'              , 0)                       # Skip optimizer
     gmsh.option.setNumber('Mesh.OptimizeNetgen'        , 0)                       # Skip Netgen optimizer
+    gmsh.option.setNumber('Mesh.HighOrderOptimize'     , 0)                       # Skip high-order optimizer
     gmsh.option.setNumber('Mesh.Smoothing'             , 0)                       # Skip mesh smoothing
     gmsh.option.setNumber('Mesh.RandomSeed'            , 1)                       # Fixed seed for determinism
     gmsh.option.setNumber('Mesh.RandomFactor'          , 0)                       # No perturbation

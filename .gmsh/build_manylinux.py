@@ -31,11 +31,13 @@ import build  # ty: ignore [unresolved-import]
 # import errno
 import multiprocessing
 import platform
+import re
 import shutil
 import subprocess
 import tarfile
 import urllib.request
-from typing import Optional
+import xml.etree.ElementTree as ET
+from typing import Optional, Final
 # ==================================================================================================================================
 
 # Output some runtime information
@@ -53,6 +55,20 @@ def print_step(step_description: str) -> None:
     """ Prints a step description in a consistent format
     """
     print('➤ {}'.format(step_description))
+
+
+# Helper function for version checks
+def get_latest_version(fetch_fn, name: str, fallback: str) -> str:
+    """ Updates a vresion string
+    """
+    try:
+        version = fetch_fn()
+        if version:
+            print_step(f' {name:<13} → resolved: {version}')
+            return version
+    except Exception as exc:
+        print_step(f' {name:<13} → version check failed ({exc}), using fallback: {fallback}')
+    return fallback
 
 
 # Helper function for downloads
@@ -129,60 +145,83 @@ INSTALL_DIR  = os.path.join(WORK_DIR, 'gmsh_install')
 HDF5_DIR     = os.path.join(WORK_DIR, 'hdf5')
 HDF5_VERSION = '1.14.6'
 
+# zlib
+ZLIB_DIR     = os.path.join(WORK_DIR, 'zlib')
+ZLIB_VERSION = '1.3.1'
+ZLIB_URL     = ('madler', 'zlib')
+
+# minizip-ng
+# MINIZIP_DIR     = os.path.join(WORK_DIR, 'minizip-ng')
+# MINIZIP_VERSION = '4.0.7'
+# MINIZIP_URL     = ('zlib-ng', 'minizip-ng')
+
 # TK
 TK_DIR       = os.path.join(WORK_DIR, 'tk')
-TK_VERSION = '8.6.16'
+TK_VERSION   = '8.6.16'
+TK_URL       = ('https://sourceforge.net/projects/tcl/files/Tcl/', r'href="[^"]+/Tcl/(\d+\.\d+\.\d+)/"')
 
 # TCL
 TCL_DIR      = os.path.join(WORK_DIR, 'tcl')
-TCL_VERSION = '8.6.16'
+TCL_VERSION  = '8.6.16'
+TCL_URL      = ('https://sourceforge.net/projects/tcl/files/Tcl/', r'href="[^"]+/Tcl/(\d+\.\d+\.\d+)/"')
 
 # CGNS
 CGNS_DIR     = os.path.join(WORK_DIR, 'CGNS')
 CGNS_VERSION = 'v4.5.0'
+CGNS_URL     = ('CGNS', 'CGNS', 'v')
 
 # OpenCASCADE
 OCC_DIR      = os.path.join(WORK_DIR, 'occt')
 OCC_VERSION  = 'V7_9_2'
+OCC_URL      = ('Open-Cascade-SAS', 'OCCT', 'V')
 
 # FreeType
 FREETYPE_VERSION = '2.14.1'
-FREETYPE_DIR = os.path.join(WORK_DIR, 'freetype')
+FREETYPE_DIR     = os.path.join(WORK_DIR, 'freetype')
+FREETYPE_URL     = ('freetype', 'freetype2')
 
 # libXFT
 LIBXFT_DIR     = os.path.join(WORK_DIR, 'libxft')
 LIBXFT_VERSION = '2.3.9'
+LIBXFT_URL     = ('https://xorg.freedesktop.org/releases/individual/lib/', r'libXft-(\d+\.\d+\.\d+)\.tar')
 
 # libPNG
 LIBPNG_DIR     = os.path.join(WORK_DIR, 'libpng')
 LIBPNG_VERSION = '1.6.50'
+LIBPNG_URL     = ('glennrp', 'libpng')
 
 # libJPEG
 LIBJPEG_TURBO_DIR     = os.path.join(WORK_DIR, 'libjpeg-turbo')
 LIBJPEG_TURBO_VERSION = '3.1.2'
+LIBJPEG_TURBO_URL     = ('libjpeg-turbo', 'libjpeg-turbo')
 
 # FLTK
 FLTK_DIR     = os.path.join(WORK_DIR, 'fltk')
 FLTK_VERSION = '1.3.11'
 # FLTK_VERSION = '1.4.0'  # Currently broken, produces segfault
+# FLTK_URL     = ('fltk', 'fltk', '', r'^release-1\.3\.')
+FLTK_URL     = ('fltk', 'fltk')
 
 # gperf
 GPERF_VERSION = "3.3"
+GPERF_URL     = ('https://ftp.gnu.org/pub/gnu/gperf/', r'gperf-(\d+\.\d+)\.tar')
 
 # Fontconfig
 FONTCONFIG_VERSION = '2.17.1'
-FONTCONFIG_DIR = os.path.join(WORK_DIR, 'fontconfig')
+FONTCONFIG_DIR     = os.path.join(WORK_DIR, 'fontconfig')
+FONTCONFIG_URL     = ('https://www.freedesktop.org/software/fontconfig/release/', r'fontconfig-(\d+\.\d+\.\d+)\.tar')
 
 # GLU
 # GLU_DIR      = os.path.join(WORK_DIR, 'glu')
 # GLU_VERSION  = '9.0.3'
 
 # Gmsh
-GMSH_VERSION = '4.15.0'
+GMSH_VERSION = '4.15.1'
 GMSH_PATCH   = '1'
-GMSH_FULLVER = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
+GMSH_FULLVER = f'{GMSH_VERSION}.post{GMSH_PATCH}' if GMSH_PATCH else GMSH_VERSION
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 GMSH_DIR     = os.path.join(WORK_DIR, 'gmsh')
+GMSH_URL     = ('https://gmsh.info/src/', r'gmsh-(\d+\.\d+\.\d+)-source')
 
 # Gitlab "python-gmsh" access
 LIB_GITLAB   = 'gitlab.iag.uni-stuttgart.de'
@@ -196,6 +235,87 @@ build_cores  = max(total_cores - 2, 1)
 
 
 # ------------------------------------------------------------------------
+# Version checks
+# ------------------------------------------------------------------------
+_ATOM_NS: Final[dict] = {'atom': 'http://www.w3.org/2005/Atom'}
+
+
+def _atom_tags(owner: str, repo: str) -> list[str]:
+    """ Fetch all release tags from public GitHub Atom feed
+    """
+    url = f'https://github.com/{owner}/{repo}/releases.atom'
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        tree = ET.parse(resp)
+
+    entries = tree.findall('atom:entry/atom:id', _ATOM_NS)
+    if not entries:
+        raise ValueError(f'No releases found in Atom feed for {owner}/{repo}')
+
+    return [e.text.rsplit('/', 1)[-1] for e in entries]
+
+
+def _parse_version(tag: str) -> Optional[str]:
+    """ Extract a dotted version number from any tag format, ignoring pre-releases
+    """
+    if re.search(r'(rc|alpha|beta|pre)\d*', tag, re.IGNORECASE):
+        return None
+
+    nums = re.findall(r'\d+', tag)
+    return '.'.join(nums) if nums else None
+
+
+def _scrape_latest(url: str, pattern: str) -> str:
+    """ Scrape a plain HTML index page and return the highest version matching pattern
+    """
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        html = resp.read().decode()
+
+    versions = re.findall(pattern, html)
+    if not versions:
+        raise ValueError(f'No versions found at {url}')
+
+    return sorted(versions, key=lambda v: list(map(int, v.split('.'))))[-1]
+
+
+def _github_latest_tag(owner: str, repo: str, prefix: str = '', tag_filter: Optional[str] = None) -> str:
+    """ Return the latest stable version as a dotted string, with optional prefix
+    """
+    for tag in _atom_tags(owner, repo):
+        if tag_filter and not re.match(tag_filter, tag):
+            continue
+
+        version = _parse_version(tag)
+        if version:
+            return f'{prefix}{version}'
+
+    raise ValueError(f'No stable release found for {owner}/{repo}')
+
+
+# ------------------------------------------------------------------------
+# Update all version strings
+# ------------------------------------------------------------------------
+print_header('RESOLVING DEPENDENCY VERSIONS...')
+# HDF5_VERSION needs to match h5py - do not automatically update
+ZLIB_VERSION          = get_latest_version(lambda: _github_latest_tag (*ZLIB_URL          )                 , 'zlib'         , ZLIB_VERSION)           # noqa: E211, E501
+# MINIZIP_VERSION       = get_latest_version(lambda: _github_latest_tag (*MINIZIP_URL       )                 , 'minizip-ng'   , MINIZIP_VERSION)        # noqa: E211, E501
+TCL_VERSION           = get_latest_version(lambda: _scrape_latest     (*TK_URL           )                  , 'TCL'          , TCL_VERSION)            # noqa: E211, E501
+TK_VERSION            = get_latest_version(lambda: _scrape_latest     (*TCL_URL          )                  , 'TK'           , TK_VERSION)             # noqa: E211, E501
+CGNS_VERSION          = get_latest_version(lambda: _github_latest_tag (*CGNS_URL         )                  , 'CGNS'         , CGNS_VERSION)           # noqa: E211, E501
+OCC_VERSION           = get_latest_version(lambda: _github_latest_tag (*OCC_URL          ).replace('.', '_'), 'OpenCascade'  , OCC_VERSION)            # noqa: E211, E501
+FREETYPE_VERSION      = get_latest_version(lambda: _github_latest_tag (*FREETYPE_URL     )                  , 'FreeType'     , FREETYPE_VERSION)       # noqa: E211, E501
+LIBXFT_VERSION        = get_latest_version(lambda: _scrape_latest     (*LIBXFT_URL       )                  , 'LibXFT'       , LIBXFT_VERSION)         # noqa: E211, E501
+LIBPNG_VERSION        = get_latest_version(lambda: _github_latest_tag (*LIBPNG_URL       )                  , 'LibPNG'       , LIBPNG_VERSION)         # noqa: E211, E501
+LIBJPEG_TURBO_VERSION = get_latest_version(lambda: _github_latest_tag (*LIBJPEG_TURBO_URL)                  , 'LibJPEG-TURBO', LIBJPEG_TURBO_VERSION)  # noqa: E211, E501
+FLTK_VERSION          = get_latest_version(lambda: _github_latest_tag (*FLTK_URL         )                  , 'FLTK'         , FLTK_VERSION)           # noqa: E211, E501
+GPERF_VERSION         = get_latest_version(lambda: _scrape_latest     (*GPERF_URL        )                  , 'gperf'        , GPERF_VERSION)          # noqa: E211, E501
+FONTCONFIG_VERSION    = get_latest_version(lambda: _scrape_latest     (*FONTCONFIG_URL   )                  , 'FontConfig'   , FONTCONFIG_VERSION)     # noqa: E211, E501
+
+GMSH_VERSION          = get_latest_version(lambda: _scrape_latest     (*GMSH_URL         )                  , 'Gmsh'         , GMSH_VERSION)           # noqa: E211, E501
+GMSH_FULLVER          = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
+GMSH_STRING           = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
+
+
+# ------------------------------------------------------------------------
 # Clean any previous build artifacts
 # ------------------------------------------------------------------------
 def clean():
@@ -204,9 +324,11 @@ def clean():
     shutil.rmtree(BUILD_DIR,         ignore_errors=True)
     shutil.rmtree(INSTALL_DIR,       ignore_errors=True)
     # All libraries
+    shutil.rmtree(ZLIB_DIR,          ignore_errors=True)
+    # shutil.rmtree(MINIZIP_DIR,       ignore_errors=True)
     shutil.rmtree(HDF5_DIR,          ignore_errors=True)
-    shutil.rmtree(TK_DIR,            ignore_errors=True)
     shutil.rmtree(TCL_DIR,           ignore_errors=True)
+    shutil.rmtree(TK_DIR,            ignore_errors=True)
     shutil.rmtree(CGNS_DIR,          ignore_errors=True)
     shutil.rmtree(OCC_DIR,           ignore_errors=True)
     shutil.rmtree(FREETYPE_DIR,      ignore_errors=True)
@@ -232,6 +354,79 @@ def clean():
 
 
 # ------------------------------------------------------------------------
+# Build zlib (Static)
+# ------------------------------------------------------------------------
+def build_zlib() -> None:
+    print_header('BUILDING ZLIB...')
+
+    url  = f'https://github.com/madler/zlib/releases/download/v{ZLIB_VERSION}/zlib-{ZLIB_VERSION}.tar.xz'
+    file = download(url, BUILD_DIR)
+    extract(file, BUILD_DIR)
+
+    zlib_src_dir = os.path.join(BUILD_DIR, f'zlib-{ZLIB_VERSION}')
+    conf_cmd = [ 'cmake',
+                 '-G', 'Unix Makefiles',
+                 '-DCMAKE_INSTALL_PREFIX={}'.format(ZLIB_DIR),
+                 '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
+                 '-DBUILD_SHARED_LIBS=OFF',
+                 '-DZLIB_BUILD_EXAMPLES=OFF',
+                 '.'
+               ]
+    conf_env = os.environ.copy()
+    conf_env['CFLAGS']   = '-O2 -fPIC'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC'
+
+    build_cmd = ['make', 'install']
+
+    if os.path.exists(ZLIB_DIR):
+        shutil.rmtree(ZLIB_DIR)
+
+    configure(conf_cmd,              env=conf_env, cwd=zlib_src_dir)
+    compile( build_cmd, build_cores, env=conf_env, cwd=zlib_src_dir)
+
+
+# ------------------------------------------------------------------------
+# Build minizip-ng (static)
+# ------------------------------------------------------------------------
+# def build_minizip() -> None:
+#     print_header('BUILDING MINIZIP-NG...')
+#
+#     url  = f'https://github.com/zlib-ng/minizip-ng/archive/refs/tags/{MINIZIP_VERSION}.tar.gz'
+#     file = download(url, BUILD_DIR)
+#     extract(file, BUILD_DIR)
+#
+#     minizip_src_dir = os.path.join(BUILD_DIR, f'minizip-ng-{MINIZIP_VERSION}')
+#     conf_cmd = [ 'cmake',
+#                  '-G', 'Unix Makefiles',
+#                  '-DCMAKE_INSTALL_PREFIX={}'.format(MINIZIP_DIR),
+#                  '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
+#                  '-DBUILD_SHARED_LIBS=OFF',
+#                  '-DMZ_FETCH_LIBS=OFF',
+#                  '-DMZ_ZLIB=ON',
+#                  '-DZLIB_ROOT={}'.format(ZLIB_DIR),
+#                  '-DMZ_BZIP2=OFF',
+#                  '-DMZ_LZMA=OFF',
+#                  '-DMZ_ZSTD=OFF',
+#                  '-DMZ_OPENSSL=OFF',
+#                  '-DMZ_LIBBSD=OFF',
+#                  '-DMZ_BUILD_TESTS=OFF',
+#                  '.',
+#                ]
+#     conf_env = os.environ.copy()
+#     conf_env['CFLAGS']          = '-O2 -fPIC'
+#     conf_env['CXXFLAGS']        = '-O2 -fPIC'
+#     conf_env['PKG_CONFIG_PATH'] = os.path.join(ZLIB_DIR, 'lib', 'pkgconfig')
+#
+#     build_cmd = ['make', 'install']
+#
+#     if os.path.exists(MINIZIP_DIR):
+#         shutil.rmtree(MINIZIP_DIR)
+#
+#     configure(conf_cmd,              env=conf_env, cwd=minizip_src_dir)
+#     compile( build_cmd, build_cores, env=conf_env, cwd=minizip_src_dir)
+
+
+# ------------------------------------------------------------------------
 # Build HDF5 (Static)
 # ------------------------------------------------------------------------
 def build_hdf5() -> None:
@@ -251,11 +446,17 @@ def build_hdf5() -> None:
                 '--prefix={}'.format(HDF5_DIR),
                 '--enable-static',
                 # '--enable-shared'
-                '--disable-shared'
+                '--disable-shared',
+                '--disable-cxx',
+                '--disable-fortran',
+                '--disable-hl',
+                '--disable-tools',
+                '--disable-tests',
+                '--with-zlib={}'.format(ZLIB_DIR),
                 ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS'  ] = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS'  ] = '-O2 -fPIC'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC'
 
     build_cmd = ['make', 'install']
     if os.path.exists(HDF5_DIR):
@@ -275,16 +476,27 @@ def build_tcl() -> None:
     file = download(url, BUILD_DIR)
     extract(file, BUILD_DIR)
 
+    # TCL 9 detects system minizip by looking for a 'zip' executable on PATH
+    # minizip-ng is a library-only build, so we provide a stub to satisfy the check
+    # zip_stub = os.path.join(BUILD_DIR, 'bin', 'zip')
+    # os.makedirs(os.path.dirname(zip_stub), exist_ok=True)
+    # with open(zip_stub, 'w') as f:
+    #     f.write('#!/bin/sh\n')
+    # os.chmod(zip_stub, 0o755)
+
     tcl_src_dir = os.path.join(BUILD_DIR, f'tcl{TCL_VERSION}', 'unix')
     conf_cmd = ['./configure',
                 '--prefix={}'.format(TCL_DIR),
-                '--enable-static',
-                # '--disable-shared'
-                '--enable-shared'
+                # '--enable-static',
+                '--disable-shared',
+                '--enable-64bit',
+                # '--enable-shared',
                 ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']          = '-O2 -fPIC'
+    conf_env['CXXFLAGS']        = '-O2 -fPIC'
+    # conf_env['PATH']            = '{}{}{}'.format(os.path.join(BUILD_DIR, 'bin'), os.pathsep, conf_env.get('PATH', ''))
+    # conf_env['PKG_CONFIG_PATH'] = os.path.join(MINIZIP_DIR, 'lib64', 'pkgconfig')
 
     build_cmd = ['make', 'install']
 
@@ -309,13 +521,18 @@ def build_tk() -> None:
     conf_cmd = ['./configure',
                 '--prefix={}'.format(TK_DIR),
                 '--with-tcl={}/lib'.format(TCL_DIR),
-                '--enable-static',
-                # '--disable-shared'
-                '--enable-shared'
+                # '--enable-static',
+                '--disable-shared',
+                '--enable-64bit',
+                # '--enable-shared'
+                '--disable-xss',
+                '--disable-zipfs',
                 ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']          = '-O2 -fPIC'
+    conf_env['CXXFLAGS']        = '-O2 -fPIC'
+    # conf_env['PATH']            = '{}{}{}'.format(os.path.join(BUILD_DIR, 'bin'), os.pathsep, conf_env.get('PATH', ''))
+    # conf_env['PKG_CONFIG_PATH'] = os.path.join(MINIZIP_DIR, 'lib64', 'pkgconfig')
 
     build_cmd = ['make', 'install']
 
@@ -344,10 +561,14 @@ def build_freetype():
                  '--enable-static',
                  '--disable-shared',
                  # '--enable-shared',
+                 '--without-bzip2',
+                 '--without-brotli',
+                 # '--without-harfbuzz',
                  ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']          = '-O2 -fPIC'
+    conf_env['CXXFLAGS']        = '-O2 -fPIC'
+    conf_env['PKG_CONFIG_PATH'] = os.path.join(ZLIB_DIR, 'lib', 'pkgconfig')
 
     build_cmd = ['make', 'install']
 
@@ -376,14 +597,15 @@ def build_libpng():
 
     conf_cmd  = ['./configure',
                  '--prefix={}'.format(LIBPNG_DIR),
-                 '--disable-static',
-                 # '--enable-static',
-                 # '--disable-shared',
-                 '--enable-shared',
+                 # '--disable-static',
+                 '--enable-static',
+                 '--disable-shared',
+                 # '--enable-shared',
                  ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']          = '-O2 -fPIC'
+    conf_env['CXXFLAGS']        = '-O2 -fPIC'
+    conf_env['PKG_CONFIG_PATH'] = os.path.join(ZLIB_DIR, 'lib', 'pkgconfig')
 
     build_cmd = ['make', 'install']
 
@@ -426,11 +648,15 @@ def build_libjpeg():
                  '-DWITH_JPEG8=ON',
                  '-DCMAKE_INSTALL_PREFIX={}'.format(LIBJPEG_TURBO_DIR),
                  '-DCMAKE_POSITION_INDEPENDENT_CODE=1',
+                 '-DENABLE_EXECUTABLES=OFF',
+                 '-DWITH_TURBOJPEG=OFF',
+                 '-DWITH_JAVA=OFF',
+                 '-DWITH_12BIT=OFF',
                  '.'
                 ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']   = '-O2 -fPIC'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC'
 
     build_cmd = ['make', 'install']
 
@@ -499,13 +725,16 @@ def build_fontconfig():
         './configure',
         f'--prefix={FONTCONFIG_DIR}',
         '--enable-static',
-        '--enable-shared'
-        # '--disable-shared'
+        '--enable-shared'  # We want shared fontconfig for pretty text rendering
+        # '--disable-shared',
+        '--disable-docs',
+        # '--disable-nls',
+        '--disable-cache-build',
     ]
 
     conf_env = os.environ.copy()
-    conf_env['CFLAGS'  ] = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS'  ] = '-O2 -fPIC'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC'
     conf_env['PKG_CONFIG_PATH'] = '{}'.format(os.path.join(FREETYPE_DIR, 'lib'  , 'pkgconfig'))
     conf_env['PATH'    ] = '{}{}{}'.format(   os.path.join(INSTALL_DIR , 'gperf', 'bin'), os.pathsep, conf_env['PATH'])
 
@@ -578,6 +807,11 @@ def build_fltk():
         '--enable-localpng=no',
         '--enable-localjpeg=no',
         '--enable-localzlib=no',
+        '--disable-fluid',
+        # '--disable-gl',            # Gmsh provides its own GL handling via OCC
+        '--disable-xinerama',      # multi-monitor extension
+        '--disable-xfixes',
+        '--disable-xcursor',
     ]
     # conf_cmd = [
     #     'cmake',
@@ -592,8 +826,8 @@ def build_fltk():
     #     '-W no-dev',
     # ]
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']   = '-O2 -fPIC'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC'
 
     conf_env['CPPFLAGS'       ] = '-I{}'   .format(os.path.join(LIBPNG_DIR       , 'include'))
     conf_env['CPPFLAGS'       ] = '-I{} {}'.format(os.path.join(LIBXFT_DIR       , 'include'), conf_env['CPPFLAGS'])
@@ -659,8 +893,8 @@ def build_gperf():
     ]
 
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-fPIC'
-    conf_env['CXXFLAGS'] = '-fPIC'
+    conf_env['CFLAGS']   = '-O2 -fPIC'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC'
 
     build_cmd = ['make', 'install']
 
@@ -687,8 +921,8 @@ def build_cgns() -> None:
     subprocess.run(['git', 'checkout', CGNS_VERSION          ], check=True, cwd=cgns_dir)
 
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']    = '-fPIC'
-    conf_env['CXXFLAGS']  = '-fPIC'
+    conf_env['CFLAGS']    = '-O2 -fPIC'
+    conf_env['CXXFLAGS']  = '-O2 -fPIC'
     if 'PATH' in conf_env:
         conf_env['PATH']  = '{}{}{}'.format(os.path.join(HDF5_DIR), os.pathsep, conf_env['PATH'])
     else:
@@ -705,6 +939,10 @@ def build_cgns() -> None:
         '-DHDF5_LIBRARY={}/lib/libhdf5.a'.format(HDF5_DIR),
         '-DCGNS_ENABLE_HDF5=ON',
         '-DCGNS_BUILD_SHARED=OFF',
+        '-DCGNS_ENABLE_FORTRAN=OFF',
+        '-DCGNS_BUILD_CGNSTOOLS=OFF',
+        '-DCGNS_ENABLE_TESTS=OFF',
+        '-DCGNS_BUILD_TESTING=OFF',
     ]
 
     build_cmd = ['make', 'install']
@@ -731,24 +969,65 @@ def build_occt() -> None:
     if os.path.exists(occ_dir):
         shutil.rmtree(occ_dir)
 
-    git_url = 'https://git.dev.opencascade.org/repos/occt.git'
-    subprocess.run(['git', 'clone'   , git_url    , occ_dir ], check=True)
-    subprocess.run(['git', 'checkout', OCC_VERSION          ], check=True, cwd=occ_dir)
+    tarball_urls = (f'https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/{OCC_VERSION}.tar.gz',
+                    f'https://git.dev.opencascade.org/gitweb/?p=occt.git;a=snapshot;h=refs/tags/{OCC_VERSION};sf=tgz',)
+
+    extracted = False
+    for url in tarball_urls:
+        try:
+            print_step(f'Trying: {url}')
+            file = download(url, BUILD_DIR)
+            extract(file, BUILD_DIR)
+            extracted = True
+            break
+
+        except Exception as exc:
+            print_step(f'Failed ({exc}), trying next source...')
+
+    if not extracted:
+        raise RuntimeError('All OpenCASCADE sources failed — check network or version string')
+
+    # GitHub extracts as OCCT-V7_9_2/, opencascade.org as occt-V7_9_2/
+    for candidate in (f'OCCT-{OCC_VERSION}'            , f'occt-{OCC_VERSION}',
+                      f'OCCT-{OCC_VERSION.lstrip("V")}', f'occt-{OCC_VERSION.lstrip("V")}'):
+        candidate_dir = os.path.join(BUILD_DIR, candidate)
+        if os.path.exists(candidate_dir):
+            shutil.move(candidate_dir, occ_dir)
+            break
+    else:
+        raise RuntimeError(f'Could not find extracted OCC directory in {BUILD_DIR}')
 
     conf_env = os.environ.copy()
-    conf_env['CFLAGS']   = '-pthread -lrt'
-    conf_env['CXXFLAGS'] = '-pthread -lrt'
+    conf_env['CFLAGS']   = '-O2 -fPIC -pthread'
+    conf_env['CXXFLAGS'] = '-O2 -fPIC -pthread'
+    conf_env['LDFLAGS']  = '-lrt'
     conf_cmd = [
         'cmake', occ_dir,
         '-DCMAKE_BUILD_TYPE=Release',
         '-DCMAKE_INSTALL_PREFIX={}/install'.format(OCC_DIR),
         '-DBUILD_LIBRARY_TYPE=Static',
+        '-DBUILD_MODULE_ApplicationFramework=OFF',
+        '-DBUILD_MODULE_DataExchange=ON',           # needed by Gmsh for STEP/IGES
         '-DBUILD_MODULE_DETools=OFF',
         '-DBUILD_MODULE_Draw=OFF',
         '-DBUILD_MODULE_Visualization=OFF',
-        '-D3RDPARTY_TCL_INCLUDE_DIR={}/include'.format(TCL_DIR),
-        '-D3RDPARTY_TK_INCLUDE_DIR={}/include'.format(TK_DIR),
+        '-DBUILD_RELEASE_DISABLE_EXCEPTIONS=ON',
+        # '-DUSE_TBB=OFF'
+        '-DUSE_FFMPEG=OFF',
+        '-DUSE_FREEIMAGE=OFF',
         '-DUSE_FREETYPE=OFF',
+        '-DUSE_OPENGL=OFF',                         # Gmsh handles rendering
+        '-DUSE_OPENVR=OFF',
+        '-DUSE_TK=OFF',
+        '-DUSE_VTK=OFF',
+        # '-D3RDPARTY_TCL_INCLUDE_DIR={}/include'.format(TCL_DIR),
+        # '-D3RDPARTY_TK_INCLUDE_DIR={}/include'.format(TK_DIR),
+        # '-DUSE_TCL=ON',
+        # '-DTCL_LIBRARY={}/lib/libtcl{}.a'.format(TCL_DIR, '.'.join(TCL_VERSION.split('.')[:2])),
+        # '-DTCL_INCLUDE_PATH={}/include'.format(TCL_DIR),
+        # '-DTK_LIBRARY={}/lib/libtk{}.a'.format(TK_DIR, '.'.join(TK_VERSION.split('.')[:2])),
+        # '-DTK_INCLUDE_PATH={}/include'.format(TK_DIR),
+        '-DUSE_TCL=OFF',
         '-DUSE_TK=OFF',
     ]
 
@@ -860,8 +1139,8 @@ def build_gmsh() -> None:
     extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
 
     # Move files into common directory
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64'  ) , dirs_exist_ok=True, symlinks=True)
-    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/'), os.path.join(WORK_DIR, 'build', 'include') , dirs_exist_ok=True, symlinks=True)
+    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64'  ) , dirs_exist_ok=True, symlinks=True)  # noqa: E501
+    shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/'), os.path.join(WORK_DIR, 'build', 'include') , dirs_exist_ok=True, symlinks=True)  # noqa: E501
 
     # Now, patch the file paths
     with open(os.path.join(BUILD_DIR, 'lib64', 'pkgconfig', 'glu.pc'), 'r') as file:
@@ -883,11 +1162,11 @@ def build_gmsh() -> None:
     subprocess.run(['git', 'checkout', GMSH_STRING      ], check=True, cwd=gmsh_dir)
 
     # Apply patches to gmsh source code
-    patch_dir = os.path.abspath('patches')  # Get absolute path of patches directory
+    patch_dir = os.path.abspath('patches')                # Get absolute path of patches directory
 
     for patch_file in os.listdir(patch_dir):
         patch_path = os.path.join(patch_dir, patch_file)  # Full path to patch file
-        if patch_file.endswith('.patch'):  # Ensure it's a patch file
+        if patch_file.endswith('.patch'):                 # Ensure it's a patch file
             subprocess.run(['git', 'apply', patch_path], check=True, cwd=gmsh_dir)
 
     conf_env = os.environ.copy()
@@ -952,7 +1231,8 @@ def build_gmsh() -> None:
         '-DHDF5_INCLUDE_DIRS={}/include'.format(HDF5_DIR),
         '-DJPEG_LIBRARY={}/lib64/libjpeg.a'.format(LIBJPEG_TURBO_DIR),
         '-DJPEG_INCLUDE_DIR={}/include'.format(LIBJPEG_TURBO_DIR),
-        '-DPNG_LIBRARY={}/lib/libpng.so'.format(LIBPNG_DIR),
+        # '-DPNG_LIBRARY={}/lib/libpng.so'.format(LIBPNG_DIR),
+        '-DPNG_LIBRARY={}/lib/libpng.a'.format(LIBPNG_DIR),
         '-DPNG_INCLUDE_DIR={}/include'.format(LIBPNG_DIR),
         '-DPNG_PNG_INCLUDE_DIR={}/include'.format(LIBPNG_DIR),
         '-DENABLE_BUILD_LIB=ON',
@@ -976,7 +1256,7 @@ def build_gmsh() -> None:
         '-DENABLE_SYSTEM_CONTRIB=OFF',
         '-DENABLE_PACKAGE_STRIP=ON',
         '-DGMSH_PACKAGER=NRG',
-        '-DX11_ICE_LIB=OFF'  # Force disable libICE support with a very ugly hack
+        # '-DX11_ICE_LIB=OFF'  # Force disable libICE support with a very ugly hack
     ]
 
     build_cmd = ['make', 'install']
@@ -1146,11 +1426,17 @@ def package() -> None:
 
     print_header('PYTHON WHEEL BUILD COMPLETED!')
 
+    result = subprocess.run(['sha256sum', os.path.join(WORK_DIR, PYTHON_WHEEL)], stdout=subprocess.PIPE, universal_newlines=True)
+    print_step('Wheel : {}'.format(os.path.join(WORK_DIR, PYTHON_WHEEL)))
+    print_step('SHA256: {}'.format(result.stdout.split(' ')[0]))
+
 
 # Run the build steps in order
 if __name__ == '__main__':
     clean()
     # Build all dependencies
+    build_zlib()
+    # build_minizip()
     build_hdf5()
     build_tcl()
     build_tk()

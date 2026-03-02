@@ -137,7 +137,7 @@ class Gitlab():
     LIB_PROJECT: str = '797'
     LIB_VERSION: dict[str, dict[str, str]] = {
         'linux': {
-            'x86_64' : '4.15.0.post1',
+            'x86_64' : '4.15.1.post1',
             'aarch64': '4.13.1.post1'
         },
         'darwin': {
@@ -146,7 +146,7 @@ class Gitlab():
     }
     LIB_SUPPORT: dict[str, dict[str, str]] = {
         'linux': {
-            'x86_64' : '4890119b9203788dbffea7e42f398680c5c5dd575cf4c8a5ebc83308db1a1d4b',
+            'x86_64' : '4f2b923a164f8f8b77494df943ea52a3f7050716f9b9cbac9190f7460ca822fb',
             'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'
         },
         'darwin': {
