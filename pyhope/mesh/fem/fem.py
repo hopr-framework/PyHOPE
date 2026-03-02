@@ -73,8 +73,7 @@ def FEMConnect() -> None:
     hopout.info('GENERATE FINITE ELEMENT METHOD (FEM) CONNECTIVITY...')
     hopout.sep()
 
-    doFEMConnect = GetLogical('doFEMConnect')
-    if not doFEMConnect:
+    if not GetLogical('doFEMConnect'):
         hopout.separator()
         return None
 
@@ -83,7 +82,7 @@ def FEMConnect() -> None:
 
     # Build a graph of all periodic connections across all BCs
     periGraph: dict[int, set[int]] = defaultdict(set)
-    for (node, _bc), peri in periNodes.items():
+    for (node, _), peri in periNodes.items():
         node, peri = int(node), int(peri)
         periGraph[node].add(peri)
         periGraph[peri].add(node)
@@ -92,46 +91,45 @@ def FEMConnect() -> None:
     nodeFirst: dict[int, int]      = {}  # node -> representative (canonical)
     nodeGroup: dict[int, set[int]] = {}  # representative -> full member set
 
-    for start in list(periGraph.keys()):
-        if start in nodeFirst:
+    for nodeStart in list(periGraph.keys()):
+        if nodeStart in nodeFirst:
             continue
 
-        stack = [start]
-        comp  = set()
+        stack     = [nodeStart]
+        component = set()
 
         while stack:
-            cur = stack.pop()
-            if cur in comp:
+            currentNode = stack.pop()
+            if currentNode in component:
                 continue
 
-            comp.add(cur)
-            for nxt in periGraph[cur]:
-                if nxt not in comp:
+            component.add(currentNode)
+            for nxt in periGraph[currentNode]:
+                if nxt not in component:
                     stack.append(nxt)
 
-        rep = min(comp)
-        for v in comp:
-            nodeFirst[v] = rep
+        canonical_rep = min(component)
+        for v in component:
+            nodeFirst[v] = canonical_rep
 
-        nodeGroup[rep] = comp
-
-    # Convenience mapping: each node -> full set of periodic equivalents (including itself)
-    periGroups: dict[int, set[int]] = {}
-    for rep, members in nodeGroup.items():
-        for v in members:
-            periGroups[v] = members
+        nodeGroup[canonical_rep] = component
 
     # Build mapping of each node -> set of element indices that include that node
     nodeToElements = defaultdict(set)
-    for idx, elem in enumerate(elems):
+    for elemID, elem in enumerate(elems):
         for node in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]:
-            nodeToElements[int(node)].add(idx)
+            nodeToElements[int(node)].add(elemID)
 
     # Precompute combined connectivity for each node
-    # > For a given node, the combined set is:
-    # > nodeToElements[node] ∪ nodeToElements[periDict[node]]
-    nodeConn = {node: set().union(*(nodeToElements.get(eq, set()) for eq   in periGroups.get(node, {node})))  # noqa: E272
-                                                                  for node in nodeToElements.keys()}
+    nodeConn = {}
+    for members in nodeGroup.values():
+        combined = set().union(*(nodeToElements[m] for m in members if m in nodeToElements))
+        for nodeMap in members:
+            nodeConn[nodeMap] = combined
+
+    for node, elemSet in nodeToElements.items():
+        if node not in nodeConn:
+            nodeConn[node] = elemSet
 
     # Collect all unique canonical vertices from every element
     # > The canonical vertex is the minimum of the node and its periodic counterparts
@@ -153,24 +151,23 @@ def FEMConnect() -> None:
     # This dictionary holds the directed mapping for each BC
     # > Key: Source node
     # > Val: Target node
-    nodeMapBC: dict[str, dict[int, int]] = {}
-    for bc in periNames:
-        nodeMapBC[bc] = {int(node): int(peri) for (node, bc_name), peri in periNodes.items() if bc_name == bc}
-
+    nodeMapBC: dict[str, dict[int, int]] = {bc: {int(n): int(p) for (n, b), p in periNodes.items() if b == bc} for bc in periNames}
     # For convenience, also build a set of all nodes that lie on any boundary
+
     BCNodes = {int(node)      for node, _ in periNodes.keys()}     # noqa: E272
     BCNodes.update({int(peri) for peri    in periNodes.values()})  # noqa: E272
 
     # EDGE2: Enumerate All Raw Edges from the Mesh
     # > tuple(element_index, local_edge_index, (node0, node1))
-    edgesRaw: list[tuple[int, int, tuple[int, int]]] = []
-
+    edgesRaw = []
     for elemID, elem in enumerate(elems):
-        for edge in edges(elem.type):
+        elemType  = elem.type
+        elemNodes = cast(np.ndarray, elem.nodes)
+        for edge in edges(elemType):
             # Get the local corner indices for the current edge
-            edgeCorners = edge_to_corner(edge, elem.type)
+            corners = edge_to_corner(edge, elemType)
             # Get the global node indices for those corners
-            n0, n1 = int(cast(np.ndarray, elem.nodes)[edgeCorners[0]]), int(cast(np.ndarray, elem.nodes)[edgeCorners[1]])
+            n0, n1 = int(elemNodes[corners[0]]), int(elemNodes[corners[1]])
             edgesRaw.append((elemID, edge, (n0, n1)))
 
     # EDGE3: Generate Canonical Edge Keys (Graph-Based Approach)
@@ -181,17 +178,19 @@ def FEMConnect() -> None:
 
     for _, _, nodes in edgesRaw:
         # Start with the edge's own representation
-        edgeBase = tuple(sorted(nodes))
+        n0, n1   = nodes
         # Find all possible displaced representations
+        edgeBase = (n0, n1) if n0 < n1 else (n1, n0)
         edgePeri = {edgeBase}
-        nodesSet = frozenset(nodes)
 
         # Check if all nodes are on a boundary
-        if nodesSet.issubset(BCNodes):
+        if n0 in BCNodes and n1 in BCNodes:
             for bc in periNames:
                 nodeMap = nodeMapBC[bc]
-                if nodesSet.issubset(nodeMap) and nodeMap[nodes[0]] != nodeMap[nodes[1]]:
-                    edgePeri.add(tuple(sorted([nodeMap[node] for node in nodes])))
+                if n0 in nodeMap and n1 in nodeMap:
+                    p0, p1 = nodeMap[n0], nodeMap[n1]
+                    if p0 != p1:
+                        edgePeri.add((p0, p1) if p0 < p1 else (p1, p0))
 
         # Connect all representations for this edge in the graph
         # > This ensures that if A->B and B->C, we can later find that A is related to C
@@ -210,7 +209,8 @@ def FEMConnect() -> None:
     # Iterate through all unique representations
     edgeSet = set(edgeGraph.keys())
     for _, _, nodes in edgesRaw:
-        edgeSet.add(tuple(sorted(nodes)))
+        n0, n1 = nodes
+        edgeSet.add((n0, n1) if n0 < n1 else (n1, n0))
 
     for nodeStart in edgeSet:
         # Done with this node
@@ -244,37 +244,31 @@ def FEMConnect() -> None:
     edgeKeys = []
     for elemID, locEdge, nodes in edgesRaw:
         # Get the initial representation of the edge
-        edgeBase = tuple(sorted(nodes))
+        n0, n1   = nodes
+        edgeBase = (n0, n1) if n0 < n1 else (n1, n0)
 
         # Find the true canonical representation from the pre-computed map
         canonical_edge_nodes = edgeCanonical.get(edgeBase, edgeBase)
 
-        c0 = nodeFirst.get(nodes[0], nodes[0])
-        c1 = nodeFirst.get(nodes[1], nodes[1])
-        v0 = FEMNodeMapping[c0]
-        v1 = FEMNodeMapping[c1]
-        edgePair = tuple(sorted((v0, v1)))
+        v0 = FEMNodeMapping[nodeFirst.get(n0, n0)]
+        v1 = FEMNodeMapping[nodeFirst.get(n1, n1)]
 
         # The final, unique key for this edge
-        edgeKey = (edgePair, canonical_edge_nodes)
-
-        # Create the edge key list
-        edgeKeys.append((elemID, locEdge, edgeKey, (v0, v1), nodes))
+        # > Create the edge key list
+        edgeKeys.append((elemID, locEdge, ((v0, v1) if v0 < v1 else (v1, v0), canonical_edge_nodes), (v0, v1), nodes))
 
     # Create the final mapping from the unique edge key to a simple integer ID
     uniqueEdges    = sorted(list({k for _, _, k, _, _ in edgeKeys}))
     FEMEdgeMapping = {key: i for i, key in enumerate(uniqueEdges)}
 
     # Build the vertex connectivity
-    for idx, elem in enumerate(elems):
+    for elemID, elem in enumerate(elems):
         vertexInfo: Dict[int, Tuple[int, Tuple[int, ...]]] = {}
         for locNode, node in enumerate(int(n) for n in cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]):
             # Determine canonical vertex id
-            canonical   = nodeFirst.get(node, node)
-            FEMVertexID = FEMNodeMapping[canonical]
+            FEMVertexID = FEMNodeMapping[nodeFirst.get(node, node)]
             # Retrive connectivity set for the node
-            nodeVertex = nodeConn.get(node, set())
-            vertexInfo[locNode] = (FEMVertexID, tuple(sorted(nodeVertex)))
+            vertexInfo[locNode] = (FEMVertexID, tuple(sorted(nodeConn.get(node, set()))))
         # Set the vertex connectivity for the element
         elem.vertexInfo = vertexInfo
 
@@ -283,11 +277,9 @@ def FEMConnect() -> None:
 
     # Use the pre-computed edge_key_list
     for elemID, locEdge, edgeKey, edgePair, edgeNodes in edgeKeys:
-        # Get the global FEMEdgeID
-        FEMEdgeID = FEMEdgeMapping[edgeKey]
         # Retrieve the edge connectivity for the element
         # The structure is: (local_idx, global_id, global_vertex_ids, local_node_ids)
-        elems[elemID].edgeInfo[locEdge] = (locEdge, FEMEdgeID, edgePair, edgeNodes)
+        elems[elemID].edgeInfo[locEdge] = (locEdge, FEMEdgeMapping[edgeKey], edgePair, edgeNodes)
 
 
 def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
