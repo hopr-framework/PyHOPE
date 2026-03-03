@@ -1,5 +1,7 @@
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/12060/baseline)](https://www.bestpractices.dev/projects/12060)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12060/badge)](https://www.bestpractices.dev/projects/12060)
+[![CI](https://github.com/hopr-framework/PyHOPE/actions/workflows/ci.yml/badge.svg)](https://github.com/hopr-framework/PyHOPE/actions/workflows/ci.yml)
+[![Documentation](https://github.com/hopr-framework/PyHOPE/actions/workflows/github-pages.yml/badge.svg)](https://github.com/hopr-framework/PyHOPE/actions/workflows/github-pages.yml)
 
 PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
 
