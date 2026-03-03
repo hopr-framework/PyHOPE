@@ -311,8 +311,8 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # Vertex connectivity info ---------------------------------------------------
     # > Build list of all vertex occurrences, appearing in the same order as the elements
-    occList = [(FEMVertexID, elemID, locNode) for elemID , elem             in enumerate(elems)  # noqa: E272
-                                              for locNode, (FEMVertexID, _) in elem.vertexInfo.items()]
+    occList = tuple((FEMVertexID, elemID, locNode) for elemID , elem             in enumerate(elems)  # noqa: E272
+                                                   for locNode, (FEMVertexID, _) in elem.vertexInfo.items())
     nFEMVertices = max(FEMVertexID for FEMVertexID, _, _ in occList)
 
     # > Build mapping from FEM vertex ID to list of occurrences
@@ -330,7 +330,8 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     for elemID, elem in enumerate(elems):
         # Process vertex occurrences for the current element
-        for _ in cast(dict, elem.vertexInfo):
+        vertInfo = cast(dict, elem.vertexInfo)
+        for _ in vertInfo:
             # Get the occurrence information from the global occList
             FEMVertexID, _, locNode = occList[occGlobalIdx]
             groupOcc = groups[FEMVertexID]
@@ -343,32 +344,28 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
             connections = [(nbElem+1, nbLocal+1) if   otherOcc == masterOcc else (-(nbElem+1), nbLocal+1)  # noqa: E271
                                                  for (otherOcc, nbElem, nbLocal) in groupOcc if otherOcc != occGlobalIdx]
 
-            if connections:
-                lastIndex = offset + len(connections)
-                vertexConnList.extend(connections)
-            else:  # No connections
-                lastIndex = offset
-
             # Append vertex information
-            vertexInfoList.append([FEMVertexID, offset, lastIndex])
+            vertexConnList.extend(connections)
+            vertexInfoList.append([FEMVertexID, offset, offset + len(connections)])
             occGlobalIdx += 1
 
         # Set the vertex connectivity offset for this element.
+        nVertInfo              = len(vertInfo)
         FEMElemInfo[elemID, 2] = vertexOffset
-        FEMElemInfo[elemID, 3] = vertexOffset + len(cast(dict, elem.vertexInfo))
-        vertexOffset += len(cast(dict, elem.vertexInfo))
+        FEMElemInfo[elemID, 3] = vertexOffset + nVertInfo
+        vertexOffset          += nVertInfo
 
     # Edge   connectivity info ---------------------------------------------------
     # > Build list of all raw edge occurrences, appearing in the same order as the elements
-    occList = [{'EdgeID': edgeIdx, 'elem': elemID, 'loc': locEdge, 'nodes': edgeNodes} for elemID, elem                        in enumerate(elems)        # noqa: E272, E501
-                                                                                       for locEdge, (_, edgeIdx, _, edgeNodes) in elem.edgeInfo.items()]  # noqa: E501
+    occList = tuple((edgeIdx, elemID, locEdge, edgeNodes) for elemID, elem                        in enumerate(elems)        # noqa: E272, E501
+                                                          for locEdge, (_, edgeIdx, _, edgeNodes) in elem.edgeInfo.items())  # noqa: E501
     # > EdgeID starts at zero, so add 1
-    nFEMEdges = max(d['EdgeID'] for d in occList) + 1
+    nFEMEdges = max(d[0] for d in occList) + 1
 
     # 2. Group these occurrences by their canonical FEMEdgeID
     groups = defaultdict(list)
     for occ in occList:
-        groups[occ['EdgeID']].append(occ)
+        groups[occ[0]].append(occ)
 
     edgeInfoList   = []  # List: [FEMEdgeID, offsetIndEdgeConnect, lastIndEdgeConnect]
     edgeConnList   = []  # List: [[nbElemID, nbLocEdgeID]]
@@ -377,10 +374,11 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     for elemID, elem in enumerate(elems):
         # Process edge occurrences for the current element
-        for _ in range(len(cast(dict, elem.edgeInfo))):
+        edgeInfo = cast(dict, elem.edgeInfo)
+        for _ in range(len(edgeInfo)):
             # Get the occurrence information from the global occList
             currentEdge = occList[occGlobalIdx]
-            FEMEdgeID   = currentEdge['EdgeID']
+            FEMEdgeID, curElem, curLoc, _ = currentEdge
 
             # Get all siblings (including periodic ones) from the edge group
             groupOcc = groups[FEMEdgeID]
@@ -393,51 +391,39 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
             # Build connectivity list for current element, excluding itself
             connections = []
             for sibling in groupOcc:
-                if sibling['elem'] == currentEdge['elem'] and sibling['loc'] == currentEdge['loc']:
+                sibEdgeID, sibElem, sibLoc, sibNodes = sibling
+                if sibElem == curElem and sibLoc == curLoc:
                     continue
 
-                edgeIsMaster  = (sibling['elem'] == masterOcc['elem'] and sibling['loc'] == masterOcc['loc'])
+                edgeIsMaster  = (sibElem == masterOcc[1] and sibLoc == masterOcc[2])
                 # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
-                orientation   = 1 if nodeInfo[masterOcc['nodes'][0]] < nodeInfo[masterOcc['nodes'][1]] else -1
+                orientation   = 1 if nodeInfo[masterOcc[3][0]] < nodeInfo[masterOcc[3][1]] else -1
 
                 # The current edge is the master
-                # if masterID == -1:
-                #     orientedElemID  = -(nbElem   +1)
-                #     orientedLocEdge =   nbLocEdge+1 if nbEdge   == masterEdge               else -(nbLocEdge+1)  # noqa: E272
                 if edgeIsMaster:
-                    orientedElemID  = -(sibling['elem'] + 1)
-                    orientedLocEdge =   sibling['loc']  + 1
+                    orientedElemID  = -(sibElem + 1)
+                    orientedLocEdge =   sibLoc  + 1
 
                 # Current edge is a slave edge
-                # # The master edge is one of the connections, indicated by masterID
                 else:
-                    # orientedElemID  =   nbElem   +1 if masterID == iConn                    else -(nbElem   +1)  # noqa: E272
-                    # orientedLocEdge =   nbLocEdge+1 if nbEdge   == connections[masterID][3] else -(nbLocEdge+1)
-                    # Check our relative orientation
-                    orientation     = orientation if nodeInfo[sibling['nodes'][0]] == nodeInfo[masterOcc['nodes'][0]] else -1
-                    orientedElemID  =  sibling['elem'] + 1
-                    orientedLocEdge =  sibling['loc']  + 1
+                    orientation     = orientation if nodeInfo[sibNodes[0]] == nodeInfo[masterOcc[3][0]] else -1
+                    orientedElemID  =  sibElem + 1
+                    orientedLocEdge =  sibLoc  + 1
 
                 # TODO: Check if this is correct
                 # > Copy the orientation
-                orientedLocEdge = int(orientedLocEdge * orientation)
-
-                connections.append([orientedElemID, orientedLocEdge])
-
-            if connections:
-                lastIndex = offset + len(connections)
-                edgeConnList.extend(connections)
-            else:
-                lastIndex = offset
+                connections.append([orientedElemID, int(orientedLocEdge * orientation)])
 
             # Append edge information
-            edgeInfoList.append([FEMEdgeID, offset, lastIndex])
+            edgeConnList.extend(connections)
+            edgeInfoList.append([FEMEdgeID, offset, offset + len(connections)])
             occGlobalIdx += 1
 
         # Set the edge connectivity offset for this element
+        nEdgeInfo              = len(edgeInfo)
         FEMElemInfo[elemID, 0] = edgeOffset
-        FEMElemInfo[elemID, 1] = edgeOffset + len(cast(dict, elem.edgeInfo))
-        edgeOffset += len(cast(dict, elem.edgeInfo))
+        FEMElemInfo[elemID, 1] = edgeOffset + nEdgeInfo
+        edgeOffset            += nEdgeInfo
 
     # Convert lists to numpy arrays
     vertexInfo = np.array(vertexInfoList, dtype=np.int32)
