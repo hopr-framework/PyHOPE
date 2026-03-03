@@ -310,113 +310,159 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
         return np.array([]), 0, np.array([]), np.array([]), 0, np.array([]), np.array([])
 
     # Vertex connectivity info ---------------------------------------------------
-    # > Build list of all vertex occurrences, appearing in the same order as the elements
-    occList = tuple((FEMVertexID, elemID, locNode) for elemID , elem             in enumerate(elems)  # noqa: E272
-                                                   for locNode, (FEMVertexID, _) in elem.vertexInfo.items())
-    nFEMVertices = max(FEMVertexID for FEMVertexID, _, _ in occList)
+    # > Build flat arrays of all vertex occurrences
+    # > > Same order as the elements
+    nOccVertex = sum(len(cast(dict, elem.vertexInfo)) for elem in elems)
+    occVertID  = np.empty(nOccVertex, dtype=np.int64)   # FEMVertexID      per occurrence
+    occElemID  = np.empty(nOccVertex, dtype=np.int64)   # Element index    per occurrence
+    occLocNode = np.empty(nOccVertex, dtype=np.int64)   # Local node index per occurrence
+
+    idx = 0
+    for elemID, elem in enumerate(elems):
+        for locNode, (FEMVertexID, _) in cast(dict, elem.vertexInfo).items():
+            occVertID[ idx] = FEMVertexID
+            occElemID[ idx] = elemID
+            occLocNode[idx] = locNode
+            idx += 1
+    nFEMVertices = int(occVertID.max())
 
     # > Build mapping from FEM vertex ID to list of occurrences
-    groups = defaultdict(list)
-    for occIdx, (FEMVertexID, elemID, locNode) in enumerate(occList):
-        groups[FEMVertexID].append((occIdx, elemID, locNode))
+    groups: dict[int, list[int]] = defaultdict(list)
+    for occIdx in range(nOccVertex):
+        groups[int(occVertID[occIdx])].append(occIdx)
+
+    # > Pre-allocate output arrays
+    nVertConnTotal = sum(len(idxs) * (len(idxs) - 1) for idxs in groups.values())
+    vertexInfoArr  = np.empty((nOccVertex,     3), dtype=np.int64)  # [FEMVertexID, offset, last]
+    vertexConnArr  = np.empty((nVertConnTotal, 2), dtype=np.int64)  # [nbElemID, nbLocVertexID]
 
     # Initialize FEM element information
-    FEMElemInfo    = np.zeros((nElems, 4), dtype=np.int32)
+    FEMElemInfo  = np.zeros((nElems, 4), dtype=np.int64)
 
-    vertexInfoList = []  # List: [FEMVertexID, offsetIndVertexConnect, lastIndVertexConnect]
-    vertexConnList = []  # List: [[nbElemID, nbLocVertexID]]
-    vertexOffset   = 0
-    occGlobalIdx   = 0   # global index in occList
+    connOffset   = 0
+    vertexOffset = 0  # cumulative vertex count for FEMElemInfo
+    occGlobalIdx = 0
+
+    # > Precompute masterIdx (lowest occIdx) per group
+    masterIdx: dict[int, int] = {vid: min(idxs) for vid, idxs in groups.items()}
 
     for elemID, elem in enumerate(elems):
         # Process vertex occurrences for the current element
         vertInfo = cast(dict, elem.vertexInfo)
         for _ in vertInfo:
-            # Get the occurrence information from the global occList
-            FEMVertexID, _, locNode = occList[occGlobalIdx]
-            groupOcc = groups[FEMVertexID]
-            offset   = len(vertexConnList)
+            vertexID = int(occVertID[occGlobalIdx])
+            masterID = masterIdx[vertexID]
+            groupOcc = groups[   vertexID]
+            offset   = connOffset
 
-            # Identify the master occurrence (lowest occIdx from the occurrence group)
-            masterOcc = min(x[0] for x in groupOcc)
+            # Write connections
+            for otherOcc in groupOcc:
+                if otherOcc == occGlobalIdx:
+                    continue
 
-            # Build connectivity list for current element, excluding itself
-            connections = [(nbElem+1, nbLocal+1) if   otherOcc == masterOcc else (-(nbElem+1), nbLocal+1)  # noqa: E271
-                                                 for (otherOcc, nbElem, nbLocal) in groupOcc if otherOcc != occGlobalIdx]
+                nbElem  = int(occElemID[ otherOcc])
+                nbLocal = int(occLocNode[otherOcc])
 
-            # Append vertex information
-            vertexConnList.extend(connections)
-            vertexInfoList.append([FEMVertexID, offset, offset + len(connections)])
+                if otherOcc == masterID:
+                    vertexConnArr[connOffset, 0] =  nbElem  + 1
+                else:
+                    vertexConnArr[connOffset, 0] = -(nbElem + 1)
+                vertexConnArr[connOffset, 1] = nbLocal + 1
+                connOffset += 1
+
+            # Write vertex information
+            vertexInfoArr[occGlobalIdx, 0] = vertexID
+            vertexInfoArr[occGlobalIdx, 1] = offset
+            vertexInfoArr[occGlobalIdx, 2] = connOffset
             occGlobalIdx += 1
 
-        # Set the vertex connectivity offset for this element.
+        # Set the vertex connectivity offset for this element
         nVertInfo              = len(vertInfo)
         FEMElemInfo[elemID, 2] = vertexOffset
         FEMElemInfo[elemID, 3] = vertexOffset + nVertInfo
         vertexOffset          += nVertInfo
 
+    vertConnOffset = connOffset
+
     # Edge   connectivity info ---------------------------------------------------
-    # > Build list of all raw edge occurrences, appearing in the same order as the elements
-    occList = tuple((edgeIdx, elemID, locEdge, edgeNodes) for elemID, elem                        in enumerate(elems)        # noqa: E272, E501
-                                                          for locEdge, (_, edgeIdx, _, edgeNodes) in elem.edgeInfo.items())  # noqa: E501
+    # > Build flat arrays of all raw edge occurrences
+    # > > Same order as the elements
+    nOccEdge   = sum(len(cast(dict, elem.edgeInfo)) for elem in elems)
+    occEdgeID  = np.empty(nOccEdge, dtype=np.int64)   # FEMEdgeID        per occurrence
+    occElemID  = np.empty(nOccEdge, dtype=np.int64)   # Element index    per occurrence
+    occLocEdge = np.empty(nOccEdge, dtype=np.int64)   # Local edge index per occurrence
+    occNodes   = [_] * nOccEdge                       # Edge node pair   per occurrence
+
+    idx = 0
+    for elemID, elem in enumerate(elems):
+        for locEdge, (_, edgeIdx, _, edgeNodes) in cast(dict, elem.edgeInfo).items():
+            occEdgeID[ idx] = edgeIdx
+            occElemID[ idx] = elemID
+            occLocEdge[idx] = locEdge
+            occNodes[  idx] = edgeNodes
+            idx += 1
+
     # > EdgeID starts at zero, so add 1
-    nFEMEdges = max(d[0] for d in occList) + 1
+    nFEMEdges = int(occEdgeID.max()) + 1
 
-    # 2. Group these occurrences by their canonical FEMEdgeID
-    groups = defaultdict(list)
-    for occ in occList:
-        groups[occ[0]].append(occ)
+    # > Group occurrence indices by their canonical FEMEdgeID
+    groups_e: dict[int, list[int]] = defaultdict(list)
+    for occIdx in range(nOccEdge):
+        groups_e[int(occEdgeID[occIdx])].append(occIdx)
 
-    edgeInfoList   = []  # List: [FEMEdgeID, offsetIndEdgeConnect, lastIndEdgeConnect]
-    edgeConnList   = []  # List: [[nbElemID, nbLocEdgeID]]
-    edgeOffset     = 0
-    occGlobalIdx   = 0   # global index in occList
+    # > Pre-allocate output arrays
+    nEdgeConnTotal = sum(len(idxs) * (len(idxs) - 1) for idxs in groups_e.values())
+    edgeInfoArr    = np.empty((nOccEdge,        3), dtype=np.int64)  # [FEMEdgeID, offset, last]
+    edgeConn_arr   = np.empty((nEdgeConnTotal,  2), dtype=np.int64)  # [nbElemID, nbLocEdgeID]
+
+    # > Precompute master orientation per edge group
+    #   orientation = 1 if nodeInfo[masterNodes[0]] < nodeInfo[masterNodes[1]] else -1
+    masterOrientation: dict[int, int] = {}
+    for vertexID, idxs in groups_e.items():
+        mNodes = occNodes[idxs[0]]
+        masterOrientation[vertexID] = 1 if nodeInfo[mNodes[0]] < nodeInfo[mNodes[1]] else -1
+
+    connOffset   = 0
+    edgeOffset   = 0  # Cumulative edge count for FEMElemInfo
+    occGlobalIdx = 0  # Global index in occList
 
     for elemID, elem in enumerate(elems):
-        # Process edge occurrences for the current element
         edgeInfo = cast(dict, elem.edgeInfo)
         for _ in range(len(edgeInfo)):
-            # Get the occurrence information from the global occList
-            currentEdge = occList[occGlobalIdx]
-            FEMEdgeID, curElem, curLoc, _ = currentEdge
+            eid      = int(occEdgeID[ occGlobalIdx])
+            # curElem  = int(occElemID[ occGlobalIdx])
+            # curLoc   = int(occLocEdge[occGlobalIdx])
+            groupOcc = groups_e[eid]
+            # Master occurrence is always groupOcc[0]
+            masterOccIdx  = groupOcc[0]
+            masterElem    = int(occElemID[ masterOccIdx])
+            masterLoc     = int(occLocEdge[masterOccIdx])
+            masterOrient  = masterOrientation[eid]
+            offset        = connOffset
 
-            # Get all siblings (including periodic ones) from the edge group
-            groupOcc = groups[FEMEdgeID]
-            offset   = len(edgeConnList)
-
-            # Identify the master occurrence (lowest occIdx from the occurrence group)
-            # WARNING: The master/slave logic is simplified here. We assume the first occurrence in the list is the master
-            masterOcc = groupOcc[0]
-
-            # Build connectivity list for current element, excluding itself
-            connections = []
-            for sibling in groupOcc:
-                sibEdgeID, sibElem, sibLoc, sibNodes = sibling
-                if sibElem == curElem and sibLoc == curLoc:
+            for sibIdx in groupOcc:
+                if sibIdx == occGlobalIdx:
                     continue
+                sibElem = int(occElemID[ sibIdx])
+                sibLoc  = int(occLocEdge[sibIdx])
 
-                edgeIsMaster  = (sibElem == masterOcc[1] and sibLoc == masterOcc[2])
-                # TODO: Check if the orientation of the master edge is with ascending nodeInfo index
-                orientation   = 1 if nodeInfo[masterOcc[3][0]] < nodeInfo[masterOcc[3][1]] else -1
-
-                # The current edge is the master
-                if edgeIsMaster:
-                    orientedElemID  = -(sibElem + 1)
-                    orientedLocEdge =   sibLoc  + 1
-
-                # Current edge is a slave edge
+                if sibElem == masterElem and sibLoc == masterLoc:
+                    # Sibling is the master — current is slave pointing to master
+                    edgeConn_arr[connOffset, 0] = -(sibElem + 1)
+                    edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * masterOrient)
                 else:
-                    orientation     = orientation if nodeInfo[sibNodes[0]] == nodeInfo[masterOcc[3][0]] else -1
-                    orientedElemID  =  sibElem + 1
-                    orientedLocEdge =  sibLoc  + 1
+                    # Sibling is also a slave - check relative orientation
+                    sibNodes    = occNodes[sibIdx]
+                    masterNodes = occNodes[masterOccIdx]
+                    orient      = masterOrient if nodeInfo[sibNodes[0]] == nodeInfo[masterNodes[0]] else -1
+                    edgeConn_arr[connOffset, 0] =  sibElem + 1
+                    edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * orient)
 
-                # TODO: Check if this is correct
-                # > Copy the orientation
-                connections.append([orientedElemID, int(orientedLocEdge * orientation)])
+                connOffset += 1
 
-            # Append edge information
-            edgeConnList.extend(connections)
-            edgeInfoList.append([FEMEdgeID, offset, offset + len(connections)])
+            edgeInfoArr[occGlobalIdx, 0] = eid
+            edgeInfoArr[occGlobalIdx, 1] = offset
+            edgeInfoArr[occGlobalIdx, 2] = connOffset
             occGlobalIdx += 1
 
         # Set the edge connectivity offset for this element
@@ -424,12 +470,13 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
         FEMElemInfo[elemID, 0] = edgeOffset
         FEMElemInfo[elemID, 1] = edgeOffset + nEdgeInfo
         edgeOffset            += nEdgeInfo
+    edgeConnOffset = connOffset
 
-    # Convert lists to numpy arrays
-    vertexInfo = np.array(vertexInfoList, dtype=np.int32)
-    vertexConn = np.array(vertexConnList, dtype=np.int32) if vertexConnList else np.array((0, 2), dtype=np.int32)
+    # Trim connectivity arrays to actual written size
+    vertexInfo = vertexInfoArr
+    vertexConn = vertexConnArr[:vertConnOffset] if vertConnOffset > 0 else np.empty((0, 2), dtype=np.int64)
 
-    edgeInfo   = np.array(edgeInfoList  , dtype=np.int32)
-    edgeConn   = np.array(edgeConnList  , dtype=np.int32) if edgeConnList   else np.array((0, 2), dtype=np.int32)  # noqa: E272
+    edgeInfo   = edgeInfoArr
+    edgeConn   = edgeConn_arr[:edgeConnOffset]  if edgeConnOffset > 0 else np.empty((0, 2), dtype=np.int64)  # noqa: E272
 
     return FEMElemInfo, nFEMVertices, vertexInfo, vertexConn, nFEMEdges, edgeInfo, edgeConn
