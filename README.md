@@ -1,3 +1,6 @@
+[![OpenSSF Baseline](https://www.bestpractices.dev/projects/12060/baseline)](https://www.bestpractices.dev/projects/12060)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12060/badge)](https://www.bestpractices.dev/projects/12060)
+
 PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
 
 PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
