@@ -116,10 +116,10 @@ def FEMConnect() -> None:
 
     # Build mapping of each node -> set of element indices that include that node
     nodesPerElem = [cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10] for elem in elems]
-    elemSizes    = np.array([len(ns) for ns in nodesPerElem], dtype=np.int64)
+    elemSizes    = np.array([len(ns) for ns in nodesPerElem], dtype=np.int32)
 
-    elemIDs      = np.repeat(np.arange(len(elems), dtype=np.int64), elemSizes)
-    allNodes     = np.concatenate(nodesPerElem).astype(np.int64)
+    elemIDs      = np.repeat(np.arange(len(elems), dtype=np.int32), elemSizes)
+    allNodes     = np.concatenate(nodesPerElem).astype(np.int32)
 
     # > Sort by node to form Compressed Sparse Row (CSR) matrix
     sortOrder    = np.argsort(allNodes, kind='stable')
@@ -127,7 +127,7 @@ def FEMConnect() -> None:
 
     # > Build CSR offsets
     uniqueNodes, nCSR = np.unique(allNodes[sortOrder], return_counts=True)
-    offsetsCSR        = np.empty(len(uniqueNodes) + 1, dtype=np.int64)
+    offsetsCSR        = np.empty(len(uniqueNodes) + 1, dtype=np.int32)
     offsetsCSR[0]     = 0
     np.cumsum(nCSR, out=offsetsCSR[1:])
 
@@ -155,7 +155,7 @@ def FEMConnect() -> None:
 
     # > nodeFirstArr[n] = canonical representative of node n (identity for non-periodic nodes)
     maxNode      = int(allNodes.max())
-    nodeFirstArr = np.arange(maxNode + 1, dtype=np.int64)
+    nodeFirstArr = np.arange(maxNode + 1, dtype=np.int32)
     for v, rep in nodeFirst.items():
         nodeFirstArr[v] = rep
 
@@ -259,7 +259,7 @@ def FEMConnect() -> None:
             edgeCanonical[node] = canonical_rep
 
     # Build nodeFEMVertex
-    nodeFEMVertexArr = np.empty(maxNode + 1, dtype=np.int64)
+    nodeFEMVertexArr = np.empty(maxNode + 1, dtype=np.int32)
     for node in uniqueNodes:
         iNode = int(node)
         nodeFEMVertexArr[iNode] = FEMNodeMapping[int(nodeFirstArr[iNode])]
@@ -339,9 +339,9 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     # > Build flat arrays of all vertex occurrences
     # > > Same order as the elements
     nOccVertex = sum(len(cast(dict, elem.vertexInfo)) for elem in elems)
-    occVertID  = np.empty(nOccVertex, dtype=np.int64)   # FEMVertexID      per occurrence
-    occElemID  = np.empty(nOccVertex, dtype=np.int64)   # Element index    per occurrence
-    occLocNode = np.empty(nOccVertex, dtype=np.int64)   # Local node index per occurrence
+    occVertID  = np.empty(nOccVertex, dtype=np.int32)   # FEMVertexID      per occurrence
+    occElemID  = np.empty(nOccVertex, dtype=np.int32)   # Element index    per occurrence
+    occLocNode = np.empty(nOccVertex, dtype=np.int32)   # Local node index per occurrence
 
     idx = 0
     for elemID, elem in enumerate(elems):
@@ -359,11 +359,11 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # > Pre-allocate output arrays
     nVertConnTotal = sum(len(idxs) * (len(idxs) - 1) for idxs in groups.values())
-    vertexInfoArr  = np.empty((nOccVertex,     3), dtype=np.int64)  # [FEMVertexID, offset, last]
-    vertexConnArr  = np.empty((nVertConnTotal, 2), dtype=np.int64)  # [nbElemID, nbLocVertexID]
+    vertexInfoArr  = np.empty((nOccVertex,     3), dtype=np.int32)  # [FEMVertexID, offset, last]
+    vertexConnArr  = np.empty((nVertConnTotal, 2), dtype=np.int32)  # [nbElemID, nbLocVertexID]
 
     # Initialize FEM element information
-    FEMElemInfo  = np.zeros((len(elems), 4), dtype=np.int64)
+    FEMElemInfo  = np.zeros((len(elems), 4), dtype=np.int32)
 
     connOffset   = 0
     vertexOffset = 0  # cumulative vertex count for FEMElemInfo
@@ -414,9 +414,9 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     # > Build flat arrays of all raw edge occurrences
     # > > Same order as the elements
     nOccEdge   = sum(len(cast(dict, elem.edgeInfo)) for elem in elems)
-    occEdgeID  = np.empty(nOccEdge, dtype=np.int64)   # FEMEdgeID        per occurrence
-    occElemID  = np.empty(nOccEdge, dtype=np.int64)   # Element index    per occurrence
-    occLocEdge = np.empty(nOccEdge, dtype=np.int64)   # Local edge index per occurrence
+    occEdgeID  = np.empty(nOccEdge, dtype=np.int32)   # FEMEdgeID        per occurrence
+    occElemID  = np.empty(nOccEdge, dtype=np.int32)   # Element index    per occurrence
+    occLocEdge = np.empty(nOccEdge, dtype=np.int32)   # Local edge index per occurrence
     occNodes   = [_] * nOccEdge                       # Edge node pair   per occurrence
 
     idx = 0
@@ -438,8 +438,8 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # > Pre-allocate output arrays
     nEdgeConnTotal = sum(len(idxs) * (len(idxs) - 1) for idxs in groups_e.values())
-    edgeInfoArr    = np.empty((nOccEdge,        3), dtype=np.int64)  # [FEMEdgeID, offset, last]
-    edgeConn_arr   = np.empty((nEdgeConnTotal,  2), dtype=np.int64)  # [nbElemID, nbLocEdgeID]
+    edgeInfoArr    = np.empty((nOccEdge,        3), dtype=np.int32)  # [FEMEdgeID, offset, last]
+    edgeConn_arr   = np.empty((nEdgeConnTotal,  2), dtype=np.int32)  # [nbElemID, nbLocEdgeID]
 
     # > Precompute master orientation per edge group
     #   orientation = 1 if nodeInfo[masterNodes[0]] < nodeInfo[masterNodes[1]] else -1
@@ -500,9 +500,9 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # Trim connectivity arrays to actual written size
     vertexInfo = vertexInfoArr
-    vertexConn = vertexConnArr[:vertConnOffset] if vertConnOffset > 0 else np.empty((0, 2), dtype=np.int64)
+    vertexConn = vertexConnArr[:vertConnOffset] if vertConnOffset > 0 else np.empty((0, 2), dtype=np.int32)
 
     edgeInfo   = edgeInfoArr
-    edgeConn   = edgeConn_arr[:edgeConnOffset]  if edgeConnOffset > 0 else np.empty((0, 2), dtype=np.int64)  # noqa: E272
+    edgeConn   = edgeConn_arr[:edgeConnOffset]  if edgeConnOffset > 0 else np.empty((0, 2), dtype=np.int32)  # noqa: E272
 
     return FEMElemInfo, nFEMVertices, vertexInfo, vertexConn, nFEMEdges, edgeInfo, edgeConn
