@@ -245,8 +245,6 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            np.ndarray | None,  # Optional[EdgeConnectInfo]
                            dict[int, int]
                           ]:
-    # Standard libraries -----------------------------------
-    import heapq
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.fem.fem import getFEMInfo
@@ -305,26 +303,14 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     # Set the global side ID
     globalSideID     = 0
     highestSideID    = 0
-    usedSideIDs      = set()  # Set to track used side IDs
-    availableSideIDs = []     # Min-heap for gap
 
     for side in sides:
         # Already counted the side
         if side.globalSideID is not None:
             continue
 
-        # Get the smallest available globalSideID from the heap, if any
-        if availableSideIDs:
-            globalSideID = heapq.heappop(availableSideIDs)
-        else:
-            # Use the current maximum ID and increment
-            globalSideID = highestSideID + 1
-
-        # Mark the side ID as used
-        highestSideID = max(globalSideID, highestSideID)
-        usedSideIDs.add(globalSideID)
-        # side.update(globalSideID=globalSideID)
-        side.globalSideID = globalSideID
+        # Use the current maximum ID and increment
+        globalSideID = highestSideID + 1
 
         if side.connection is None or side.connection < 0:  # BC/big mortar side
             pass
@@ -334,26 +320,14 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
 
             # Reclaim the ID of the slave side if already assigned
             if sides[nbSideID].globalSideID is not None:
-                reclaimedID = sides[nbSideID].globalSideID
-                usedSideIDs.remove(reclaimedID)
-                heapq.heappush(availableSideIDs, reclaimedID)
+                globalSideID = min(globalSideID, sides[nbSideID].globalSideID)
 
             # Set the negative globalSideID of the slave side
-            # sides[nbSideID].update(globalSideID=-(globalSideID))
             sides[nbSideID].globalSideID = -(globalSideID)
 
-    # If there are any gaps in the side IDs, fill them by reassigning consecutive values
-    if availableSideIDs:
-        # Collect all master sides (globalSideID > 0) and sort them by their current IDs
-        masters = sorted((side for side in sides if side.globalSideID > 0), key=lambda side: side.globalSideID)
-
-        # Build a mapping from old master ID to new consecutive IDs (starting at 1)
-        mapping = {side.globalSideID: newID for newID, side in enumerate(masters, start=1)}
-
-        # Update the sides based on the mapping
-        for side in sides:
-            # For slave sides, update to the negative of the mapped master ID
-            side.globalSideID = mapping[side.globalSideID] if side.globalSideID > 0 else -mapping[-side.globalSideID]
+        # Set the side and increment if needed
+        side.globalSideID = globalSideID
+        highestSideID = max(globalSideID, highestSideID)
 
     # Pre-allocate arrays
     sideInfo   = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
@@ -416,22 +390,20 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         linCache[elemType] = mapLin
 
     # Calculate the NodeInfo
-    nodeCount = 0
-    for elem in elems:
+    for elemType in np.unique(elem_types):
         # Mesh coordinates are stored in meshIO sorting
-        elemType   = elem.type
         mapLin     = linCache[elemType]
-
-        # elemNodes  = np.asarray(elem.nodes)
-        elemNodes  = elem.nodes
-        nElemNodes = elemNodes.size
-        indices    = nodeCount + mapLin[:nElemNodes]
-
-        # Assign nodeInfo and nodeCoords in vectorized fashion
-        nodeInfo[  indices] = elemNodes + 1
-        nodeCoords[indices] = points[elemNodes]
-
-        nodeCount += nElemNodes
+        # Stack all node arrays for this type
+        mask       = (elem_types == elemType)
+        maskNodes  = np.stack([elems[i].nodes for i in np.where(mask)[0]])
+        nMaskNodes = maskNodes.shape[1]
+        # Build destination indices using cumulative offsets
+        # > Starting nodeCount for each elem
+        offsets    = node_cumsum[np.where(mask)[0]]
+        idx        = (offsets[:, None] + mapLin[:nMaskNodes][None, :]).ravel()
+        outNodes   = maskNodes.ravel()
+        nodeInfo[  idx] = outNodes + 1
+        nodeCoords[idx] = points[outNodes]
 
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
         FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo = getFEMInfo(nodeInfo)

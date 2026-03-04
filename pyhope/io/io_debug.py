@@ -122,9 +122,6 @@ def DebugIO() -> None:
             tInv[elemType] = len(elemtypes)
             elemtypes.add(elemType)
 
-        # Add the first-order nodes to the points set
-        points.update(set(cast(np.ndarray, melem.nodes)[:elemNum]))
-
         # Add the first-order sides to the sides set
         for sideID in melem.sides:  # ty: ignore [not-iterable]
             # Only consider boundary sides
@@ -135,9 +132,9 @@ def DebugIO() -> None:
                     sidetypes.add(sideType)
 
     # Create ordered mapping from first-order points to high-order points
-    points = list(points)
-    pMap   = np.unique(np.array(points))
-    pInv   = dict(zip(pMap, range(len(pMap))))
+    points = np.concatenate([np.asarray(melem.nodes)[:melem.type % 100] for melem in melems])
+    pMap   = np.unique(points)
+    # pInv   = dict(zip(pMap, range(len(pMap))))
 
     hasIJK = True if hasattr(mesh_vars, 'nElemsIJK' ) and mesh_vars.nElemsIJK  is not None else False  # noqa: E272
     hasFEM = True if hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None else False
@@ -196,7 +193,8 @@ def DebugIO() -> None:
         elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
         tidx     = tInv[elemType]
 
-        elemNodes = np.fromiter((pInv[s] for s in cast(np.ndarray, melem.nodes)[:elemNum]), dtype=np.int64, count=elemNum)
+        # pMap is already sorted
+        elemNodes = np.searchsorted(pMap, cast(np.ndarray, melem.nodes)[:elemNum])
         elems[elemType].append(elemNodes)
 
         # Add the elemData
@@ -219,7 +217,7 @@ def DebugIO() -> None:
                 sidx     = sInv[sideType]
 
                 # Add the side
-                sideNodes = np.fromiter((pInv[s] for s in cast(np.ndarray, side.corners)), dtype=np.int64)
+                sideNodes = np.searchsorted(pMap, np.asarray(side.corners))
                 sides[sideType].append(sideNodes)
 
                 # Add the sideData
@@ -242,7 +240,7 @@ def DebugIO() -> None:
             for edge in elemEdges:
                 # Add the edge
                 edgeInfo  = cast(dict, melem.edgeInfo)[edge]
-                edgeNodes = np.fromiter((pInv[s] for s in edgeInfo[3]), dtype=np.int64)
+                edgeNodes = np.searchsorted(pMap, np.asarray(edgeInfo[3]))
                 edges['line'].append(edgeNodes)
 
                 edgedata['FEMEdgeID'  ].append(edgeInfo[1])
