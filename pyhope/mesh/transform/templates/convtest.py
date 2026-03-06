@@ -45,7 +45,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def PostDeform(points: npt.NDArray) -> npt.NDArray:
+def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
     """ This is the default transformation function which has to be present in every Post-Deformation template.
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
