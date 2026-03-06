@@ -46,7 +46,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
+def PostDeform(points: npt.NDArray) -> npt.NDArray:
     """ This function applies a deformation transformation to the input points
         > The transformation maps a 2D square region to a cylindrical or toroidal coordinate system
     """

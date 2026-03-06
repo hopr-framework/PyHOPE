@@ -45,7 +45,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def phill_h(x_in: float) -> float:  # pragma: no cover
+def phill_h(x_in: float) -> float:
     xloc = x_in * 28.0
     if xloc > 54:
         xloc = 28.0 * 9.0 - xloc  # Right side of the channel
@@ -68,7 +68,7 @@ def phill_h(x_in: float) -> float:  # pragma: no cover
     return out / 28.0
 
 
-def phill_normal(x_in: float) -> npt.NDArray:  # pragma: no cover
+def phill_normal(x_in: float) -> npt.NDArray:
     xloc = x_in * 28.0
     if xloc > 54:
         xloc = 28.0 * 9.0 - xloc
@@ -94,7 +94,7 @@ def phill_normal(x_in: float) -> npt.NDArray:  # pragma: no cover
     return normal / np.linalg.norm(normal)
 
 
-def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
+def PostDeform(points: npt.NDArray) -> npt.NDArray:
     """ This is the default transformation function which has to be present in every Post-Deformation template.
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """

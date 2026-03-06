@@ -45,7 +45,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def ExtrudeTemplate() -> np.ndarray:  # pragma: no cover
+def ExtrudeTemplate() -> np.ndarray:
     """ This is the default extrusion function which has to be present in every extrusion template
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
