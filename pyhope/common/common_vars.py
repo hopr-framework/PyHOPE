@@ -30,6 +30,7 @@ import os
 import pathlib
 import re
 import subprocess
+from enum import Enum, unique
 from functools import cache
 from typing import Callable, Final, Optional, final
 from typing_extensions import Self
@@ -47,6 +48,13 @@ from packaging.version import Version
 
 
 np_mtp : int  # Number of threads for multiprocessing
+
+
+@unique
+class Policy(Enum):
+    never  = 0
+    auto   = 1
+    always = 2
 
 
 # PEP 318 – Decorators for Functions and Methods

@@ -41,10 +41,11 @@ def DefineMesh() -> None:
     """ Define general options for mesh generation / readin
     """
     # Local imports ----------------------------------------
-    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
-    from pyhope.readintools.readintools import CreateLogical, CreateReal
-    from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
+    from pyhope.common.common_vars import Policy
     from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode, MeshSort
+    from pyhope.readintools.readintools import CreateInt, CreateIntArray, CreateRealArray, CreateSection, CreateStr
+    from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption
+    from pyhope.readintools.readintools import CreateLogical, CreateReal
     # ------------------------------------------------------
 
     CreateSection('Mesh')
@@ -87,7 +88,12 @@ def DefineMesh() -> None:
     CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
     CreateLogical(  'doSplitToHexZ',        default=True , help='Split hexahedral elements into h-refined elements')
     # Mortars
-    CreateLogical(  'doMortars',            default=True,  help='Enables mortars')
+    CreateLogical(      'doMortars',        default=True,  help='Enables mortars')
+    CreateIntFromString('doMortarRebuild',  default=Policy.auto.value,
+                                            help=f'Enables mortar rebuilding [{", ".join(s.name for s in Policy)}]')
+    CreateIntOption(    'doMortarRebuild', number=Policy.never .value,  name=Policy.never .name)
+    CreateIntOption(    'doMortarRebuild', number=Policy.auto  .value,  name=Policy.auto  .name)
+    CreateIntOption(    'doMortarRebuild', number=Policy.always.value,  name=Policy.always.name)
     # Boundaries
     CreateSection('Boundaries')
     CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')

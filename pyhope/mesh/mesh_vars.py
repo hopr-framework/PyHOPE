@@ -44,6 +44,7 @@ if typing.TYPE_CHECKING:
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_vars import Policy
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -71,6 +72,7 @@ nElemsIJK: Optional[npt.NDArray]                  # Number of elements in each s
 
 # Mesh connectitivity
 doMortars: bool                                   # Flag if mortars are enabled
+doMortarRebuild: Policy                           # Policy if mortars should be rebuilt
 doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
 
 # Mesh extrusion
@@ -83,6 +85,7 @@ tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (
 
 # Mortars
 hasMortars: bool                                  # Flag if mesh has mortars
+hasMortarsInterzone: bool                         # Flag if mesh has mortars between zones, potentially requiring rebuild
 
 
 @unique
