@@ -139,7 +139,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 filename = os.path.basename(fname)
                 print(hopout.warn(f'[󰇘]/{filename} has different polynomial order than the current mesh, converting...',
                       length=999))
-                print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo}') + '\n')
+                warning  = (hopout.Colors.BANNERA + '[Watertightness not guaranteed!]' + hopout.Colors.END) if nGeo < mesh_vars.nGeo else ''  # noqa: E501
+                print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo} {warning}', length=100))
+                hopout.info('')
 
                 # Compute the equidistant point set used by HOPR
                 xEqHdf5     = np.linspace(-1, 1, num=nGeo+1, dtype=np.float64)

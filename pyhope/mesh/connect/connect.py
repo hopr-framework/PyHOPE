@@ -243,7 +243,7 @@ def ConnectMesh() -> None:
     from pyhope.common.common_progress import ProgressBar
     # from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
-    from pyhope.readintools.readintools import CountOption, GetLogical
+    from pyhope.readintools.readintools import CountOption, GetLogical, GetIntFromStr
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
     # from pyhope.mesh.mesh_common import sidetovol2
     from pyhope.mesh.mesh_common import face_to_nodes
@@ -259,8 +259,9 @@ def ConnectMesh() -> None:
     hopout.info('CONNECT MESH...')
     hopout.sep()
 
-    mesh_vars.doPeriodicCorrect = GetLogical('doPeriodicCorrect')
-    mesh_vars.doMortars         = GetLogical('doMortars')
+    mesh_vars.doPeriodicCorrect = GetLogical(   'doPeriodicCorrect')
+    mesh_vars.doMortars         = GetLogical(   'doMortars')
+    mesh_vars.doMortarRebuild   = GetIntFromStr('doMortarRebuild')
     doPeriodicCorrect = mesh_vars.doPeriodicCorrect
     doMortars         = mesh_vars.doMortars
 
@@ -395,7 +396,7 @@ def ConnectMesh() -> None:
                         # Update the reverse dictionary immediately
                         corner_side[pNodes].append(sideID)
 
-                    if cast(np.ndarray, bcs[bcID].type)[0] not in (1, 100):
+                    if cast(np.ndarray, bcs[bcID].type)[0] not in (0, 1, 100):
                         bar.step()
 
     # Try to connect the inner / periodic sides

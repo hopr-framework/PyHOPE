@@ -57,6 +57,7 @@ def main() -> None:
     from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
+    from pyhope.mesh.mesh_mortar import RebuildMortarGeometry
     from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
@@ -131,6 +132,9 @@ def main() -> None:
     SortMesh()
     ConnectMesh()
     TransformMesh()
+
+    # If the mesh has mortars, rebuild the (curved) geometry
+    RebuildMortarGeometry()
 
     # Generate edge/vertex connectivity
     FEMConnect()
