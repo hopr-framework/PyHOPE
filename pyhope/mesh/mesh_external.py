@@ -154,6 +154,9 @@ def MeshExternal() -> meshio.Mesh:
             hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
         hopout.sep()
 
+    # Flag mortar rebuild if merging multiple meshes
+    mesh_vars.hasMortarsInterzone = len(fnames) > 1
+
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()
 

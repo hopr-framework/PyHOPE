@@ -32,16 +32,15 @@ from typing import cast
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 if typing.TYPE_CHECKING:
-    import numpy.typing as npt
     from pyhope.mesh.mesh_vars import ELEM, SIDE, BC
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
-import pyhope.mesh.mesh_vars as mesh_vars
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
@@ -52,13 +51,29 @@ import pyhope.mesh.mesh_vars as mesh_vars
 def RebuildMortarGeometry() -> None:
     # Local imports ----------------------------------------
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde
+    from pyhope.common.common_vars import Policy
     from pyhope.mesh.mesh_common import LINTEN
     from pyhope.mesh.mesh_common import sidetovol2
     import pyhope.output.output as hopout
+    import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
     if not hasattr(mesh_vars, 'hasMortars') or not mesh_vars.hasMortars:
         return None
+
+    if not hasattr(mesh_vars, 'doMortarRebuild'):
+        return None
+
+    match mesh_vars.doMortarRebuild:
+        case Policy.never .value:
+            return None
+        case Policy.auto  .value:
+            if not hasattr(mesh_vars, 'hasMortarsInterzone') or not mesh_vars.hasMortarsInterzone:
+                return None
+            else:
+                pass
+        case Policy.always.value:
+            pass
 
     nGeo:   Final[int]        = mesh_vars.nGeo
     elems:  Final[list[ELEM]] = mesh_vars.elems

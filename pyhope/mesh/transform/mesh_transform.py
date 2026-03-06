@@ -155,7 +155,6 @@ def TransformMesh() -> None:
     import pyhope.output.output as hopout
     from pyhope.common.common_template import LoadTemplate
     from pyhope.mesh.mesh_vars import mesh
-    from pyhope.mesh.transform.mesh_transform_mortar import RebuildMortarGeometry
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
     # ------------------------------------------------------
@@ -225,7 +224,7 @@ def TransformMesh() -> None:
     if meshPostDeform == 'none':
         hopout.sep()
         hopout.info('TRANSFORM MESH DONE!')
-        return
+        return None
 
     # Continue with advanced transformations
     hopout.sep()
@@ -238,8 +237,8 @@ def TransformMesh() -> None:
     # Perform actual post-deformation
     mesh.points = transformModule.PostDeform(mesh.points)
 
-    # If the mesh has mortars, rebuild the (curved) geometry
-    RebuildMortarGeometry()
+    # Flag mortar rebuild if performing advanced transformation
+    mesh_vars.hasMortarsInterzone = True
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')
