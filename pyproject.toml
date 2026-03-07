@@ -50,7 +50,6 @@ pyhope = "pyhope.script.pyhope_cli:main"
 # Legacy setuptools support
 [tool.setuptools.packages.find]
 include = ["pyhope*"]
-namespaces = false
 
 # Code coverage
 [tool.coverage.run]
