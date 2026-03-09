@@ -45,8 +45,6 @@ import numpy as np
 
 
 def MeshCartesian() -> meshio.Mesh:
-    # Third-party libraries --------------------------------
-    import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -59,6 +57,15 @@ def MeshCartesian() -> meshio.Mesh:
     from pyhope.mesh.transform.mesh_transform import CalcStretching
     from pyhope.meshio.meshio_convert import gmsh_to_meshio
     from pyhope.readintools.readintools import CountOption, GetInt, GetIntArray, GetIntFromStr, GetRealArray, GetStr
+    # Third-party libraries --------------------------------
+    try:
+        import gmsh
+    except OSError as e:
+        # Check for specific errors
+        if 'libGLU' in str(e):
+            hopout.error(f'Cannot import gmsh because gmsh is not working correcty, possibly missing libGLU. Error is {e}', traceback=True)
+        else:
+            hopout.error(f'Error during "import gmsh" encountered. Error is {e}', traceback=True)
     # ------------------------------------------------------
 
     # Setup stacksize
