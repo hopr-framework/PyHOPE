@@ -145,7 +145,7 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[tuple, tuple
     # ------------------------------------------------------
     # Update the list
     nConnSide   = tuple(s for s in sides if   s.connection is None  # noqa: E271
-                                         and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1)))
+                                         and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1, 100)))
 
     nConnCenter = tuple(np.mean(mesh.points[s.corners], axis=0) for s in nConnSide)
     return nConnSide, nConnCenter
