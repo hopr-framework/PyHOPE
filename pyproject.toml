@@ -47,6 +47,11 @@ documentation = "https://hopr-framework.github.io/PyHOPE"
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"
 
+# Build system
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 # Legacy setuptools support
 [tool.setuptools.packages.find]
 include = ["pyhope*"]

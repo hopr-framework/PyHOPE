@@ -1,0 +1,124 @@
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of PyHOPE
+#
+# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+#
+# PyHOPE is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Continuous Integration/Continuous Deployment
+# ==================================================================================================================================
+
+# Workflow for deployment to Python Package Index (PyPI)
+name: Release
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    # Pattern matched against refs/tags
+    tags:
+      - 'v*'          # Push events to every tag not containing /
+      # - '**'          # Push events to every tag including hierarchical tags like v1.0/beta
+
+# Permissions
+permissions:
+  contents:  read        # default for all jobs
+  packages:  read
+  id-token:  write       # required for trusted publishing (OIDC)
+
+# Environment variables
+env:
+  UV_LINK_MODE: copy
+
+jobs:
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Release
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check tag matches version
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          if [[ "${TAG#v}" != "$VERSION" ]]; then
+            echo "ERROR: Tag '${TAG}' does not match pyproject.toml version '${VERSION}'"
+            exit 1
+          fi
+          echo "OK: Tag and version match (${VERSION})"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.x
+
+      - name: Install Poetry
+        shell: bash
+        run: |
+          pip install 'poetry @ git+https://github.com/python-poetry/poetry.git@main'
+          poetry --version
+
+      - name: Check and build with Poetry
+        shell: bash
+        run: |
+          poetry check
+          poetry build
+
+      - name: Check distribution with Twine
+        shell: bash
+        run: |
+          pip install twine
+          twine check dist/pyhope-*
+
+      - name: Test install
+        shell: bash
+        run: |
+          pip install dist/pyhope-*.whl
+          pyhope --version
+
+      - name: Upload distribution artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Publish
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+  publish:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pyhope
+    permissions:
+      id-token: write  # required for trusted publishing (OIDC)
+    steps:
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
