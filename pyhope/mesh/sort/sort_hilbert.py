@@ -8,6 +8,23 @@
 # Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
 # Copyright (c) 2022 Gabriel Altay (Original Version)
 #
+# Hilbert(Z) curve adapted from
+# hilbert.c - Computes Hilbert space-filling curve coordinates, without recursion, from integer index, and vice versa, and other
+# Hilbert-related calculations.  Also known as Pi-order or Peano scan.
+#
+# Author:      Doug Moore
+#              Dept. of Computational and Applied Math
+#              Rice University
+#              http://www.caam.rice.edu/~dougm
+# Date:        Sun Feb 20 2000
+# Copyright (c) 1998-2000, Rice University
+#
+# Acknowledgement:
+# This implementation is based on the work of A. R. Butz ("Alternative Algorithm for Hilbert's Space-Filling Curve", IEEE Trans.
+# Comp., April, 1971, pp 424-426) and its interpretation by Spencer W. Thomas, University of Michigan
+# (http://www-personal.umich.edu/~spencer/Home.html) in his widely available C software.  While the implementation here differs
+# considerably from his, the first two interfaces and the style of some comments are very much derived from his work.
+#
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later
@@ -97,10 +114,13 @@ def HilbertCurveNumpy() -> None:
         q = np.uint64(1) << np.uint64(pbits - 1)  # m
         while q > 1:
             pmask = q - 1
+
             for i in range(n):
                 mask = (upts[:, i] & q) != 0
+
                 if mask.any():
                     upts[mask, 0] ^= pmask
+
                 if (~mask).any():
                     t = (upts[~mask, 0] ^ upts[~mask, i]) & pmask
                     upts[~mask, 0] ^= t
@@ -112,12 +132,13 @@ def HilbertCurveNumpy() -> None:
             upts[:, i] ^= upts[:, i - 1]
 
         tmask = np.zeros(M, dtype=np.uint64)
-        q = np.uint64(1) << np.uint64(pbits - 1)
+        q     = np.uint64(1) << np.uint64(pbits - 1)
         while q > 1:
             mask = (upts[:, n - 1] & q) != 0
             if mask.any():
                 tmask[mask] ^= (q - 1)
             q >>= 1
+
         upts ^= tmask[:, None]
 
         # Interleave bit-planes into a big (potentially >64-bit) integer per row
@@ -169,3 +190,144 @@ def HilbertCurveNumpy() -> None:
 
     HilbertCurve.distances_from_points = _dfp_patched
     HilbertCurve._numpy_patch_applied  = True
+
+
+def _bit_transpose(n_dims: int, n_bits: int, coords: npt.NDArray) -> npt.NDArray:
+    """ Transpose the bit-planes of a packed coordinate word
+    """
+    in_b          = n_bits
+    in_field_ends = np.uint64(1)
+    in_mask       = np.uint64((1 << in_b) - 1)
+    result        = np.zeros_like(coords)
+
+    while (ut_b := in_b >> 1):
+        shift_amt     = np.uint64((n_dims - 1) * ut_b)
+        ut_field_ends = in_field_ends | (in_field_ends << (shift_amt + ut_b))
+        ut_mask       = (ut_field_ends << np.uint64(ut_b)) - ut_field_ends
+        ut_coords     = np.zeros_like(coords)
+
+        if in_b & 1:
+            # Odd number of bits: peel off the top bit of each field separately
+            in_field_starts = in_field_ends << np.uint64(in_b - 1)
+            odd_shift       = np.uint64(2 * shift_amt)
+            for d in range(n_dims):
+                chunk       = coords & in_mask
+                coords    >>= np.uint64(in_b)
+                result     |= (chunk & in_field_starts) << odd_shift
+                odd_shift  += np.uint64(1)
+                chunk      &= ~in_field_starts
+                chunk       = (chunk | (chunk << shift_amt)) & ut_mask
+                ut_coords  |= chunk << np.uint64(d * ut_b)
+        else:
+            for d in range(n_dims):
+                chunk      = coords & in_mask
+                coords   >>= np.uint64(in_b)
+                chunk      = (chunk | (chunk << shift_amt)) & ut_mask
+                ut_coords |= chunk << np.uint64(d * ut_b)
+
+        coords        = ut_coords
+        in_b          = ut_b
+        in_field_ends = ut_field_ends
+        in_mask       = ut_mask
+
+    return result | coords
+
+
+def _adjust_rotation(n_dims  : int        , bits    : npt.NDArray,
+                     rotation: npt.NDArray, nd1_ones: int) -> npt.NDArray:
+    """ rotation = (rotation + 1 + ffs(bits)) % nDims
+    """
+    nd1 = np.uint64(nd1_ones)
+    b   = bits & (-bits.astype(np.int64)).astype(np.uint64) & nd1
+    # Count trailing zeros of b per element: each '>>1' step increments rotation
+    while np.any(b):
+        active    = b != 0
+        rotation  = np.where(active, rotation + np.uint64(1), rotation)
+        b         = np.where(active, b >> np.uint64(1), b)
+    rotation += np.uint64(1)
+    rotation  = np.where(rotation >= np.uint64(n_dims), rotation - np.uint64(n_dims), rotation)
+
+    return rotation
+
+
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Hilbert (Z-order) curve
+# ----------------------------------------------------------------------------------------------------------------------------------
+def hilbert(n_dims: int, n_bits: int,
+            coords: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
+    """ Convert integer coordinates to Hilbert curve indices
+    """
+    M  = coords.shape[0]
+    u  = coords.astype(np.uint64)
+
+    if n_dims == 1:  # pragma: no cover
+        return u[:, 0].astype(np.int64)
+
+    n_dims_bits = n_dims * n_bits
+    nd_ones     = np.uint64(( 1 << n_dims     ) - 1)
+    nth_bits    = np.uint64(((1 << n_dims_bits) - 1) // int(nd_ones))
+    nd1_ones    = int(nd_ones >> np.uint64(1))
+
+    # Pack coordinates into a single word: packed[m] = u[m,0] | u[m,1]<<n_bits | ...
+    packed = np.zeros(M, dtype=np.uint64)
+    for d in range(n_dims):
+        packed |= u[:, d] << np.uint64(d * n_bits)
+
+    if n_bits > 1:
+        # Bit-transpose then Gray-decode
+        packed  = _bit_transpose(n_dims, n_bits, packed.copy())
+        packed ^= packed >> np.uint64(n_dims)
+
+        rotation = np.zeros(M, dtype=np.uint64)
+        flip_bit = np.zeros(M, dtype=np.uint64)
+        result   = np.zeros(M, dtype=np.uint64)
+
+        b = n_dims_bits
+        while b > 0:
+            b    -= n_dims
+            bits  = (packed >> np.uint64(b)) & nd_ones
+            bits  = (flip_bit ^ bits)
+
+            # rotateRight(bits, rotation, n_dims)
+            rot_r = rotation % np.uint64(n_dims)
+            bits  = ((bits >> rot_r) | (bits << (np.uint64(n_dims) - rot_r))) & nd_ones
+
+            result  <<= np.uint64(n_dims)
+            result   |= bits
+            flip_bit  = np.uint64(1) << rotation
+
+            rotation = _adjust_rotation( n_dims, bits.copy(), rotation, nd1_ones)
+
+        result ^= nth_bits >> np.uint64(1)
+
+    else:
+        # n_bits == 1: trivial Gray decode
+        result = packed
+
+    # Final Gray decode of the index itself
+    d = 1
+    while d < n_dims_bits:
+        result ^= result >> np.uint64(d)
+        d      *= 2
+
+    return result.astype(np.int64)
+
+
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Morton (Z-order) curve
+# ----------------------------------------------------------------------------------------------------------------------------------
+def morton(n_dims: int, n_bits: int,
+           coords: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
+    """ Convert integer coordinates to Morton (Z-order) indices
+    """
+    M      = coords.shape[0]
+    result = np.zeros(M, dtype=np.int64)
+
+    for d in range(n_dims):
+        col = coords[:, d].astype(np.int64)
+        for i in range(n_bits):
+            # Bit i of dimension d maps to position n_dims*i + (n_dims-1-d)
+            bit_pos = n_dims * i + (n_dims - 1 - d)
+            result |= ((col >> np.int64(i)) & np.int64(1)) << np.int64(bit_pos)
+
+    return result
