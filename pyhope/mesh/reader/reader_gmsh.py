@@ -96,7 +96,7 @@ def compatibleGMSH(file: str) -> bool:
 
 def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Third-party libraries --------------------------------
-    import gmsh
+    from pyhope.gmsh.gmsh import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
