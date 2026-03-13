@@ -95,7 +95,7 @@ def check_sides(elem,
         try:
             # Translate to periodic nodes if required
             if side[0].bcid is not None and side[1].bcid is not None and bcs[side[1].bcid].type[0] == 1:
-                nbNodes = np.vectorize(lambda s: mesh_vars.periNodes[(s, bcs[side[1].bcid].name)], otypes=[int])(nbNodes)
+                nbNodes = np.vectorize(lambda s, side=side: mesh_vars.periNodes[(s, bcs[side[1].bcid].name)], otypes=[int])(nbNodes)
             # Check if the node IDs match
             success = np.array_equal(nodes, nbNodes)
         # Fallback to comparison of physical coordinates
