@@ -239,7 +239,7 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Create the surfaces
         s = [None for _ in range(len(faces(elemType)))]
-        for index, _ in enumerate(s):
+        for index in range(len(s)):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=offsets+index+1)
 
         # We need to define the surfaces as transfinite surface

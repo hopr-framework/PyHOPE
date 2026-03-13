@@ -196,7 +196,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Process each 2D CellBlock: keep shared point indices, set BCs
     # NOTE: Split by BC id so each physical surface becomes its own entity
-    for _, cell_block in enumerate(surface_cells):
+    for cell_block in surface_cells:
         cell_type = cell_block.type
         # NOTE: This will assign 0 to faces not found, assuming they are internal faces
         cellBC = np.asarray([cellTypeToBC[cell_type].get(int(idx), 0) for idx in range(len(cell_block))], dtype=int)
