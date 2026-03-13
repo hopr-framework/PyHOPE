@@ -217,7 +217,7 @@ def ConnectMortar( nConnSide  : list
             connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
             # Remove the target side from the list
-            indexList.remove_index([targetID] + list(comboIDs))
+            indexList.remove_index([targetID, *list(comboIDs)])
 
             # Update the progress bar
             bar.step(len(nbSideID) + 1)
@@ -248,7 +248,7 @@ def ConnectMortar( nConnSide  : list
                 connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
                 # Remove the target side from the list
-                indexList.remove_index([targetID] + list(comboIDs))
+                indexList.remove_index([targetID, *list(comboIDs)])
 
                 # Update the progress bar
                 bar.step(len(nbSideID) + 1)

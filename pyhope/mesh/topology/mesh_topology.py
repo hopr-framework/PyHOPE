@@ -220,7 +220,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         pointl.append(center.tolist())
 
                         # Overwrite the element with the new indices
-                        elem     = np.array(list(elem) + [nPoints])
+                        elem     = np.array([*list(elem), nPoints])
                         nPoints += 1
                     case 2:
                         # Generate the grid of new points
