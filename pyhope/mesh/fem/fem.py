@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from collections import defaultdict
-from typing import Dict, Tuple, cast
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -290,7 +290,7 @@ def FEMConnect() -> None:
     # Build the vertex connectivity
     for elemID, elem in enumerate(elems):
         elemNodes = cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]
-        vertexInfo: Dict[int, Tuple[int, Tuple[int, ...]]] = {}
+        vertexInfo: dict[int, tuple[int, tuple[int, ...]]] = {}
         for locNode in range(len(elemNodes)):
             # Determine canonical vertex id
             node = int(elemNodes[locNode])

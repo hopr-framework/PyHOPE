@@ -28,7 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import importlib
-from typing import Dict, Final, List, Set, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -128,18 +128,18 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
 
     # Build new arrays
-    celll:      List[meshio.CellBlock] = []
-    celldphys:  List[npt.NDArray     ] = []
-    celldgeom:  List[npt.NDArray     ] = []
+    celll:      list[meshio.CellBlock] = []
+    celldphys:  list[npt.NDArray     ] = []
+    celldgeom:  list[npt.NDArray     ] = []
 
     # Unique geometrical entity ids per dimension
     # > 0: 3D entities, 1: 2D entities
     geom_id:    npt.NDArray       = np.ones((2,), dtype=int)
-    geom_tag:   List[List[int]]  = [[] for _ in range(2)]
-    geom_nodes: List[List[int]]  = [[] for _ in range(2)]
+    geom_tag:   list[list[int]]  = [[] for _ in range(2)]
+    geom_nodes: list[list[int]]  = [[] for _ in range(2)]
 
     # Set to keep track of nodes already used to represent an entity in gmsh:dim_tags
-    usedNodes: Set[int] = set()
+    usedNodes: set[int] = set()
 
     # Process each 3D CellBlock: keep shared connectivity, set tags
     # WARNING: Each 3D CellBlock neets to get its OWN geometrical tag so that
@@ -263,7 +263,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     gmshMesh.point_data.update({'gmsh:dim_tags': dim_tags})
 
     # Add PhysicalNames so groups are not missing in the Gmsh output
-    field_data: Dict[str, npt.NDArray] = {}
+    field_data: dict[str, npt.NDArray] = {}
 
     # Add volume physical group (3D)
     if len(geom_tag[0]) > 0:

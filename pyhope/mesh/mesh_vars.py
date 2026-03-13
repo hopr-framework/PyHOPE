@@ -30,7 +30,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, unique
 from functools import cache
-from typing import Dict, Final, Optional, Union, Tuple, final
+from typing import Final, Optional, Union, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -214,16 +214,16 @@ class ELEM:
     # Jacobian
     jacobian    : Optional[float] = None
     # FEM connectivity
-    edgeInfo    : Optional[Dict[int,                    # locEdgeIdx
-                                Tuple[int,              # locEdge
+    edgeInfo    : Optional[dict[int,                    # locEdgeIdx
+                                tuple[int,              # locEdge
                                       int | None,       # globalEdge
-                                      Tuple[int, ...],  # FEMVertexID
-                                      Tuple[int, ...]   # NodeID
+                                      tuple[int, ...],  # FEMVertexID
+                                      tuple[int, ...]   # NodeID
                                      ]
                                 ]] = None
-    vertexInfo  : Optional[Dict[int,                    # locNodeIdx
-                                Tuple[int,              # FEMVertexID
-                                      Tuple[int, ...]   # Vertex connectivity
+    vertexInfo  : Optional[dict[int,                    # locNodeIdx
+                                tuple[int,              # FEMVertexID
+                                      tuple[int, ...]   # Vertex connectivity
                                      ]
                                 ]] = None
 

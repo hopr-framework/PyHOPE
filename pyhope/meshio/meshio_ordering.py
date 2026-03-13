@@ -29,7 +29,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
-from typing import Dict, List, Union, Optional
+from typing import Union, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -60,7 +60,7 @@ def HEXREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
 
     order    += 1
     nNodes    = 8 + 12*(order - 2) if incomplete else order**3
-    map: List = [None for _ in range(nNodes)]
+    map: list = [None for _ in range(nNodes)]
 
     count = 0
     # Recursively build the mapping
@@ -180,7 +180,7 @@ class NodeOrdering:
     """
     # Dictionary for translation of  meshio types to gmsh codes
     # http://gmsh.info//doc/texinfo/gmsh.html#MSH-file-format-version-2
-    _gmsh_typing: Dict[int, str] = field(
+    _gmsh_typing: dict[int, str] = field(
             default_factory=lambda: { 1  : 'line'          , 2  : 'triangle'      , 3  : 'quad'          , 4  : 'tetra'         ,
                                       5  : 'hexahedron'    , 6  : 'wedge'         , 7  : 'pyramid'       , 8  : 'line3'         ,
                                       9  : 'triangle6'     , 10 : 'quad9'         , 11 : 'tetra10'       , 12 : 'hexahedron27'  ,
@@ -203,7 +203,7 @@ class NodeOrdering:
 
     # Dictionary for conversion Gmsh to meshIO
     # > TODO: IMPLEMENT RECURSIVE MAPPING USING IO_MESHIO/IO_GMSH
-    _meshio_ordering: Dict[str, List[int]] = field(
+    _meshio_ordering: dict[str, list[int]] = field(
             default_factory=lambda: {  # 0D elements
                                        # > Vertex
                                        # 'vertex'      : [ 0 ],
@@ -247,14 +247,14 @@ class NodeOrdering:
     # )
 
     # Dictionary for translation of  gambit types to gmsh codes
-    _gambit_typing: Dict[int, str] = field(
+    _gambit_typing: dict[int, str] = field(
             default_factory=lambda: { 1  : 'line'          , 2  : 'quad'          , 3  : 'triangle'      , 4  : 'hexahedron'    ,
                                       5  : 'wedge'         , 6  : 'tetrahedron'   , 7  : 'pyramid'                              ,
                                     }
     )
 
     # Dictionary for conversion of Gambit to meshIO
-    _gambit_ordering: Dict[str, List[int]] = field(
+    _gambit_ordering: dict[str, list[int]] = field(
             default_factory=lambda: {  # 0D elements
                                        # 1D elements
                                        # 2D elements

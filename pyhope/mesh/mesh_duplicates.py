@@ -28,7 +28,7 @@
 from __future__ import annotations
 import gc
 from collections import defaultdict
-from typing import Dict, Final, Tuple, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -177,16 +177,16 @@ def EliminateDuplicates() -> None:
     cdict: Final[dict]  = mesh.cells_dict
 
     # Find the mapping to the (N-1)-dim elements
-    csetMap: Dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
+    csetMap: dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
                                         for key, cset in csets.items()}
 
     # Create new periodic nodes per (original node, boundary) pair
     # > Use a dictionary mapping (node, bc_key) --> new node index
-    nodeTrans: Dict[Tuple[int, str], int] = {}
+    nodeTrans: dict[tuple[int, str], int] = {}
     # > Collect points to append to the mesh
     newPoints: list       = []
     nPoints:   Final[int] = points.shape[0]
-    BCNodes:   Dict       = {}
+    BCNodes:   dict       = {}
 
     for bc_key, cset in csets.items():
         # Find the matching boundary condition

@@ -28,7 +28,7 @@
 from __future__ import annotations
 import bisect
 from dataclasses import dataclass
-from typing import Optional, List, Tuple, cast
+from typing import Optional, cast
 from typing import final
 from functools import cache, lru_cache
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ class LinkOffsetManager:
 
     def __init__(self) -> None:
         # Single breakpoint at stored_index=0 => offset=0
-        self.breakpoints: List[Tuple[int, int]] = [(0, 0)]
+        self.breakpoints: list[tuple[int, int]] = [(0, 0)]
 
     def update(self,
                effective_index: int,
@@ -362,7 +362,7 @@ class RedBlackTree:
         node = self.node_at(index)
         node.value = new_value
 
-    def inorder(self, t: Optional[_RBTreeNode], result: List[SideNode]) -> None:
+    def inorder(self, t: Optional[_RBTreeNode], result: list[SideNode]) -> None:
         """ Recursively traverse the red-black tree in order and append node data to the result list
         """
         if t is None:
@@ -371,10 +371,10 @@ class RedBlackTree:
         result.append(t.data)
         self.inorder( t.right, result)
 
-    def _to_list(self) -> List[SideNode]:
+    def _to_list(self) -> list[SideNode]:
         """ Return a Python list of the nodes (in order) via an in-order traversal of the red-black tree
         """
-        result: List[SideNode] = []
+        result: list[SideNode] = []
         self.inorder(self._root, result)
         return result
 
@@ -412,7 +412,7 @@ class RedBlackTree:
         return root
 
     @classmethod
-    def from_list(cls, sides: List[SIDE], offset_manager: LinkOffsetManager) -> RedBlackTree:
+    def from_list(cls, sides: list[SIDE], offset_manager: LinkOffsetManager) -> RedBlackTree:
         """ Optimized bulk conversion from a sorted list to a red–black tree
             > Assumes that the provided list is already in the desired in-order sequence
             > All nodes are initialized as black to maintain red–black properties
@@ -455,7 +455,7 @@ class RedBlackTree:
     #         node.value.sideID = idx
     #     return [node.value for node in nodes]
 
-    def to_list(self) -> List[SIDE]:
+    def to_list(self) -> list[SIDE]:
         """ Convert the red-black tree back into a list of SIDE objects
 
             > Instead of computing each node's effective link individually (using a binary search for each call), we batch-process

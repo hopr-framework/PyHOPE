@@ -26,7 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
-from typing import Final, List, Optional, Tuple, cast, final
+from typing import Final, Optional, cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ def UpdateElemID(elems         : list,
                  sorted_indices: npt.NDArray,
                  bar,
                  nElemsIJK     : Optional[npt.NDArray] = None,
-                 ) -> Tuple[List, List]:
+                 ) -> tuple[list, list]:
 
     totalElems = len(elems)
     totalSides = len(sides)

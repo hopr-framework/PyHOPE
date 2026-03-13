@@ -26,7 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import List, Literal, Iterable, Union, overload
+from typing import Literal, Iterable, Union, overload
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -64,14 +64,14 @@ def HilbertCurveNumpy() -> None:
 
     # Typing helpers
     @overload
-    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[False] = False) -> List: ...
+    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[False] = False) -> list: ...
     @overload
-    def _distances_from_points_numpy(self, points: List       , match_type: Literal[True])          -> List: ...
+    def _distances_from_points_numpy(self, points: list       , match_type: Literal[True])          -> list: ...
     @overload
     def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[True])          -> npt.NDArray: ...
     # Function
     def _distances_from_points_numpy(self,
-                                     points    : Union[List, npt.NDArray],
+                                     points    : Union[list, npt.NDArray],
                                      match_type: bool = False) -> Union[npt.NDArray, list]:
         """ Batch implementation for distances_from_points in numpy
         """

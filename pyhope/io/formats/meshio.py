@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from functools import cache
-from typing import Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -181,7 +180,7 @@ def facePointMESHIO(start: int, end: int, face: int, pos: int) -> npt.NDArray:
 
 
 @cache
-def HEXAMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
+def HEXAMAPMESHIO(order: int) -> tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order hexahedrons
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
@@ -267,7 +266,7 @@ def HEXAMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
 
 
 @cache
-def PRISMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
+def PRISMAPMESHIO(order: int) -> tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order prisms
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order prisms (3D mapping)
@@ -410,7 +409,7 @@ def PRISMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
 
 
 @cache
-def PYRAMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
+def PYRAMAPMESHIO(order: int) -> tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order pyramids
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order pyramids (3D mapping)
@@ -537,7 +536,7 @@ def PYRAMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
 
 
 @cache
-def TETRMAPMESHIO(order: int) -> Tuple[npt.NDArray, npt.NDArray]:
+def TETRMAPMESHIO(order: int) -> tuple[npt.NDArray, npt.NDArray]:
     """ MESHIO -> IJK ordering for high-order tetrahedrons
         > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (1D, tensor-product style)
         > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order tetrahedrons (3D mapping)

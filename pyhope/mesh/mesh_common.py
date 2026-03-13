@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from functools import cache
-from typing import Any, Final, Optional, Union, Tuple
+from typing import Any, Final, Optional, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -576,7 +576,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.ND
 
 
 @cache
-def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, bool]:
+def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> tuple[Any, bool]:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
