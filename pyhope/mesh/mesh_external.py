@@ -151,7 +151,7 @@ def MeshExternal() -> meshio.Mesh:
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
-            hopout.printoption(f'vv[{iVV+1}]', '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
+            hopout.printoption(f'vv[{iVV+1}]', f'{np.round(vv["Dir"], 6)}', 'READ IN')
         hopout.sep()
 
     # Flag mortar rebuild if merging multiple meshes

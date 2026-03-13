@@ -120,7 +120,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     hopout.sep()
                     hopout.routine('The following vectors were found:')
                     for iVV, vv in enumerate(mesh_vars.vvs):
-                        hopout.printoption(f'vv[{iVV+1}]', '{0:}'.format(np.round(vv['Dir'], 6)), 'READ IN')
+                        hopout.printoption(f'vv[{iVV+1}]', f'{np.round(vv["Dir"], 6)}', 'READ IN')
                     hopout.sep()
                 # old hopr files might not contain the VV
                 except KeyError:
