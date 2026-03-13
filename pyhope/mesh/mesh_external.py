@@ -76,16 +76,16 @@ def MeshExternal() -> meshio.Mesh:
         bc.type = GetIntArray('BoundaryType', number=iBC)            # noqa: E251
 
     nVVs = CountOption('vv')
-    mesh_vars.vvs = [dict() for _ in range(nVVs)]
+    mesh_vars.vvs = [{} for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     if len(vvs) > 0:
         hopout.sep()
     for iVV, _ in enumerate(vvs):
-        vvs[iVV] = dict()
+        vvs[iVV] = {}
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
     # Load the mesh(es)
-    mesh   = meshio.Mesh(np.array(()), dict())
+    mesh   = meshio.Mesh(np.array(()), {})
     fnames = [GetStr('Filename', number=i) for i in range(CountOption('Filename'))]
 
     # Check whether mesh file exists in the current directory or in the same directory
@@ -147,7 +147,7 @@ def MeshExternal() -> meshio.Mesh:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))
         # Get max number of periodic alphas
-        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
+        mesh_vars.vvs = [{} for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):

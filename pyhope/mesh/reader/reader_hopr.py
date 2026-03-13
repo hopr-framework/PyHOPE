@@ -110,9 +110,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             if len(mesh_vars.vvs) == 0:
                 try:
                     vvs = np.array(f['VV'])
-                    mesh_vars.vvs = [dict() for _ in range(vvs.shape[0])]
+                    mesh_vars.vvs = [{} for _ in range(vvs.shape[0])]
                     for iVV, _ in enumerate(mesh_vars.vvs):
-                        mesh_vars.vvs[iVV] = dict()
+                        mesh_vars.vvs[iVV] = {}
                         mesh_vars.vvs[iVV]['Dir'] = vvs[iVV]
                     # Output vectors
                     print(hopout.warn('Periodicity vectors not defined in parameter file. '

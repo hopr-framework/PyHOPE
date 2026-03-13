@@ -127,7 +127,7 @@ class DefineConfig:
     """
     def __init__(self) -> None:
         # Create an empty config dictionary
-        self.dict = dict()
+        self.dict = {}
 
     def __enter__(self) -> dict:
         return self.dict
@@ -190,7 +190,7 @@ def CreateSection(string: str) -> None:
     # ------------------------------------------------------
 
     CheckDefined(string, multiple=False, init=True)
-    config.prms[string] = dict(type='section', name=string)
+    config.prms[string] = {'type': 'section', 'name': string}
 
 
 def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:
@@ -199,12 +199,12 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='str',
-                               name=string,
-                               help=help,
-                               default=str(default),
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'str',
+                           'name': string,
+                           'help': help,
+                           'default': str(default),
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple=False) -> None:
@@ -213,12 +213,12 @@ def CreateReal(string: str, help: Optional[str] = None, default: Optional[float]
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='real',
-                               name=string,
-                               help=help,
-                               default=str(default),
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'real',
+                           'name': string,
+                           'help': help,
+                           'default': str(default),
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
@@ -227,12 +227,12 @@ def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = 
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='int',
-                               name=string,
-                               help=help,
-                               default=str(default),
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'int',
+                           'name': string,
+                           'help': help,
+                           'default': str(default),
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 def CreateLogical(string: str, help: Optional[str] = None, default: Optional[bool] = None, multiple=False) -> None:
@@ -241,12 +241,12 @@ def CreateLogical(string: str, help: Optional[str] = None, default: Optional[boo
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='bool',
-                               name=string,
-                               help=help,
-                               default=default,
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'bool',
+                           'name': string,
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 def CreateIntFromString(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
@@ -255,14 +255,14 @@ def CreateIntFromString(string: str, help: Optional[str] = None, default: Option
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='int2str',
-                               name=string,
-                               mapping=dict(),
-                               help=help,
-                               default=default,
-                               counter=0,
-                               source=None,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'int2str',
+                           'name': string,
+                           'mapping': {},
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'source': None,
+                           'multiple': multiple}
 
 
 def CreateIntOption(string: str, name, number) -> None:
@@ -281,13 +281,13 @@ def CreateRealArray(string: str, nReals, help: Optional[str] = None, default: Op
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='realarray',
-                               number=nReals,
-                               name=string,
-                               help=help,
-                               default=default,
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'realarray',
+                           'number': nReals,
+                           'name': string,
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 def CreateIntArray(string: str, nInts, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
@@ -296,13 +296,13 @@ def CreateIntArray(string: str, nInts, help: Optional[str] = None, default: Opti
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='intarray',
-                               number=nInts,
-                               name=string,
-                               help=help,
-                               default=default,
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'intarray',
+                           'number': nInts,
+                           'name': string,
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 # ==================================================================================================================================

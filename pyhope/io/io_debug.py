@@ -153,24 +153,24 @@ def DebugIO() -> None:
     # Create ordered mapping from first-order sides to high-order sides
     sypes  = list(sidetypes)
 
-    elemdata: dict[str, list] = {'ElemID'  : [list() for _ in range(len(types))],
-                                 'ElemType': [list() for _ in range(len(types))],
-                                 'ElemZone': [list() for _ in range(len(types))],
+    elemdata: dict[str, list] = {'ElemID'  : [[] for _ in range(len(types))],
+                                 'ElemType': [[] for _ in range(len(types))],
+                                 'ElemZone': [[] for _ in range(len(types))],
                                 }
     # (Optional:) Add Jacobians
     if melems and (getattr(melems[0], 'jacobian', None) is not None):
-        elemdata.update({'ElemJacobian': [list() for _ in range(len(types))]})
+        elemdata.update({'ElemJacobian': [[] for _ in range(len(types))]})
     # (Optional:) Add IJK sorting
     if hasIJK:
-        elemdata.update({'Elem_I'      : [list() for _ in range(len(types))]})
-        elemdata.update({'Elem_J'      : [list() for _ in range(len(types))]})
-        elemdata.update({'Elem_K'      : [list() for _ in range(len(types))]})
+        elemdata.update({'Elem_I'      : [[] for _ in range(len(types))]})
+        elemdata.update({'Elem_J'      : [[] for _ in range(len(types))]})
+        elemdata.update({'Elem_K'      : [[] for _ in range(len(types))]})
 
-    sidedata: dict[str, list] = {'ElemID'  : [list() for _ in range(len(sypes))],
-                                 'BCID'    : [list() for _ in range(len(sypes))],
-                                 'BCType'  : [list() for _ in range(len(sypes))],
-                                 'BCState' : [list() for _ in range(len(sypes))],
-                                 'BCAlpha' : [list() for _ in range(len(sypes))],
+    sidedata: dict[str, list] = {'ElemID'  : [[] for _ in range(len(sypes))],
+                                 'BCID'    : [[] for _ in range(len(sypes))],
+                                 'BCType'  : [[] for _ in range(len(sypes))],
+                                 'BCState' : [[] for _ in range(len(sypes))],
+                                 'BCAlpha' : [[] for _ in range(len(sypes))],
                                 }
 
     nodedata: dict[str, list] = {}

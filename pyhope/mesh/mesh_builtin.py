@@ -111,7 +111,7 @@ def MeshCartesian() -> meshio.Mesh:
     # > https://gitlab.onelab.info/gmsh/gmsh/-/issues/2836
     gmsh.model.add('Domain')
     gmsh.model.set_current('Domain')
-    bcZones = [list() for _ in range(nZones)]
+    bcZones = [[] for _ in range(nZones)]
 
     for zone in range(nZones):
         hopout.routine(f'Generating zone {zone+1}')
@@ -292,10 +292,10 @@ def MeshCartesian() -> meshio.Mesh:
     nVVs = CountOption('vv')
     if nVVs > 0:
         hopout.sep()
-    mesh_vars.vvs = [dict() for _ in range(nVVs)]
+    mesh_vars.vvs = [{} for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     for iVV, _ in enumerate(vvs):
-        vvs[iVV] = dict()
+        vvs[iVV] = {}
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
     # Flatten the BC array, the surface numbering follows from the 2-D ordering

@@ -88,7 +88,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 nFaces    = len(faces)
 
                 N         = [np.array(()) for _ in range(nFaces + 1)]
-                faceNodes = [list()       for _ in faces]  # noqa: E272
+                faceNodes = [[]           for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements
                 nPoints_old = len(points)
@@ -145,7 +145,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 nFaces    = len(faces)
 
                 N         = [np.array(()) for _ in range(nFaces + 1)]
-                faceNodes = [list()       for _ in faces]  # noqa: E272
+                faceNodes = [[]       for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements
                 nPoints_old = len(points)
