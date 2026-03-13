@@ -102,7 +102,6 @@ class CommandLine:
 
             self.helpjoin(f'{key:<{PAR_LENGTH}} = {default:>{DEF_LENGTH}} ! {help}')
 
-        return None
 
     def __enter__(self) -> tuple[Namespace, list]:
         # Setup an argument parser and add know arguments

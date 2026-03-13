@@ -128,7 +128,6 @@ class DefineConfig:
     def __init__(self) -> None:
         # Create an empty config dictionary
         self.dict = dict()
-        return None
 
     def __enter__(self) -> dict:
         return self.dict
@@ -494,7 +493,6 @@ class ReadConfig():
 
         # define allowed comments
         self.sym_comm = ('#', ';', '!')
-        return None
 
     def _read_file(self) -> list:
         """ Read the parameter file and replace DEFVAR variables
