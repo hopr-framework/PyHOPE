@@ -95,8 +95,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # > Check if the mesh contains any pyramids
     unsElems: Final[tuple] = ('pyramid')
-    if any(s.startswith(x) for x in unsElems for s in cdict.keys()):
-        unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unsElems)]
+    if any(s.startswith(x) for x in unsElems for s in cdict):
+        unsupported = [s for s in cdict if any(s.startswith(x) for x in unsElems)]
         hopout.error('Element type[s] "{}" are not supported for splitting, exiting...'.format(', '.join(unsupported)))
 
     faceType = ['triangle'  , 'quad'  ]
@@ -159,8 +159,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     hexBCQuads  = set()
     if splitToHexZ:
         unszElems  = ('tetrahedron', 'pyramid')
-        if any(s.startswith(x) for x in unszElems for s in cdict.keys()):
-            unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unszElems)]
+        if any(s.startswith(x) for x in unszElems for s in cdict):
+            unsupported = [s for s in cdict if any(s.startswith(x) for x in unszElems)]
             hopout.error('Element type[s] "{}" are not supported for z-splitting, exiting...'.format(', '.join(unsupported)))
 
         # Inquire if elements should be split in z-director or we should build mortar interfaces

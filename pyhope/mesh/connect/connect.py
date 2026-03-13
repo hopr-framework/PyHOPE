@@ -286,7 +286,7 @@ def ConnectMesh() -> None:
 
     # Consistency check for 2D boundary conditions
     prefixes: Final[tuple[str]] = ('quad', 'triangle')
-    if not any(k.startswith(p) for p in prefixes for k in cdict.keys()):  # pragma: no cover
+    if not any(k.startswith(p) for p in prefixes for k in cdict):  # pragma: no cover
         if bcs is not None and len(bcs) > 0:
             print(hopout.warn(f'Detected boundary conditions {[bc.name for bc in bcs]}'))
         hopout.error('Could not find any 2D boundary conditions, exiting...')

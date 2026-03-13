@@ -173,7 +173,7 @@ def FEMConnect() -> None:
     # > are displaced by each periodic boundary condition. We build a simple, directed
     # > map for each BC that directly reflects the (source -> target) relationship in
     # > periNodes. We only want to map from negative to positive, thus keep the direction
-    periNames = sorted(list({bc for _, bc in periNodes.keys()}))
+    periNames = sorted(list({bc for _, bc in periNodes}))
 
     # This dictionary holds the directed mapping for each BC
     # > Key: Source node
@@ -181,7 +181,7 @@ def FEMConnect() -> None:
     nodeMapBC: dict[str, dict[int, int]] = {bc: {int(n): int(p) for (n, b), p in periNodes.items() if b == bc} for bc in periNames}
     # For convenience, also build a set of all nodes that lie on any boundary
 
-    BCNodes = {int(node)      for node, _ in periNodes.keys()}     # noqa: E272
+    BCNodes = {int(node)      for node, _ in periNodes}     # noqa: E272
     BCNodes.update({int(peri) for peri    in periNodes.values()})  # noqa: E272
 
     # EDGE: Enumerate raw edges from the mesh

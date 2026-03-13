@@ -625,7 +625,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
     nElems = 0
     for _, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in elemTypeClass.type.keys()):
+        if not any(s in elemType for s in elemTypeClass.type):
             continue
 
         ioelems = mesh.get_cells_type(elemType)

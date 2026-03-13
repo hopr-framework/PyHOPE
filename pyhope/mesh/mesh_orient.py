@@ -147,7 +147,7 @@ def OrientMesh() -> None:
     nElems      = 0
     passedTypes = []
 
-    for elemType in mesh.cells_dict.keys():
+    for elemType in mesh.cells_dict:
         # Only consider three-dimensional types
         if not any(s in elemType for s in elemKeys):
             continue

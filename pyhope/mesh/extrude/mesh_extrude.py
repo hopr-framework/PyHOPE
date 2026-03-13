@@ -152,8 +152,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v.keys())
-                                                                     or any(key.startswith('quad') for key in v.keys()))
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
+                                                                     or any(key.startswith('quad') for key in v))
 
     match len(meshcells):
         case 0:
@@ -248,7 +248,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Create the new faces
                     subFaces = tuple(np.array(extElem)[face] for face in faces(nGeo))
-                    sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s.keys() and s['side'] == 'side'))
+                    sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s and s['side'] == 'side'))
 
                     for iFace, sidFace in sidFaces:
                         subFace = subFaces[iFace]
@@ -301,7 +301,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # Temporarily assign mesh_vars.mesh
     with temporary_assign(mesh_vars, 'mesh', mesh):
         # Check if the surface normal of the first cell points outwards
-        for elemType in tuple(s for s in mesh.cells_dict.keys() if 'hexahedron' in s):
+        for elemType in tuple(s for s in mesh.cells_dict if 'hexahedron' in s):
             # Only check the first element, other elements get covered in OrientMesh
             ionodes:   npt.NDArray = mesh.get_cells_type(elemType)[0]
             elemNames: Final[dict] = mesh_vars.ELEMTYPE.name

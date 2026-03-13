@@ -254,7 +254,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
 
     # Check whether the mesh contains high-order elements and nGeo is set to 1
     if not mesh_vars.already_curved or mesh_vars.nGeo == 1:
-        for elemtype in mesh.cells_dict.keys():
+        for elemtype in mesh.cells_dict:
             if elemtype in mesh_vars.ELEMTYPE.name and mesh_vars.ELEMTYPE.name[elemtype] > 200:
                 hopout.error('High-order elements detected in the mesh but MeshIsAlreadyCurved=F or nGeo is set to 1, exiting...')
 
@@ -363,10 +363,10 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
             shutil.copyfile(fname, tname)
 
         with h5py.File(fname, mode='r') as f:
-            if 'CGNSLibraryVersion' not in f.keys():
+            if 'CGNSLibraryVersion' not in f:
                 hopout.error('CGNS file does not contain library version header')
 
-            key = [s for s in f.keys() if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
+            key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
             match len(key):
                 case 0:
                     hopout.error('Object [Base] does not exist in CGNS file')
@@ -377,14 +377,14 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 case _:
                     hopout.error('More than one object [Base] exists in CGNS file')
 
-            for baseZone in base.keys():
+            for baseZone in base:
                 # Ignore the base dataset
                 if baseZone.strip() == 'data':
                     continue
 
                 zone = cast(h5py.Group, base[baseZone])
                 # Check if the zone contains BCs
-                if 'ZoneBC' not in zone.keys():
+                if 'ZoneBC' not in zone:
                     continue
 
                 zonedata = cast(h5py.Dataset, zone[' data'])
@@ -433,7 +433,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     bpoints = np.column_stack([zone['GridCoordinates'][f'Coordinate{axis}'][' data'][:].astype(float) for axis in 'XYZ'])
 
     # Loop over all BCs
-    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']) if s.strip() != 'innerfaces']
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
@@ -521,7 +521,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
             # Collect all element sections present in the zone
             elemSections = []
-            for key in zone.keys():
+            for key in zone:
                 if not isinstance(zone[key], h5py.Group):
                     continue
                 if 'ElementConnectivity' not in zone[key] or 'ElementRange' not in zone[key]:

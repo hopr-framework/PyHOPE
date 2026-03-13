@@ -275,7 +275,7 @@ def EliminateDuplicates() -> None:
 
     # Also, remove near duplicate points
     # > Filter the valid three-dimensional cell types
-    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
+    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type))
     # > Group by number of vertices per element to avoid ragged arrays
     groups = defaultdict(list)
     for cell in valid_cells:

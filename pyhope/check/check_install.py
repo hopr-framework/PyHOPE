@@ -374,7 +374,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     # Load the stats from the TOML file
                     if  h5stats  is not None \
                     and tomlData is not None \
-                    and key in tomlData.keys():  # noqa: E271, E272
+                    and key in tomlData:  # noqa: E271, E272
                         # Fallback tolerances:
                         if 'GlobalNodeIDs' in key:
                             # GlobalNodeIDs are susceptible to rounding issues

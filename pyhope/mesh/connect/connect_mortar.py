@@ -165,7 +165,7 @@ def ConnectMortar( nConnSide  : list
         indexList.add(nConnID, targetNeighbors)
 
     # Obtain the target side IDs
-    targetSides:   Final[list[int]] = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
+    targetSides:   Final[list[int]] = [s for s in indexList.data if len(indexList.data[s]) > 0]
     # Create a global offset manager.
     offsetManager: Final[LinkOffsetManager] = LinkOffsetManager()
     # Convert the sides to a red-black tree
@@ -177,7 +177,7 @@ def ConnectMortar( nConnSide  : list
     for targetID in targetSides:
         # Skip already connected sides
         # if indexList.data[targetID] == -1:
-        if targetID not in indexList.data.keys():
+        if targetID not in indexList.data:
             continue
 
         # Get the target neighbors

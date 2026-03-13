@@ -161,7 +161,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     csets_lst = {}
 
     # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys()))
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v))
 
     # If meshcells is empty, we fake it assign it to Zone1
     if len(meshcells) == 0:

@@ -82,7 +82,7 @@ def XdmfWriterInit(self,
 
     for mesh in meshList:
         # Assign the correct subgrid name
-        if mesh.info is not None and 'name' in mesh.info.keys():
+        if mesh.info is not None and 'name' in mesh.info:
             gridname = mesh.info['name']
         else:
             gridname = 'Grid'

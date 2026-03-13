@@ -249,7 +249,7 @@ def DebugIO() -> None:
     # Update points to unique first-order coords
     coords = mpoints[pMap]
     # Find the mapping from the cell keys to the elemtypes
-    elemOrder = [tInv[cb] for cb in elems.keys()]
+    elemOrder = [tInv[cb] for cb in elems]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     elemdata = {k: [np.asarray(v[idx]) for idx in elemOrder] for k, v in elemdata.items()}
@@ -274,7 +274,7 @@ def DebugIO() -> None:
     # del debugElem
 
     # Find the mapping from the side keys to the elemtypes
-    sideOrder = [sInv[cb] for cb in sides.keys()]
+    sideOrder = [sInv[cb] for cb in sides]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     sidedata = {k: [np.asarray(v[idx]) for idx in sideOrder] for k, v in sidedata.items()}

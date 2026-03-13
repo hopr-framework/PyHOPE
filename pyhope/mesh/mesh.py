@@ -214,7 +214,7 @@ def GenerateMesh() -> None:
     # Final count
     nElems = 0
     for cellType in mesh.cells:
-        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
 
     hopout.routine(f'Generated mesh with {nElems} cells')

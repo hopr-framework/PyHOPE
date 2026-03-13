@@ -423,7 +423,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     except (ValueError, TypeError):
         result = options.get(str(value).lower())
 
-    if result is None or result not in mapping.keys():  # pragma: no cover
+    if result is None or result not in mapping:  # pragma: no cover
         outStr = ', '.join([f'{k} [{v}]' for k, v in mapping.items()])
         print()
         print(hopout.warn(f'Allowed values for parameter "{name}":'))
@@ -720,7 +720,7 @@ class ReadConfig():
 
         # Parse configation file either from read in parameter file or
         # recovered from a given mesh file
-        config.std_length = max(len(s) for s in config.prms.keys())
+        config.std_length = max(len(s) for s in config.prms)
         config.std_length = max(32, config.std_length+1)
 
         # Loop over all objects and check if they are provided
