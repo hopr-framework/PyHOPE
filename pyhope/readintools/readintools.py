@@ -442,10 +442,8 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     value = value.split('/)')[0]
 
     # Commas separate 1st dimension, double commas separate 2nd dimension
-    if ',,' in value:
-        value = [s.split(',') for s in value.split(',,')]
-    else:
-        value = value.split(',')
+    value = [s.split(',') for s in value.split(',,')] if ',,' in value else value.split(',')
+
     try:
         value = np.vectorize(strToFloatOrPi)(value)
     except ValueError as e:  # pragma: no cover
@@ -583,10 +581,7 @@ class ReadConfig:
                 # Replace variables in the parameter file
                 for var, value in variables.items():
                     # Convert arrays to string format
-                    if isinstance(value, list):
-                        replacement = f'(/{",".join(map(str, value))}/)'
-                    else:
-                        replacement = str(value)
+                    replacement = f'(/{",".join(map(str, value))}/)' if isinstance(value, list) else str(value)
 
                     # Ensure exact match replacement (avoiding substring issues)
                     if '=' in line:

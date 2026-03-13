@@ -82,12 +82,8 @@ def XdmfWriterInit(self,
 
     for mesh in meshList:
         # Assign the correct subgrid name
-        if mesh.info is not None and 'name' in mesh.info:
-            gridname = mesh.info['name']
-        else:
-            gridname = 'Grid'
-
-        grid = ET.SubElement(domain, 'Grid', Name=gridname)
+        gridname = mesh.info['name'] if mesh.info is not None and 'name' in mesh.info else 'Grid'
+        grid     = ET.SubElement(domain, 'Grid', Name=gridname)
 
         self.write_points(    grid           , mesh.points)
         # self.field_data(      mesh.field_data, information)
