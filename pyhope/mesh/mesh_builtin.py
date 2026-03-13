@@ -281,7 +281,7 @@ def MeshCartesian() -> meshio.Mesh:
     mesh_vars.bcs = [BC() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
 
-    for iBC, bc in enumerate(bcs):
+    for iBC in range(len(bcs)):
         # bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
         #                 bcid = iBC + 1,                                  # noqa: E251
         #                 type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251

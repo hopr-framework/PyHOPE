@@ -173,7 +173,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             nodeToFace[node].add(subFace)
 
     # We need to unwrap meshcells for each zone, i.e. each 2D boundary condition
-    for iElem, meshcell in enumerate(meshcells):
+    for meshcell in meshcells:
         _    , mdict = meshcell
 
         # Iterate over all cell types in this BC

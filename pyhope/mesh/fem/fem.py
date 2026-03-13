@@ -286,7 +286,7 @@ def FEMConnect() -> None:
     FEMEdgeMapping = {key: i for i, key in enumerate(sorted(edgeKeySet))}
 
     # Build the vertex connectivity
-    for elemID, elem in enumerate(elems):
+    for elem in elems:
         elemNodes = cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]
         vertexInfo: dict[int, tuple[int, tuple[int, ...]]] = {}
         for locNode in range(len(elemNodes)):

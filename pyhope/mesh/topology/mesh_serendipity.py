@@ -112,7 +112,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 # Loop over all hexahedrons
                 for iElem, elem in enumerate(cdata):
                     # Create the 6 face mid-points
-                    for iFace, face in enumerate(faces):
+                    for iFace in range(len(faces)):
                         center = np.dot(N[iFace], mesh.points[elem])
                         points[nPoints_old + iFace, :]  = center
 

@@ -160,7 +160,23 @@ exclude = [
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
+extend-select = [
+  "B",        # flake8-bugbear
+  ]
+ignore = [
+  "EXE001",   # shebang-not-executable         - we use shebang as file format identifier
+  "I001",     # unsorted-imports               - we use logical sorting instead of alphabetical
+  "RET501",   # unnecessary-return-none        - we want to be explicit about our return values
+  "RUF100",   # unused-noqa                    - we want to have multiple linters, thus sometimes more exceptions are necessary
+  "UP009",    # utf8-encoding-declaration      - we want to be explicit about our encoding
+  "UP007",    # non-pep604-annotation-union    - we want explicit typing.Union annotations
+  "UP045",    # non-pep604-annotation-optional - we want explicit typing.Optional annotations
+  "PLR0402",  # manual-from-import             - we want every import specify the module name
+  # TODO: These should be fixed eventually
+  "BLE001",   # blind-except                   - narrow errors and exceptions
+  "S110",     # try-except-pass                - implement feature.logger branch
+  "S112",     # try-except-continue            - implement feature.logger branch
+ ]
 
 [tool.ruff.format]
 quote-style  = "single"
