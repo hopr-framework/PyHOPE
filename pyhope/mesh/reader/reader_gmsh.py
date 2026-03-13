@@ -437,7 +437,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
-        cellsets[k] = [cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
+        cellsets[k] = [cast(np.ndarray, cell).tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
 
     for zoneBC in zoneBCs:
         # Lists to collect centroids
@@ -638,7 +638,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
-        cellsets[k] = [cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
+        cellsets[k] = [cast(np.ndarray, cell).tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
 
     # Load the zone BCs
     for zoneBC, bcData in zone['ZoneBC'].items():
