@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -50,16 +51,21 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
 
-    eps = 1./16
-    for iPoint, xPoint in enumerate(points):
-        points[iPoint, 0] = xPoint[0] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
-                                              np.sin(4*np.pi*(xPoint[1]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[2]-0.5))
-        points[iPoint, 1] = xPoint[1] + eps * np.cos(3*np.pi*(xPoint[0]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[1]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[2]-0.5))
-        points[iPoint, 2] = xPoint[2] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
-                                              np.cos(2*np.pi*(xPoint[1]-0.5))* \
-                                              np.cos(  np.pi*(xPoint[2]-0.5))
+    eps: Final[float] = 1./16
+
+    nTotal = points.shape[0]
+    X_out  = np.zeros_like(points, dtype=np.float64)
+
+    for i in range(nTotal):
+        x = points[i, :]
+        X_out[i, 0] = x[0] + eps * np.cos(  np.pi*(x[0]-0.5))* \
+                                   np.sin(4*np.pi*(x[1]-0.5))* \
+                                   np.cos(  np.pi*(x[2]-0.5))
+        X_out[i, 1] = x[1] + eps * np.cos(3*np.pi*(x[0]-0.5))* \
+                                   np.cos(  np.pi*(x[1]-0.5))* \
+                                   np.cos(  np.pi*(x[2]-0.5))
+        X_out[i, 2] = x[2] + eps * np.cos(  np.pi*(x[0]-0.5))* \
+                                   np.cos(2*np.pi*(x[1]-0.5))* \
+                                   np.cos(  np.pi*(x[2]-0.5))
 
     return points
