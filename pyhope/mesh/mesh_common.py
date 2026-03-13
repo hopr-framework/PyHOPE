@@ -440,7 +440,7 @@ def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np
     # Vectorize flip_s2m to get the flipped (p, q) values
     vec_flip = (np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[0], otypes=[dtype]),
                 np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[1], otypes=[dtype]))
-    pq       = tuple([vec_flip[s](P, Q) for s in (0, 1)])
+    pq       = tuple(vec_flip[s](P, Q) for s in (0, 1))
     # Vectorize the cgns_sidetovol function
     vec_cgns =  np.vectorize(lambda r, p, q: cgns_sidetovol(N, r, int(p), int(q), face, elemType), otypes=[dtype],
                                     signature='(),(),()->(n)')

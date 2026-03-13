@@ -163,7 +163,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             # > Cache the mapping here, so we consider the mesh order
             linCache  = {}
             elemOrder = 100 if mesh_vars.nGeo == 1 else 200
-            elemTypes = tuple([s + elemOrder for s in (4, 5, 6, 8)])
+            elemTypes = tuple(s + elemOrder for s in (4, 5, 6, 8))
             for elemType in elemTypes:
                 try:
                     _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)

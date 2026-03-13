@@ -201,7 +201,7 @@ def CheckJacobians() -> None:
     # Pre-compute LINTEN mappings for all element types
     linCache  = {}
     elemOrder = 100 if mesh_vars.nGeo == 1 else 200
-    elemTypes = tuple([s + elemOrder for s in elemBases])
+    elemTypes = tuple(s + elemOrder for s in elemBases)
     for elemType in elemTypes:
         try:
             _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
