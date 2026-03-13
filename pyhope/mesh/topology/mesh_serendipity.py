@@ -176,7 +176,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                         if 'z' in face:
                             continue
                         # 2nd order quadrilaterial faces
-                        elif len(faceNodes[iFace]) == 8:
+                        if len(faceNodes[iFace]) == 8:
                             # Here, we are on the quads and not the actual element
                             center = np.dot(N[iFace], mesh.points[elem[faceNodes[iFace]]])
                             points[nPoints_old + iFace, :]  = center

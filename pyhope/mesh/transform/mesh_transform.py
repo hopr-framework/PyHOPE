@@ -112,7 +112,7 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
             if nElems[iDim] == 1 or dx[iDim] == 0:
                 progFac[iDim] = 1.
                 continue
-            elif nElems[iDim] == 2:
+            if nElems[iDim] == 2:
                 progFac[iDim] = dx[iDim] - 1.
                 continue
 

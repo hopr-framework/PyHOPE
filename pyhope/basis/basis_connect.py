@@ -192,7 +192,7 @@ def CheckConnect() -> None:
             if side.connection is None or side.sideType < 0:
                 continue
             # Big mortar side is counted once
-            elif side.connection < 0:
+            if side.connection < 0:
                 nconn += 1
             # Internal side: only count the canonical representative and ignore virtual mortar sides
             elif side.connection >= 0:

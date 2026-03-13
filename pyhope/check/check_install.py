@@ -102,9 +102,8 @@ def downloadGitDir(user    : str,
                         bar.title( '│               Downloading tests')
                     # Retry the request
                     continue
-                else:
-                    # Re-raise other HTTP errors
-                    raise
+                # Re-raise other HTTP errors
+                raise
 
     apiURL = f'https://api.github.com/repos/{user}/{repo}/contents/{path}?ref={branch}'
 
