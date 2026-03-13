@@ -282,7 +282,7 @@ jobs:
       - name: Download coverage artifacts
         # act doesn't support GitHub Actions artifact service
         # if: ${{ !env.ACT }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-*
           # include-hidden-files: true
@@ -316,7 +316,7 @@ jobs:
       - name: Download coverage artifacts
         # act doesn't support GitHub Actions artifact service
         # if: ${{ !env.ACT }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-report
           # include-hidden-files: true
