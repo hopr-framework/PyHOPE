@@ -179,7 +179,7 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/examples.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-examples
           include-hidden-files: true
@@ -214,7 +214,7 @@ jobs:
         run: |
           source .venv/bin/activate
           coverage run --data-file=".coverage.verify" -m pyhope --verify tutorials
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-healthcheck
           include-hidden-files: true
@@ -254,7 +254,7 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/convergence.sh
-      # - uses: actions/upload-artifact@v4
+      # - uses: actions/upload-artifact@v7
       #   with:
       #     name: coverage-convergence
       #     include-hidden-files: true
@@ -301,7 +301,7 @@ jobs:
           echo "Generating coverage report..."
           coverage xml
           coverage report --skip-empty --precision=2
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           # include-hidden-files: true
