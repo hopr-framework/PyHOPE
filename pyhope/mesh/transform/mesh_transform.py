@@ -229,7 +229,7 @@ def TransformMesh() -> None:
     # Continue with advanced transformations
     hopout.sep()
     hopout.routine('Performing advanced transformations')
-    hopout.routine('  Template: {}'.format(meshPostDeform))
+    hopout.routine(f'  Template: {meshPostDeform}')
 
     # Setup the transformation
     transformModule = LoadTemplate(meshPostDeform.strip().lower(), __file__, 'Post transformation')

@@ -110,7 +110,7 @@ def IO() -> None:
             nVertices: Final[int] = np.array(tuple(elem.type % 10        for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
             nEdges:    Final[int] = np.array(tuple(len(edges(elem.type)) for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
 
-            fname = '{}_mesh.h5'.format(pname)
+            fname = f'{pname}_mesh.h5'
 
             elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
             FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo, \
@@ -123,7 +123,7 @@ def IO() -> None:
                 hopout.info(f'{ELEMTYPE(elemType)}: {count:12d}')
 
             hopout.sep()
-            hopout.routine('Writing HDF5 mesh to "{}"'.format(fname))
+            hopout.routine(f'Writing HDF5 mesh to "{fname}"')
 
             with h5py.File(fname, mode='w') as f:
                 # Store same basic information
@@ -191,10 +191,10 @@ def IO() -> None:
 
         case MeshFormat.VTK.value:
             mesh  = mesh_vars.mesh
-            fname = '{}_mesh.vtk'.format(pname)
+            fname = f'{pname}_mesh.vtk'
 
             hopout.sep()
-            hopout.routine('Writing VTK mesh to "{}"'.format(fname))
+            hopout.routine(f'Writing VTK mesh to "{fname}"')
 
             mesh.write(fname, file_format='vtk42')
 
@@ -206,7 +206,7 @@ def IO() -> None:
             MeshioGmshOrderingPatch()
 
             mesh  = mesh_vars.mesh
-            fname = '{}_mesh.msh'.format(pname)
+            fname = f'{pname}_mesh.msh'
 
             # Instantiate the Gmsh cell type mapping
             gmshCellTypes = GMSHCELLTYPES()
@@ -224,11 +224,11 @@ def IO() -> None:
             gmshMesh = meshio_to_gmsh(mesh)
 
             hopout.sep()
-            hopout.routine('Writing GMSH mesh to "{}"'.format(fname))
+            hopout.routine(f'Writing GMSH mesh to "{fname}"')
             gmshMesh.write(fname, file_format='gmsh', binary=False)
 
         case _:  # Default
-            hopout.error('Unknown output format {}, exiting...'.format(io_vars.outputformat))
+            hopout.error(f'Unknown output format {io_vars.outputformat}, exiting...')
 
 
 def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo

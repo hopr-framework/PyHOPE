@@ -348,24 +348,24 @@ def CheckWatertight() -> None:
             print()
             # Check if side is oriented inwards
             errStr  =      'Side is oriented inwards!' if nSurfErr < 0 \
-                  else 'Surface normals are not within tolerance {:9.6e} > {:9.6e}'.format(nSurfErr, tol)
+                  else f'Surface normals are not within tolerance {nSurfErr:9.6e} > {tol:9.6e}'
             print(hopout.warn(errStr, length=len(errStr)+16))
 
             # Print the information
             strLen  = max(len(str(side.sideID+1)), len(str(nbside.sideID+1)))
             print(hopout.warn(f'> Element {  elem.elemID+1:>{strLen}}, Side {  side.face}, Side {  side.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in   nSurf) + ']'))                    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('> Normal vector: [' + ' '.join(f'{s:12.3f}' for s in   nSurf) + ']'))                    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
             # print()
             print(hopout.warn(f'> Element {nbelem.elemID+1:>{strLen}}, Side {nbside.face}, Side {nbside.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nbnSurf) + ']'))                    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('> Normal vector: [' + ' '.join(f'{s:12.3f}' for s in nbnSurf) + ']'))                    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
         hopout.error(f'Watertightness check failed for {len(results)} / {nconn} connections!')
 

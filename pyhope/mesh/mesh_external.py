@@ -96,7 +96,7 @@ def MeshExternal() -> meshio.Mesh:
             fnames[iFile] = os.path.abspath(os.path.join(os.path.dirname(prmfile), fname))
             print(hopout.warn('Mesh not found in the CWD, but found in the prmfile directory.'))
         else:
-            hopout.error('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
+            hopout.error(f'Mesh file [󰇘]/{os.path.basename(fname)} does not exist')
 
     if not all(compatibleGMSH(fname) for fname in fnames):
         if any(compatibleGMSH(fname) for fname in fnames):
@@ -131,7 +131,7 @@ def MeshExternal() -> meshio.Mesh:
 
     # If there are still files left, we have an unknown format
     if len(fnames) > 0:
-        hopout.error('Unknown file format {}, exiting...'.format(fnames))
+        hopout.error(f'Unknown file format {fnames}, exiting...')
 
     # Regenerate the boundary conditions
     if mesh_vars.CGNS.regenerate_BCs:
@@ -151,7 +151,7 @@ def MeshExternal() -> meshio.Mesh:
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
-            hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
+            hopout.printoption(f'vv[{iVV+1}]', '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
         hopout.sep()
 
     # Flag mortar rebuild if merging multiple meshes

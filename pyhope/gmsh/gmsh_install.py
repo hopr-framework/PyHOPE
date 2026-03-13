@@ -162,7 +162,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     if version == 'nrg':
         # Gitlab "python-gmsh" access
         lfs = 'yes'
-        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION[system][arch], system, arch)
+        lib = f'gmsh-{Gitlab.LIB_VERSION[system][arch]}-py3-none-{system}_{arch}.whl'
 
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as path:

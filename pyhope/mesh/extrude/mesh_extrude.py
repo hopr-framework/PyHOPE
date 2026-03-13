@@ -83,7 +83,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
 
     if nGeo > 2:
-        hopout.error('nGeo = {} not supported for mesh extrusion'.format(nGeo))
+        hopout.error(f'nGeo = {nGeo} not supported for mesh extrusion')
 
     hopout.info('Extruding surface to volume mesh')
 
@@ -94,7 +94,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Continue with extrusion
     hopout.sep()
-    hopout.routine('  Template: {}'.format(extrTemplate))
+    hopout.routine(f'  Template: {extrTemplate}')
 
     # Setup the extrusion
     extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate()
@@ -188,9 +188,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Consistency checks
             if faceMap is None:
-                raise ValueError('Missing faceMap for element type {}'.format(mtype))
+                raise ValueError(f'Missing faceMap for element type {mtype}')
             if extrude is None or faces is None:
-                hopout.error('Element type {} not supported for extruding'.format(mtype), traceback=True)
+                hopout.error(f'Element type {mtype} not supported for extruding', traceback=True)
 
             # Obtain the element type
             elemType = elemTypeClass.inam[elemNum]

@@ -149,10 +149,10 @@ def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
     # - multiple parameter
     if init:
         if name in config.prms and not multiple:
-            hopout.error('Parameter "{}" already define and not a multiple option, exiting...'.format(name), traceback=True)
+            hopout.error(f'Parameter "{name}" already define and not a multiple option, exiting...', traceback=True)
     else:
         if name not in config.prms:
-            hopout.error('Parameter "{}" is not defined, exiting...'.format(name), traceback=True)
+            hopout.error(f'Parameter "{name}" is not defined, exiting...', traceback=True)
 
 
 def CheckUsed(name: str) -> None:
@@ -162,7 +162,7 @@ def CheckUsed(name: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['counter'] > 1 and not config.prms[name]['multiple']:
-        hopout.error('Parameter "{}" already used and not a multiple option, exiting...'.format(name), traceback=True)
+        hopout.error(f'Parameter "{name}" already used and not a multiple option, exiting...', traceback=True)
 
 
 def CheckType(name: str, calltype: str) -> None:
@@ -172,7 +172,7 @@ def CheckType(name: str, calltype: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['type'] is not calltype:
-        hopout.error('Call type of parameter "{}" does not match definition, exiting...'.format(name), traceback=True)
+        hopout.error(f'Call type of parameter "{name}" does not match definition, exiting...', traceback=True)
 
 
 def CheckDimension(name: str, result: int) -> None:
@@ -182,7 +182,7 @@ def CheckDimension(name: str, result: int) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['number'] != result:
-        hopout.error('Parameter "{}" has array length mismatch, exiting...'.format(name), traceback=True)
+        hopout.error(f'Parameter "{name}" has array length mismatch, exiting...', traceback=True)
 
 
 def CreateSection(string: str) -> None:
@@ -355,7 +355,7 @@ def GetParam(name    : str,
         # int2str has custom output
         if calltype != 'int2str':
             if calltype == 'bool':
-                hopout.printoption(name, '{0:}'.format(value), '*CUSTOM')
+                hopout.printoption(name, f'{value}', '*CUSTOM')
             else:
                 hopout.printoption(name, value               , '*CUSTOM')
         else:
@@ -370,7 +370,7 @@ def GetParam(name    : str,
                 # int2str has custom output
                 if calltype != 'int2str':
                     if calltype == 'bool':
-                        hopout.printoption(name, '{0:}'.format(value), 'DEFAULT')
+                        hopout.printoption(name, f'{value}', 'DEFAULT')
                     else:
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
@@ -432,7 +432,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
 
     result = int(result)
 
-    hopout.printoption(name, '{} [{}]'.format(result, mapping[result]), source)
+    hopout.printoption(name, f'{result} [{mapping[result]}]', source)
     return result
 
 
@@ -640,7 +640,7 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.error('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
+            hopout.error(f'Parameter or mesh file [󰇘]/{os.path.basename(self.input)} does not exist')
 
         # Check if input is mesh or parameter file
         parameter_mode = False
@@ -655,7 +655,7 @@ class ReadConfig():
                     f.read()
                 parameter_mode = True
             except UnicodeDecodeError:
-                hopout.error('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
+                hopout.error(f'Parameter or mesh file [󰇘]/{os.path.basename(self.input)} are of unknown type')
 
         # Handle parameter data
         if parameter_mode:

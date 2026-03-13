@@ -84,7 +84,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     for fnum, fname in enumerate(fnames):
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
-            hopout.error('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
+            hopout.error(f'[󰇘]/{os.path.basename(fname)} is not in HDF5 format, exiting...')
 
         # Create a temporary directory and keep it existing until manually cleaned
         tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -95,7 +95,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
         with h5py.File(tname, mode='r') as f:
             # Check if file contains the Hopr version
             if 'HoprVersion' not in f.attrs:
-                hopout.error('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
+                hopout.error(f'[󰇘]/{os.path.basename(fname)} does not contain the Hopr version, exiting...')
 
             # Read the globalNodeIDs
             nodeInfo   = np.array(f['GlobalNodeIDs'])
@@ -120,7 +120,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     hopout.sep()
                     hopout.routine('The following vectors were found:')
                     for iVV, vv in enumerate(mesh_vars.vvs):
-                        hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'READ IN')
+                        hopout.printoption(f'vv[{iVV+1}]', '{0:}'.format(np.round(vv['Dir'], 6)), 'READ IN')
                     hopout.sep()
                 # old hopr files might not contain the VV
                 except KeyError:

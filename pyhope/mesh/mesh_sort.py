@@ -289,8 +289,8 @@ def SortMeshByIJK() -> None:
         hopout.warning('Problem during sort elements by coordinate: nElems /= nElems_I * Elems_J * nElems_K')
 
     hopout.sep()
-    hopout.info(' Number of structured dirs      : {}'.format(nStructDirs))
-    hopout.info(' Number of elems [I,J,K]        : {}'.format(nElemsIJK))
+    hopout.info(f' Number of structured dirs      : {nStructDirs}')
+    hopout.info(f' Number of elems [I,J,K]        : {nElemsIJK}')
 
     bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
 

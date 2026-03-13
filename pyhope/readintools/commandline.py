@@ -82,7 +82,7 @@ class CommandLine:
             # Check if we encountered a section
             if config.prms[key]['type'] == 'section':
                 self.helpjoin(separator())
-                self.helpjoin('! {}'.format(key))
+                self.helpjoin(f'! {key}')
                 self.helpjoin(separator())
                 continue
 

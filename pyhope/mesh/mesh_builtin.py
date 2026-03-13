@@ -114,7 +114,7 @@ def MeshCartesian() -> meshio.Mesh:
     bcZones = [list() for _ in range(nZones)]
 
     for zone in range(nZones):
-        hopout.routine('Generating zone {}'.format(zone+1))
+        hopout.routine(f'Generating zone {zone+1}')
 
         # check if corners are given in the input file
         if CountOption('Corner') > 0:
@@ -136,7 +136,7 @@ def MeshCartesian() -> meshio.Mesh:
                                 np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2])),
                                 np.array((X0[0],       X0[1]+DX[1], X0[2]+DX[2]))))
         else:
-            hopout.error('No corners or DX vector given for zone {}'.format(zone+1))
+            hopout.error(f'No corners or DX vector given for zone {zone+1}')
 
         nElems = GetIntArray(  'nElems'  , number=zone)
         # Store the requested element types
@@ -268,7 +268,7 @@ def MeshCartesian() -> meshio.Mesh:
         bcZones[zone] = [int(s) for s in GetIntArray('BCIndex')]
 
         # Assign the volume to a physical zone
-        _ = gmsh.model.addPhysicalGroup(3, [zone+1], name='Zone{}'.format(zone+1))
+        _ = gmsh.model.addPhysicalGroup(3, [zone+1], name=f'Zone{zone+1}')
 
     # At this point, we can create a "Physical Group" corresponding
     # to the boundaries. This requires a synchronize call!
@@ -322,7 +322,7 @@ def MeshCartesian() -> meshio.Mesh:
             if cast(np.ndarray, bcs[iBC].type)[3] > 0:
                 pass
             elif cast(np.ndarray, bcs[iBC].type)[3] == 0:
-                hopout.error('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1), traceback=True)
+                hopout.error(f'BC "{iBC + 1}" has no periodic vector given, exiting...', traceback=True)
             else:
                 continue
 

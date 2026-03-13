@@ -91,7 +91,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Sanity check
     # > Check if the requested polynomial order is 1
     if nGeo > 1:
-        hopout.error('nGeo = {} not supported for element splitting'.format(nGeo), traceback=True)
+        hopout.error(f'nGeo = {nGeo} not supported for element splitting', traceback=True)
 
     # > Check if the mesh contains any pyramids
     unsElems: Final[tuple] = ('pyramid')
@@ -368,7 +368,7 @@ def tet_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray, .
                    )
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order))
+            hopout.error(f'Order {order} not supported for element splitting')
 
 
 @cache
@@ -461,7 +461,7 @@ def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray,
                        )
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order))
+            hopout.error(f'Order {order} not supported for element splitting')
 
 
 @cache

@@ -220,16 +220,16 @@ def CheckConnect() -> None:
             # Print the information
             strLen  = max(len(str(side.sideID+1)), len(str(nbside.sideID+1)))
             print(hopout.warn(f'> Element {  elem.elemID+1:>{strLen}}, Side {  side.face}, Side {  side.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
             # print()
             print(hopout.warn(f'> Element {nbelem.elemID+1:>{strLen}}, Side {nbside.face}, Side {nbside.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
         hopout.warning(f'Connectivity check failed for {len(results)} / {nconn} connections!')
         sys.exit(1)

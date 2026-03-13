@@ -178,7 +178,7 @@ def separator(length: int = 46) -> None:
 
 def end(program: str, time: float, length: int = STD_LENGTH) -> None:
     print('┢' + '━'*(length-1))
-    print('┃ {} completed in [{:.2f} sec]'.format(program, time))
+    print(f'┃ {program} completed in [{time:.2f} sec]')
     print('┗' + '━'*(length-1))
 
 
@@ -217,7 +217,7 @@ def printoption(option: str, value: str, status: str, length: int = 31) -> None:
     """
     try:
         if len(value) > length:
-            pvalue = '{}...'.format(value[:(length-3)])
+            pvalue = f'{value[:(length-3)]}...'
         else:
             pvalue = value
     except TypeError:

@@ -74,7 +74,7 @@ def LoadTemplate(template: str,
             spec.loader.exec_module(templateModule)
 
             # Output filename of template
-            hopout.routine('     found: {}'.format(loc))
+            hopout.routine(f'     found: {loc}')
 
             # Stop once the module is successfully loaded
             break
