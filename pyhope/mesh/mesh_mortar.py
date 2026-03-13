@@ -70,7 +70,6 @@ def RebuildMortarGeometry() -> None:
         case Policy.auto  .value:
             if not hasattr(mesh_vars, 'hasMortarsInterzone') or not mesh_vars.hasMortarsInterzone:
                 return None
-            pass
         case Policy.always.value:
             pass
 
