@@ -228,7 +228,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     gmshTypes = gmsh.model.mesh.getElementTypes()
     gmshElems = np.asarray([(elemName, dim, order) for type                          in gmshTypes                                       # noqa: E272
                                                    for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]])  # noqa: E501
-    gmshDim   = max([int(s) for s in gmshElems[:, 1]])
+    gmshDim   = max(int(s) for s in gmshElems[:, 1])
     match gmshDim:
         case 3:
             pass

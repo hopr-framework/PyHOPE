@@ -85,7 +85,7 @@ def RebuildMortarGeometry() -> None:
     vvs:    Final[list      ] = mesh_vars.vvs
 
     # Rebuilding mortar geometries is only supported for hexahedral meshes
-    if any([s != 8 for s in {e.type % 10 for e in elems}]):
+    if any(s != 8 for s in {e.type % 10 for e in elems}):
         return None
 
     hopout.sep()
