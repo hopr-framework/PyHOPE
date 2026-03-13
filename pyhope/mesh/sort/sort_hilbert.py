@@ -159,7 +159,7 @@ def HilbertCurveNumpy() -> None:
             try:
                 distances = self._distances_from_points_numpy(points, match_type=match_type)
             except Exception as e:
-                raise RuntimeError(f'HilbertCurve.distances_from_points_numpy encountered an unexpected error: {e}')
+                raise RuntimeError('HilbertCurve.distances_from_points_numpy encountered an unexpected error') from e
                 # Fallback to original behavior on any unexpected issue
                 # distances = _orig_dfp(self, points, match_type=match_type)
         else:

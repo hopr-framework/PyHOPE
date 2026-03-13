@@ -100,8 +100,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # Read the file content
                 content   = f.readlines()
                 useBinary = not any('CONTROL INFO' in line for line in content)
-            except UnicodeDecodeError:
-                raise ValueError('Gambit binary files are not implemented yet')
+            except UnicodeDecodeError as e:
+                raise ValueError('Gambit binary files are not implemented yet') from e
 
             if not useBinary:
                 # Search for the line containing the number of elements

@@ -83,15 +83,15 @@ class Common:
             package = pathlib.Path(__file__).parent.parent.name
             version = importlib.metadata.version(package)
         # Fallback to pyproject.toml
-        except importlib.metadata.PackageNotFoundError:
+        except importlib.metadata.PackageNotFoundError as e:
             pyproject = pathlib.Path(__file__).parent.parent.parent / 'pyproject.toml'
             if not pyproject.exists():
-                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}')
+                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}') from e
 
             with pyproject.open('r') as p:
                 match = re.search(r'version\s*=\s*["\'](.+?)["\']', p.read())
             if not match:
-                raise ValueError('Version not found in pyproject.toml')
+                raise ValueError('Version not found in pyproject.toml')             from e  # noqa: E272
             version = match.group(1)
 
         return Version(version)

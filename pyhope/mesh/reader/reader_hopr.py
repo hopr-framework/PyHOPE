@@ -215,8 +215,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                             # points    = np.append(points, meshNodes, axis=0)
                             # IMPORTANT: We need to extend the list of points, not append to it
                             pointl.extend(meshNodes.tolist())
-                        except UnboundLocalError:
-                            raise UnboundLocalError('Something went wrong with the change basis')
+                        except UnboundLocalError as e:
+                            raise UnboundLocalError('Something went wrong with the change basis') from e
 
                     cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
 
