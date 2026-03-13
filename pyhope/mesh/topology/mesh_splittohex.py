@@ -434,29 +434,28 @@ def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray,
                           np.array((  0,  1,  2), dtype=int),           # index 12
                           np.array((  3,  4,  5), dtype=int),           # index 13
                        )
-            else:
-                # z_split: add vertical mid-edges + inside node
-                return (  # Nodes on edges
-                          np.array((  0,  1    ), dtype=int),           # index 6
-                          np.array((  1,  2    ), dtype=int),           # index 7
-                          np.array((  0,  2    ), dtype=int),           # index 8
-                          np.array((  3,  4    ), dtype=int),           # index 9
-                          np.array((  4,  5    ), dtype=int),           # index 10
-                          np.array((  3,  5    ), dtype=int),           # index 11
-                          # Nodes on faces
-                          np.array((  0,  1,  2), dtype=int),           # index 12
-                          np.array((  3,  4,  5), dtype=int),           # index 13
-                          # Nodes on vertical edges
-                          np.array((  0,  3    ), dtype=int),           # index 14
-                          np.array((  1,  4    ), dtype=int),           # index 15
-                          np.array((  2,  5    ), dtype=int),           # index 16
-                          # Inside node
-                          np.arange(  0,  6     , dtype=int),           # index 17
-                          # Nodes on rectangular face centers
-                          np.array((  0,  1,  3,  4), dtype=int),       # index 18
-                          np.array((  1,  2,  4,  5), dtype=int),       # index 19
-                          np.array((  0,  2,  3,  5), dtype=int),       # index 20
-                       )
+            # z_split: add vertical mid-edges + inside node
+            return (  # Nodes on edges
+                      np.array((  0,  1    ), dtype=int),           # index 6
+                      np.array((  1,  2    ), dtype=int),           # index 7
+                      np.array((  0,  2    ), dtype=int),           # index 8
+                      np.array((  3,  4    ), dtype=int),           # index 9
+                      np.array((  4,  5    ), dtype=int),           # index 10
+                      np.array((  3,  5    ), dtype=int),           # index 11
+                      # Nodes on faces
+                      np.array((  0,  1,  2), dtype=int),           # index 12
+                      np.array((  3,  4,  5), dtype=int),           # index 13
+                      # Nodes on vertical edges
+                      np.array((  0,  3    ), dtype=int),           # index 14
+                      np.array((  1,  4    ), dtype=int),           # index 15
+                      np.array((  2,  5    ), dtype=int),           # index 16
+                      # Inside node
+                      np.arange(  0,  6     , dtype=int),           # index 17
+                      # Nodes on rectangular face centers
+                      np.array((  0,  1,  3,  4), dtype=int),       # index 18
+                      np.array((  1,  2,  4,  5), dtype=int),       # index 19
+                      np.array((  0,  2,  3,  5), dtype=int),       # index 20
+                   )
         case _:
             import pyhope.output.output as hopout
             hopout.error(f'Order {order} not supported for element splitting')
@@ -535,17 +534,16 @@ def prism_to_hex_split(z_split: bool = False) -> tuple[npt.NDArray, ...]:
                 np.array((  1,  7, 12,  6,  4, 10, 13,  9), dtype=int),
                 np.array((  2,  8, 12,  7,  5, 11, 13, 10), dtype=int),
                )
-    else:
-        # z_split: split each of the 3 base hexahedra into two stacked hexahedra
-        return (np.array((  0,  6, 12,  8, 14, 18, 17, 20), dtype=int),
-                np.array(( 14, 18, 17, 20,  3,  9, 13, 11), dtype=int),
+    # z_split: split each of the 3 base hexahedra into two stacked hexahedra
+    return (np.array((  0,  6, 12,  8, 14, 18, 17, 20), dtype=int),
+            np.array(( 14, 18, 17, 20,  3,  9, 13, 11), dtype=int),
 
-                np.array((  1,  7, 12,  6, 15, 19, 17, 18), dtype=int),
-                np.array(( 15, 19, 17, 18,  4, 10, 13,  9), dtype=int),
+            np.array((  1,  7, 12,  6, 15, 19, 17, 18), dtype=int),
+            np.array(( 15, 19, 17, 18,  4, 10, 13,  9), dtype=int),
 
-                np.array((  2,  8, 12,  7, 16, 20, 17, 19), dtype=int),
-                np.array(( 16, 20, 17, 19,  5, 11, 13, 10), dtype=int),
-               )
+            np.array((  2,  8, 12,  7, 16, 20, 17, 19), dtype=int),
+            np.array(( 16, 20, 17, 19,  5, 11, 13, 10), dtype=int),
+           )
 
 
 @cache

@@ -80,10 +80,9 @@ def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
 
     if   val in ('y', 'yes', 't', 'true' , 'on' , '1'):  # noqa: E271
         return True
-    elif val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
+    if val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
         return False
-    else:
-        raise ValueError(f'invalid truth value {val!r}')
+    raise ValueError(f'invalid truth value {val!r}')
 
 
 def strToFloatOrPi(helpstr: str) -> float:

@@ -320,52 +320,49 @@ def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
         # Total nodes on face: (nGeo+1)**2
         if order == 1:
             return np.arange(4, dtype=dtype)
-        else:
-            n           = order
-            grid        = np.arange((n+1)**2).reshape(n+1, n+1)
-            # Corners: bottom-left, bottom-right, top-right, top-left
-            corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
-            # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
-            bottom_edge = grid[0, 1:n]
-            # Right edge: column n, rows 1 to n-1 (bottom-to-top)
-            right_edge  = grid[1:n, n]
-            # Top edge: row n, columns n-1 to 1 (right-to-left)
-            top_edge    = grid[n, n-1:0:-1]
-            # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
-            left_edge   = grid[n-1:0:-1, 0]
-            # Interior nodes: remaining nodes in row-major order
-            interior    = grid[1:n, 1:n].flatten()
-            # Assemble ordering: corners, edges, interior
-            # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            return np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
+        n           = order
+        grid        = np.arange((n+1)**2).reshape(n+1, n+1)
+        # Corners: bottom-left, bottom-right, top-right, top-left
+        corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
+        # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
+        bottom_edge = grid[0, 1:n]
+        # Right edge: column n, rows 1 to n-1 (bottom-to-top)
+        right_edge  = grid[1:n, n]
+        # Top edge: row n, columns n-1 to 1 (right-to-left)
+        top_edge    = grid[n, n-1:0:-1]
+        # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
+        left_edge   = grid[n-1:0:-1, 0]
+        # Interior nodes: remaining nodes in row-major order
+        interior    = grid[1:n, 1:n].flatten()
+        # Assemble ordering: corners, edges, interior
+        # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
+        return np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
 
-    elif side_type.lower() == 'triangle':
+    if side_type.lower() == 'triangle':
         # Total nodes on face: (nGeo+1)*(nGeo+2)//2
         if order == 1:
             return np.arange(3, dtype=dtype)
-        else:
-            p           = order
-            # Build the tensor ordering as a list of (i, j) for which i+j <= p.
-            nodes       = []
-            for i in range(p+1):
-                nodes.extend((i, j) for j in range(p+1 - i))
-            # Define vertices in the reference triangle:
-            vertices    = [(0, 0), (p, 0), (0, p)]
-            # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
-            edge01      = [(i, 0) for i in range(1, p)]
-            # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
-            edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
-            # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
-            edge20      = [(0, j) for j in range(1, p)]
-            # Interior nodes: those not on the boundary
-            boundary    = set(vertices + edge01 + edge12 + edge20)
-            interior    = [node for node in nodes if node not in boundary]
-            # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
-            desired     = vertices + edge01 + edge12 + edge20 + interior
-            ordering    = [nodes.index(nd) for nd in desired]
-            return np.array(ordering, dtype=dtype)
-    else:
-        raise ValueError(f'Unsupported side type: {side_type}')
+        p           = order
+        # Build the tensor ordering as a list of (i, j) for which i+j <= p.
+        nodes       = []
+        for i in range(p+1):
+            nodes.extend((i, j) for j in range(p+1 - i))
+        # Define vertices in the reference triangle:
+        vertices    = [(0, 0), (p, 0), (0, p)]
+        # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
+        edge01      = [(i, 0) for i in range(1, p)]
+        # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
+        edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
+        # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
+        edge20      = [(0, j) for j in range(1, p)]
+        # Interior nodes: those not on the boundary
+        boundary    = set(vertices + edge01 + edge12 + edge20)
+        interior    = [node for node in nodes if node not in boundary]
+        # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
+        desired     = vertices + edge01 + edge12 + edge20 + interior
+        ordering    = [nodes.index(nd) for nd in desired]
+        return np.array(ordering, dtype=dtype)
+    raise ValueError(f'Unsupported side type: {side_type}')
 
 
 @cache

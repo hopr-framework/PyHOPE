@@ -489,7 +489,7 @@ def find_mortar_match( targetCorners: npt.NDArray
             # We only allow 2-1 matches, so in the end we should have exactly 1 match
             if len(matchEdges) > 1:
                 return False
-            elif len(matchEdges) == 1:
+            if len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
         if len(matches) != 2:
@@ -531,7 +531,7 @@ def find_mortar_match( targetCorners: npt.NDArray
             # This should result in exactly 1 match
             if len(matchEdges) > 1:
                 return False
-            elif len(matchEdges) == 1:
+            if len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
         if len(matches) != 4:
@@ -591,7 +591,7 @@ else:
 
         if   n == 3:  # Triangle  # noqa: E271
             return   0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
-        elif n == 4:  # Quadrilateral
+        if n == 4:  # Quadrilateral
             # Diagonal split 1: (0,1,2) + (0,2,3)
             area1  = 0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
             area1 += 0.5 * norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
@@ -602,8 +602,7 @@ else:
 
             # For bilinear quads, average both diagonal triangulations
             return (area1 + area2) / 2
-        else:
-            raise IndexError('Invalid number of side corners')
+        raise IndexError('Invalid number of side corners')
 
 
 # INFO: Uncached version

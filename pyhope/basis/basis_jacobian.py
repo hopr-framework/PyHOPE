@@ -52,10 +52,9 @@ HEX_TYPE:      Final = 8
 def evaluate_jacobian_dispatch(nodeCoords, VdmGLtoAP, D_EqToGL, elem_type):
     if elem_type in SIMPLEX_TYPES:
         return evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL)
-    elif elem_type == HEX_TYPE:
+    if elem_type == HEX_TYPE:
         return evaluate_jacobian(        nodeCoords, VdmGLtoAP, D_EqToGL)
-    else:
-        raise ValueError(f"Unsupported element type {elem_type}")
+    raise ValueError(f"Unsupported element type {elem_type}")
 
 
 def plot_histogram(data: npt.NDArray[np.float64]) -> None:
