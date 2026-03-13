@@ -479,7 +479,7 @@ def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] 
 
 # ==================================================================================================================================
 @final
-class ReadConfig():
+class ReadConfig:
     """ Read an HOPR parameter file
 
         This file is meant to remain compatible to the HOPR parameter file

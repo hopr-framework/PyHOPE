@@ -70,7 +70,7 @@ def singleton(cls) -> Callable:
 
 
 @singleton
-class Common():
+class Common:
     def __init__(self: Self) -> None:
         self._program: Final[str] = self.__program__
         self._version: Final      = self.__version__
@@ -138,7 +138,7 @@ class Common():
 
 
 @final
-class Gitlab():
+class Gitlab:
     # Gitlab "python-gmsh" access
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
