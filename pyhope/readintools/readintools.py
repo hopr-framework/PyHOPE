@@ -697,13 +697,11 @@ class ReadConfig:
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
 
             # Write geometric order info to file
-            mesh_params.append(f'NGeo = {NGeo}')
-            mesh_params.append(f'MeshIsAlreadyCurved = {"T" if NGeo > 1 else "F"}')
+            mesh_params.extend((f'NGeo = {NGeo}', f'MeshIsAlreadyCurved = {"T" if NGeo > 1 else "F"}'))
 
             # Setup boundary conditions
             for iBC, BC in enumerate(BCNames):
-                mesh_params.append(f'BoundaryName = {BC}')
-                mesh_params.append(f'BoundaryType = (/{", ".join(map(str, BCType[iBC]))}/)')
+                mesh_params.extend((f'BoundaryName = {BC}', f'BoundaryType = (/{", ".join(map(str, BCType[iBC]))}/)'))
 
             # Join lines into a single string
             mesh_param = '\n'.join(mesh_params)
