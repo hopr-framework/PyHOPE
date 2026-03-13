@@ -146,7 +146,7 @@ def ConnectMortar( nConnSide  : list
 
             # Shift the center in periodic direction
             targetCenters[nConnID]   += VV
-            targetCorners[nConnID, :] = np.array([periNodes[(s, bcName)] if (s, bcName) in periNodes else s for s in side.corners])
+            targetCorners[nConnID, :] = np.array([periNodes.get((s, bcName), s) for s in side.corners])
 
         # Calculate the radius of the convex hull
         targetRadius[nConnID] = norm(np.ptp(points[side.corners], axis=0)) / 2.
