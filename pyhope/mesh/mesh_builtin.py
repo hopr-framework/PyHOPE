@@ -248,7 +248,7 @@ def MeshCartesian() -> meshio.Mesh:
             gmsh.model.geo.mesh.setRecombine(2, 1)
 
         # Create the surface loop
-        gmsh.model.geo.addSurfaceLoop([s for s in s], zone+1)
+        gmsh.model.geo.addSurfaceLoop(list(s), zone+1)
 
         gmsh.model.geo.synchronize()
 

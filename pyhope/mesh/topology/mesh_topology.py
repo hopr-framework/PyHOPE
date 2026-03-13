@@ -166,7 +166,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # If meshcells is empty, we fake it assign it to Zone1
     if len(meshcells) == 0:
-        meshcells = tuple(('Zone1', {k: np.array([i for i in range(len(v))])}) for k, v in mesh.cells_dict.items()
+        meshcells = tuple(('Zone1', {k: np.array(list(range(len(v))))}) for k, v in mesh.cells_dict.items()
                                                                                         if k.startswith('hexahedron'))
 
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())

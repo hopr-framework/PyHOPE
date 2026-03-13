@@ -59,7 +59,7 @@ class MultiOrderedDict(OrderedDict):
         thus overload the ConfigParser with this new dict_type
     """
     @override
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key: str, value: list | str) -> None:
         if isinstance(value, list) and key in self:
             self[key].extend(value)
         else:
@@ -205,7 +205,7 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
                            'multiple': multiple}
 
 
-def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple=False) -> None:
+def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -219,7 +219,7 @@ def CreateReal(string: str, help: Optional[str] = None, default: Optional[float]
                            'multiple': multiple}
 
 
-def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
+def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -233,7 +233,7 @@ def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = 
                            'multiple': multiple}
 
 
-def CreateLogical(string: str, help: Optional[str] = None, default: Optional[bool] = None, multiple=False) -> None:
+def CreateLogical(string: str, help: Optional[str] = None, default: Optional[bool] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -247,7 +247,7 @@ def CreateLogical(string: str, help: Optional[str] = None, default: Optional[boo
                            'multiple': multiple}
 
 
-def CreateIntFromString(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
+def CreateIntFromString(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -263,7 +263,7 @@ def CreateIntFromString(string: str, help: Optional[str] = None, default: Option
                            'multiple': multiple}
 
 
-def CreateIntOption(string: str, name, number) -> None:
+def CreateIntOption(string: str, name: str, number: int) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -273,7 +273,7 @@ def CreateIntOption(string: str, name, number) -> None:
     config.prms[string]['mapping'].update({number: name})
 
 
-def CreateRealArray(string: str, nReals, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
+def CreateRealArray(string: str, nReals: int, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:  # noqa: E501
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -288,7 +288,7 @@ def CreateRealArray(string: str, nReals, help: Optional[str] = None, default: Op
                            'multiple': multiple}
 
 
-def CreateIntArray(string: str, nInts, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
+def CreateIntArray(string: str, nInts: int, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:  # noqa: E501
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------

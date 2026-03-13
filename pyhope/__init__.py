@@ -27,23 +27,27 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import namedtuple
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import update_wrapper
 from typing import final
+from typing import ParamSpec, TypeVar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+P = ParamSpec('P')
+R = TypeVar(  'R')
 # ==================================================================================================================================
 
 
-def _staticwrapper(func):
+def _staticwrapper(func: Callable[P, R]) -> Callable[P, R]:
     """ Custom helper to lift the (annotations, doc, etc.) to the staticmethod
     """
     # Create a wrapper that carries the metadata
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         return func(*args, **kwargs)
 
     # Lift metadata (annotations, doc, etc.) to the wrapper
