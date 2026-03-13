@@ -72,8 +72,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.info('SPLITTING ELEMENTS TO HEXAHEDRA...')
     hopout.sep()
 
-    splitToHex = (GetLogical('doSplitToHex') if CountOption('doSplitToHex') else False > 0) or \
-                 (GetLogical(  'SplitToHex') if CountOption(  'SplitToHex') else False > 0)
+    splitToHex = (GetLogical('doSplitToHex') if CountOption('doSplitToHex') > 0 else False) or \
+                 (GetLogical(  'SplitToHex') if CountOption(  'SplitToHex') > 0 else False)
     if not splitToHex:
         hopout.separator()
         return mesh
