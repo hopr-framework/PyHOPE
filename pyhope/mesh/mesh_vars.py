@@ -53,13 +53,13 @@ mode     : int                                    # Mesh generation mode (1 - In
 mesh     : meshio.Mesh                            # MeshIO object holding the mesh
 nGeo     : int                                    # Order of spline-reconstruction for curved surfaces
 
-bcs      : list[Optional['BC']]                   # [list of dict] - Boundary conditions
+bcs      : list[Optional[BC]]                     # [list of dict] - Boundary conditions
 vvs      : list                                   # [list of dict] - Periodic vectors
 
 nZones   : int       = 1                          # Number of zones
 elemTypes: list[int] = []                         # Element types per zone
-elems    : list[Optional['ELEM']]                 # [list of list] - Element nodes
-sides    : list[Optional['SIDE']]                 # [list of list] - Side    nodes
+elems    : list[Optional[ELEM]]                   # [list of list] - Element nodes
+sides    : list[Optional[SIDE]]                   # [list of list] - Side    nodes
 
 # Periodic nodes
 periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
