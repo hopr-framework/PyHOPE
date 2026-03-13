@@ -178,28 +178,27 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     for cell in elems_old:
         ctype, cdata = cell.type, cell.data
 
-        if ctype.startswith('hexahedron'):
-            # Carry over the original hexahedra volume cells unchanged
-            if not splitToHexZ:
-                elems_lst.setdefault('hexahedron', []).extend(cdata)
+        # Carry over the original hexahedra volume cells unchanged
+        if ctype.startswith('hexahedron') and not splitToHexZ:
+            elems_lst.setdefault('hexahedron', []).extend(cdata)
 
-                # Detect which existing quad boundary faces are attached to these hexahedra
-                for elem in cdata:
-                    for face in hexa_faces():
-                        fNodes = np.array(elem)[face]
-                        fSet   = frozenset(fNodes)
+            # Detect which existing quad boundary faces are attached to these hexahedra
+            for elem in cdata:
+                for face in hexa_faces():
+                    fNodes = np.array(elem)[face]
+                    fSet   = frozenset(fNodes)
 
-                        candidate_sets = [nodeToFace[node] for node in fSet if node in nodeToFace]
-                        if not candidate_sets:
-                            continue
+                    candidate_sets = [nodeToFace[node] for node in fSet if node in nodeToFace]
+                    if not candidate_sets:
+                        continue
 
-                        common_candidates = set.intersection(*candidate_sets)
-                        for candidate in common_candidates:
-                            if fSet.issubset(candidate):
-                                hexBCQuads.add(candidate)
+                    common_candidates = set.intersection(*candidate_sets)
+                    for candidate in common_candidates:
+                        if fSet.issubset(candidate):
+                            hexBCQuads.add(candidate)
 
-                # Skip the rest of the hexahedrons
-                continue
+            # Skip the rest of the hexahedrons
+            continue
 
         splitPoints, splitElems, splitFaces = elemSplitter.get(ctype, (None, None, None))
 

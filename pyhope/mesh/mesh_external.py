@@ -98,10 +98,10 @@ def MeshExternal() -> meshio.Mesh:
         else:
             hopout.error(f'Mesh file [󰇘]/{os.path.basename(fname)} does not exist')
 
-    if not all(compatibleGMSH(fname) for fname in fnames):
-        if any(compatibleGMSH(fname) for fname in fnames):
-            hopout.warning('Mixed file formats detected, this is untested and may not work')
-            # sys.exit(1)
+    if not all(compatibleGMSH(fname) for fname in fnames) \
+       and any(compatibleGMSH(fname) for fname in fnames):
+        hopout.warning('Mixed file formats detected, this is untested and may not work')
+        # sys.exit(1)
 
     # Check the file sizes
     fsizes = tuple(os.stat(f).st_size for f in fnames)

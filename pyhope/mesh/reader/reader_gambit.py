@@ -180,10 +180,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 for line in grsIter:
                     lnum += 1
                     # Iterate until the number of boundary conditions is reached
-                    if 'ENDOFSECTION' in line:
-                        # Check if the next sections is also an element group
-                        if 'ELEMENT GROUP' not in content[grsLine+lnum]:
-                            break
+                    # > Check if the next sections is also an element group
+                    if 'ENDOFSECTION' in line and 'ELEMENT GROUP' not in content[grsLine+lnum]:
+                        break
 
                     tokens = line.strip().split()
                     if not tokens:
@@ -228,10 +227,10 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 for line in bcsIter:
                     # Iterate until the number of boundary conditions is reached
                     lnum += 1
-                    if 'ENDOFSECTION' in line:
-                        # Check if the next sections is also a boundary condition
-                        if bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]:
-                            break
+                    # Check if the next sections is also a boundary condition
+                    if 'ENDOFSECTION' in line \
+                    and (bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]):
+                        break
 
                     tokens = line.strip().split()
                     if not tokens:
