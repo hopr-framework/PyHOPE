@@ -186,7 +186,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         elemName     = elemNames[iElem]
 
         split, faces = elemSplitter.get(elemType, (None, None))
-        faceMap      = faceMaper.get(elemType, None)
+        faceMap      = faceMaper.get(elemType)
 
         # Sanity check
         if faceMap is None:

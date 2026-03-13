@@ -184,7 +184,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Set up the extrusion function
             extrude, faces = elemExtruder.get(mtype[:4], (None, None))
             elemNum = ho_key + (8 if cast(str, mtype).startswith('quad') else 6)
-            faceMap = faceMaper.get(elemNum, None)
+            faceMap = faceMaper.get(elemNum)
 
             # Consistency checks
             if faceMap is None:

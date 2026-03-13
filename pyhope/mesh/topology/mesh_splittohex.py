@@ -282,7 +282,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Add back the existing quad boundary faces attached to carried-over hexahedra
     if not splitToHexZ and hexBCQuads:
         for qset in hexBCQuads:
-            qnodes = hexBCSet.get(qset, None)
+            qnodes = hexBCSet.get(qset)
 
             if qnodes is None:
                 continue

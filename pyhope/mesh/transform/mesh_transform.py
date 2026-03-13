@@ -65,7 +65,7 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
                   (nZones, nZones): 'combination'   # Stretched element arrangement with a combination of l0 and factor
                  }
 
-    stretchingType = conditions.get((nl0, nFactor), None)
+    stretchingType = conditions.get((nl0, nFactor))
 
     if stretchingType == 'combination':
         print(hopout.warn('Both l0 and a stretching factor are provided. ' +
