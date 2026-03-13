@@ -237,8 +237,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                         continue
 
                     try:
-                        bcName, bcType, bcnData, bcnVal, _ = tokens
-                        bcName, bcType, bcnData, bcnVal    = bcName, int(bcType), int(bcnData), int(bcnVal)
+                        bcName, *ints,   _ = tokens
+                        bcType, bcnData, _ = map(int, ints)
                     except ValueError:
                         continue
 
