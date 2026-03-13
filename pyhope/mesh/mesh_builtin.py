@@ -393,7 +393,7 @@ def MeshCartesian() -> meshio.Mesh:
     if gmshIssue.size > 0:
         for elem in gmshIssue:
             print(hopout.warn(f'Wrong Gmsh order {elem[1]} for element {elem[0].replace(" ", "")}'))
-        elemOrders = set([int(elem[1]) for elem in gmshIssue])
+        elemOrders = {int(elem[1]) for elem in gmshIssue}
         hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order { {mesh_vars.nGeo} }')
 
     # Convert Gmsh object to meshio object

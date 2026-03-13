@@ -177,7 +177,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # Construct the elements, meshio format
                 for elem in elemInfo:
                     # Correct ElemType if NGeo is changed
-                    elemNum  = elem[0] % 100
+                    elemNum  = elem[0] % 10
                     elemNum += 200 if mesh_vars.nGeo > 1 else 100
 
                     # Obtain the element type

@@ -68,10 +68,10 @@ def faces(elemType: Union[int, str]) -> tuple[str, ...]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
-    return faces_map[elemType % 100]
+    return faces_map[elemType % 10]
 
 
 @cache
@@ -91,10 +91,10 @@ def edges(elemType: Union[int, str]) -> tuple[int, ...]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edges_map:
+    if elemType % 10 not in edges_map:
         raise ValueError(f'Error in edges: elemType {elemType} is not supported')
 
-    return edges_map[elemType % 100]
+    return edges_map[elemType % 10]
 
 
 @cache
@@ -114,10 +114,10 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in dir_map:
+    if elemType % 10 not in dir_map:
         raise ValueError(f'Error in edge_to_dir: elemType {elemType} is not supported')
 
-    dir = dir_map[elemType % 100]
+    dir = dir_map[elemType % 10]
 
     try:
         return (np.rint(abs(dir[edge]))).astype(int)
@@ -147,10 +147,10 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edge_map:
+    if elemType % 10 not in edge_map:
         raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
 
-    edges = edge_map[elemType % 100]
+    edges = edge_map[elemType % 10]
 
     try:
         return np.array(edges[edge], dtype=dtype)
@@ -173,10 +173,10 @@ def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edge_map:
+    if elemType % 10 not in edge_map:
         raise ValueError(f'Error in edge_to_sign: elemType {elemType} is not supported')
 
-    edges = edge_map[elemType % 100]
+    edges = edge_map[elemType % 10]
 
     try:
         return np.array(edges[edge], dtype=dtype)
@@ -203,11 +203,11 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in face_to_edge: face {face} is not supported') from e
 
@@ -231,11 +231,11 @@ def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArr
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in face_to_corner: face {face} is not supported') from e
 
@@ -273,11 +273,11 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported') from e
 
@@ -386,11 +386,11 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in flip_map:
+    if elemType % 10 not in flip_map:
         raise ValueError(f'Error in flip_s2m: elemType {elemType} is not supported')
 
     try:
-        return flip_map[elemType % 100][flip]
+        return flip_map[elemType % 10][flip]
     except KeyError as e:
         raise KeyError(f'Error in flip_s2m: face {flip} is not supported') from e
 
@@ -414,11 +414,11 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in cgns_sidetovol: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in cgns_sidetovol: face {face} is not supported') from e
 
@@ -468,11 +468,11 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in flipID_map:
+    if elemType % 10 not in flipID_map:
         raise ValueError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
 
     try:
-        return flipID_map[elemType % 100]
+        return flipID_map[elemType % 10]
     except KeyError as e:
         raise KeyError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported') from e
 
@@ -521,15 +521,15 @@ def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.ND
     #                      'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}                                # noqa: E272, E501
     #
     #             }
-    # if elemType % 100 not in faces_map:
+    # if elemType % 10 not in faces_map:
     #     raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
     #
     # try:
-    #     return faces_map[elemType % 100][face]
+    #     return faces_map[elemType % 10][face]
     # except KeyError as e:
     #     raise KeyError(f'Error in face_to_cgns: face {face} is not supported') from e
 
-    match elemType % 100:
+    match elemType % 10:
         case 4:  # Tetrahedron
             faces_map = {  # Sides aligned with the axes
                            'z-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
@@ -608,11 +608,11 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> tuple[Any, b
                         'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
                         'z+': ((slice(None), slice(None), order      ), True )}   # np.transpose(elemNodes[:    , :    , order])} # noqa: E262, E501
                  }
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][dir]
+        return faces_map[elemType % 10][dir]
     except KeyError as e:
         raise KeyError(f'Error in dir_to_nodes: face {dir} is not supported') from e
 
@@ -849,10 +849,10 @@ def NDOFS_ELEM(elemType: int, N: int, dim: int = 3) -> int:
                    8: (N+1)**dim
                 }
 
-    if elemType % 100 not in nodes_map:
+    if elemType % 10 not in nodes_map:
         raise ValueError(f'Error in nodes: elemType {elemType} is not supported')
 
-    return nodes_map[elemType % 100]
+    return nodes_map[elemType % 10]
 
 
 @cache

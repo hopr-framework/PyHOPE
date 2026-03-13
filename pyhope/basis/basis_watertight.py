@@ -288,8 +288,8 @@ def CheckWatertight() -> None:
     # checked   = np.zeros((len(sides)), dtype=bool)
 
     # Only consider hexahedrons
-    if any(e.type % 100 != 8 for e in elems):
-        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
+    if any(e.type % 10 != 8 for e in elems):
+        elemTypes = list({e.type for e in elems if e.type % 10 != 8})
         print(hopout.warn('Ignored element type: {}'.format(
             [re.sub(r"\d+$", "", mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]
         )))

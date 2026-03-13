@@ -60,10 +60,10 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
-    return faces_map[elemType % 100]
+    return faces_map[elemType % 10]
 
 
 def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:

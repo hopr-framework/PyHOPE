@@ -155,7 +155,7 @@ def CheckJacobians() -> None:
     nGeo:      Final[int]  = mesh_vars.nGeo + 1
     elems:     Final[list] = mesh_vars.elems
     nodes:     Final[npt.NDArray[np.float64]] = mesh_vars.mesh.points
-    elemBases: Final[set]  = set([e.type % 100 for e in elems])
+    elemBases: Final[set]  = {e.type % 10 for e in elems}
 
     # Compute the equidistant point set used by meshIO
     xEq_fn      = {4: lambda: equi_nodes_tetra(nGeo),                                          # Tetrahedron
@@ -213,7 +213,7 @@ def CheckJacobians() -> None:
 
     for elem in elems:
         elemType = elem.type
-        elemBase = int(elemType) % 100
+        elemBase = int(elemType) % 10
 
         # Get the mapping
         mapLin = linCache[elemType]

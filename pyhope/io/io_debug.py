@@ -115,7 +115,7 @@ def DebugIO() -> None:
     # Loop over all elements
     for melem in melems:
         # Correct ElemType for NGeo = 1
-        elemNum  = melem.type % 100
+        elemNum  = melem.type % 10
         elemType = elemTypeClass.inam[elemNum + 100]
         elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
         if elemType not in tInv:
@@ -132,7 +132,7 @@ def DebugIO() -> None:
                     sidetypes.add(sideType)
 
     # Create ordered mapping from first-order points to high-order points
-    points = np.concatenate([np.asarray(melem.nodes)[:melem.type % 100] for melem in melems])
+    points = np.concatenate([np.asarray(melem.nodes)[:melem.type % 10] for melem in melems])
     pMap   = np.unique(points)
     # pInv   = dict(zip(pMap, range(len(pMap))))
 
@@ -187,7 +187,7 @@ def DebugIO() -> None:
     # Populate connectivity and data
     for melem in melems:
         # Correct ElemType for NGeo = 1
-        elemNum  = melem.type % 100
+        elemNum  = melem.type % 10
         elemType = elemTypeClass.inam[elemNum + 100]
         elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
         elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1

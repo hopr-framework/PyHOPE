@@ -83,7 +83,7 @@ def check_sides(elem,
         # Sanity check the flip with the other nodes
         elem0  = elems[side[0].elemID]
         elem1  = elems[side[1].elemID]
-        if elem1.type % 100 != 8:
+        if elem1.type % 10 != 8:
             continue
 
         # Map the meshio nodes to the tensor-product nodes
@@ -157,8 +157,8 @@ def CheckConnect() -> None:
     elems:     Final[list] = mesh_vars.elems
 
     # Only consider hexahedrons
-    if any(cast(int, e.type) % 100 != 8 for e in elems):
-        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
+    if any(cast(int, e.type) % 10 != 8 for e in elems):
+        elemTypes = list({e.type for e in elems if e.type % 10 != 8})
         print(hopout.warn('Ignored element type: {}'.format(
             [re.sub(r"\d+$", "", mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]
         )))
