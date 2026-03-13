@@ -28,8 +28,9 @@
 from __future__ import annotations
 import gc
 from collections import defaultdict
+from collections.abc import Callable
 from functools import cache
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries

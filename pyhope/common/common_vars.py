@@ -30,9 +30,10 @@ import os
 import pathlib
 import re
 import subprocess
+from collections.abc import Callable
 from enum import Enum, unique
 from functools import cache
-from typing import Callable, Final, Optional, final
+from typing import Final, Optional, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
