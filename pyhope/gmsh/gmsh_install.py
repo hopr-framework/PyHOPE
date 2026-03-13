@@ -60,8 +60,7 @@ def PkgsMetaVersion(pkgs) -> Optional[str]:
     """ Check the package version
     """
     try:
-        version = metadata.version(pkgs)
-        return version
+        return metadata.version(pkgs)
 
     except metadata.PackageNotFoundError:
         return None

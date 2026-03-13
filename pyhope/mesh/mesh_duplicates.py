@@ -153,9 +153,8 @@ def _findPointsTol(points: npt.NDArray, tol: float, method: str = 'union_find') 
     repLabel  = np.full(components, nPoints, dtype=int)
     # Assign each point its component representative
     np.minimum.at(repLabel, labels, np.arange(nPoints, dtype=int))
-    repsPoint = repLabel[labels]
+    return repLabel[labels]
 
-    return repsPoint
 
 
 def EliminateDuplicates() -> None:

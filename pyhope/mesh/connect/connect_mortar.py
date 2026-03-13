@@ -613,11 +613,10 @@ def build_edges(corners: npt.NDArray, points: npt.NDArray) -> tuple:
     if len(corners) < 4 or len(points) < 4:
         return ()
 
-    edges = ((corners[0], corners[1], norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
-             (corners[1], corners[2], norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
-             (corners[2], corners[3], norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
-             (corners[3], corners[0], norm(np.array(points[3]) - np.array(points[0]))))  # Edge between points 3 and 0
-    return edges
+    return ((corners[0], corners[1], norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
+            (corners[1], corners[2], norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
+            (corners[2], corners[3], norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
+            (corners[3], corners[0], norm(np.array(points[3]) - np.array(points[0]))))  # Edge between points 3 and 0
 
 
 # INFO: Cached version

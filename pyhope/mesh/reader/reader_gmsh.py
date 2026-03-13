@@ -614,11 +614,9 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     for k, v in cellsets.items():
         csets[k] = [np.array(s, dtype=int) for s in v]
 
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = csets)     # noqa: E251
-
-    return mesh
+    return meshio.Mesh(points    = points,    # noqa: E251
+                       cells     = cells,     # noqa: E251
+                       cell_sets = csets)     # noqa: E251
 
 
 def BCCGNS_Structured(mesh:     meshio.Mesh,
@@ -723,8 +721,6 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     for k, v in cellsets.items():
         csets[k] = [np.array(s, dtype=int) for s in v]
 
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = csets)     # noqa: E251
-
-    return mesh
+    return meshio.Mesh(points    = points,    # noqa: E251
+                       cells     = cells,     # noqa: E251
+                       cell_sets = csets)     # noqa: E251

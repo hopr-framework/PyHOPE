@@ -337,8 +337,7 @@ def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
             interior    = grid[1:n, 1:n].flatten()
             # Assemble ordering: corners, edges, interior
             # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
-            return ordering
+            return np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
 
     elif side_type.lower() == 'triangle':
         # Total nodes on face: (nGeo+1)*(nGeo+2)//2
@@ -449,8 +448,7 @@ def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np
     # idx_arr will have shape (0:N, 0:N, 3)
     idx_arr = vec_cgns(R, pq[0], pq[1])
     # Use the computed indices from idx_arr to index mapLin
-    map = mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
-    return map
+    return mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
 
 
 @cache

@@ -381,8 +381,7 @@ def GetParam(name    : str,
 
 
 def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> str:
-    value = GetParam(name=name, default=default, number=number, calltype='str')
-    return value
+    return GetParam(name=name, default=default, number=number, calltype='str')
 
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
