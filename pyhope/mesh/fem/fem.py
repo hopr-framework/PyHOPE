@@ -171,7 +171,7 @@ def FEMConnect() -> None:
     # > are displaced by each periodic boundary condition. We build a simple, directed
     # > map for each BC that directly reflects the (source -> target) relationship in
     # > periNodes. We only want to map from negative to positive, thus keep the direction
-    periNames = sorted(list({bc for _, bc in periNodes}))
+    periNames = sorted({bc for _, bc in periNodes})
 
     # This dictionary holds the directed mapping for each BC
     # > Key: Source node

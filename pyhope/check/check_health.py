@@ -339,7 +339,7 @@ def CheckHealth() -> None:
     # For optional dependencies, split the first part
     opts = [p.split(';')[0] for p in pkgs if len(p.split(';')) >  1]  # noqa: E272
 
-    all_pkg_names = sorted(list(set([program] + [_PackageExtractName(p) for p in deps + opts])))
+    all_pkg_names = sorted(set([program] + [_PackageExtractName(p) for p in deps + opts]))
 
     # Fetch all versions in parallel
     with ThreadPoolExecutor(max_workers=10) as executor:
