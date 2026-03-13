@@ -132,7 +132,7 @@ def ConnectMortar( nConnSide  : list
     targetRadius  = np.empty((nConn   ), dtype=np.float64)
     targetArea    = np.empty((nConn   ), dtype=np.float64)
 
-    for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
+    for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter, strict=True)):
         targetArea   [nConnID   ] = calculate_area(points[side.corners])  # noqa: E211
         targetCenters[nConnID   ] = copy.copy(center)
         targetCorners[nConnID, :] = side.corners
@@ -154,7 +154,7 @@ def ConnectMortar( nConnSide  : list
     # Get all potential mortar neighbors within the radius
     workers = 1 if np_mtp <= 0 else np_mtp
     results = ctree.query_ball_point(targetCenters, r=targetRadius[:], workers=workers)
-    for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results)):
+    for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results, strict=True)):
         targetNeighbors = tuple(s for s in neighbors
                                    # Potential mortar sides must not belong to the same element
                                    if nConnSide[s].elemID != side.elemID  # noqa: E271, E501

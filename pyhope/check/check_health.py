@@ -349,7 +349,7 @@ def CheckHealth() -> None:
 
         # Query PyPI for all packages
         pypi_results = list(executor.map(PyPIVersion, all_pkg_names))
-        pypi_map     = dict(zip(all_pkg_names, pypi_results))
+        pypi_map     = dict(zip(all_pkg_names, pypi_results, strict=True))
 
         # Display system and packages sections
         hopout.small_banner('System')

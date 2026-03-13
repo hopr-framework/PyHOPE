@@ -108,7 +108,7 @@ def MeshExternal() -> meshio.Mesh:
     minsize: Final[int] = 256
     if any(s < minsize for s in fsizes):
         # Loop over the meshes and emit the warnings
-        for f, s in zip(fnames, fsizes):
+        for f, s in zip(fnames, fsizes, strict=True):
             print(hopout.warn(f'Mesh file "{os.path.basename(f)}" appears too small [{sizeof_fmt(s)}]. Continuing anyways...'))
 
     # Gmsh has to come first as we cannot extend the mesh

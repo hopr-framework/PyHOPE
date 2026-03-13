@@ -231,7 +231,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             # Deferr update for new boundary faces
             # > Instead of updating csets_old repeatedly, we collect deferred updates
             newBCFaces = []  # List of tuples: (new_face_key, combined_name)
-            for oldFace, subFaces in zip(oldFaces, newFaces):
+            for oldFace, subFaces in zip(oldFaces, newFaces, strict=True):
                 # Use the inverted index to get candidate face keys that might contain oldFace
                 candidate_sets = [nodeToFace[node] for node in oldFace if node in nodeToFace]
                 if not candidate_sets:

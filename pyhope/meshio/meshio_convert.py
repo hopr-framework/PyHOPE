@@ -71,7 +71,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
     # Extract cells
     elem_types, elem_tags, node_tags = gmsh.model.mesh.getElements()
     cells = []
-    for elemType, elemTags, nodeTags in zip(elem_types, elem_tags, node_tags):
+    for elemType, elemTags, nodeTags in zip(elem_types, elem_tags, node_tags, strict=True):
         # `elementName', `dim', `order', `numNodes', `localNodeCoord', `numPrimaryNodes'
         num_nodes_per_cell = gmsh.model.mesh.getElementProperties(elemType)[3]
 
@@ -86,7 +86,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
     for dim, tag in gmsh.model.getPhysicalGroups():
         # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)  # noqa: E501
         elem_types, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
-        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i, j in zip(elem_tags, elem_types)}
+        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i, j in zip(elem_tags, elem_types, strict=True)}
 
         name = gmsh.model.getPhysicalName(dim, tag)
         cell_sets[name] = [[] for _ in range(len(cells))]
@@ -103,7 +103,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
                     idx.append(k)
 
             offset = {meshio_cell_type[j]: np.where(elem_tags_group[meshio_cell_type[j]] == elem_tags[j][0])[0] for j in range(len(idx))}  # noqa: E501
-            elem_tags = [offset[j] + np.int64(i - i[0]) for j, i in zip(meshio_cell_type, elem_tags)]
+            elem_tags = [offset[j] + np.int64(i - i[0]) for j, i in zip(meshio_cell_type, elem_tags, strict=True)]
 
             for j, i in enumerate(idx):
                 cell_sets[name][i].append(elem_tags[j])
@@ -251,12 +251,12 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     dim_tags[:, 1] = int(geom_tag[0][0])
 
     # Set representatives for ALL 3D entities
-    for tag, node_used in zip(geom_tag[0], geom_nodes[0]):
+    for tag, node_used in zip(geom_tag[0], geom_nodes[0], strict=True):
         dim_tags[int(node_used), 0] = 3
         dim_tags[int(node_used), 1] = int(tag)
 
     # Set representatives for ALL 2D entities
-    for tag, node_used in zip(geom_tag[1], geom_nodes[1]):
+    for tag, node_used in zip(geom_tag[1], geom_nodes[1], strict=True):
         dim_tags[int(node_used), 0] = 2
         dim_tags[int(node_used), 1] = int(tag)
 

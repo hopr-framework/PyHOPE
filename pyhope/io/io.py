@@ -292,7 +292,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
 
     # Update element counter
     uniq_types, uniq_counts = np.unique(elem_types, return_counts=True)
-    for elemType, elemCount in zip(uniq_types, uniq_counts):
+    for elemType, elemCount in zip(uniq_types, uniq_counts, strict=True):
         elemCounter[elemType] = elemCount
 
     # Fill the IJK-sorting array
