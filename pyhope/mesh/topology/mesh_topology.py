@@ -179,7 +179,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
-        mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
+        mtype, mcell = next(iter(cast(dict, mdict).keys())), next(iter(cast(dict, mdict).values()))
 
         elemType     = elemTypes[iElem]
         elemName     = elemNames[iElem]
