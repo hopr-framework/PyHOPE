@@ -372,7 +372,7 @@ def extrude_pris(nodes:   np.ndarray,
 
         # FIXME: Implement the other orders
         case _:
-            raise ValueError('Extrusion not implemented for NGeo={order}')
+            raise ValueError(f'Extrusion not implemented for NGeo={order}')
 
     return newNodes, newPoints
 
@@ -436,7 +436,7 @@ def extrude_hexa(nodes:   np.ndarray,
 
         # FIXME: Implement the other orders
         case _:
-            raise ValueError('Extrusion not implemented for NGeo={order}')
+            raise ValueError(f'Extrusion not implemented for NGeo={order}')
 
     return newNodes, newPoints
 

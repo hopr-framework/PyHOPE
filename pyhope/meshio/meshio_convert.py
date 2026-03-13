@@ -163,7 +163,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
         if not node_free and node_used in usedNodes:
             # All candidate nodes already used; fall back to the first (still valid, we just can't make it unique)
             # hopout.routine(f'Note: reusing representative node {rep_node} for 3D entity tag {tag}')
-            hopout.error('All candidate nodes already used for 3D entity tag {tag}')
+            hopout.error(f'All candidate nodes already used for 3D entity tag {tag}')
 
         geom_nodes[0].append(node_used)
         usedNodes.add(node_used)
@@ -221,7 +221,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
             if not node_free and node_used in usedNodes:
                 # All candidate nodes already used; fall back to the first (still valid, we just can't make it unique)
                 # hopout.routine(f'Note: reusing representative node {rep_node} for 3D entity tag {tag}')
-                hopout.error('All candidate nodes already used for 3D entity tag {tag}')
+                hopout.error(f'All candidate nodes already used for 3D entity tag {tag}')
 
             geom_nodes[1].append(node_used)
             usedNodes.add(node_used)
