@@ -307,7 +307,7 @@ def MeshioGmshOrderingPatch() -> None:
     for mod_name in ('meshio.gmsh._gmsh', 'meshio.gmsh._gmsh41', 'meshio.gmsh._gmsh22', 'meshio.gmsh._gmsh4'):
         try:
             mod = importlib.import_module(mod_name)
-            setattr(mod, '_meshio_to_gmsh_order', NodeOrdering().ordering_meshio_to_gmsh)
+            mod._meshio_to_gmsh_order = NodeOrdering().ordering_meshio_to_gmsh
         except Exception:
             # If assignment fails, pass
             pass
