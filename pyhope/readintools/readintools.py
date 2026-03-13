@@ -115,9 +115,10 @@ def is_numeric(var_value: str) -> bool:
     """
     try:
         float(var_value)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 # ==================================================================================================================================

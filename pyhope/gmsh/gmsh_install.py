@@ -50,10 +50,10 @@ def PkgsMetaData(pkgs, classifier) -> Optional[bool]:
     try:
         meta = metadata.metadata(pkgs)
         classifiers = meta.get_all('Classifier', [])
-        return classifier in classifiers
-
     except metadata.PackageNotFoundError:
         return None
+    else:
+        return classifier in classifiers
 
 
 def PkgsMetaVersion(pkgs) -> Optional[str]:
