@@ -357,7 +357,6 @@ def PRISMAPMESHIO(order: int) -> tuple[npt.NDArray, npt.NDArray]:
             map[3, 1, 2] = count+8
             map[2, 2, 2] = count+9
             count += 9
-        #
         if order == 4:
             map[0, 2, 1] = count+1
             map[0, 1, 1] = count+2

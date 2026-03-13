@@ -136,8 +136,8 @@ def DebugIO() -> None:
     pMap   = np.unique(points)
     # pInv   = dict(zip(pMap, range(len(pMap))))
 
-    hasIJK = True if hasattr(mesh_vars, 'nElemsIJK' ) and mesh_vars.nElemsIJK  is not None else False  # noqa: E272
-    hasFEM = True if hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None else False
+    hasIJK = bool(hasattr(mesh_vars, 'nElemsIJK')  and mesh_vars.nElemsIJK  is not None)  # noqa: E272
+    hasFEM = bool(hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None)
 
     # Prepare element and side containers
     for t in elemtypes:

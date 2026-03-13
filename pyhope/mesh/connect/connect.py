@@ -493,7 +493,7 @@ def ConnectMesh() -> None:
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
     # Mortar sides
-    mesh_vars.hasMortars = True if len(nConnSide) > 0 else False
+    mesh_vars.hasMortars = len(nConnSide) > 0
 
     if doMortars:
         # Connect the mortar sides
