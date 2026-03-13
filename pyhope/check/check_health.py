@@ -111,7 +111,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
 
     if path:
         try:
-            p   = subprocess.run([path, '--info'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+            p   = subprocess.run([path, '--info'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5, check=True)
             raw = (p.stdout or '') + "\n" + (p.stderr or '')
             # Parse version from the Version line if present
             v   = _ParseVersion(raw)
@@ -172,7 +172,7 @@ def DependencyVersion(program: str) -> Optional[Version | bool]:
     if path:
         for flag in ('--version', '-V', 'version', '-v'):
             try:
-                p = subprocess.run([path, flag], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+                p = subprocess.run([path, flag], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5, check=True)
             except Exception:
                 continue
 
