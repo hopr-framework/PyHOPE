@@ -276,11 +276,11 @@ class BC:
 
 @final
 class ELEMTYPE:
-    type = {'tetra'     : 4,
+    type = {'tetra'     : 4,  # noqa: RUF012
             'pyramid'   : 5,
             'wedge'     : 5,
             'hexahedron': 6}
-    name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,
+    name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,  # noqa: RUF012
                                'tetra84'      : 204, 'tetra120'      : 204, 'tetra165'      : 204, 'tetra220'      : 204,
                                'tetra286'     : 204,
             'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205, 'pyramid30'     : 205, 'pyramid55'     : 205,
@@ -290,7 +290,7 @@ class ELEMTYPE:
             'hexahedron': 108, 'hexahedron20' : 208, 'hexahedron24'  : 208, 'hexahedron27'  : 208, 'hexahedron64'  : 208,
                                'hexahedron125': 208, 'hexahedron216' : 208, 'hexahedron343' : 208, 'hexahedron512' : 208,
                                'hexahedron729': 208, 'hexahedron1000': 208, 'hexahedron1331': 208}
-    inam = defaultdict(list)
+    inam = defaultdict(list)  # noqa: RUF012
     for key, value in name.items():
         inam[value].append(key)
 

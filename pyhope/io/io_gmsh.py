@@ -44,7 +44,7 @@ class GMSHCELLTYPES:
 
         Reference: http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
     '''
-    cellTypes3D = [ 'tetra'   , 'hexahedron'    ,                                 'wedge'  ,            'pyramid',                 # NGeo =  1 # noqa: E501
+    cellTypes3D = [ 'tetra'   , 'hexahedron'    ,                                 'wedge'  ,            'pyramid',                 # NGeo =  1  # noqa: E501, RUF012
                     'tetra10' , 'hexahedron20'  , 'hexahedron24', 'hexahedron27', 'wedge15', 'wedge18', 'pyramid13', 'pyramid14',  # NGeo =  2 # noqa: E501
                     'tetra20' , 'hexahedron64'  ,                                 'wedge40',                                       # NGeo =  3 # noqa: E501
                     'tetra35' , 'hexahedron125' ,                                 'wedge75',                                       # NGeo =  4 # noqa: E501
@@ -55,7 +55,7 @@ class GMSHCELLTYPES:
                     'tetra220', 'hexahedron1000',                                 'wedge550',                                      # NGeo =  9 # noqa: E501
                     'tetra286', 'hexahedron1331'                                                                                   # NGeo = 10 # noqa: E501
                   ]
-    cellTypes2D = [ 'triangle'  , 'quad'   ,                                                                                       # NGeo =  1 # noqa: E501
+    cellTypes2D = [ 'triangle'  , 'quad'   ,                                                                                       # NGeo =  1  # noqa: E501, RUF012
                     'triangle6' , 'quad8'  , 'quad9',                                                                              # NGeo =  2 # noqa: E501
                     'triangle10', 'quad16' ,                                                                                       # NGeo =  3 # noqa: E501
                     'triangle15', 'quad25' ,                                                                                       # NGeo =  4 # noqa: E501

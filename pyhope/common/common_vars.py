@@ -144,7 +144,7 @@ class Gitlab:
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
-    LIB_VERSION: dict[str, dict[str, str]] = {
+    LIB_VERSION: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
             'x86_64' : '4.15.1.post1',
             'aarch64': '4.13.1.post1'
@@ -153,7 +153,7 @@ class Gitlab:
             'arm64'  : '4.13.1.post1'
         },
     }
-    LIB_SUPPORT: dict[str, dict[str, str]] = {
+    LIB_SUPPORT: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
             'x86_64' : '4f2b923a164f8f8b77494df943ea52a3f7050716f9b9cbac9190f7460ca822fb',
             'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'
