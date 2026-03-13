@@ -275,10 +275,9 @@ def CheckInstall(path: Optional[str] = None) -> None:
 
             # Suppress output to standard output
             try:
-                with open(os.devnull, 'w') as null, redirect_stdout(null):
-                    # All code that should have silent stdout here
-                    with ReadConfig(parameter) as rc:
-                        params = rc
+                # All code that should have silent stdout here
+                with open(os.devnull, 'w') as null, redirect_stdout(null), ReadConfig(parameter) as rc:
+                    params = rc
             except Exception:
                 # Config read failed
                 bar.step()
