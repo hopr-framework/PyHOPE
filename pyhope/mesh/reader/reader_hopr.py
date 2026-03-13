@@ -87,7 +87,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             hopout.error(f'[󰇘]/{os.path.basename(fname)} is not in HDF5 format, exiting...')
 
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
         tname = tfile.name
         # Alternatively, load the file directly into tmpfs for faster access
         shutil.copyfile(fname, tname)

@@ -345,7 +345,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     for fname in fnames:
 
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
         tname = tfile.name
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
