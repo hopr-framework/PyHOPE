@@ -105,7 +105,7 @@ class LinkOffsetManager:
         # Clear any cached offset computations
         self.get_offset.cache_clear()
 
-    @cache
+    @cache  # noqa: B019
     def get_offset(self,
                    index: int) -> int:
         """ Cached offset lookup for stored index.
@@ -284,7 +284,7 @@ class RedBlackTree:
                     self._left_rotate(cast(_RBTreeNode, z.parent.parent))
         self._root.color = BLACK
 
-    @lru_cache(maxsize=4096)
+    @lru_cache(maxsize=4096)  # noqa: B019
     def _node_at_impl(self, index: int) -> SideNode:
         if not 0 <= index < self._size:
             raise IndexError('Index out of range')

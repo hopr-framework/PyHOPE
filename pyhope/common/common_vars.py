@@ -32,7 +32,6 @@ import re
 import subprocess
 from collections.abc import Callable
 from enum import Enum, unique
-from functools import cache
 from typing import Final, Optional, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -78,7 +77,6 @@ class Common:
         self._commit:  Final      = self.__commit__
 
     @property
-    @cache
     def __version__(self) -> Version:
         # Retrieve version from package metadata
         try:
@@ -99,7 +97,6 @@ class Common:
         return Version(version)
 
     @property
-    @cache
     def __commit__(self) -> Optional[str]:
         # Retrieve commit from git
         try:
