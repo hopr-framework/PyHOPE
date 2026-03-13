@@ -279,7 +279,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     elems_new = {}
     csets_new = {}
 
-    for key in elems_lst:
+    for key in elems_lst:  # noqa: PLC0206
         if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
@@ -287,7 +287,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             # Determine the expected number of columns
             elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
 
-    for key in csets_lst:
+    for key in csets_lst:  # noqa: PLC0206
         csets_new[key] = tuple(np.array(lst, dtype=int) for lst in csets_lst[key])
 
     # Convert points_list back to a NumPy array
