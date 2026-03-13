@@ -247,8 +247,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
                         # Create the new quadrilateral boundary faces by precomputing the frozensets
                         faceSet = [frozenset(face) for face in subFaces]
                         # This cannot be a tuple, we need to iterate over all the candidate sets
-                        for key in faceSet:
-                            newBCFaces.append((key, combined_name))
+                        newBCFaces.extend((key, combined_name) for key in faceSet)
                         # Done with this triangular face, break out of the (inner) candidate loop
                         break
 

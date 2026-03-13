@@ -104,9 +104,7 @@ def FEMConnect() -> None:
                 continue
 
             component.add(currentNode)
-            for nxt in periGraph[currentNode]:
-                if nxt not in component:
-                    stack.append(nxt)
+            stack.extend(nxt for nxt in periGraph[currentNode] if nxt not in component)
 
         canonical_rep = min(component)
         for v in component:

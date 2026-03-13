@@ -83,9 +83,6 @@ def LoadTemplate(template: str,
     if templateModule is None:
         hopout.warning(f'{reason} template "{template}" not found!')
         # Print all available default templates for post-deformation
-        templist = []
-        for file in os.listdir(os.path.join(os.path.dirname(origin), 'templates')):
-            if file.endswith('.py'):
-                templist.append(f'  {file[:-3]}')
+        templist = [f'  {file[:-3]}' for file in os.listdir(os.path.join(os.path.dirname(origin), 'templates')) if file.endswith('.py')]
         hopout.error('Available default extrusion templates:' + ','.join(templist))
     return templateModule

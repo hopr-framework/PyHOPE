@@ -348,8 +348,7 @@ def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
             # Build the tensor ordering as a list of (i, j) for which i+j <= p.
             nodes       = []
             for i in range(p+1):
-                for j in range(p+1 - i):
-                    nodes.append((i, j))
+                nodes.extend((i, j) for j in range(p+1 - i))
             # Define vertices in the reference triangle:
             vertices    = [(0, 0), (p, 0), (0, p)]
             # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
