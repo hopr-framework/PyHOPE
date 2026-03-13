@@ -122,7 +122,7 @@ def UpdateElemID(elems         : list,
 
 @final
 class tBox:
-    __slots__ = ('mini', 'intfact', 'spacing')
+    __slots__ = ('intfact', 'mini', 'spacing')
 
     def __init__(self, mini: int, maxi: int):
         self.mini = mini

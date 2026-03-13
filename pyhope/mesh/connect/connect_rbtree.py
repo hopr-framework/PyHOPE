@@ -128,7 +128,7 @@ class SideNode:
     # """
     # value = SIDE
     # link  = Optional[int]  # This is the base (stored) connection value
-    __slots__ = ('value', 'link')
+    __slots__ = ('link', 'value')
 
     def __init__(self,
                  value: SIDE,
@@ -178,7 +178,7 @@ class RedBlackTree:
     """ This class provides a balanced binary search tree implemented as a Red-Black Tree,
         augmented with subtree sizes to support efficient arbitrary insertions and random access
     """
-    __slots__ = ('_root', '_size', 'offset_manager', '_node_at')
+    __slots__ = ('_node_at', '_root', '_size', 'offset_manager')
 
     def __init__(self,
                  offset_manager: LinkOffsetManager) -> None:
