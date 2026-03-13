@@ -37,6 +37,7 @@ from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 import h5py
 import numpy as np
+import pathlib
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -102,9 +103,8 @@ def downloadGitDir(user    : str,
                         bar.title( '│               Downloading tests')
                     # Retry the request
                     continue
-                else:
-                    # Re-raise other HTTP errors
-                    raise
+                # Re-raise other HTTP errors
+                raise
 
     apiURL = f'https://api.github.com/repos/{user}/{repo}/contents/{path}?ref={branch}'
 
@@ -145,8 +145,7 @@ def downloadGitDir(user    : str,
                         content = lfs_u.read()
 
                 # Write the final content (either regular file or LFS file) to disk
-                with open(subPath, 'wb') as f:
-                    f.write(content)
+                pathlib.Path(subPath).write_bytes(content)
 
             case 'dir':
                 # Recursively call the function for subdirectories
@@ -275,10 +274,9 @@ def CheckInstall(path: Optional[str] = None) -> None:
 
             # Suppress output to standard output
             try:
-                with open(os.devnull, 'w') as null, redirect_stdout(null):
-                    # All code that should have silent stdout here
-                    with ReadConfig(parameter) as rc:
-                        params = rc
+                # All code that should have silent stdout here
+                with open(os.devnull, 'w') as null, redirect_stdout(null), ReadConfig(parameter) as rc:
+                    params = rc
             except Exception:
                 # Config read failed
                 bar.step()
@@ -374,7 +372,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     # Load the stats from the TOML file
                     if  h5stats  is not None \
                     and tomlData is not None \
-                    and key in tomlData.keys():  # noqa: E271, E272
+                    and key in tomlData:  # noqa: E271, E272
                         # Fallback tolerances:
                         if 'GlobalNodeIDs' in key:
                             # GlobalNodeIDs are susceptible to rounding issues

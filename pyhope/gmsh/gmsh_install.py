@@ -50,18 +50,17 @@ def PkgsMetaData(pkgs, classifier) -> Optional[bool]:
     try:
         meta = metadata.metadata(pkgs)
         classifiers = meta.get_all('Classifier', [])
-        return classifier in classifiers
-
     except metadata.PackageNotFoundError:
         return None
+    else:
+        return classifier in classifiers
 
 
 def PkgsMetaVersion(pkgs) -> Optional[str]:
     """ Check the package version
     """
     try:
-        version = metadata.version(pkgs)
-        return version
+        return metadata.version(pkgs)
 
     except metadata.PackageNotFoundError:
         return None
@@ -162,7 +161,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     if version == 'nrg':
         # Gitlab "python-gmsh" access
         lfs = 'yes'
-        lib = 'gmsh-{}-py3-none-{}_{}.whl'.format(Gitlab.LIB_VERSION[system][arch], system, arch)
+        lib = f'gmsh-{Gitlab.LIB_VERSION[system][arch]}-py3-none-{system}_{arch}.whl'
 
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as path:
@@ -195,7 +194,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
                 meta = metadata.metadata('gmsh')
                 if meta is not None:
                     try:
-                        _ = subprocess.run(command + ['uninstall'] + ['gmsh'], check=True)  # noqa: E501
+                        _ = subprocess.run([*command, 'uninstall', 'gmsh'], check=True)  # noqa: E501
                     except subprocess.CalledProcessError:
                         print(hopout.warn( 'Failed to uninstall system Gmsh. Please run the following commands manually:'))
                         print(hopout.warn( '$ python -m pip uninstall gmsh'))
@@ -206,7 +205,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
                 pass
 
             # Install the package in the current environment
-            _ = subprocess.run(command + ['install'] + [pkgs], check=True)
+            _ = subprocess.run([*command, 'install', pkgs], check=True)
     else:
         # Install the package in the current environment
-        _ = subprocess.run(command + ['install'] + ['gmsh'], check=True)
+        _ = subprocess.run([*command, 'install', 'gmsh'], check=True)

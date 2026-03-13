@@ -29,7 +29,7 @@ import time
 # from sortedcontainers import SortedDict
 from collections import defaultdict
 from contextlib import contextmanager
-from typing import Final, Tuple
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ def time_function(func, *args, **kwargs) -> float:  # pragma: no cover
     return result
 
 
-def allocate_or_resize( dict: dict, key: str, shape: Tuple[int, int]) -> Tuple[dict, int]:
+def allocate_or_resize( dict: dict, key: str, shape: tuple[int, int]) -> tuple[dict, int]:
     """ Allocate or resize a numpy array in a dictionary.
     """
     offset = 0
@@ -132,12 +132,8 @@ class IndexedLists:
     def remove_index(self, indices) -> None:
         """ Remove the sublist at idx and remove the integer idx from all remaining sublists
         """
-        if isinstance(indices, int):
-            # Convert to a set for fast operations
-            indices = {indices}
-        else:
-            # Convert list to set for O(1) lookups
-            indices = set(indices)
+        # Convert to a set for fast operations
+        indices = {indices} if isinstance(indices, int) else set(indices)
 
         # Create a set to hold all affected keys
         affected_keys = set()

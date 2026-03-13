@@ -28,8 +28,9 @@
 from __future__ import annotations
 import gc
 from collections import defaultdict
+from collections.abc import Callable
 from functools import cache
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -80,7 +81,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     if any(elemType % 10 != 8 for elemType in elemTypes) and nGeo > 4:
         hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
     if nGeo > 4:
-        hopout.error('nGeo = {} not supported for element splitting'.format(nGeo))
+        hopout.error(f'nGeo = {nGeo} not supported for element splitting')
 
     hopout.info('Converting hexahedral elements to simplex elements')
 
@@ -108,7 +109,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                     case _:   # tetrahedra
                         elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
             except IndexError:
-                hopout.error('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
+                hopout.error(f'Element type {elemTypes[i]} not supported for nGeo = {nGeo}, exiting...')
 
     # Copy original points
     pointl    = cast(list, mesh.points.tolist())
@@ -161,14 +162,14 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     csets_lst = {}
 
     # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys()))
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v))
 
     # If meshcells is empty, we fake it assign it to Zone1
     if len(meshcells) == 0:
-        meshcells = tuple(('Zone1', {k: np.array([i for i in range(len(v))])}) for k, v in mesh.cells_dict.items()
+        meshcells = tuple(('Zone1', {k: np.array(list(range(len(v))))}) for k, v in mesh.cells_dict.items()
                                                                                         if k.startswith('hexahedron'))
 
-    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     # Build an inverted index to map each node to all face keys (from csets_old) that contain it
@@ -179,22 +180,22 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
-        mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
+        mtype, mcell = next(iter(cast(dict, mdict).keys())), next(iter(cast(dict, mdict).values()))
 
         elemType     = elemTypes[iElem]
         elemName     = elemNames[iElem]
 
         split, faces = elemSplitter.get(elemType, (None, None))
-        faceMap      = faceMaper.get(elemType, None)
+        faceMap      = faceMaper.get(elemType)
 
         # Sanity check
         if faceMap is None:
-            raise ValueError('Missing faceMap for element type {}'.format(elemType))
+            raise ValueError(f'Missing faceMap for element type {elemType}')
 
         cdata = mesh.get_cells_type(mtype)[mcell]
 
         if split is None or faces is None:
-            hopout.error('Element type {} not supported for splitting'.format(elemTypes[iElem]), traceback=True)
+            hopout.error(f'Element type {elemTypes[iElem]} not supported for splitting', traceback=True)
 
         elemSplit = split(nGeo)
 
@@ -219,7 +220,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         pointl.append(center.tolist())
 
                         # Overwrite the element with the new indices
-                        elem     = np.array(list(elem) + [nPoints])
+                        elem     = np.array([*list(elem), nPoints])
                         nPoints += 1
                     case 2:
                         # Generate the grid of new points
@@ -279,7 +280,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     elems_new = {}
     csets_new = {}
 
-    for key in elems_lst:
+    for key in elems_lst:  # noqa: PLC0206
         if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
@@ -287,7 +288,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
             # Determine the expected number of columns
             elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
 
-    for key in csets_lst:
+    for key in csets_lst:  # noqa: PLC0206
         csets_new[key] = tuple(np.array(lst, dtype=int) for lst in csets_lst[key])
 
     # Convert points_list back to a NumPy array
@@ -373,7 +374,7 @@ def split_hex_to_tets(order: int) -> list[tuple]:
         case _:
             # Lazy-load local import
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -399,7 +400,7 @@ def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
                     np.array((  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)), dtype=int))  # noqa: E501
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -462,7 +463,7 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
                      108, 172, 156, 116,  74,  73,  72,  71,  77,  76,  75,  78,  79, 171, 170, 154, 155, 121)]
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -497,7 +498,7 @@ def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
                     np.array(( 0,  1,  2,  3, *range(5, 17), *range(41, 50)), dtype=int))
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -568,7 +569,7 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -611,7 +612,7 @@ def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
                     np.array((  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)), dtype=int))  # noqa: E501
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 # Dummy function for hexahedral elements
@@ -657,7 +658,7 @@ def hex_faces(order: int) -> tuple[npt.NDArray, ...]:
                     np.array((  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97), dtype=int))  # noqa: E501
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 def appendBCSet(subFace:      np.ndarray,

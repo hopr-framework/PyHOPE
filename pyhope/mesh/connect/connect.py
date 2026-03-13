@@ -159,7 +159,7 @@ def periodic_update(sides: tuple, elems: tuple, vv: npt.NDArray) -> None:
     from pyhope.mesh.mesh_common import sidetovol2
     # ------------------------------------------------------
     # Periodic corrections are only supported for hexahedral elements
-    if elems[0].type % 100 != 8 or elems[1].type % 100 != 8:
+    if elems[0].type % 10 != 8 or elems[1].type % 10 != 8:
         return
 
     nGeo:   Final[int]         = mesh_vars.nGeo
@@ -286,7 +286,7 @@ def ConnectMesh() -> None:
 
     # Consistency check for 2D boundary conditions
     prefixes: Final[tuple[str]] = ('quad', 'triangle')
-    if not any(k.startswith(p) for p in prefixes for k in cdict.keys()):  # pragma: no cover
+    if not any(k.startswith(p) for p in prefixes for k in cdict):  # pragma: no cover
         if bcs is not None and len(bcs) > 0:
             print(hopout.warn(f'Detected boundary conditions {[bc.name for bc in bcs]}'))
         hopout.error('Could not find any 2D boundary conditions, exiting...')
@@ -361,7 +361,7 @@ def ConnectMesh() -> None:
                     corners = np.sort(mapFaces[iSide][:nCorners])
                     print(hopout.warn(f'> Side {cell_types}, Nodes {corners}'))
                     for corner in corners:
-                        print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in mesh.points[corner]) + ']'))
+                        print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in mesh.points[corner]) + ']'))
                     # traceback.print_stack(file=sys.stdout)
                     sys.exit(1)
 
@@ -408,8 +408,8 @@ def ConnectMesh() -> None:
             case 2:  # Internal side
                 sideIDs   = val
                 # Flip pyramids
-                # if elems[sides[sideIDs[0]].elemID].type % 100 != 5 and \
-                #    elems[sides[sideIDs[1]].elemID].type % 100 == 5:
+                # if elems[sides[sideIDs[0]].elemID].type % 10 != 5 and \
+                #    elems[sides[sideIDs[1]].elemID].type % 10 == 5:
                 #     sideIDs   = sideIDs[::-1]
 
                 side0     = sides[sideIDs[0]]
@@ -434,7 +434,7 @@ def ConnectMesh() -> None:
                 # Sanity check the flip with the other nodes
                 # > INFO: MOVED TO OWN CHECKCONNECT ROUTINE
                 # elem   = (elems[side0.elemID], elems[side1.elemID])
-                # if elem[0].type % 100 == 8 and elem[1].type % 100 == 8:
+                # if elem[0].type % 10 == 8 and elem[1].type % 10 == 8:
                 #     # Map the meshio nodes to the tensor-product nodes
                 #     elemType = elem[0].type
                 #     nodes    = elem[0].nodes[sidetovol2(nGeo, 0     , side0.face, elemType)]
@@ -473,7 +473,7 @@ def ConnectMesh() -> None:
                 locElems = tuple(elems[s.elemID] for s in locSides)
 
                 # Only update hexahedral elements
-                if any(e.type % 100 != 8 for e in locElems):
+                if any(e.type % 10 != 8 for e in locElems):
                     for e in locElems:
                         passedTypes[e.type] = passedTypes.get(e.type, 0) + 1
                 else:
@@ -488,12 +488,12 @@ def ConnectMesh() -> None:
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
         for elemType in ELEM.TYPES:
             if elemType in passedTypes and passedTypes[elemType] > 0:
-                print(hopout.warn( ELEMTYPE(elemType) + ': {:12d}'.format(passedTypes[elemType])))
+                print(hopout.warn( ELEMTYPE(elemType) + f': {passedTypes[elemType]:12d}'))
 
     nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
 
     # Mortar sides
-    mesh_vars.hasMortars = True if len(nConnSide) > 0 else False
+    mesh_vars.hasMortars = len(nConnSide) > 0
 
     if doMortars:
         # Connect the mortar sides
@@ -507,18 +507,18 @@ def ConnectMesh() -> None:
             elem  = elems[side.elemID]
             # nodes = elem.nodes[sidetovol2(nGeo, 0     , side.face, elem.type)]
             nodes = np.transpose(np.array([elem.nodes[s] for s in face_to_nodes(side.face, elem.type, nGeo)]))
-            if elem.type % 100 == 8:
+            if elem.type % 10 == 8:
                 nodes = np.transpose(points[nodes]         , axes=(2, 0, 1))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:,  0,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:,  0, -1]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:, -1,  0]) + ']'))
-                print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in nodes[:, -1, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in nodes[:,  0,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in nodes[:,  0, -1]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in nodes[:, -1,  0]) + ']'))
+                print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in nodes[:, -1, -1]) + ']'))
                 if side is not nConnSide[-1]:
                     print()  # Empty line for spacing
             else:
                 nodes = points[nodes]
                 for node in nodes:
-                    print(hopout.warn('- Coordinates  : [' + ' '.join('{:13.8f}'.format(s) for s in node) + ']'))
+                    print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in node) + ']'))
                 if side is not nConnSide[-1]:
                     print()  # Empty line for spacing
         hopout.error('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
@@ -550,12 +550,12 @@ def ConnectMesh() -> None:
     nsides             = len(sides) - nmortarsmallsides
 
     hopout.sep()
-    hopout.info(' Number of sides                : {:12d}'.format(nsides))
-    hopout.info(' Number of inner sides          : {:12d}'.format(ninnersides))
-    hopout.info(' Number of mortar sides (big)   : {:12d}'.format(nmortarbigsides))
-    hopout.info(' Number of mortar sides (small) : {:12d}'.format(nmortarsmallsides))
-    hopout.info(' Number of boundary sides       : {:12d}'.format(nbcsides))
-    hopout.info(' Number of periodic sides       : {:12d}'.format(nperiodicsides))
+    hopout.info(f' Number of sides                : {nsides:12d}')
+    hopout.info(f' Number of inner sides          : {ninnersides:12d}')
+    hopout.info(f' Number of mortar sides (big)   : {nmortarbigsides:12d}')
+    hopout.info(f' Number of mortar sides (small) : {nmortarsmallsides:12d}')
+    hopout.info(f' Number of boundary sides       : {nbcsides:12d}')
+    hopout.info(f' Number of periodic sides       : {nperiodicsides:12d}')
 
     mesh_vars.sides = sides
     mesh_vars.elems = elems

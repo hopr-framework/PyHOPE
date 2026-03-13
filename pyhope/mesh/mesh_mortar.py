@@ -70,8 +70,6 @@ def RebuildMortarGeometry() -> None:
         case Policy.auto  .value:
             if not hasattr(mesh_vars, 'hasMortarsInterzone') or not mesh_vars.hasMortarsInterzone:
                 return None
-            else:
-                pass
         case Policy.always.value:
             pass
 
@@ -85,7 +83,7 @@ def RebuildMortarGeometry() -> None:
     vvs:    Final[list      ] = mesh_vars.vvs
 
     # Rebuilding mortar geometries is only supported for hexahedral meshes
-    if any([s != 8 for s in set([e.type % 100 for e in elems])]):
+    if any(s != 8 for s in {e.type % 10 for e in elems}):
         return None
 
     hopout.sep()
@@ -128,7 +126,7 @@ def RebuildMortarGeometry() -> None:
                 mortarSides = tuple(sides[sides[side.sideID+i].connection] for i in range(1, 5))
                 mortarElems = tuple(elems[s.elemID]                        for s in mortarSides)  # noqa: E272
 
-                mortarNodes = tuple(e.nodes[sidetovol2(nGeo, s.flip, s.face, elemType)] for e, s in zip(mortarElems, mortarSides))  # noqa: E271, E272
+                mortarNodes = tuple(e.nodes[sidetovol2(nGeo, s.flip, s.face, elemType)] for e, s in zip(mortarElems, mortarSides, strict=True))  # noqa: E271, E272, E501
                 mortarGeo   = tuple(s.reshape((nGeo+1, nGeo+1), order='F') for s in mortarNodes)  # noqa: E271, E272
 
                 # Interpolate big mortar side to small mortar sides
@@ -173,7 +171,7 @@ def RebuildMortarGeometry() -> None:
                 mortarSides = tuple(sides[sides[side.sideID+i].connection] for i in range(1, 3))
                 mortarElems = tuple(elems[s.elemID]                        for s in mortarSides)  # noqa: E272
 
-                mortarNodes = tuple(e.nodes[sidetovol2(nGeo, s.flip, s.face, elemType)] for e, s in zip(mortarElems, mortarSides))  # noqa: E271, E272
+                mortarNodes = tuple(e.nodes[sidetovol2(nGeo, s.flip, s.face, elemType)] for e, s in zip(mortarElems, mortarSides, strict=True))  # noqa: E271, E272, E501
                 mortarGeo   = tuple(s.reshape((nGeo+1, nGeo+1), order='F')              for    s in     mortarNodes)  # noqa: E271, E272
 
                 # Interpolate big mortar side to small mortar sides
@@ -197,7 +195,7 @@ def RebuildMortarGeometry() -> None:
                 mortarSides = tuple(sides[sides[side.sideID+i].connection] for i in range(1, 3))
                 mortarElems = tuple(elems[s.elemID]                        for s in mortarSides)  # noqa: E272
 
-                mortarNodes = tuple(e.nodes[sidetovol2(nGeo, s.flip, s.face, elemType)] for e, s in zip(mortarElems, mortarSides))  # noqa: E271, E272
+                mortarNodes = tuple(e.nodes[sidetovol2(nGeo, s.flip, s.face, elemType)] for e, s in zip(mortarElems, mortarSides, strict=True))  # noqa: E271, E272, E501
                 mortarGeo   = tuple(s.reshape((nGeo+1, nGeo+1), order='F')              for    s in     mortarNodes)  # noqa: E271, E272
 
                 # Interpolate big mortar side to small mortar sides

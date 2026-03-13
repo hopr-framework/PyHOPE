@@ -28,7 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import importlib
-from typing import Dict, Final, List, Set, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -71,22 +71,22 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
     # Extract cells
     elem_types, elem_tags, node_tags = gmsh.model.mesh.getElements()
     cells = []
-    for elem_type, elem_tags, node_tags in zip(elem_types, elem_tags, node_tags):
+    for elemType, elemTags, nodeTags in zip(elem_types, elem_tags, node_tags, strict=True):
         # `elementName', `dim', `order', `numNodes', `localNodeCoord', `numPrimaryNodes'
-        num_nodes_per_cell = gmsh.model.mesh.getElementProperties(elem_type)[3]
+        num_nodes_per_cell = gmsh.model.mesh.getElementProperties(elemType)[3]
 
-        node_tags_reshaped = np.asarray(node_tags).reshape(-1, num_nodes_per_cell) - 1
-        node_tags_reshaped = node_ordering.ordering_gmsh_to_meshio(elem_type, node_tags_reshaped)
+        node_tags_reshaped = np.asarray(nodeTags).reshape(-1, num_nodes_per_cell) - 1
+        node_tags_reshaped = node_ordering.ordering_gmsh_to_meshio(elemType, node_tags_reshaped)
 
         # NRG: Fix the element ordering
-        node_tags_sorted   = node_tags_reshaped[np.argsort(elem_tags)]
-        cells.append(meshio.CellBlock(meshio.gmsh.gmsh_to_meshio_type[elem_type], node_tags_sorted))
+        node_tags_sorted   = node_tags_reshaped[np.argsort(elemTags)]
+        cells.append(meshio.CellBlock(meshio.gmsh.gmsh_to_meshio_type[elemType], node_tags_sorted))
 
     cell_sets = {}
     for dim, tag in gmsh.model.getPhysicalGroups():
         # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)  # noqa: E501
         elem_types, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
-        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i, j in zip(elem_tags, elem_types)}
+        elem_tags_group = {meshio.gmsh.gmsh_to_meshio_type[j]: i for i, j in zip(elem_tags, elem_types, strict=True)}
 
         name = gmsh.model.getPhysicalName(dim, tag)
         cell_sets[name] = [[] for _ in range(len(cells))]
@@ -103,7 +103,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
                     idx.append(k)
 
             offset = {meshio_cell_type[j]: np.where(elem_tags_group[meshio_cell_type[j]] == elem_tags[j][0])[0] for j in range(len(idx))}  # noqa: E501
-            elem_tags = [offset[j] + np.int64(i - i[0]) for j, i in zip(meshio_cell_type, elem_tags)]
+            elem_tags = [offset[j] + np.int64(i - i[0]) for j, i in zip(meshio_cell_type, elem_tags, strict=True)]
 
             for j, i in enumerate(idx):
                 cell_sets[name][i].append(elem_tags[j])
@@ -128,18 +128,18 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
 
     # Build new arrays
-    celll:      List[meshio.CellBlock] = []
-    celldphys:  List[npt.NDArray     ] = []
-    celldgeom:  List[npt.NDArray     ] = []
+    celll:      list[meshio.CellBlock] = []
+    celldphys:  list[npt.NDArray     ] = []
+    celldgeom:  list[npt.NDArray     ] = []
 
     # Unique geometrical entity ids per dimension
     # > 0: 3D entities, 1: 2D entities
     geom_id:    npt.NDArray       = np.ones((2,), dtype=int)
-    geom_tag:   List[List[int]]  = [[] for _ in range(2)]
-    geom_nodes: List[List[int]]  = [[] for _ in range(2)]
+    geom_tag:   list[list[int]]  = [[] for _ in range(2)]
+    geom_nodes: list[list[int]]  = [[] for _ in range(2)]
 
     # Set to keep track of nodes already used to represent an entity in gmsh:dim_tags
-    usedNodes: Set[int] = set()
+    usedNodes: set[int] = set()
 
     # Process each 3D CellBlock: keep shared connectivity, set tags
     # WARNING: Each 3D CellBlock neets to get its OWN geometrical tag so that
@@ -163,7 +163,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
         if not node_free and node_used in usedNodes:
             # All candidate nodes already used; fall back to the first (still valid, we just can't make it unique)
             # hopout.routine(f'Note: reusing representative node {rep_node} for 3D entity tag {tag}')
-            hopout.error('All candidate nodes already used for 3D entity tag {tag}')
+            hopout.error(f'All candidate nodes already used for 3D entity tag {tag}')
 
         geom_nodes[0].append(node_used)
         usedNodes.add(node_used)
@@ -196,7 +196,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Process each 2D CellBlock: keep shared point indices, set BCs
     # NOTE: Split by BC id so each physical surface becomes its own entity
-    for _, cell_block in enumerate(surface_cells):
+    for cell_block in surface_cells:
         cell_type = cell_block.type
         # NOTE: This will assign 0 to faces not found, assuming they are internal faces
         cellBC = np.asarray([cellTypeToBC[cell_type].get(int(idx), 0) for idx in range(len(cell_block))], dtype=int)
@@ -221,7 +221,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
             if not node_free and node_used in usedNodes:
                 # All candidate nodes already used; fall back to the first (still valid, we just can't make it unique)
                 # hopout.routine(f'Note: reusing representative node {rep_node} for 3D entity tag {tag}')
-                hopout.error('All candidate nodes already used for 3D entity tag {tag}')
+                hopout.error(f'All candidate nodes already used for 3D entity tag {tag}')
 
             geom_nodes[1].append(node_used)
             usedNodes.add(node_used)
@@ -251,19 +251,19 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     dim_tags[:, 1] = int(geom_tag[0][0])
 
     # Set representatives for ALL 3D entities
-    for tag, node_used in zip(geom_tag[0], geom_nodes[0]):
+    for tag, node_used in zip(geom_tag[0], geom_nodes[0], strict=True):
         dim_tags[int(node_used), 0] = 3
         dim_tags[int(node_used), 1] = int(tag)
 
     # Set representatives for ALL 2D entities
-    for tag, node_used in zip(geom_tag[1], geom_nodes[1]):
+    for tag, node_used in zip(geom_tag[1], geom_nodes[1], strict=True):
         dim_tags[int(node_used), 0] = 2
         dim_tags[int(node_used), 1] = int(tag)
 
     gmshMesh.point_data.update({'gmsh:dim_tags': dim_tags})
 
     # Add PhysicalNames so groups are not missing in the Gmsh output
-    field_data: Dict[str, npt.NDArray] = {}
+    field_data: dict[str, npt.NDArray] = {}
 
     # Add volume physical group (3D)
     if len(geom_tag[0]) > 0:
@@ -307,7 +307,7 @@ def MeshioGmshOrderingPatch() -> None:
     for mod_name in ('meshio.gmsh._gmsh', 'meshio.gmsh._gmsh41', 'meshio.gmsh._gmsh22', 'meshio.gmsh._gmsh4'):
         try:
             mod = importlib.import_module(mod_name)
-            setattr(mod, '_meshio_to_gmsh_order', NodeOrdering().ordering_meshio_to_gmsh)
+            mod._meshio_to_gmsh_order = NodeOrdering().ordering_meshio_to_gmsh
         except Exception:
             # If assignment fails, pass
             pass

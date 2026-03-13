@@ -102,7 +102,7 @@ def MeshCartesian() -> meshio.Mesh:
     hopout.sep()
 
     nZones    = GetInt('nZones')
-    elemTypes = [int() for _ in range(nZones)]
+    elemTypes = [int() for _ in range(nZones)]  # noqa: UP018
 
     offsetp   = 0
     offsets   = 0
@@ -111,10 +111,10 @@ def MeshCartesian() -> meshio.Mesh:
     # > https://gitlab.onelab.info/gmsh/gmsh/-/issues/2836
     gmsh.model.add('Domain')
     gmsh.model.set_current('Domain')
-    bcZones = [list() for _ in range(nZones)]
+    bcZones = [[] for _ in range(nZones)]
 
     for zone in range(nZones):
-        hopout.routine('Generating zone {}'.format(zone+1))
+        hopout.routine(f'Generating zone {zone+1}')
 
         # check if corners are given in the input file
         if CountOption('Corner') > 0:
@@ -136,7 +136,7 @@ def MeshCartesian() -> meshio.Mesh:
                                 np.array((X0[0]+DX[0], X0[1]+DX[1], X0[2]+DX[2])),
                                 np.array((X0[0],       X0[1]+DX[1], X0[2]+DX[2]))))
         else:
-            hopout.error('No corners or DX vector given for zone {}'.format(zone+1))
+            hopout.error(f'No corners or DX vector given for zone {zone+1}')
 
         nElems = GetIntArray(  'nElems'  , number=zone)
         # Store the requested element types
@@ -239,7 +239,7 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Create the surfaces
         s = [None for _ in range(len(faces(elemType)))]
-        for index, _ in enumerate(s):
+        for index in range(len(s)):
             s[index] = gmsh.model.geo.addPlaneSurface([el[index]], tag=offsets+index+1)
 
         # We need to define the surfaces as transfinite surface
@@ -248,7 +248,7 @@ def MeshCartesian() -> meshio.Mesh:
             gmsh.model.geo.mesh.setRecombine(2, 1)
 
         # Create the surface loop
-        gmsh.model.geo.addSurfaceLoop([s for s in s], zone+1)
+        gmsh.model.geo.addSurfaceLoop(list(s), zone+1)
 
         gmsh.model.geo.synchronize()
 
@@ -268,7 +268,7 @@ def MeshCartesian() -> meshio.Mesh:
         bcZones[zone] = [int(s) for s in GetIntArray('BCIndex')]
 
         # Assign the volume to a physical zone
-        _ = gmsh.model.addPhysicalGroup(3, [zone+1], name='Zone{}'.format(zone+1))
+        _ = gmsh.model.addPhysicalGroup(3, [zone+1], name=f'Zone{zone+1}')
 
     # At this point, we can create a "Physical Group" corresponding
     # to the boundaries. This requires a synchronize call!
@@ -281,7 +281,7 @@ def MeshCartesian() -> meshio.Mesh:
     mesh_vars.bcs = [BC() for _ in range(nBCs)]
     bcs = mesh_vars.bcs
 
-    for iBC, bc in enumerate(bcs):
+    for iBC in range(len(bcs)):
         # bcs[iBC].update(name = GetStr(     'BoundaryName', number=iBC),  # noqa: E251
         #                 bcid = iBC + 1,                                  # noqa: E251
         #                 type = GetIntArray('BoundaryType', number=iBC))  # noqa: E251
@@ -292,10 +292,10 @@ def MeshCartesian() -> meshio.Mesh:
     nVVs = CountOption('vv')
     if nVVs > 0:
         hopout.sep()
-    mesh_vars.vvs = [dict() for _ in range(nVVs)]
+    mesh_vars.vvs = [{} for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     for iVV, _ in enumerate(vvs):
-        vvs[iVV] = dict()
+        vvs[iVV] = {}
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
     # Flatten the BC array, the surface numbering follows from the 2-D ordering
@@ -322,7 +322,7 @@ def MeshCartesian() -> meshio.Mesh:
             if cast(np.ndarray, bcs[iBC].type)[3] > 0:
                 pass
             elif cast(np.ndarray, bcs[iBC].type)[3] == 0:
-                hopout.error('BC "{}" has no periodic vector given, exiting...'.format(iBC + 1), traceback=True)
+                hopout.error(f'BC "{iBC + 1}" has no periodic vector given, exiting...', traceback=True)
             else:
                 continue
 
@@ -393,8 +393,8 @@ def MeshCartesian() -> meshio.Mesh:
     if gmshIssue.size > 0:
         for elem in gmshIssue:
             print(hopout.warn(f'Wrong Gmsh order {elem[1]} for element {elem[0].replace(" ", "")}'))
-        elemOrders = set([int(elem[1]) for elem in gmshIssue])
-        hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order {set([mesh_vars.nGeo])}')
+        elemOrders = {int(elem[1]) for elem in gmshIssue}
+        hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order { {mesh_vars.nGeo} }')
 
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)

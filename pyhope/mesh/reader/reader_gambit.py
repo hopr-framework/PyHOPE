@@ -60,10 +60,10 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
-    return faces_map[elemType % 100]
+    return faces_map[elemType % 10]
 
 
 def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
@@ -100,8 +100,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # Read the file content
                 content   = f.readlines()
                 useBinary = not any('CONTROL INFO' in line for line in content)
-            except UnicodeDecodeError:
-                raise ValueError('Gambit binary files are not implemented yet')
+            except UnicodeDecodeError as e:
+                raise ValueError('Gambit binary files are not implemented yet') from e
 
             if not useBinary:
                 # Search for the line containing the number of elements
@@ -180,10 +180,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 for line in grsIter:
                     lnum += 1
                     # Iterate until the number of boundary conditions is reached
-                    if 'ENDOFSECTION' in line:
-                        # Check if the next sections is also an element group
-                        if 'ELEMENT GROUP' not in content[grsLine+lnum]:
-                            break
+                    # > Check if the next sections is also an element group
+                    if 'ENDOFSECTION' in line and 'ELEMENT GROUP' not in content[grsLine+lnum]:
+                        break
 
                     tokens = line.strip().split()
                     if not tokens:
@@ -228,18 +227,18 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 for line in bcsIter:
                     # Iterate until the number of boundary conditions is reached
                     lnum += 1
-                    if 'ENDOFSECTION' in line:
-                        # Check if the next sections is also a boundary condition
-                        if bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]:
-                            break
+                    # Check if the next sections is also a boundary condition
+                    if 'ENDOFSECTION' in line \
+                    and (bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]):
+                        break
 
                     tokens = line.strip().split()
                     if not tokens:
                         continue
 
                     try:
-                        bcName, bcType, bcnData, bcnVal, _ = tokens
-                        bcName, bcType, bcnData, bcnVal    = bcName, int(bcType), int(bcnData), int(bcnVal)
+                        bcName, *ints,   _ = tokens
+                        bcType, bcnData, _ = map(int, ints)
                     except ValueError:
                         continue
 

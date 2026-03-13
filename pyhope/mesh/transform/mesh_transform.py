@@ -65,7 +65,7 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
                   (nZones, nZones): 'combination'   # Stretched element arrangement with a combination of l0 and factor
                  }
 
-    stretchingType = conditions.get((nl0, nFactor), None)
+    stretchingType = conditions.get((nl0, nFactor))
 
     if stretchingType == 'combination':
         print(hopout.warn('Both l0 and a stretching factor are provided. ' +
@@ -112,7 +112,7 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
             if nElems[iDim] == 1 or dx[iDim] == 0:
                 progFac[iDim] = 1.
                 continue
-            elif nElems[iDim] == 2:
+            if nElems[iDim] == 2:
                 progFac[iDim] = dx[iDim] - 1.
                 continue
 
@@ -229,7 +229,7 @@ def TransformMesh() -> None:
     # Continue with advanced transformations
     hopout.sep()
     hopout.routine('Performing advanced transformations')
-    hopout.routine('  Template: {}'.format(meshPostDeform))
+    hopout.routine(f'  Template: {meshPostDeform}')
 
     # Setup the transformation
     transformModule = LoadTemplate(meshPostDeform.strip().lower(), __file__, 'Post transformation')

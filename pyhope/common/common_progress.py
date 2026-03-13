@@ -44,7 +44,7 @@ barElems: Final[int] = int(1.E5)
 class ProgressBar:
     """ Provide a progress bar outside of the context manager
     """
-    __slots__ = ('bar', '_cm', '_len', '_cur', '_chunk', '_pend')
+    __slots__ = ('_chunk', '_cm', '_cur', '_len', '_pend', 'bar')
 
     def __init__(self,
                  title       : Optional[str],

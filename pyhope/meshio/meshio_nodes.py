@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
-from typing import Dict
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -43,7 +42,7 @@ from typing import Dict
 # See <https://github.com/nschloe/meshio/wiki/Node-ordering-in-cells> for the node ordering.
 @dataclass(repr=False, eq=False, slots=True, frozen=True)
 class NumNodesPerCell:
-    _data: Dict[str, int] = field(init=False, repr=False)
+    _data: dict[str, int] = field(init=False, repr=False)
 
     def __post_init__(self):
         object.__setattr__(self, '_data', {

@@ -101,8 +101,7 @@ def main() -> None:
 
     # Check if there are unrecognized arguments
     if len(argv) >= 1:
-        print('{} expects exactly one parameter or HDF5-mesh file! Exiting ...'
-              .format(program))
+        print(f'{program} expects exactly one parameter or HDF5-mesh file! Exiting ...')
         sys.exit()
 
     # Print banner

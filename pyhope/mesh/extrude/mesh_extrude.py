@@ -83,7 +83,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
 
     if nGeo > 2:
-        hopout.error('nGeo = {} not supported for mesh extrusion'.format(nGeo))
+        hopout.error(f'nGeo = {nGeo} not supported for mesh extrusion')
 
     hopout.info('Extruding surface to volume mesh')
 
@@ -94,7 +94,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Continue with extrusion
     hopout.sep()
-    hopout.routine('  Template: {}'.format(extrTemplate))
+    hopout.routine(f'  Template: {extrTemplate}')
 
     # Setup the extrusion
     extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate()
@@ -152,8 +152,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
 
     # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v.keys())
-                                                                     or any(key.startswith('quad') for key in v.keys()))
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
+                                                                     or any(key.startswith('quad') for key in v))
 
     match len(meshcells):
         case 0:
@@ -163,7 +163,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         case _:
             hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
-    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     # Build an inverted index to map each node to all face keys (from csets_old) that contain it
@@ -173,7 +173,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             nodeToFace[node].add(subFace)
 
     # We need to unwrap meshcells for each zone, i.e. each 2D boundary condition
-    for iElem, meshcell in enumerate(meshcells):
+    for meshcell in meshcells:
         _    , mdict = meshcell
 
         # Iterate over all cell types in this BC
@@ -184,13 +184,13 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Set up the extrusion function
             extrude, faces = elemExtruder.get(mtype[:4], (None, None))
             elemNum = ho_key + (8 if cast(str, mtype).startswith('quad') else 6)
-            faceMap = faceMaper.get(elemNum, None)
+            faceMap = faceMaper.get(elemNum)
 
             # Consistency checks
             if faceMap is None:
-                raise ValueError('Missing faceMap for element type {}'.format(mtype))
+                raise ValueError(f'Missing faceMap for element type {mtype}')
             if extrude is None or faces is None:
-                hopout.error('Element type {} not supported for extruding'.format(mtype), traceback=True)
+                hopout.error(f'Element type {mtype} not supported for extruding', traceback=True)
 
             # Obtain the element type
             elemType = elemTypeClass.inam[elemNum]
@@ -248,7 +248,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
                     # Create the new faces
                     subFaces = tuple(np.array(extElem)[face] for face in faces(nGeo))
-                    sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s.keys() and s['side'] == 'side'))
+                    sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s and s['side'] == 'side'))
 
                     for iFace, sidFace in sidFaces:
                         subFace = subFaces[iFace]
@@ -280,7 +280,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     elems_new = {}
     csets_new = {}
 
-    for key in elems_lst:
+    for key in elems_lst:  # noqa: PLC0206
         if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
@@ -288,7 +288,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Determine the expected number of columns
             elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
 
-    for key in csets_lst:
+    for key in csets_lst:  # noqa: PLC0206
         csets_new[key] = tuple(np.array(lst, dtype=int) for lst in csets_lst[key])
 
     # Convert points_list back to a NumPy array
@@ -301,7 +301,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # Temporarily assign mesh_vars.mesh
     with temporary_assign(mesh_vars, 'mesh', mesh):
         # Check if the surface normal of the first cell points outwards
-        for elemType in tuple(s for s in mesh.cells_dict.keys() if 'hexahedron' in s):
+        for elemType in tuple(s for s in mesh.cells_dict if 'hexahedron' in s):
             # Only check the first element, other elements get covered in OrientMesh
             ionodes:   npt.NDArray = mesh.get_cells_type(elemType)[0]
             elemNames: Final[dict] = mesh_vars.ELEMTYPE.name
@@ -372,7 +372,7 @@ def extrude_pris(nodes:   np.ndarray,
 
         # FIXME: Implement the other orders
         case _:
-            raise ValueError('Extrusion not implemented for NGeo={order}')
+            raise ValueError(f'Extrusion not implemented for NGeo={order}')
 
     return newNodes, newPoints
 
@@ -436,7 +436,7 @@ def extrude_hexa(nodes:   np.ndarray,
 
         # FIXME: Implement the other orders
         case _:
-            raise ValueError('Extrusion not implemented for NGeo={order}')
+            raise ValueError(f'Extrusion not implemented for NGeo={order}')
 
     return newNodes, newPoints
 

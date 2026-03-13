@@ -30,9 +30,9 @@ import os
 import pathlib
 import re
 import subprocess
+from collections.abc import Callable
 from enum import Enum, unique
-from functools import cache
-from typing import Callable, Final, Optional, final
+from typing import Final, Optional, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -70,35 +70,33 @@ def singleton(cls) -> Callable:
 
 
 @singleton
-class Common():
+class Common:
     def __init__(self: Self) -> None:
         self._program: Final[str] = self.__program__
         self._version: Final      = self.__version__
         self._commit:  Final      = self.__commit__
 
     @property
-    @cache
     def __version__(self) -> Version:
         # Retrieve version from package metadata
         try:
             package = pathlib.Path(__file__).parent.parent.name
             version = importlib.metadata.version(package)
         # Fallback to pyproject.toml
-        except importlib.metadata.PackageNotFoundError:
+        except importlib.metadata.PackageNotFoundError as e:
             pyproject = pathlib.Path(__file__).parent.parent.parent / 'pyproject.toml'
             if not pyproject.exists():
-                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}')
+                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}') from e
 
             with pyproject.open('r') as p:
                 match = re.search(r'version\s*=\s*["\'](.+?)["\']', p.read())
             if not match:
-                raise ValueError('Version not found in pyproject.toml')
+                raise ValueError('Version not found in pyproject.toml')             from e  # noqa: E272
             version = match.group(1)
 
         return Version(version)
 
     @property
-    @cache
     def __commit__(self) -> Optional[str]:
         # Retrieve commit from git
         try:
@@ -138,12 +136,12 @@ class Common():
 
 
 @final
-class Gitlab():
+class Gitlab:
     # Gitlab "python-gmsh" access
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
-    LIB_VERSION: dict[str, dict[str, str]] = {
+    LIB_VERSION: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
             'x86_64' : '4.15.1.post1',
             'aarch64': '4.13.1.post1'
@@ -152,7 +150,7 @@ class Gitlab():
             'arm64'  : '4.13.1.post1'
         },
     }
-    LIB_SUPPORT: dict[str, dict[str, str]] = {
+    LIB_SUPPORT: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
             'x86_64' : '4f2b923a164f8f8b77494df943ea52a3f7050716f9b9cbac9190f7460ca822fb',
             'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'

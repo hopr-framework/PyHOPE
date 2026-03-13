@@ -71,8 +71,7 @@ def eval_dotprod(fpoints, nVecFace) -> np.float64:
 
     # Dot product and check if normal points outwards
     # > Manually compute dot product
-    dotprod = nVecFace[0]*normal[0] + nVecFace[1]*normal[1] + nVecFace[2]*normal[2]
-    return dotprod
+    return nVecFace[0]*normal[0] + nVecFace[1]*normal[1] + nVecFace[2]*normal[2]
 
 
 def check_orientation(ionodes : npt.NDArray,
@@ -147,7 +146,7 @@ def OrientMesh() -> None:
     nElems      = 0
     passedTypes = []
 
-    for elemType in mesh.cells_dict.keys():
+    for elemType in mesh.cells_dict:
         # Only consider three-dimensional types
         if not any(s in elemType for s in elemKeys):
             continue

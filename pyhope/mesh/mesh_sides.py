@@ -64,9 +64,9 @@ def GenerateSides() -> None:
     sides   = mesh_vars.sides
 
     totalElems = 0
-    for elemType in mesh.cells_dict.keys():
+    for elemType in mesh.cells_dict:
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type):
             continue
 
         totalElems += mesh.get_cells_type(elemType).shape[0]
@@ -76,9 +76,9 @@ def GenerateSides() -> None:
     bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33, chunk=chunk)
 
     # Loop over all element types
-    for elemType in mesh.cells_dict.keys():
+    for elemType in mesh.cells_dict:
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type):
             continue
 
         # Get the elements
@@ -92,7 +92,7 @@ def GenerateSides() -> None:
         elemSet: list[Union[None, int]]  = [None for _ in range(nIOElems)]
 
         for key, val in iocsets.items():
-            if elemType not in val.keys():
+            if elemType not in val:
                 continue
 
             # Extract the zoneID

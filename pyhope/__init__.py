@@ -27,23 +27,27 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import namedtuple
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import update_wrapper
 from typing import final
+from typing import ParamSpec, TypeVar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+P = ParamSpec('P')
+R = TypeVar(  'R')
 # ==================================================================================================================================
 
 
-def _staticwrapper(func):
+def _staticwrapper(func: Callable[P, R]) -> Callable[P, R]:
     """ Custom helper to lift the (annotations, doc, etc.) to the staticmethod
     """
     # Create a wrapper that carries the metadata
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         return func(*args, **kwargs)
 
     # Lift metadata (annotations, doc, etc.) to the wrapper
@@ -150,34 +154,33 @@ def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
                 raise ValueError(f'Mesh file not a valid HDF5 file: {arg}')
 
         # Suppress output to standard output
-        with ExitStack() as stack:
-            with open(os.devnull, 'w') as null:
-                if not stdout:
-                    stack.enter_context(redirect_stdout(null))
-                if not stderr:
-                    stack.enter_context(redirect_stderr(null))
+        with ExitStack() as stack, open(os.devnull, 'w') as null:
+            if not stdout:
+                stack.enter_context(redirect_stdout(null))
+            if not stderr:
+                stack.enter_context(redirect_stderr(null))
 
-                # Perform the reduced PyHOPE initialization
-                with DefineConfig() as dc:
-                    config.prms = dc
-                    DefineCommon()
-                    DefineIO()
-                    DefineMesh()
+            # Perform the reduced PyHOPE initialization
+            with DefineConfig() as dc:
+                config.prms = dc
+                DefineCommon()
+                DefineIO()
+                DefineMesh()
 
-                with ReadConfig(args[0]) as rc:
-                    config.params = rc
+            with ReadConfig(args[0]) as rc:
+                config.params = rc
 
-                # Read-in required parameters
-                InitCommon()
-                InitIO()
-                InitMesh()
+            # Read-in required parameters
+            InitCommon()
+            InitIO()
+            InitMesh()
 
-                # Generate the actual mesh
-                GenerateMesh()
+            # Generate the actual mesh
+            GenerateMesh()
 
-                # Build our data structures
-                GenerateSides()
-                ConnectMesh()
+            # Build our data structures
+            GenerateSides()
+            ConnectMesh()
 
         # Export mesh variables
         mesh  = mesh_vars.mesh

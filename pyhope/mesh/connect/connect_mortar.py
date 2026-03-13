@@ -132,7 +132,7 @@ def ConnectMortar( nConnSide  : list
     targetRadius  = np.empty((nConn   ), dtype=np.float64)
     targetArea    = np.empty((nConn   ), dtype=np.float64)
 
-    for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter)):
+    for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter, strict=True)):
         targetArea   [nConnID   ] = calculate_area(points[side.corners])  # noqa: E211
         targetCenters[nConnID   ] = copy.copy(center)
         targetCorners[nConnID, :] = side.corners
@@ -146,7 +146,7 @@ def ConnectMortar( nConnSide  : list
 
             # Shift the center in periodic direction
             targetCenters[nConnID]   += VV
-            targetCorners[nConnID, :] = np.array([periNodes[(s, bcName)] if (s, bcName) in periNodes else s for s in side.corners])
+            targetCorners[nConnID, :] = np.array([periNodes.get((s, bcName), s) for s in side.corners])
 
         # Calculate the radius of the convex hull
         targetRadius[nConnID] = norm(np.ptp(points[side.corners], axis=0)) / 2.
@@ -154,7 +154,7 @@ def ConnectMortar( nConnSide  : list
     # Get all potential mortar neighbors within the radius
     workers = 1 if np_mtp <= 0 else np_mtp
     results = ctree.query_ball_point(targetCenters, r=targetRadius[:], workers=workers)
-    for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results)):
+    for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results, strict=True)):
         targetNeighbors = tuple(s for s in neighbors
                                    # Potential mortar sides must not belong to the same element
                                    if nConnSide[s].elemID != side.elemID  # noqa: E271, E501
@@ -165,7 +165,7 @@ def ConnectMortar( nConnSide  : list
         indexList.add(nConnID, targetNeighbors)
 
     # Obtain the target side IDs
-    targetSides:   Final[list[int]] = [s for s in indexList.data.keys() if len(indexList.data[s]) > 0]
+    targetSides:   Final[list[int]] = [s for s in indexList.data if len(indexList.data[s]) > 0]
     # Create a global offset manager.
     offsetManager: Final[LinkOffsetManager] = LinkOffsetManager()
     # Convert the sides to a red-black tree
@@ -177,7 +177,7 @@ def ConnectMortar( nConnSide  : list
     for targetID in targetSides:
         # Skip already connected sides
         # if indexList.data[targetID] == -1:
-        if targetID not in indexList.data.keys():
+        if targetID not in indexList.data:
             continue
 
         # Get the target neighbors
@@ -217,7 +217,7 @@ def ConnectMortar( nConnSide  : list
             connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
             # Remove the target side from the list
-            indexList.remove_index([targetID] + list(comboIDs))
+            indexList.remove_index([targetID, *list(comboIDs)])
 
             # Update the progress bar
             bar.step(len(nbSideID) + 1)
@@ -248,7 +248,7 @@ def ConnectMortar( nConnSide  : list
                 connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
                 # Remove the target side from the list
-                indexList.remove_index([targetID] + list(comboIDs))
+                indexList.remove_index([targetID, *list(comboIDs)])
 
                 # Update the progress bar
                 bar.step(len(nbSideID) + 1)
@@ -489,7 +489,7 @@ def find_mortar_match( targetCorners: npt.NDArray
             # We only allow 2-1 matches, so in the end we should have exactly 1 match
             if len(matchEdges) > 1:
                 return False
-            elif len(matchEdges) == 1:
+            if len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
         if len(matches) != 2:
@@ -531,7 +531,7 @@ def find_mortar_match( targetCorners: npt.NDArray
             # This should result in exactly 1 match
             if len(matchEdges) > 1:
                 return False
-            elif len(matchEdges) == 1:
+            if len(matchEdges) == 1:
                 matches.append((targetEdge, matchEdges.pop()))
 
         if len(matches) != 4:
@@ -591,7 +591,7 @@ else:
 
         if   n == 3:  # Triangle  # noqa: E271
             return   0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
-        elif n == 4:  # Quadrilateral
+        if n == 4:  # Quadrilateral
             # Diagonal split 1: (0,1,2) + (0,2,3)
             area1  = 0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
             area1 += 0.5 * norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
@@ -602,8 +602,7 @@ else:
 
             # For bilinear quads, average both diagonal triangulations
             return (area1 + area2) / 2
-        else:
-            raise IndexError('Invalid number of side corners')
+        raise IndexError('Invalid number of side corners')
 
 
 # INFO: Uncached version
@@ -613,11 +612,10 @@ def build_edges(corners: npt.NDArray, points: npt.NDArray) -> tuple:
     if len(corners) < 4 or len(points) < 4:
         return ()
 
-    edges = ((corners[0], corners[1], norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
-             (corners[1], corners[2], norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
-             (corners[2], corners[3], norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
-             (corners[3], corners[0], norm(np.array(points[3]) - np.array(points[0]))))  # Edge between points 3 and 0
-    return edges
+    return ((corners[0], corners[1], norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
+            (corners[1], corners[2], norm(np.array(points[1]) - np.array(points[2]))),  # Edge between points 1 and 2
+            (corners[2], corners[3], norm(np.array(points[2]) - np.array(points[3]))),  # Edge between points 2 and 3
+            (corners[3], corners[0], norm(np.array(points[3]) - np.array(points[0]))))  # Edge between points 3 and 0
 
 
 # INFO: Cached version
@@ -658,7 +656,7 @@ def find_edge_combinations(comboEdges) -> tuple:
     validCombo = []
 
     # Iterate over all points and their associated edges
-    for _, edges in pointToEdges.items():
+    for edges in pointToEdges.values():
         if len(edges) < 2:  # Skip points with less than 2 edges
             continue
 

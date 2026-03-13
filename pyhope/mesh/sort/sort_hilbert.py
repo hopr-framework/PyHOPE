@@ -26,7 +26,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import List, Literal, Iterable, Union, overload
+from collections.abc import Iterable
+from typing import Literal, Union, overload
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -64,14 +65,14 @@ def HilbertCurveNumpy() -> None:
 
     # Typing helpers
     @overload
-    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[False] = False) -> List: ...
+    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[False] = False) -> list: ...
     @overload
-    def _distances_from_points_numpy(self, points: List       , match_type: Literal[True])          -> List: ...
+    def _distances_from_points_numpy(self, points: list       , match_type: Literal[True])          -> list: ...
     @overload
     def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[True])          -> npt.NDArray: ...
     # Function
     def _distances_from_points_numpy(self,
-                                     points    : Union[List, npt.NDArray],
+                                     points    : Union[list, npt.NDArray],
                                      match_type: bool = False) -> Union[npt.NDArray, list]:
         """ Batch implementation for distances_from_points in numpy
         """
@@ -158,7 +159,7 @@ def HilbertCurveNumpy() -> None:
             try:
                 distances = self._distances_from_points_numpy(points, match_type=match_type)
             except Exception as e:
-                raise RuntimeError(f'HilbertCurve.distances_from_points_numpy encountered an unexpected error: {e}')
+                raise RuntimeError('HilbertCurve.distances_from_points_numpy encountered an unexpected error') from e
                 # Fallback to original behavior on any unexpected issue
                 # distances = _orig_dfp(self, points, match_type=match_type)
         else:

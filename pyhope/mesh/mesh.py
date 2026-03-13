@@ -201,7 +201,7 @@ def GenerateMesh() -> None:
         case MeshMode.External.value:  # External mesh
             mesh = MeshExternal()
         case _:  # Default
-            hopout.error('Unknown mesh mode {}, exiting...'.format(mesh_vars.mode), traceback=True)
+            hopout.error(f'Unknown mesh mode {mesh_vars.mode}, exiting...', traceback=True)
 
     # Extrude mesh if requested
     mesh = MeshExtrude(mesh)
@@ -214,10 +214,10 @@ def GenerateMesh() -> None:
     # Final count
     nElems = 0
     for cellType in mesh.cells:
-        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type.keys()):
+        if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
 
-    hopout.routine('Generated mesh with {} cells'.format(nElems))
+    hopout.routine(f'Generated mesh with {nElems} cells')
     # hopout.sep()
     # hopout.info('GENERATE MESH DONE!')
     hopout.separator()

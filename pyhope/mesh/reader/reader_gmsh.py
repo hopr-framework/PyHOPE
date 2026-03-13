@@ -228,7 +228,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     gmshTypes = gmsh.model.mesh.getElementTypes()
     gmshElems = np.asarray([(elemName, dim, order) for type                          in gmshTypes                                       # noqa: E272
                                                    for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]])  # noqa: E501
-    gmshDim   = max([int(s) for s in gmshElems[:, 1]])
+    gmshDim   = max(int(s) for s in gmshElems[:, 1])
     match gmshDim:
         case 3:
             pass
@@ -246,15 +246,15 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     if gmshIssue.size > 0:
         for elem in gmshIssue:
             print(hopout.warn(f'Wrong Gmsh order {elem[1]} for element {elem[0].replace(" ", "")}'))
-        elemOrders = set([int(elem[1]) for elem in gmshIssue])
-        hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order {set([mesh_vars.nGeo])}')
+        elemOrders = {int(elem[1]) for elem in gmshIssue}
+        hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order { {mesh_vars.nGeo} }')
 
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)
 
     # Check whether the mesh contains high-order elements and nGeo is set to 1
     if not mesh_vars.already_curved or mesh_vars.nGeo == 1:
-        for elemtype in mesh.cells_dict.keys():
+        for elemtype in mesh.cells_dict:
             if elemtype in mesh_vars.ELEMTYPE.name and mesh_vars.ELEMTYPE.name[elemtype] > 200:
                 hopout.error('High-order elements detected in the mesh but MeshIsAlreadyCurved=F or nGeo is set to 1, exiting...')
 
@@ -304,8 +304,8 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     stree    = None
 
     if any('quad' in key for key in mesh.cells_dict):
-        nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
-        nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # noqa: E272, E501
+        nConnSide = next(value for key, value in mesh.cells_dict.items() if 'quad' in key)
+        nConnType = next(key   for key        in mesh.cells_dict         if 'quad' in key)  # noqa: E272, E501
         nConnNum  = cells_lst.index(nConnType)
         nConnLen  = len(cells_lst)
 
@@ -325,8 +325,8 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     ttree     = None
 
     if any('triangle' in key for key in mesh.cells_dict):
-        tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
-        tConnType = [key   for key, _     in mesh.cells_dict.items() if 'triangle' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
+        tConnSide = next(value for key, value in mesh.cells_dict.items() if 'triangle' in key)
+        tConnType = next(key   for key        in mesh.cells_dict         if 'triangle' in key)  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
         tConnNum  = cells_lst.index(tConnType)
         tConnLen  = len(cells_lst)
 
@@ -345,16 +345,16 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     for fname in fnames:
 
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
         tname = tfile.name
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
             hopout.sep()
-            hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
+            hopout.info(f'File {os.path.basename(fname)} is not in HDF5 CGNS format, converting ...')
             tStart = time.time()
             _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
             tEnd   = time.time()
-            hopout.info('File {} converted HDF5 CGNS format [{:.2f} sec]'.format(os.path.basename(fname), tEnd - tStart))
+            hopout.info(f'File {os.path.basename(fname)} converted HDF5 CGNS format [{tEnd - tStart:.2f} sec]')
 
             # Rest of this code operates on the converted file
             fname = tname
@@ -363,10 +363,10 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
             shutil.copyfile(fname, tname)
 
         with h5py.File(fname, mode='r') as f:
-            if 'CGNSLibraryVersion' not in f.keys():
+            if 'CGNSLibraryVersion' not in f:
                 hopout.error('CGNS file does not contain library version header')
 
-            key = [s for s in f.keys() if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
+            key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
             match len(key):
                 case 0:
                     hopout.error('Object [Base] does not exist in CGNS file')
@@ -377,14 +377,14 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 case _:
                     hopout.error('More than one object [Base] exists in CGNS file')
 
-            for baseZone in base.keys():
+            for baseZone in base:
                 # Ignore the base dataset
                 if baseZone.strip() == 'data':
                     continue
 
                 zone = cast(h5py.Group, base[baseZone])
                 # Check if the zone contains BCs
-                if 'ZoneBC' not in zone.keys():
+                if 'ZoneBC' not in zone:
                     continue
 
                 zonedata = cast(h5py.Dataset, zone[' data'])
@@ -433,11 +433,11 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     bpoints = np.column_stack([zone['GridCoordinates'][f'Coordinate{axis}'][' data'][:].astype(float) for axis in 'XYZ'])
 
     # Loop over all BCs
-    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']) if s.strip() != 'innerfaces']
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
-        cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
+        cellsets[k] = [cast(np.ndarray, cell).tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
 
     for zoneBC in zoneBCs:
         # Lists to collect centroids
@@ -492,7 +492,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                 if cgnsGridLoc == 'Vertex':
                     # Check if corners can form a subset of cgnsBC
-                    corners_set = set(int(s) for s in corners)
+                    corners_set = {int(s) for s in corners}
                     if corners_set.issubset(cgns_set):
                         BCpoints = bpoints[[s-1 for s in corners]]
                         quadCenters.append(np.mean(BCpoints, axis=0))
@@ -521,7 +521,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
             # Collect all element sections present in the zone
             elemSections = []
-            for key in zone.keys():
+            for key in zone:
                 if not isinstance(zone[key], h5py.Group):
                     continue
                 if 'ElementConnectivity' not in zone[key] or 'ElementRange' not in zone[key]:
@@ -614,11 +614,9 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     for k, v in cellsets.items():
         csets[k] = [np.array(s, dtype=int) for s in v]
 
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = csets)     # noqa: E251
-
-    return mesh
+    return meshio.Mesh(points    = points,    # noqa: E251
+                       cells     = cells,     # noqa: E251
+                       cell_sets = csets)     # noqa: E251
 
 
 def BCCGNS_Structured(mesh:     meshio.Mesh,
@@ -640,7 +638,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
-        cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
+        cellsets[k] = [cast(np.ndarray, cell).tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
 
     # Load the zone BCs
     for zoneBC, bcData in zone['ZoneBC'].items():
@@ -723,8 +721,6 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     for k, v in cellsets.items():
         csets[k] = [np.array(s, dtype=int) for s in v]
 
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = csets)     # noqa: E251
-
-    return mesh
+    return meshio.Mesh(points    = points,    # noqa: E251
+                       cells     = cells,     # noqa: E251
+                       cell_sets = csets)     # noqa: E251

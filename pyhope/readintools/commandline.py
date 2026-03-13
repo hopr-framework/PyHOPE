@@ -59,7 +59,7 @@ def separator(length: int = STD_LENGTH) -> str:
 class CommandLine:
     """ Parse command line arguments, both explicit [*.ini] and flags [--]
     """
-    def __init__(self, argv, name: str, version: str, commit: Optional[str]) -> None:
+    def __init__(self, argv: list[str], name: str, version: str, commit: Optional[str]) -> None:
         # Local imports ----------------------------------------
         import pyhope.config.config as config
         from pyhope.output.output import Colors
@@ -82,27 +82,19 @@ class CommandLine:
             # Check if we encountered a section
             if config.prms[key]['type'] == 'section':
                 self.helpjoin(separator())
-                self.helpjoin('! {}'.format(key))
+                self.helpjoin(f'! {key}')
                 self.helpjoin(separator())
                 continue
 
-            if config.prms[key]['default'] is not None:
-                default = config.prms[key]['default']
-            else:
-                default = ''
+            default = config.prms[key]['default'] if config.prms[key]['default'] is not None else ''
 
             # Convert booleans to strings
             if isinstance(default, bool):
                 default = 'T' if default else 'F'
 
-            if config.prms[key]['help']:
-                help    = config.prms[key]['help']
-            else:
-                help    = ''
+            help = config.prms[key]['help'] or ''
 
             self.helpjoin(f'{key:<{PAR_LENGTH}} = {default:>{DEF_LENGTH}} ! {help}')
-
-        return None
 
     def __enter__(self) -> tuple[Namespace, list]:
         # Setup an argument parser and add know arguments
@@ -150,5 +142,5 @@ class CommandLine:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def helpjoin(self, end) -> None:
+    def helpjoin(self, end: str) -> None:
         self.help = os.linesep.join([self.help, end])

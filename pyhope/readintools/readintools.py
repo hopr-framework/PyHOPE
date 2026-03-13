@@ -29,6 +29,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional, Union, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -58,7 +59,7 @@ class MultiOrderedDict(OrderedDict):
         thus overload the ConfigParser with this new dict_type
     """
     @override
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key: str, value: list | str) -> None:
         if isinstance(value, list) and key in self:
             self[key].extend(value)
         else:
@@ -80,10 +81,9 @@ def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
 
     if   val in ('y', 'yes', 't', 'true' , 'on' , '1'):  # noqa: E271
         return True
-    elif val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
+    if val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
         return False
-    else:
-        raise ValueError('invalid truth value %r' % (val,))
+    raise ValueError(f'invalid truth value {val!r}')
 
 
 def strToFloatOrPi(helpstr: str) -> float:
@@ -95,17 +95,14 @@ def strToFloatOrPi(helpstr: str) -> float:
     match len(splitstr):
         # Determine prefactor of pi, interpreting empty string as one
         case 2:
-            if splitstr[0]:
-                value = float(splitstr[0])*np.pi
-            else:
-                value = np.pi
+            value = float(splitstr[0]) * np.pi if splitstr[0] else np.pi
 
         # No 'pi' found in splitstr, parse as float
         case 1:
             value = float(splitstr[0])
 
         case _:
-            raise ValueError('Failed to parse input string %s' % (helpstr))
+            raise ValueError(f'Failed to parse input string {helpstr}')
 
     return value
 
@@ -115,9 +112,10 @@ def is_numeric(var_value: str) -> bool:
     """
     try:
         float(var_value)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 # ==================================================================================================================================
@@ -127,8 +125,7 @@ class DefineConfig:
     """
     def __init__(self) -> None:
         # Create an empty config dictionary
-        self.dict = dict()
-        return None
+        self.dict = {}
 
     def __enter__(self) -> dict:
         return self.dict
@@ -149,10 +146,10 @@ def CheckDefined(name: str, multiple: bool = False, init: bool = False) -> None:
     # - multiple parameter
     if init:
         if name in config.prms and not multiple:
-            hopout.error('Parameter "{}" already define and not a multiple option, exiting...'.format(name), traceback=True)
+            hopout.error(f'Parameter "{name}" already define and not a multiple option, exiting...', traceback=True)
     else:
         if name not in config.prms:
-            hopout.error('Parameter "{}" is not defined, exiting...'.format(name), traceback=True)
+            hopout.error(f'Parameter "{name}" is not defined, exiting...', traceback=True)
 
 
 def CheckUsed(name: str) -> None:
@@ -162,7 +159,7 @@ def CheckUsed(name: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['counter'] > 1 and not config.prms[name]['multiple']:
-        hopout.error('Parameter "{}" already used and not a multiple option, exiting...'.format(name), traceback=True)
+        hopout.error(f'Parameter "{name}" already used and not a multiple option, exiting...', traceback=True)
 
 
 def CheckType(name: str, calltype: str) -> None:
@@ -172,7 +169,7 @@ def CheckType(name: str, calltype: str) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['type'] is not calltype:
-        hopout.error('Call type of parameter "{}" does not match definition, exiting...'.format(name), traceback=True)
+        hopout.error(f'Call type of parameter "{name}" does not match definition, exiting...', traceback=True)
 
 
 def CheckDimension(name: str, result: int) -> None:
@@ -182,7 +179,7 @@ def CheckDimension(name: str, result: int) -> None:
     # ------------------------------------------------------
 
     if config.prms[name]['number'] != result:
-        hopout.error('Parameter "{}" has array length mismatch, exiting...'.format(name), traceback=True)
+        hopout.error(f'Parameter "{name}" has array length mismatch, exiting...', traceback=True)
 
 
 def CreateSection(string: str) -> None:
@@ -191,7 +188,7 @@ def CreateSection(string: str) -> None:
     # ------------------------------------------------------
 
     CheckDefined(string, multiple=False, init=True)
-    config.prms[string] = dict(type='section', name=string)
+    config.prms[string] = {'type': 'section', 'name': string}
 
 
 def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:
@@ -200,73 +197,73 @@ def CreateStr(string: str, help: Optional[str] = None, default: Optional[str] = 
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='str',
-                               name=string,
-                               help=help,
-                               default=str(default),
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'str',
+                           'name': string,
+                           'help': help,
+                           'default': str(default),
+                           'counter': 0,
+                           'multiple': multiple}
 
 
-def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple=False) -> None:
+def CreateReal(string: str, help: Optional[str] = None, default: Optional[float] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='real',
-                               name=string,
-                               help=help,
-                               default=str(default),
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'real',
+                           'name': string,
+                           'help': help,
+                           'default': str(default),
+                           'counter': 0,
+                           'multiple': multiple}
 
 
-def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple=False) -> None:
+def CreateInt(string: str, help: Optional[str] = None, default: Optional[int] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='int',
-                               name=string,
-                               help=help,
-                               default=str(default),
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'int',
+                           'name': string,
+                           'help': help,
+                           'default': str(default),
+                           'counter': 0,
+                           'multiple': multiple}
 
 
-def CreateLogical(string: str, help: Optional[str] = None, default: Optional[bool] = None, multiple=False) -> None:
+def CreateLogical(string: str, help: Optional[str] = None, default: Optional[bool] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='bool',
-                               name=string,
-                               help=help,
-                               default=default,
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'bool',
+                           'name': string,
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'multiple': multiple}
 
 
-def CreateIntFromString(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
+def CreateIntFromString(string: str, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='int2str',
-                               name=string,
-                               mapping=dict(),
-                               help=help,
-                               default=default,
-                               counter=0,
-                               source=None,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'int2str',
+                           'name': string,
+                           'mapping': {},
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'source': None,
+                           'multiple': multiple}
 
 
-def CreateIntOption(string: str, name, number) -> None:
+def CreateIntOption(string: str, name: str, number: int) -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
@@ -276,34 +273,34 @@ def CreateIntOption(string: str, name, number) -> None:
     config.prms[string]['mapping'].update({number: name})
 
 
-def CreateRealArray(string: str, nReals, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
+def CreateRealArray(string: str, nReals: int, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:  # noqa: E501
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='realarray',
-                               number=nReals,
-                               name=string,
-                               help=help,
-                               default=default,
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'realarray',
+                           'number': nReals,
+                           'name': string,
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'multiple': multiple}
 
 
-def CreateIntArray(string: str, nInts, help: Optional[str] = None, default: Optional[str] = None, multiple=False) -> None:
+def CreateIntArray(string: str, nInts: int, help: Optional[str] = None, default: Optional[str] = None, multiple: bool = False) -> None:  # noqa: E501
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     # ------------------------------------------------------
 
     CheckDefined(string, multiple, init=True)
-    config.prms[string] = dict(type='intarray',
-                               number=nInts,
-                               name=string,
-                               help=help,
-                               default=default,
-                               counter=0,
-                               multiple=multiple)
+    config.prms[string] = {'type': 'intarray',
+                           'number': nInts,
+                           'name': string,
+                           'help': help,
+                           'default': default,
+                           'counter': 0,
+                           'multiple': multiple}
 
 
 # ==================================================================================================================================
@@ -339,8 +336,7 @@ def GetParam(name    : str,
     if config.params.has_option('general', name):
         if config.prms[name]['multiple']:
             # We can request specific indices
-            if number is None: num = config.prms[name]['counter']-1  # noqa: E701
-            else:              num = number                          # noqa: E701
+            num   = config.prms[name]['counter'] - 1 if number is None else number
 
             input = [s for s in config.params.get('general', name).split('\n') if s != '']
             if num >= len(input):
@@ -355,7 +351,7 @@ def GetParam(name    : str,
         # int2str has custom output
         if calltype != 'int2str':
             if calltype == 'bool':
-                hopout.printoption(name, '{0:}'.format(value), '*CUSTOM')
+                hopout.printoption(name, f'{value}', '*CUSTOM')
             else:
                 hopout.printoption(name, value               , '*CUSTOM')
         else:
@@ -370,7 +366,7 @@ def GetParam(name    : str,
                 # int2str has custom output
                 if calltype != 'int2str':
                     if calltype == 'bool':
-                        hopout.printoption(name, '{0:}'.format(value), 'DEFAULT')
+                        hopout.printoption(name, f'{value}', 'DEFAULT')
                     else:
                         hopout.printoption(name, value               , 'DEFAULT')
             else:
@@ -382,8 +378,7 @@ def GetParam(name    : str,
 
 
 def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> str:
-    value = GetParam(name=name, default=default, number=number, calltype='str')
-    return value
+    return GetParam(name=name, default=default, number=number, calltype='str')
 
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
@@ -423,7 +418,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     except (ValueError, TypeError):
         result = options.get(str(value).lower())
 
-    if result is None or result not in mapping.keys():  # pragma: no cover
+    if result is None or result not in mapping:  # pragma: no cover
         outStr = ', '.join([f'{k} [{v}]' for k, v in mapping.items()])
         print()
         print(hopout.warn(f'Allowed values for parameter "{name}":'))
@@ -432,7 +427,7 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
 
     result = int(result)
 
-    hopout.printoption(name, '{} [{}]'.format(result, mapping[result]), source)
+    hopout.printoption(name, f'{result} [{mapping[result]}]', source)
     return result
 
 
@@ -447,10 +442,8 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     value = value.split('/)')[0]
 
     # Commas separate 1st dimension, double commas separate 2nd dimension
-    if ',,' in value:
-        value = [s.split(',') for s in value.split(',,')]
-    else:
-        value = value.split(',')
+    value = [s.split(',') for s in value.split(',,')] if ',,' in value else value.split(',')
+
     try:
         value = np.vectorize(strToFloatOrPi)(value)
     except ValueError as e:  # pragma: no cover
@@ -480,7 +473,7 @@ def GetIntArray(name: str, default: Optional[str] = None, number: Optional[int] 
 
 # ==================================================================================================================================
 @final
-class ReadConfig():
+class ReadConfig:
     """ Read an HOPR parameter file
 
         This file is meant to remain compatible to the HOPR parameter file
@@ -494,7 +487,6 @@ class ReadConfig():
 
         # define allowed comments
         self.sym_comm = ('#', ';', '!')
-        return None
 
     def _read_file(self) -> list:
         """ Read the parameter file and replace DEFVAR variables
@@ -589,10 +581,7 @@ class ReadConfig():
                 # Replace variables in the parameter file
                 for var, value in variables.items():
                     # Convert arrays to string format
-                    if isinstance(value, list):
-                        replacement = f'(/{",".join(map(str, value))}/)'
-                    else:
-                        replacement = str(value)
+                    replacement = f'(/{",".join(map(str, value))}/)' if isinstance(value, list) else str(value)
 
                     # Ensure exact match replacement (avoiding substring issues)
                     if '=' in line:
@@ -640,7 +629,7 @@ class ReadConfig():
             commit  = process.communicate()[0].strip().decode('ascii')
 
             hopout.header(program, version, commit)
-            hopout.error('Parameter or mesh file [󰇘]/{} does not exist'.format(os.path.basename(self.input)))
+            hopout.error(f'Parameter or mesh file [󰇘]/{os.path.basename(self.input)} does not exist')
 
         # Check if input is mesh or parameter file
         parameter_mode = False
@@ -651,11 +640,10 @@ class ReadConfig():
             mesh_mode = True
         else:
             try:
-                with open(self.input, 'r', encoding='utf-8') as f:
-                    f.read()
+                _ = Path(self.input).read_text(encoding='utf-8')
                 parameter_mode = True
             except UnicodeDecodeError:
-                hopout.error('Parameter or mesh file [󰇘]/{} are of unknown type'.format(os.path.basename(self.input)))
+                hopout.error(f'Parameter or mesh file [󰇘]/{os.path.basename(self.input)} are of unknown type')
 
         # Handle parameter data
         if parameter_mode:
@@ -704,13 +692,11 @@ class ReadConfig():
                 BCType  = cast(h5py.Dataset, f['BCType'])[:]
 
             # Write geometric order info to file
-            mesh_params.append(f'NGeo = {NGeo}')
-            mesh_params.append(f'MeshIsAlreadyCurved = {"T" if NGeo > 1 else "F"}')
+            mesh_params.extend((f'NGeo = {NGeo}', f'MeshIsAlreadyCurved = {"T" if NGeo > 1 else "F"}'))
 
             # Setup boundary conditions
             for iBC, BC in enumerate(BCNames):
-                mesh_params.append(f'BoundaryName = {BC}')
-                mesh_params.append(f'BoundaryType = (/{", ".join(map(str, BCType[iBC]))}/)')
+                mesh_params.extend((f'BoundaryName = {BC}', f'BoundaryType = (/{", ".join(map(str, BCType[iBC]))}/)'))
 
             # Join lines into a single string
             mesh_param = '\n'.join(mesh_params)
@@ -720,7 +706,7 @@ class ReadConfig():
 
         # Parse configation file either from read in parameter file or
         # recovered from a given mesh file
-        config.std_length = max(len(s) for s in config.prms.keys())
+        config.std_length = max(len(s) for s in config.prms)
         config.std_length = max(32, config.std_length+1)
 
         # Loop over all objects and check if they are provided

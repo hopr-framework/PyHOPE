@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from functools import cache
-from typing import Any, Final, Optional, Union, Tuple
+from typing import Any, Final, Optional, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -68,10 +68,10 @@ def faces(elemType: Union[int, str]) -> tuple[str, ...]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
-    return faces_map[elemType % 100]
+    return faces_map[elemType % 10]
 
 
 @cache
@@ -91,10 +91,10 @@ def edges(elemType: Union[int, str]) -> tuple[int, ...]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edges_map:
+    if elemType % 10 not in edges_map:
         raise ValueError(f'Error in edges: elemType {elemType} is not supported')
 
-    return edges_map[elemType % 100]
+    return edges_map[elemType % 10]
 
 
 @cache
@@ -114,10 +114,10 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in dir_map:
+    if elemType % 10 not in dir_map:
         raise ValueError(f'Error in edge_to_dir: elemType {elemType} is not supported')
 
-    dir = dir_map[elemType % 100]
+    dir = dir_map[elemType % 10]
 
     try:
         return (np.rint(abs(dir[edge]))).astype(int)
@@ -147,10 +147,10 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edge_map:
+    if elemType % 10 not in edge_map:
         raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
 
-    edges = edge_map[elemType % 100]
+    edges = edge_map[elemType % 10]
 
     try:
         return np.array(edges[edge], dtype=dtype)
@@ -173,10 +173,10 @@ def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edge_map:
+    if elemType % 10 not in edge_map:
         raise ValueError(f'Error in edge_to_sign: elemType {elemType} is not supported')
 
-    edges = edge_map[elemType % 100]
+    edges = edge_map[elemType % 10]
 
     try:
         return np.array(edges[edge], dtype=dtype)
@@ -203,11 +203,11 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in face_to_edge: face {face} is not supported') from e
 
@@ -231,11 +231,11 @@ def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArr
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in face_to_corner: face {face} is not supported') from e
 
@@ -273,11 +273,11 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in face_to_cgns: face {face} is not supported') from e
 
@@ -320,54 +320,49 @@ def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
         # Total nodes on face: (nGeo+1)**2
         if order == 1:
             return np.arange(4, dtype=dtype)
-        else:
-            n           = order
-            grid        = np.arange((n+1)**2).reshape(n+1, n+1)
-            # Corners: bottom-left, bottom-right, top-right, top-left
-            corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
-            # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
-            bottom_edge = grid[0, 1:n]
-            # Right edge: column n, rows 1 to n-1 (bottom-to-top)
-            right_edge  = grid[1:n, n]
-            # Top edge: row n, columns n-1 to 1 (right-to-left)
-            top_edge    = grid[n, n-1:0:-1]
-            # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
-            left_edge   = grid[n-1:0:-1, 0]
-            # Interior nodes: remaining nodes in row-major order
-            interior    = grid[1:n, 1:n].flatten()
-            # Assemble ordering: corners, edges, interior
-            # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
-            return ordering
+        n           = order
+        grid        = np.arange((n+1)**2).reshape(n+1, n+1)
+        # Corners: bottom-left, bottom-right, top-right, top-left
+        corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
+        # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
+        bottom_edge = grid[0, 1:n]
+        # Right edge: column n, rows 1 to n-1 (bottom-to-top)
+        right_edge  = grid[1:n, n]
+        # Top edge: row n, columns n-1 to 1 (right-to-left)
+        top_edge    = grid[n, n-1:0:-1]
+        # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
+        left_edge   = grid[n-1:0:-1, 0]
+        # Interior nodes: remaining nodes in row-major order
+        interior    = grid[1:n, 1:n].flatten()
+        # Assemble ordering: corners, edges, interior
+        # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
+        return np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
 
-    elif side_type.lower() == 'triangle':
+    if side_type.lower() == 'triangle':
         # Total nodes on face: (nGeo+1)*(nGeo+2)//2
         if order == 1:
             return np.arange(3, dtype=dtype)
-        else:
-            p           = order
-            # Build the tensor ordering as a list of (i, j) for which i+j <= p.
-            nodes       = []
-            for i in range(p+1):
-                for j in range(p+1 - i):
-                    nodes.append((i, j))
-            # Define vertices in the reference triangle:
-            vertices    = [(0, 0), (p, 0), (0, p)]
-            # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
-            edge01      = [(i, 0) for i in range(1, p)]
-            # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
-            edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
-            # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
-            edge20      = [(0, j) for j in range(1, p)]
-            # Interior nodes: those not on the boundary
-            boundary    = set(vertices + edge01 + edge12 + edge20)
-            interior    = [node for node in nodes if node not in boundary]
-            # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
-            desired     = vertices + edge01 + edge12 + edge20 + interior
-            ordering    = [nodes.index(nd) for nd in desired]
-            return np.array(ordering, dtype=dtype)
-    else:
-        raise ValueError(f'Unsupported side type: {side_type}')
+        p           = order
+        # Build the tensor ordering as a list of (i, j) for which i+j <= p.
+        nodes       = []
+        for i in range(p+1):
+            nodes.extend((i, j) for j in range(p+1 - i))
+        # Define vertices in the reference triangle:
+        vertices    = [(0, 0), (p, 0), (0, p)]
+        # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
+        edge01      = [(i, 0) for i in range(1, p)]
+        # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
+        edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
+        # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
+        edge20      = [(0, j) for j in range(1, p)]
+        # Interior nodes: those not on the boundary
+        boundary    = set(vertices + edge01 + edge12 + edge20)
+        interior    = [node for node in nodes if node not in boundary]
+        # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
+        desired     = vertices + edge01 + edge12 + edge20 + interior
+        ordering    = [nodes.index(nd) for nd in desired]
+        return np.array(ordering, dtype=dtype)
+    raise ValueError(f'Unsupported side type: {side_type}')
 
 
 @cache
@@ -388,11 +383,11 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in flip_map:
+    if elemType % 10 not in flip_map:
         raise ValueError(f'Error in flip_s2m: elemType {elemType} is not supported')
 
     try:
-        return flip_map[elemType % 100][flip]
+        return flip_map[elemType % 10][flip]
     except KeyError as e:
         raise KeyError(f'Error in flip_s2m: face {flip} is not supported') from e
 
@@ -416,11 +411,11 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in cgns_sidetovol: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
+        return faces_map[elemType % 10][face]
     except KeyError as e:
         raise KeyError(f'Error in cgns_sidetovol: face {face} is not supported') from e
 
@@ -442,15 +437,14 @@ def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np
     # Vectorize flip_s2m to get the flipped (p, q) values
     vec_flip = (np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[0], otypes=[dtype]),
                 np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[1], otypes=[dtype]))
-    pq       = tuple([vec_flip[s](P, Q) for s in (0, 1)])
+    pq       = tuple(vec_flip[s](P, Q) for s in (0, 1))
     # Vectorize the cgns_sidetovol function
     vec_cgns =  np.vectorize(lambda r, p, q: cgns_sidetovol(N, r, int(p), int(q), face, elemType), otypes=[dtype],
                                     signature='(),(),()->(n)')
     # idx_arr will have shape (0:N, 0:N, 3)
     idx_arr = vec_cgns(R, pq[0], pq[1])
     # Use the computed indices from idx_arr to index mapLin
-    map = mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
-    return map
+    return mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
 
 
 @cache
@@ -471,11 +465,11 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in flipID_map:
+    if elemType % 10 not in flipID_map:
         raise ValueError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
 
     try:
-        return flipID_map[elemType % 100]
+        return flipID_map[elemType % 10]
     except KeyError as e:
         raise KeyError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported') from e
 
@@ -524,15 +518,15 @@ def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.ND
     #                      'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}                                # noqa: E272, E501
     #
     #             }
-    # if elemType % 100 not in faces_map:
+    # if elemType % 10 not in faces_map:
     #     raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
     #
     # try:
-    #     return faces_map[elemType % 100][face]
+    #     return faces_map[elemType % 10][face]
     # except KeyError as e:
     #     raise KeyError(f'Error in face_to_cgns: face {face} is not supported') from e
 
-    match elemType % 100:
+    match elemType % 10:
         case 4:  # Tetrahedron
             faces_map = {  # Sides aligned with the axes
                            'z-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
@@ -578,7 +572,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.ND
 
 
 @cache
-def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, bool]:
+def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> tuple[Any, bool]:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
@@ -611,11 +605,11 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, b
                         'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
                         'z+': ((slice(None), slice(None), order      ), True )}   # np.transpose(elemNodes[:    , :    , order])} # noqa: E262, E501
                  }
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][dir]
+        return faces_map[elemType % 10][dir]
     except KeyError as e:
         raise KeyError(f'Error in dir_to_nodes: face {dir} is not supported') from e
 
@@ -625,7 +619,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
     nElems = 0
     for _, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in elemTypeClass.type.keys()):
+        if not any(s in elemType for s in elemTypeClass.type):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
@@ -852,10 +846,10 @@ def NDOFS_ELEM(elemType: int, N: int, dim: int = 3) -> int:
                    8: (N+1)**dim
                 }
 
-    if elemType % 100 not in nodes_map:
+    if elemType % 10 not in nodes_map:
         raise ValueError(f'Error in nodes: elemType {elemType} is not supported')
 
-    return nodes_map[elemType % 100]
+    return nodes_map[elemType % 10]
 
 
 @cache

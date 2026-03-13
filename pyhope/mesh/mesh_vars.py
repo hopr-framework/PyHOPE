@@ -30,7 +30,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, unique
 from functools import cache
-from typing import Dict, Final, Optional, Union, Tuple, final
+from typing import Final, Optional, Union, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -53,13 +53,13 @@ mode     : int                                    # Mesh generation mode (1 - In
 mesh     : meshio.Mesh                            # MeshIO object holding the mesh
 nGeo     : int                                    # Order of spline-reconstruction for curved surfaces
 
-bcs      : list[Optional['BC']]                   # [list of dict] - Boundary conditions
+bcs      : list[Optional[BC]]                     # [list of dict] - Boundary conditions
 vvs      : list                                   # [list of dict] - Periodic vectors
 
 nZones   : int       = 1                          # Number of zones
 elemTypes: list[int] = []                         # Element types per zone
-elems    : list[Optional['ELEM']]                 # [list of list] - Element nodes
-sides    : list[Optional['SIDE']]                 # [list of list] - Side    nodes
+elems    : list[Optional[ELEM]]                   # [list of list] - Element nodes
+sides    : list[Optional[SIDE]]                   # [list of list] - Side    nodes
 
 # Periodic nodes
 periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
@@ -214,16 +214,16 @@ class ELEM:
     # Jacobian
     jacobian    : Optional[float] = None
     # FEM connectivity
-    edgeInfo    : Optional[Dict[int,                    # locEdgeIdx
-                                Tuple[int,              # locEdge
+    edgeInfo    : Optional[dict[int,                    # locEdgeIdx
+                                tuple[int,              # locEdge
                                       int | None,       # globalEdge
-                                      Tuple[int, ...],  # FEMVertexID
-                                      Tuple[int, ...]   # NodeID
+                                      tuple[int, ...],  # FEMVertexID
+                                      tuple[int, ...]   # NodeID
                                      ]
                                 ]] = None
-    vertexInfo  : Optional[Dict[int,                    # locNodeIdx
-                                Tuple[int,              # FEMVertexID
-                                      Tuple[int, ...]   # Vertex connectivity
+    vertexInfo  : Optional[dict[int,                    # locNodeIdx
+                                tuple[int,              # FEMVertexID
+                                      tuple[int, ...]   # Vertex connectivity
                                      ]
                                 ]] = None
 
@@ -276,11 +276,11 @@ class BC:
 
 @final
 class ELEMTYPE:
-    type = {'tetra'     : 4,
+    type = {'tetra'     : 4,  # noqa: RUF012
             'pyramid'   : 5,
             'wedge'     : 5,
             'hexahedron': 6}
-    name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,
+    name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,  # noqa: RUF012
                                'tetra84'      : 204, 'tetra120'      : 204, 'tetra165'      : 204, 'tetra220'      : 204,
                                'tetra286'     : 204,
             'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205, 'pyramid30'     : 205, 'pyramid55'     : 205,
@@ -290,7 +290,7 @@ class ELEMTYPE:
             'hexahedron': 108, 'hexahedron20' : 208, 'hexahedron24'  : 208, 'hexahedron27'  : 208, 'hexahedron64'  : 208,
                                'hexahedron125': 208, 'hexahedron216' : 208, 'hexahedron343' : 208, 'hexahedron512' : 208,
                                'hexahedron729': 208, 'hexahedron1000': 208, 'hexahedron1331': 208}
-    inam = defaultdict(list)
+    inam = defaultdict(list)  # noqa: RUF012
     for key, value in name.items():
         inam[value].append(key)
 

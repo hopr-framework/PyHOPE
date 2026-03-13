@@ -111,7 +111,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
 
     if path:
         try:
-            p   = subprocess.run([path, '--info'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+            p   = subprocess.run([path, '--info'], capture_output=True, text=True, timeout=5, check=True)
             raw = (p.stdout or '') + "\n" + (p.stderr or '')
             # Parse version from the Version line if present
             v   = _ParseVersion(raw)
@@ -172,7 +172,7 @@ def DependencyVersion(program: str) -> Optional[Version | bool]:
     if path:
         for flag in ('--version', '-V', 'version', '-v'):
             try:
-                p = subprocess.run([path, flag], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+                p = subprocess.run([path, flag], capture_output=True, text=True, timeout=5, check=True)
             except Exception:
                 continue
 
@@ -339,7 +339,7 @@ def CheckHealth() -> None:
     # For optional dependencies, split the first part
     opts = [p.split(';')[0] for p in pkgs if len(p.split(';')) >  1]  # noqa: E272
 
-    all_pkg_names = sorted(list(set([program] + [_PackageExtractName(p) for p in deps + opts])))
+    all_pkg_names = sorted(set([program] + [_PackageExtractName(p) for p in deps + opts]))
 
     # Fetch all versions in parallel
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -349,7 +349,7 @@ def CheckHealth() -> None:
 
         # Query PyPI for all packages
         pypi_results = list(executor.map(PyPIVersion, all_pkg_names))
-        pypi_map     = dict(zip(all_pkg_names, pypi_results))
+        pypi_map     = dict(zip(all_pkg_names, pypi_results, strict=True))
 
         # Display system and packages sections
         hopout.small_banner('System')

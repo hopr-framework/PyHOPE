@@ -28,7 +28,7 @@
 from __future__ import annotations
 import gc
 from collections import defaultdict
-from typing import Dict, Final, Tuple, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -153,9 +153,8 @@ def _findPointsTol(points: npt.NDArray, tol: float, method: str = 'union_find') 
     repLabel  = np.full(components, nPoints, dtype=int)
     # Assign each point its component representative
     np.minimum.at(repLabel, labels, np.arange(nPoints, dtype=int))
-    repsPoint = repLabel[labels]
+    return repLabel[labels]
 
-    return repsPoint
 
 
 def EliminateDuplicates() -> None:
@@ -178,16 +177,16 @@ def EliminateDuplicates() -> None:
     cdict: Final[dict]  = mesh.cells_dict
 
     # Find the mapping to the (N-1)-dim elements
-    csetMap: Dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
+    csetMap: dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
                                         for key, cset in csets.items()}
 
     # Create new periodic nodes per (original node, boundary) pair
     # > Use a dictionary mapping (node, bc_key) --> new node index
-    nodeTrans: Dict[Tuple[int, str], int] = {}
+    nodeTrans: dict[tuple[int, str], int] = {}
     # > Collect points to append to the mesh
     newPoints: list       = []
     nPoints:   Final[int] = points.shape[0]
-    BCNodes:   Dict       = {}
+    BCNodes:   dict       = {}
 
     for bc_key, cset in csets.items():
         # Find the matching boundary condition
@@ -275,7 +274,7 @@ def EliminateDuplicates() -> None:
 
     # Also, remove near duplicate points
     # > Filter the valid three-dimensional cell types
-    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
+    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type))
     # > Group by number of vertices per element to avoid ragged arrays
     groups = defaultdict(list)
     for cell in valid_cells:

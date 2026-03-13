@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from collections import defaultdict
-from typing import Dict, Tuple, cast
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -104,9 +104,7 @@ def FEMConnect() -> None:
                 continue
 
             component.add(currentNode)
-            for nxt in periGraph[currentNode]:
-                if nxt not in component:
-                    stack.append(nxt)
+            stack.extend(nxt for nxt in periGraph[currentNode] if nxt not in component)
 
         canonical_rep = min(component)
         for v in component:
@@ -173,7 +171,7 @@ def FEMConnect() -> None:
     # > are displaced by each periodic boundary condition. We build a simple, directed
     # > map for each BC that directly reflects the (source -> target) relationship in
     # > periNodes. We only want to map from negative to positive, thus keep the direction
-    periNames = sorted(list({bc for _, bc in periNodes.keys()}))
+    periNames = sorted({bc for _, bc in periNodes})
 
     # This dictionary holds the directed mapping for each BC
     # > Key: Source node
@@ -181,7 +179,7 @@ def FEMConnect() -> None:
     nodeMapBC: dict[str, dict[int, int]] = {bc: {int(n): int(p) for (n, b), p in periNodes.items() if b == bc} for bc in periNames}
     # For convenience, also build a set of all nodes that lie on any boundary
 
-    BCNodes = {int(node)      for node, _ in periNodes.keys()}     # noqa: E272
+    BCNodes = {int(node)      for node, _ in periNodes}     # noqa: E272
     BCNodes.update({int(peri) for peri    in periNodes.values()})  # noqa: E272
 
     # EDGE: Enumerate raw edges from the mesh
@@ -227,8 +225,7 @@ def FEMConnect() -> None:
 
     # Seed edgeSet from the graph keys plus every raw edge base representation
     edgeSet = set(edgeGraph.keys())
-    for _, _, (n0, n1) in edgesRaw:
-        edgeSet.add((n0, n1) if n0 < n1 else (n1, n0))
+    edgeSet.update((n0, n1) if n0 < n1 else (n1, n0) for _, _, (n0, n1) in edgesRaw)
 
     for nodeStart in edgeSet:
         # Done with this node
@@ -288,9 +285,9 @@ def FEMConnect() -> None:
     FEMEdgeMapping = {key: i for i, key in enumerate(sorted(edgeKeySet))}
 
     # Build the vertex connectivity
-    for elemID, elem in enumerate(elems):
+    for elem in elems:
         elemNodes = cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]
-        vertexInfo: Dict[int, Tuple[int, Tuple[int, ...]]] = {}
+        vertexInfo: dict[int, tuple[int, tuple[int, ...]]] = {}
         for locNode in range(len(elemNodes)):
             # Determine canonical vertex id
             node = int(elemNodes[locNode])

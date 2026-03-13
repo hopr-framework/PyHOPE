@@ -52,10 +52,9 @@ HEX_TYPE:      Final = 8
 def evaluate_jacobian_dispatch(nodeCoords, VdmGLtoAP, D_EqToGL, elem_type):
     if elem_type in SIMPLEX_TYPES:
         return evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL)
-    elif elem_type == HEX_TYPE:
+    if elem_type == HEX_TYPE:
         return evaluate_jacobian(        nodeCoords, VdmGLtoAP, D_EqToGL)
-    else:
-        raise ValueError(f"Unsupported element type {elem_type}")
+    raise ValueError(f"Unsupported element type {elem_type}")
 
 
 def plot_histogram(data: npt.NDArray[np.float64]) -> None:
@@ -155,7 +154,7 @@ def CheckJacobians() -> None:
     nGeo:      Final[int]  = mesh_vars.nGeo + 1
     elems:     Final[list] = mesh_vars.elems
     nodes:     Final[npt.NDArray[np.float64]] = mesh_vars.mesh.points
-    elemBases: Final[set]  = set([e.type % 100 for e in elems])
+    elemBases: Final[set]  = {e.type % 10 for e in elems}
 
     # Compute the equidistant point set used by meshIO
     xEq_fn      = {4: lambda: equi_nodes_tetra(nGeo),                                          # Tetrahedron
@@ -201,7 +200,7 @@ def CheckJacobians() -> None:
     # Pre-compute LINTEN mappings for all element types
     linCache  = {}
     elemOrder = 100 if mesh_vars.nGeo == 1 else 200
-    elemTypes = tuple([s + elemOrder for s in elemBases])
+    elemTypes = tuple(s + elemOrder for s in elemBases)
     for elemType in elemTypes:
         try:
             _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
@@ -213,7 +212,7 @@ def CheckJacobians() -> None:
 
     for elem in elems:
         elemType = elem.type
-        elemBase = int(elemType) % 100
+        elemBase = int(elemType) % 10
 
         # Get the mapping
         mapLin = linCache[elemType]

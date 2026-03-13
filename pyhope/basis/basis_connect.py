@@ -83,7 +83,7 @@ def check_sides(elem,
         # Sanity check the flip with the other nodes
         elem0  = elems[side[0].elemID]
         elem1  = elems[side[1].elemID]
-        if elem1.type % 100 != 8:
+        if elem1.type % 10 != 8:
             continue
 
         # Map the meshio nodes to the tensor-product nodes
@@ -95,7 +95,7 @@ def check_sides(elem,
         try:
             # Translate to periodic nodes if required
             if side[0].bcid is not None and side[1].bcid is not None and bcs[side[1].bcid].type[0] == 1:
-                nbNodes = np.vectorize(lambda s: mesh_vars.periNodes[(s, bcs[side[1].bcid].name)], otypes=[int])(nbNodes)
+                nbNodes = np.vectorize(lambda s, side=side: mesh_vars.periNodes[(s, bcs[side[1].bcid].name)], otypes=[int])(nbNodes)
             # Check if the node IDs match
             success = np.array_equal(nodes, nbNodes)
         # Fallback to comparison of physical coordinates
@@ -157,8 +157,8 @@ def CheckConnect() -> None:
     elems:     Final[list] = mesh_vars.elems
 
     # Only consider hexahedrons
-    if any(cast(int, e.type) % 100 != 8 for e in elems):
-        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
+    if any(cast(int, e.type) % 10 != 8 for e in elems):
+        elemTypes = list({e.type for e in elems if e.type % 10 != 8})
         print(hopout.warn('Ignored element type: {}'.format(
             [re.sub(r"\d+$", "", mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]
         )))
@@ -192,7 +192,7 @@ def CheckConnect() -> None:
             if side.connection is None or side.sideType < 0:
                 continue
             # Big mortar side is counted once
-            elif side.connection < 0:
+            if side.connection < 0:
                 nconn += 1
             # Internal side: only count the canonical representative and ignore virtual mortar sides
             elif side.connection >= 0:
@@ -220,16 +220,16 @@ def CheckConnect() -> None:
             # Print the information
             strLen  = max(len(str(side.sideID+1)), len(str(nbside.sideID+1)))
             print(hopout.warn(f'> Element {  elem.elemID+1:>{strLen}}, Side {  side.face}, Side {  side.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
             # print()
             print(hopout.warn(f'> Element {nbelem.elemID+1:>{strLen}}, Side {nbside.face}, Side {nbside.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
         hopout.warning(f'Connectivity check failed for {len(results)} / {nconn} connections!')
         sys.exit(1)

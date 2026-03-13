@@ -115,7 +115,7 @@ def DebugIO() -> None:
     # Loop over all elements
     for melem in melems:
         # Correct ElemType for NGeo = 1
-        elemNum  = melem.type % 100
+        elemNum  = melem.type % 10
         elemType = elemTypeClass.inam[elemNum + 100]
         elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
         if elemType not in tInv:
@@ -132,12 +132,12 @@ def DebugIO() -> None:
                     sidetypes.add(sideType)
 
     # Create ordered mapping from first-order points to high-order points
-    points = np.concatenate([np.asarray(melem.nodes)[:melem.type % 100] for melem in melems])
+    points = np.concatenate([np.asarray(melem.nodes)[:melem.type % 10] for melem in melems])
     pMap   = np.unique(points)
     # pInv   = dict(zip(pMap, range(len(pMap))))
 
-    hasIJK = True if hasattr(mesh_vars, 'nElemsIJK' ) and mesh_vars.nElemsIJK  is not None else False  # noqa: E272
-    hasFEM = True if hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None else False
+    hasIJK = bool(hasattr(mesh_vars, 'nElemsIJK')  and mesh_vars.nElemsIJK  is not None)  # noqa: E272
+    hasFEM = bool(hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None)
 
     # Prepare element and side containers
     for t in elemtypes:
@@ -153,24 +153,24 @@ def DebugIO() -> None:
     # Create ordered mapping from first-order sides to high-order sides
     sypes  = list(sidetypes)
 
-    elemdata: dict[str, list] = {'ElemID'  : [list() for _ in range(len(types))],
-                                 'ElemType': [list() for _ in range(len(types))],
-                                 'ElemZone': [list() for _ in range(len(types))],
+    elemdata: dict[str, list] = {'ElemID'  : [[] for _ in range(len(types))],
+                                 'ElemType': [[] for _ in range(len(types))],
+                                 'ElemZone': [[] for _ in range(len(types))],
                                 }
     # (Optional:) Add Jacobians
     if melems and (getattr(melems[0], 'jacobian', None) is not None):
-        elemdata.update({'ElemJacobian': [list() for _ in range(len(types))]})
+        elemdata.update({'ElemJacobian': [[] for _ in range(len(types))]})
     # (Optional:) Add IJK sorting
     if hasIJK:
-        elemdata.update({'Elem_I'      : [list() for _ in range(len(types))]})
-        elemdata.update({'Elem_J'      : [list() for _ in range(len(types))]})
-        elemdata.update({'Elem_K'      : [list() for _ in range(len(types))]})
+        elemdata.update({'Elem_I'      : [[] for _ in range(len(types))]})
+        elemdata.update({'Elem_J'      : [[] for _ in range(len(types))]})
+        elemdata.update({'Elem_K'      : [[] for _ in range(len(types))]})
 
-    sidedata: dict[str, list] = {'ElemID'  : [list() for _ in range(len(sypes))],
-                                 'BCID'    : [list() for _ in range(len(sypes))],
-                                 'BCType'  : [list() for _ in range(len(sypes))],
-                                 'BCState' : [list() for _ in range(len(sypes))],
-                                 'BCAlpha' : [list() for _ in range(len(sypes))],
+    sidedata: dict[str, list] = {'ElemID'  : [[] for _ in range(len(sypes))],
+                                 'BCID'    : [[] for _ in range(len(sypes))],
+                                 'BCType'  : [[] for _ in range(len(sypes))],
+                                 'BCState' : [[] for _ in range(len(sypes))],
+                                 'BCAlpha' : [[] for _ in range(len(sypes))],
                                 }
 
     nodedata: dict[str, list] = {}
@@ -187,7 +187,7 @@ def DebugIO() -> None:
     # Populate connectivity and data
     for melem in melems:
         # Correct ElemType for NGeo = 1
-        elemNum  = melem.type % 100
+        elemNum  = melem.type % 10
         elemType = elemTypeClass.inam[elemNum + 100]
         elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
         elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
@@ -249,7 +249,7 @@ def DebugIO() -> None:
     # Update points to unique first-order coords
     coords = mpoints[pMap]
     # Find the mapping from the cell keys to the elemtypes
-    elemOrder = [tInv[cb] for cb in elems.keys()]
+    elemOrder = [tInv[cb] for cb in elems]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     elemdata = {k: [np.asarray(v[idx]) for idx in elemOrder] for k, v in elemdata.items()}
@@ -274,7 +274,7 @@ def DebugIO() -> None:
     # del debugElem
 
     # Find the mapping from the side keys to the elemtypes
-    sideOrder = [sInv[cb] for cb in sides.keys()]
+    sideOrder = [sInv[cb] for cb in sides]
 
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     sidedata = {k: [np.asarray(v[idx]) for idx in sideOrder] for k, v in sidedata.items()}

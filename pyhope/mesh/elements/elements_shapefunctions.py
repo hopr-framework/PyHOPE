@@ -26,8 +26,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ class ShapeFunctions:
     to a list of lambda functions. These functions compute the shape-function value
     at a given parametric coordinate (xi, eta, zeta) for the corresponding node.
     """
-    shape_functions: Dict[str, List[Callable[[float, float, float], float]]] = field(
+    shape_functions: dict[str, list[Callable[[float, float, float], float]]] = field(
         default_factory=lambda: {
             # 20-Node Hexahedron (Hexa20)
             'hexahedron20': [

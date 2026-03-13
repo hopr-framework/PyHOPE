@@ -53,7 +53,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Check the mesh contains second-order incomplete elements
     serendipityElems = ['quad8', 'hexahedron20', 'wedge15', 'pyramid13']
-    if not any(s for s in mesh.cells_dict.keys() if s in serendipityElems):
+    if not any(s for s in mesh.cells_dict if s in serendipityElems):
         return mesh
 
     hopout.routine('Converting serendipity to full langrange mesh')
@@ -88,7 +88,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 nFaces    = len(faces)
 
                 N         = [np.array(()) for _ in range(nFaces + 1)]
-                faceNodes = [list()       for _ in faces]  # noqa: E272
+                faceNodes = [[]           for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements
                 nPoints_old = len(points)
@@ -112,7 +112,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 # Loop over all hexahedrons
                 for iElem, elem in enumerate(cdata):
                     # Create the 6 face mid-points
-                    for iFace, face in enumerate(faces):
+                    for iFace in range(len(faces)):
                         center = np.dot(N[iFace], mesh.points[elem])
                         points[nPoints_old + iFace, :]  = center
 
@@ -145,7 +145,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                 nFaces    = len(faces)
 
                 N         = [np.array(()) for _ in range(nFaces + 1)]
-                faceNodes = [list()       for _ in faces]  # noqa: E272
+                faceNodes = [[]       for _ in faces]  # noqa: E272
 
                 # preallocate the arrays for the new points and elements
                 nPoints_old = len(points)
@@ -176,7 +176,7 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
                         if 'z' in face:
                             continue
                         # 2nd order quadrilaterial faces
-                        elif len(faceNodes[iFace]) == 8:
+                        if len(faceNodes[iFace]) == 8:
                             # Here, we are on the quads and not the actual element
                             center = np.dot(N[iFace], mesh.points[elem[faceNodes[iFace]]])
                             points[nPoints_old + iFace, :]  = center

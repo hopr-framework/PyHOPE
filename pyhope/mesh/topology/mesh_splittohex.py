@@ -29,7 +29,7 @@ from __future__ import annotations
 import gc
 from collections import defaultdict
 from functools import cache
-from typing import Final, Tuple, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -72,8 +72,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.info('SPLITTING ELEMENTS TO HEXAHEDRA...')
     hopout.sep()
 
-    splitToHex = (GetLogical('doSplitToHex') if CountOption('doSplitToHex') else False > 0) or \
-                 (GetLogical(  'SplitToHex') if CountOption(  'SplitToHex') else False > 0)
+    splitToHex = (GetLogical('doSplitToHex') if CountOption('doSplitToHex') > 0 else False) or \
+                 (GetLogical(  'SplitToHex') if CountOption(  'SplitToHex') > 0 else False)
     if not splitToHex:
         hopout.separator()
         return mesh
@@ -91,12 +91,12 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Sanity check
     # > Check if the requested polynomial order is 1
     if nGeo > 1:
-        hopout.error('nGeo = {} not supported for element splitting'.format(nGeo), traceback=True)
+        hopout.error(f'nGeo = {nGeo} not supported for element splitting', traceback=True)
 
     # > Check if the mesh contains any pyramids
     unsElems: Final[tuple] = ('pyramid')
-    if any(s.startswith(x) for x in unsElems for s in cdict.keys()):
-        unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unsElems)]
+    if any(s.startswith(x) for x in unsElems for s in cdict):
+        unsupported = [s for s in cdict if any(s.startswith(x) for x in unsElems)]
         hopout.error('Element type[s] "{}" are not supported for splitting, exiting...'.format(', '.join(unsupported)))
 
     faceType = ['triangle'  , 'quad'  ]
@@ -159,8 +159,8 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     hexBCQuads  = set()
     if splitToHexZ:
         unszElems  = ('tetrahedron', 'pyramid')
-        if any(s.startswith(x) for x in unszElems for s in cdict.keys()):
-            unsupported = [s for s in cdict.keys() if any(s.startswith(x) for x in unszElems)]
+        if any(s.startswith(x) for x in unszElems for s in cdict):
+            unsupported = [s for s in cdict if any(s.startswith(x) for x in unszElems)]
             hopout.error('Element type[s] "{}" are not supported for z-splitting, exiting...'.format(', '.join(unsupported)))
 
         # Inquire if elements should be split in z-director or we should build mortar interfaces
@@ -178,28 +178,27 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     for cell in elems_old:
         ctype, cdata = cell.type, cell.data
 
-        if ctype.startswith('hexahedron'):
-            # Carry over the original hexahedra volume cells unchanged
-            if not splitToHexZ:
-                elems_lst.setdefault('hexahedron', []).extend(cdata)
+        # Carry over the original hexahedra volume cells unchanged
+        if ctype.startswith('hexahedron') and not splitToHexZ:
+            elems_lst.setdefault('hexahedron', []).extend(cdata)
 
-                # Detect which existing quad boundary faces are attached to these hexahedra
-                for elem in cdata:
-                    for face in hexa_faces():
-                        fNodes = np.array(elem)[face]
-                        fSet   = frozenset(fNodes)
+            # Detect which existing quad boundary faces are attached to these hexahedra
+            for elem in cdata:
+                for face in hexa_faces():
+                    fNodes = np.array(elem)[face]
+                    fSet   = frozenset(fNodes)
 
-                        candidate_sets = [nodeToFace[node] for node in fSet if node in nodeToFace]
-                        if not candidate_sets:
-                            continue
+                    candidate_sets = [nodeToFace[node] for node in fSet if node in nodeToFace]
+                    if not candidate_sets:
+                        continue
 
-                        common_candidates = set.intersection(*candidate_sets)
-                        for candidate in common_candidates:
-                            if fSet.issubset(candidate):
-                                hexBCQuads.add(candidate)
+                    common_candidates = set.intersection(*candidate_sets)
+                    for candidate in common_candidates:
+                        if fSet.issubset(candidate):
+                            hexBCQuads.add(candidate)
 
-                # Skip the rest of the hexahedrons
-                continue
+            # Skip the rest of the hexahedrons
+            continue
 
         splitPoints, splitElems, splitFaces = elemSplitter.get(ctype, (None, None, None))
 
@@ -232,7 +231,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             # Deferr update for new boundary faces
             # > Instead of updating csets_old repeatedly, we collect deferred updates
             newBCFaces = []  # List of tuples: (new_face_key, combined_name)
-            for oldFace, subFaces in zip(oldFaces, newFaces):
+            for oldFace, subFaces in zip(oldFaces, newFaces, strict=True):
                 # Use the inverted index to get candidate face keys that might contain oldFace
                 candidate_sets = [nodeToFace[node] for node in oldFace if node in nodeToFace]
                 if not candidate_sets:
@@ -247,8 +246,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
                         # Create the new quadrilateral boundary faces by precomputing the frozensets
                         faceSet = [frozenset(face) for face in subFaces]
                         # This cannot be a tuple, we need to iterate over all the candidate sets
-                        for key in faceSet:
-                            newBCFaces.append((key, combined_name))
+                        newBCFaces.extend((key, combined_name) for key in faceSet)
                         # Done with this triangular face, break out of the (inner) candidate loop
                         break
 
@@ -284,7 +282,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     # Add back the existing quad boundary faces attached to carried-over hexahedra
     if not splitToHexZ and hexBCQuads:
         for qset in hexBCQuads:
-            qnodes = hexBCSet.get(qset, None)
+            qnodes = hexBCSet.get(qset)
 
             if qnodes is None:
                 continue
@@ -305,7 +303,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
     elems_new = {}
     csets_new = {}
 
-    for key in elems_lst:
+    for key in elems_lst:  # noqa: PLC0206
         if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
@@ -313,7 +311,7 @@ def MeshSplitToHex(mesh: meshio.Mesh) -> meshio.Mesh:
             # Determine the expected number of columns
             elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
 
-    for key in csets_lst:
+    for key in csets_lst:  # noqa: PLC0206
         csets_new[key] = tuple(np.array(lst, dtype=int) for lst in csets_lst[key])
 
     # Convert points_list back to a NumPy array
@@ -368,11 +366,11 @@ def tet_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray, .
                    )
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order))
+            hopout.error(f'Order {order} not supported for element splitting')
 
 
 @cache
-def tet_to_hex_faces(z_split: bool = False) -> Tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
+def tet_to_hex_faces(z_split: bool = False) -> tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
     """ Given the 4 corner node indices of a single tetrahedral element (indexed 0..3),
         return the 4 triangular faces and the 12 quadrilateral faces
     """
@@ -436,36 +434,35 @@ def prism_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray,
                           np.array((  0,  1,  2), dtype=int),           # index 12
                           np.array((  3,  4,  5), dtype=int),           # index 13
                        )
-            else:
-                # z_split: add vertical mid-edges + inside node
-                return (  # Nodes on edges
-                          np.array((  0,  1    ), dtype=int),           # index 6
-                          np.array((  1,  2    ), dtype=int),           # index 7
-                          np.array((  0,  2    ), dtype=int),           # index 8
-                          np.array((  3,  4    ), dtype=int),           # index 9
-                          np.array((  4,  5    ), dtype=int),           # index 10
-                          np.array((  3,  5    ), dtype=int),           # index 11
-                          # Nodes on faces
-                          np.array((  0,  1,  2), dtype=int),           # index 12
-                          np.array((  3,  4,  5), dtype=int),           # index 13
-                          # Nodes on vertical edges
-                          np.array((  0,  3    ), dtype=int),           # index 14
-                          np.array((  1,  4    ), dtype=int),           # index 15
-                          np.array((  2,  5    ), dtype=int),           # index 16
-                          # Inside node
-                          np.arange(  0,  6     , dtype=int),           # index 17
-                          # Nodes on rectangular face centers
-                          np.array((  0,  1,  3,  4), dtype=int),       # index 18
-                          np.array((  1,  2,  4,  5), dtype=int),       # index 19
-                          np.array((  0,  2,  3,  5), dtype=int),       # index 20
-                       )
+            # z_split: add vertical mid-edges + inside node
+            return (  # Nodes on edges
+                      np.array((  0,  1    ), dtype=int),           # index 6
+                      np.array((  1,  2    ), dtype=int),           # index 7
+                      np.array((  0,  2    ), dtype=int),           # index 8
+                      np.array((  3,  4    ), dtype=int),           # index 9
+                      np.array((  4,  5    ), dtype=int),           # index 10
+                      np.array((  3,  5    ), dtype=int),           # index 11
+                      # Nodes on faces
+                      np.array((  0,  1,  2), dtype=int),           # index 12
+                      np.array((  3,  4,  5), dtype=int),           # index 13
+                      # Nodes on vertical edges
+                      np.array((  0,  3    ), dtype=int),           # index 14
+                      np.array((  1,  4    ), dtype=int),           # index 15
+                      np.array((  2,  5    ), dtype=int),           # index 16
+                      # Inside node
+                      np.arange(  0,  6     , dtype=int),           # index 17
+                      # Nodes on rectangular face centers
+                      np.array((  0,  1,  3,  4), dtype=int),       # index 18
+                      np.array((  1,  2,  4,  5), dtype=int),       # index 19
+                      np.array((  0,  2,  3,  5), dtype=int),       # index 20
+                   )
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order))
+            hopout.error(f'Order {order} not supported for element splitting')
 
 
 @cache
-def prism_to_hex_faces(z_split: bool = False) -> Tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
+def prism_to_hex_faces(z_split: bool = False) -> tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
     """ Given the 6 corner node indices of a single prism element (indexed 0..5),
         return the original faces and the corresponding new quadrilateral sub-faces.
     """
@@ -537,17 +534,16 @@ def prism_to_hex_split(z_split: bool = False) -> tuple[npt.NDArray, ...]:
                 np.array((  1,  7, 12,  6,  4, 10, 13,  9), dtype=int),
                 np.array((  2,  8, 12,  7,  5, 11, 13, 10), dtype=int),
                )
-    else:
-        # z_split: split each of the 3 base hexahedra into two stacked hexahedra
-        return (np.array((  0,  6, 12,  8, 14, 18, 17, 20), dtype=int),
-                np.array(( 14, 18, 17, 20,  3,  9, 13, 11), dtype=int),
+    # z_split: split each of the 3 base hexahedra into two stacked hexahedra
+    return (np.array((  0,  6, 12,  8, 14, 18, 17, 20), dtype=int),
+            np.array(( 14, 18, 17, 20,  3,  9, 13, 11), dtype=int),
 
-                np.array((  1,  7, 12,  6, 15, 19, 17, 18), dtype=int),
-                np.array(( 15, 19, 17, 18,  4, 10, 13,  9), dtype=int),
+            np.array((  1,  7, 12,  6, 15, 19, 17, 18), dtype=int),
+            np.array(( 15, 19, 17, 18,  4, 10, 13,  9), dtype=int),
 
-                np.array((  2,  8, 12,  7, 16, 20, 17, 19), dtype=int),
-                np.array(( 16, 20, 17, 19,  5, 11, 13, 10), dtype=int),
-               )
+            np.array((  2,  8, 12,  7, 16, 20, 17, 19), dtype=int),
+            np.array(( 16, 20, 17, 19,  5, 11, 13, 10), dtype=int),
+           )
 
 
 @cache
@@ -589,7 +585,7 @@ def hex_to_hex_points(order: int, z_split: bool = False) -> tuple[npt.NDArray, .
 
 
 @cache
-def hex_to_hex_faces(z_split: bool = False) -> Tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
+def hex_to_hex_faces(z_split: bool = False) -> tuple[list[npt.NDArray], list[list[npt.NDArray]]]:
     """ Given the 8 corner node indices of a single hexahedron element (indexed 0..7),
         return the 6 quadrilateral faces and the 24 quadrilateral faces after splitting
     """
