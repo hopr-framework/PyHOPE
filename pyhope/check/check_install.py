@@ -37,6 +37,7 @@ from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 import h5py
 import numpy as np
+import pathlib
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -144,8 +145,7 @@ def downloadGitDir(user    : str,
                         content = lfs_u.read()
 
                 # Write the final content (either regular file or LFS file) to disk
-                with open(subPath, 'wb') as f:
-                    f.write(content)
+                pathlib.Path(subPath).write_bytes(content)
 
             case 'dir':
                 # Recursively call the function for subdirectories
