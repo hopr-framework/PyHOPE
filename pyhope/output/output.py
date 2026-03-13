@@ -216,10 +216,7 @@ def printoption(option: str, value: str, status: str, length: int = 31) -> None:
             length (int): (Optional.) Number of characters in each line
     """
     try:
-        if len(value) > length:
-            pvalue = f'{value[:(length-3)]}...'
-        else:
-            pvalue = value
+        pvalue = f'{value[:length - 3]}...' if len(value) > length else value
     except TypeError:
         pvalue = value
     print(f'│ {option:>{length}} │ {pvalue:<{length}} │ {status} │')

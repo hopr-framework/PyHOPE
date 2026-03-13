@@ -95,10 +95,7 @@ def strToFloatOrPi(helpstr: str) -> float:
     match len(splitstr):
         # Determine prefactor of pi, interpreting empty string as one
         case 2:
-            if splitstr[0]:
-                value = float(splitstr[0])*np.pi
-            else:
-                value = np.pi
+            value = float(splitstr[0]) * np.pi if splitstr[0] else np.pi
 
         # No 'pi' found in splitstr, parse as float
         case 1:
@@ -339,8 +336,7 @@ def GetParam(name    : str,
     if config.params.has_option('general', name):
         if config.prms[name]['multiple']:
             # We can request specific indices
-            if number is None: num = config.prms[name]['counter']-1  # noqa: E701
-            else:              num = number                          # noqa: E701
+            num   = config.prms[name]['counter'] - 1 if number is None else number
 
             input = [s for s in config.params.get('general', name).split('\n') if s != '']
             if num >= len(input):

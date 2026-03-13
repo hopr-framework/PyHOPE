@@ -132,12 +132,8 @@ class IndexedLists:
     def remove_index(self, indices) -> None:
         """ Remove the sublist at idx and remove the integer idx from all remaining sublists
         """
-        if isinstance(indices, int):
-            # Convert to a set for fast operations
-            indices = {indices}
-        else:
-            # Convert list to set for O(1) lookups
-            indices = set(indices)
+        # Convert to a set for fast operations
+        indices = {indices} if isinstance(indices, int) else set(indices)
 
         # Create a set to hold all affected keys
         affected_keys = set()

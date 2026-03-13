@@ -95,10 +95,7 @@ class CommandLine:
             if isinstance(default, bool):
                 default = 'T' if default else 'F'
 
-            if config.prms[key]['help']:
-                help    = config.prms[key]['help']
-            else:
-                help    = ''
+            help = config.prms[key]['help'] if config.prms[key]['help'] else ''
 
             self.helpjoin(f'{key:<{PAR_LENGTH}} = {default:>{DEF_LENGTH}} ! {help}')
 
