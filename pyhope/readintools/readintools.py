@@ -83,7 +83,7 @@ def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
     elif val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
         return False
     else:
-        raise ValueError('invalid truth value %r' % (val,))
+        raise ValueError(f'invalid truth value {val!r}')
 
 
 def strToFloatOrPi(helpstr: str) -> float:
@@ -105,7 +105,7 @@ def strToFloatOrPi(helpstr: str) -> float:
             value = float(splitstr[0])
 
         case _:
-            raise ValueError('Failed to parse input string %s' % (helpstr))
+            raise ValueError(f'Failed to parse input string {helpstr}')
 
     return value
 
