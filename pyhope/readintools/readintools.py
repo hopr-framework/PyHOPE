@@ -29,6 +29,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional, Union, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -644,8 +645,7 @@ class ReadConfig:
             mesh_mode = True
         else:
             try:
-                with open(self.input, 'r', encoding='utf-8') as f:
-                    f.read()
+                _ = Path(self.input).read_text(encoding='utf-8')
                 parameter_mode = True
             except UnicodeDecodeError:
                 hopout.error(f'Parameter or mesh file [󰇘]/{os.path.basename(self.input)} are of unknown type')
