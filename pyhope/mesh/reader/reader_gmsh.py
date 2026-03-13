@@ -492,7 +492,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                 if cgnsGridLoc == 'Vertex':
                     # Check if corners can form a subset of cgnsBC
-                    corners_set = set(int(s) for s in corners)
+                    corners_set = {int(s) for s in corners}
                     if corners_set.issubset(cgns_set):
                         BCpoints = bpoints[[s-1 for s in corners]]
                         quadCenters.append(np.mean(BCpoints, axis=0))
