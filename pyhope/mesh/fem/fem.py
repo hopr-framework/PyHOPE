@@ -225,8 +225,7 @@ def FEMConnect() -> None:
 
     # Seed edgeSet from the graph keys plus every raw edge base representation
     edgeSet = set(edgeGraph.keys())
-    for _, _, (n0, n1) in edgesRaw:
-        edgeSet.add((n0, n1) if n0 < n1 else (n1, n0))
+    edgeSet.update((n0, n1) if n0 < n1 else (n1, n0) for _, _, (n0, n1) in edgesRaw)
 
     for nodeStart in edgeSet:
         # Done with this node
