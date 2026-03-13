@@ -168,7 +168,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         meshcells = tuple(('Zone1', {k: np.array([i for i in range(len(v))])}) for k, v in mesh.cells_dict.items()
                                                                                         if k.startswith('hexahedron'))
 
-    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     # Build an inverted index to map each node to all face keys (from csets_old) that contain it

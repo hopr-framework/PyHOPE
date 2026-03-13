@@ -163,7 +163,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
         case _:
             hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
-    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     # Build an inverted index to map each node to all face keys (from csets_old) that contain it

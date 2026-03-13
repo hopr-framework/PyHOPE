@@ -305,7 +305,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     if any('quad' in key for key in mesh.cells_dict):
         nConnSide = next(value for key, value in mesh.cells_dict.items() if 'quad' in key)
-        nConnType = next(key   for key, _     in mesh.cells_dict.items() if 'quad' in key)  # noqa: E272, E501
+        nConnType = next(key   for key        in mesh.cells_dict         if 'quad' in key)  # noqa: E272, E501
         nConnNum  = cells_lst.index(nConnType)
         nConnLen  = len(cells_lst)
 
@@ -326,7 +326,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     if any('triangle' in key for key in mesh.cells_dict):
         tConnSide = next(value for key, value in mesh.cells_dict.items() if 'triangle' in key)
-        tConnType = next(key   for key, _     in mesh.cells_dict.items() if 'triangle' in key)  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
+        tConnType = next(key   for key        in mesh.cells_dict         if 'triangle' in key)  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
         tConnNum  = cells_lst.index(tConnType)
         tConnLen  = len(cells_lst)
 

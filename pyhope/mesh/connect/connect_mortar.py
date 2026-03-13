@@ -657,7 +657,7 @@ def find_edge_combinations(comboEdges) -> tuple:
     validCombo = []
 
     # Iterate over all points and their associated edges
-    for _, edges in pointToEdges.items():
+    for edges in pointToEdges.values():
         if len(edges) < 2:  # Skip points with less than 2 edges
             continue
 
