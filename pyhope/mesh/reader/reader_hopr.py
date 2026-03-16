@@ -170,7 +170,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
                     linCache[elemType] = mapLin
                 # Only hexahedrons supported for specific nGeo
-                except ValueError:
+                except ValueError:  # noqa: PERF203
                     pass
 
             with alive_bar(len(elemInfo), title='│             Processing Elements', length=33) as bar:

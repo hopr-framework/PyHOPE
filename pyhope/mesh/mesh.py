@@ -130,7 +130,9 @@ def DefineMesh() -> None:
     CreateReal(      'MeshExtrudeLength',    default=1.0,            help='Mesh extrusion length')
     CreateRealArray( 'MeshExtrudeDir',  3,   default='(/0.,0.,1./)', help='Mesh extrusion direction')
     CreateInt(       'MeshExtrudeElems',     default=1  ,            help='Mesh extrusion number of element')
-    CreateInt(       'MeshExtrudeBCIndex',                           help='Mesh extrusion boundary index')
+    CreateInt(       'MeshExtrudeBCIndexBot',                        help='Mesh extrusion boundary index')
+    CreateInt(       'MeshExtrudeBCIndexTop',                        help='Mesh extrusion boundary index')
+
     # Edge connectivity
     CreateSection('Finite Element Method (FEM) Connectivity')
     CreateLogical(   'doFEMConnect',         default=False,          help='Generate finite element method (FEM) connectivity')

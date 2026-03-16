@@ -684,7 +684,9 @@ def appendBCSet(subFace:      np.ndarray,
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 
-    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+    # We need to distinguish between BC (2D) and ZONE (3D) elements. The actual size might not match because we are getting the
+    # pre-extrusion types. Manually add +2 if we want to create a zone
+    faceVal = (faceMap(0) if len(subFace) == nFace else faceMap(1)) + (2 if bcSide == 'zone' else 0)
     faceSet = frozenset(subFace)
 
     # Get candidate cset keys using the nodes in the face
@@ -720,17 +722,21 @@ def appendBCSet(subFace:      np.ndarray,
 
             # Update csets_lst for each name in the list.
             for name in names:
-                csets_lst.setdefault(name.strip(), [[], []])
+                csets_lst.setdefault(name.strip(), [[], [], [], []])
                 csets_lst[name][faceVal].append(nFaces[faceVal])
+                nFaces[faceVal] += 1
 
-                # Store the 1D faces
+                # Store the (original) 1D/2D faces
                 if bcFaces is not None and bcFaceIdx is not None and bcSide is not None:
                     bcFaces[bcFaceIdx] = {'name': name.strip(),
                                           'side': bcSide.strip(),
                                          }
 
-                nFaces[faceVal] += 1
-                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                match faceType[faceVal][:4]:
+                    # Append the 2D (newly created) faces
+                    # > For zones, the elements are already created in the calling function
+                    case 'tria' | 'quad':
+                        elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
 
     if requireMatch and not common_match:
         raise ValueError('Unable to identify BC for face')

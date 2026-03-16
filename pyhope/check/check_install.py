@@ -89,7 +89,7 @@ def downloadGitDir(user    : str,
         while True:
             try:
                 return urllib.request.urlopen(req)
-            except HTTPError as e:
+            except HTTPError as e:  # noqa: PERF203
                 # Check for rate-limiting error
                 if  e.code == 403                        \
                 and 'X-RateLimit-Remaining' in e.headers \

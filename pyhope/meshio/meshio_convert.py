@@ -308,6 +308,6 @@ def MeshioGmshOrderingPatch() -> None:
         try:
             mod = importlib.import_module(mod_name)
             mod._meshio_to_gmsh_order = NodeOrdering().ordering_meshio_to_gmsh
-        except Exception:
+        except Exception:  # noqa: PERF203
             # If assignment fails, pass
             pass
