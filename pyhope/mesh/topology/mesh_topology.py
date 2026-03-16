@@ -675,6 +675,8 @@ def appendBCSet(subFace:      np.ndarray,
                 bcFaces:      Optional[list] = None,
                 bcFaceIdx:    Optional[int]  = None,
                 bcSide:       Optional[str]  = None,
+                # Optional zone element
+                elemType:     Optional[str]  = None,
                 # Optional checks
                 requireDim:   Optional[Union[Callable[[int], bool], int]] = None,
                 requireMatch: bool = False,
@@ -686,7 +688,7 @@ def appendBCSet(subFace:      np.ndarray,
 
     # We need to distinguish between BC (2D) and ZONE (3D) elements. The actual size might not match because we are getting the
     # pre-extrusion types. Manually add +2 if we want to create a zone
-    faceVal = (faceMap(0) if len(subFace) == nFace else faceMap(1)) + (2 if bcSide == 'zone' else 0)
+    faceVal = (faceMap(0) if len(subFace) == nFace else faceMap(1)) if elemType is None else faceType.index(elemType)
     faceSet = frozenset(subFace)
 
     # Get candidate cset keys using the nodes in the face
@@ -722,7 +724,7 @@ def appendBCSet(subFace:      np.ndarray,
 
             # Update csets_lst for each name in the list.
             for name in names:
-                csets_lst.setdefault(name.strip(), [[], [], [], []])
+                csets_lst.setdefault(name.strip(), [[] for _ in range(len(faceType))])
                 csets_lst[name][faceVal].append(nFaces[faceVal])
                 nFaces[faceVal] += 1
 

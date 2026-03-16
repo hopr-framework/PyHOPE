@@ -109,8 +109,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # Get base key to distinguish between linear and high-order elements
     ho_key    = 100 if nGeo == 1 else 200
     nPoints   = len(pointl)
-    # nFaces contains the existing number of [Triangle, Quad, Wedge, Hexahedron]
-    nFaces    = np.zeros(4, dtype=int)
 
     # Expected number of nodes
     faceNum   = [ int((nGeo+1)*(nGeo+2)/2), int((nGeo+1)**2) ]
@@ -139,6 +137,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 faceType.append(elemType)
                 faceNum .append(elemDOFs)
 
+    # nFaces contains the existing number of [Triangle, Quad, Wedge, Hexahedron]
+    nFaces    = np.zeros(len(faceType), dtype=int)
+
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
     csets_lst = {}
@@ -152,7 +153,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # INFO: We reduce the new faces to first-order. Yes, this breaks direkt meshio output. But we are not using this anyways.
     #       If you want to use mesh.write() for debug purposes, comment out the BC face creation.
     # nFace = (nGeo+1)*(nGeo+2)/2
-    nFace = 3
+    nFace: Final[int] = 3
 
     # Create the element sets
     meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
@@ -284,6 +285,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 appendBCSet(botFace, faceMap, nFace, nFaces, nodeToZone, faceType,
                             csets_old  = zsets_old      , csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
                             bcFaces    = bcFaces        , bcFaceIdx    = botIdx   , bcSide     = 'zone',     # noqa: E251, E271
+                            elemType   = elemType,                                                           # noqa: E251, E271
                             requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
                 # BC: Next, iterate over the 1D (side faces)
@@ -308,7 +310,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                         faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
 
                         name = sidFace['name']
-                        csets_lst.setdefault(name.strip(), [[], [], [], []])
+                        csets_lst.setdefault(name.strip(), [[] for _ in range(len(faceType))])
                         csets_lst[name][faceVal].append(nFaces[faceVal])
 
                         nFaces[faceVal] += 1
@@ -324,7 +326,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 # BC: We should have one face left, assign the bottom BC
                 # > We need to hardcode this since we might have internal faces
                 faceVal = faceMap(0) if len(topFace) == nFace else faceMap(1)
-                csets_lst.setdefault(topName, [[], [], [], []])
+                csets_lst.setdefault(topName, [[] for _ in range(len(faceType))])
                 csets_lst[topName][faceVal].append(nFaces[faceVal])
 
                 nFaces[faceVal] += 1
