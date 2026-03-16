@@ -317,11 +317,12 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                         elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
 
                     # Assign the new elements to the zone
-                    faceVal = faceType.index(elemType)
-                    name    = zonFaces[0][1]['name']
-
-                    csets_lst[name][faceVal].append(nFaces[faceVal])
-                    nFaces[faceVal] += 1
+                    if zonFaces:
+                        faceVal = faceType.index(elemType)
+                        name    = zonFaces[0][1]['name']
+                        # Append the volume zones and increment
+                        csets_lst[name][faceVal].append(nFaces[faceVal])
+                        nFaces[faceVal] += 1
 
                 # BC: We should have one face left, assign the bottom BC
                 # > We need to hardcode this since we might have internal faces
