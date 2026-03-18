@@ -11,6 +11,28 @@ repos:
         name: ruff linter
         alias: lint
       # Run the formatter
-      - id: ruff-format
-        name: ruff formatter
-        alias: format
+      # - id: ruff-format
+      #   name: ruff formatter
+      #   alias: format
+
+  - repo: https://github.com/jendrikseipp/vulture
+    # Vulture version
+    rev: v2.15
+    hooks:
+      # Run dead code detection
+      # Paths are configured under [tool.vulture] in pyproject.toml
+      - id: vulture
+        name: vulture dead code
+        alias: vulture
+
+  # ty has no official pre-commit hook yet (https://github.com/astral-sh/ty/issues/269).
+  # Run it as a local hook using the system-installed binary
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type checker
+        alias: ty
+        entry: ty check --color always --project pyhope pyhope
+        language: system
+        pass_filenames: false
+        types: [python]
