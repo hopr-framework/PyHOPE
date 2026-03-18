@@ -136,11 +136,12 @@ class Common:
 
 
 @final
-class Gitlab:
+class Github:
     # Gitlab "python-gmsh" access
-    LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
-    # LIB_PROJECT  = 'libs/python-gmsh'
-    LIB_PROJECT: str = '797'
+    LIB_GITHUB:  str = 'github.com'
+    LIB_OWNER:   str = 'hopr-framework'
+    LIB_PROJECT: str = 'python-gmsh'
+    LIB_BRANCH:  str = 'main'
     LIB_VERSION: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
             'x86_64' : '4.15.1.post1',

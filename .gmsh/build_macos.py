@@ -221,16 +221,9 @@ GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 GMSH_DIR     = os.path.join(WORK_DIR, 'gmsh')
 GMSH_URL     = ('https://gmsh.info/src/', r'gmsh-(\d+\.\d+\.\d+)-source')
 
-# Gitlab "python-gmsh" access
-LIB_GITLAB   = 'gitlab.iag.uni-stuttgart.de'
-# LIB_PROJECT  = 'libs/python-gmsh'
-LIB_PROJECT  = '797'
-
-
 # Determine the number of available cores and leave 2 for other tasks
 total_cores  = multiprocessing.cpu_count()
 build_cores  = max(total_cores - 2, 1)
-
 
 # ------------------------------------------------------------------------
 # Version checks

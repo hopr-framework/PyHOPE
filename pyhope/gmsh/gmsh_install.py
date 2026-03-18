@@ -70,7 +70,7 @@ def PkgsCheckGmsh() -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common import IsInteractive
-    from pyhope.common.common_vars import Gitlab
+    from pyhope.common.common_vars import Github
     # ------------------------------------------------------
 
     # Check the current platform
@@ -81,7 +81,7 @@ def PkgsCheckGmsh() -> None:
     if gmsh_version is None:
         # Gmsh is not installed
         if IsInteractive():
-            if system in Gitlab.LIB_SUPPORT and arch in Gitlab.LIB_SUPPORT[system]:
+            if system in Github.LIB_SUPPORT and arch in Github.LIB_SUPPORT[system]:
                 print(hopout.warn('\n'))
                 warning = 'Gmsh is not installed. For compatibility, the NRG Gmsh version will be installed. Continue? (Y/n):'
                 response = input(hopout.warn(warning) + '\n')
@@ -109,7 +109,7 @@ def PkgsCheckGmsh() -> None:
     if PkgsMetaData('gmsh', 'Intended Audience :: NRG'):
         return None
 
-    if system not in Gitlab.LIB_SUPPORT or arch not in Gitlab.LIB_SUPPORT[system]:
+    if system not in Github.LIB_SUPPORT or arch not in Github.LIB_SUPPORT[system]:
         warning = hopout.warn(f'Detected non-NRG Gmsh version on unsupported platform [{system}/{arch}]. ' +
                               'Functionality may be limited.')
         print(warning)
@@ -138,7 +138,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     import tempfile
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
-    from pyhope.common.common_vars import Gitlab
+    from pyhope.common.common_vars import Github
     # ------------------------------------------------------
     # Get our package manager
     # > Check if 'uv' is available
@@ -160,8 +160,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
 
     if version == 'nrg':
         # Gitlab "python-gmsh" access
-        lfs = 'yes'
-        lib = f'gmsh-{Gitlab.LIB_VERSION[system][arch]}-py3-none-{system}_{arch}.whl'
+        lib = f'gmsh-{Github.LIB_VERSION[system][arch]}-py3-none-{system}_{arch}.whl'
 
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as path:
@@ -173,7 +172,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             else:
                 pkgs = os.path.join(path, lib)
 
-            curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
+            curl = [rf'curl -L https://{Github.LIB_GITHUB}/{Github.LIB_OWNER}/{Github.LIB_PROJECT}/raw/refs/heads/{Github.LIB_BRANCH}/{lib}?download\= --output {pkgs}']  # noqa: E501
             _ = subprocess.run(curl, check=True, shell=True)
 
             # Compare the hash
@@ -184,7 +183,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
                 for chunk in iter(lambda: f.read(4096), b""):
                     sha256.update(chunk)
 
-            if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
+            if sha256.hexdigest() == Github.LIB_SUPPORT[system][arch]:
                 hopout.info('Hash matches, installing Gmsh wheel...')
             else:
                 hopout.error('Hash mismatch, exiting...')

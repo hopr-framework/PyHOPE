@@ -223,16 +223,15 @@ GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 GMSH_DIR     = os.path.join(WORK_DIR, 'gmsh')
 GMSH_URL     = ('https://gmsh.info/src/', r'gmsh-(\d+\.\d+\.\d+)-source')
 
-# Gitlab "python-gmsh" access
-LIB_GITLAB   = 'gitlab.iag.uni-stuttgart.de'
-# LIB_PROJECT  = 'libs/python-gmsh'
-LIB_PROJECT  = '797'
-
+# Github "python-gmsh" access
+LIB_GITHUB  = 'github.com'
+LIB_OWNER   = 'hopr-framework'
+LIB_PROJECT = 'python-gmsh'
+LIB_BRANCH  = 'main'
 
 # Determine the number of available cores and leave 2 for other tasks
 total_cores  = multiprocessing.cpu_count()
 build_cores  = max(total_cores - 2, 1)
-
 
 # ------------------------------------------------------------------------
 # Version checks
@@ -754,45 +753,13 @@ def build_fontconfig():
 def build_fltk():
     print_header('BUILDING FLTK')
 
-    # Add system libjpeg-turbo-devel to PATH
-    # lfs = 'yes'
-    # lib = f'libjpeg-turbo-devel-1.2.90-8.el7.{arch}'
-    # subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
-    #                check=True,
-    #                cwd=BUILD_DIR,
-    #                shell=True)
-    # extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
-    #
-    # # Move files into common directory
-    # shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/')  , '/io/build/include'  , dirs_exist_ok=True)
-    #
-    # # Add system libpng-devel to PATH
-    # lib = f'libpng-devel-1.5.13-8.el7.{arch}'
-    # subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
-    #                check=True,
-    #                cwd=BUILD_DIR,
-    #                shell=True)
-    # extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
-    #
-    # # Move files into common directory
-    # shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'include/')  , '/io/build/include'  , dirs_exist_ok=True)
-    #
-    # os.environ['CPPFLAGS'] = '-I{}'.format( os.path.join(BUILD_DIR, 'include'))
-    # subprocess.check_call(['yum', 'install', '-y', 'libjpeg-turbo-devel', 'libpng-devel'])
-
     fltk_src_dir = os.path.join(BUILD_DIR, f'fltk-{FLTK_VERSION}')
     if os.path.exists(fltk_src_dir):
         shutil.rmtree(fltk_src_dir)
 
-    # url  = f'https://www.fltk.org/pub/fltk/{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
     url  = f'https://github.com/fltk/fltk/releases/download/release-{FLTK_VERSION}/fltk-{FLTK_VERSION}-source.tar.gz'
-    # url  = 'https://www.fltk.org/pub/fltk/snapshots/fltk-1.4.x-20241011-013e939c.tar.gz'
     file = download(url, BUILD_DIR)
     extract(file, BUILD_DIR)
-
-    # if os.path.isdir(f'{BUILD_DIR}/fltk-1.4.0'):
-    #     shutil.rmtree(f'{BUILD_DIR}/fltk-1.4.0')
-    # subprocess.run(['mv', f'{BUILD_DIR}/fltk-1.4.x-20241011-013e939c', f'{BUILD_DIR}/fltk-1.4.0'], check=True)
 
     conf_cmd = [
         './configure',
@@ -1112,13 +1079,13 @@ def build_gmsh() -> None:
     # subprocess.check_call(['yum', 'install', '-y', 'mesa-libGLU-devel'])
 
     # Add system libGLU to PATH
-    lfs = 'yes'
     lib = f'mesa-libGLU-9.0.0-4.el7.{arch}'
-    subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
+    tar = f'{lib}.tar.gz'
+    subprocess.run([rf'curl -L https://{LIB_GITHUB}/{LIB_OWNER}/{LIB_PROJECT}/raw/refs/heads/{LIB_BRANCH}/{tar}?download\= --output {tar}'],  # noqa: E501
                    check=True,
                    cwd=BUILD_DIR,
                    shell=True)
-    extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
+    extract(os.path.join(BUILD_DIR, f'{tar}'), BUILD_DIR)
     os.environ['PKG_CONFIG_PATH'   ] = '{}'.format( os.path.join(BUILD_DIR, 'lib64', 'pkgconfig'))
     os.environ['CMAKE_PREFIX_PATH' ] = '{}'.format( os.path.join(BUILD_DIR))
     os.environ['CMAKE_LIBRARY_PATH'] = '{}'.format( os.path.join(BUILD_DIR, 'lib64'  ))
@@ -1132,11 +1099,12 @@ def build_gmsh() -> None:
     shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64') , dirs_exist_ok=True)
 
     lib = f'mesa-libGLU-devel-9.0.0-4.el7.{arch}'
-    subprocess.run([f'curl https://{LIB_GITLAB}/api/v4/projects/{LIB_PROJECT}/repository/files/{lib}.tar.gz/raw?lfs={lfs} --output {lib}.tar.gz'],  # noqa: E501
+    tar = f'{lib}.tar.gz'
+    subprocess.run([rf'curl -L https://{LIB_GITHUB}/{LIB_OWNER}/{LIB_PROJECT}/raw/refs/heads/{LIB_BRANCH}/{tar}?download\= --output {tar}'],  # noqa: E501
                    check=True,
                    cwd=BUILD_DIR,
                    shell=True)
-    extract(os.path.join(BUILD_DIR, f'{lib}.tar.gz'), BUILD_DIR)
+    extract(os.path.join(BUILD_DIR, f'{tar}'), BUILD_DIR)
 
     # Move files into common directory
     shutil.copytree(os.path.join(BUILD_DIR, lib, 'usr', 'lib64/')  , os.path.join(WORK_DIR, 'build', 'lib64'  ) , dirs_exist_ok=True, symlinks=True)  # noqa: E501
@@ -1373,7 +1341,7 @@ def package() -> None:
     dependencies = []  # Add any required dependencies
 
     [project.urls]
-    homepage    = 'https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh'
+    homepage    = 'https://github.com/hopr-framework/python-gmsh'
 
     [tool.setuptools]
     packages    = ['gmsh']
