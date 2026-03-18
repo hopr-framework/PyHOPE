@@ -1,0 +1,16 @@
+# https://pre-commit.com/
+# https://github.com/pre-commit/pre-commit
+minimum_pre_commit_version: 4.5.1
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version
+    rev: v0.15.5
+    hooks:
+      # Run the linter
+      - id: ruff
+        name: ruff linter
+        alias: lint
+      # Run the formatter
+      - id: ruff-format
+        name: ruff formatter
+        alias: format

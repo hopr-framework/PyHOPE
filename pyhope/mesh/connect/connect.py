@@ -381,7 +381,7 @@ def ConnectMesh() -> None:
                     case _:        # Boundary side
                         # Abort if there are multiple sides with the same corners
                         if len(sideIDs) > 1 and checkInternalBoundaries:
-                            hopout.error('Found interal face with multiple BCs, exiting...', traceback=True)
+                            hopout.error(f'Found interal face with multiple BCs [{bcID}], exiting...', traceback=True)
 
                 for sideID in sideIDs:
                     # sides[sideID].update(bcid=bcID)

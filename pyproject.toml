@@ -145,6 +145,9 @@ enableExperimentalFeatures      = false
 python-preference          = 'system'
 
 [tool.ruff]
+line-length = 132
+indent-width = 4
+force-exclude = true
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".git",
@@ -156,6 +159,9 @@ exclude = [
     "site-packages",
     "venv"
     ]
+# Required Ruff version
+required-version = ">=0.7.1"
+show-fixes = true
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 

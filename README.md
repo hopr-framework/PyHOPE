@@ -197,6 +197,73 @@ with Mesh('1-01-cartbox_mesh.h5') as m:
     elems = m.elems
     lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
 ```
+    
+## Ruff linter and formatter
+
+PyHOPE uses [Ruff](https://docs.astral.sh/ruff/) for code linting and formatting of all .py files to maintain consistent code quality and style.
+Ruff is a fast Python linter and formatter that combines multiple individual tools like flake8, black, isort, etc.
+
+### Pre-commit Integration
+
+Ruff is integrated with [pre-commit](https://pre-commit.com/) to automatically check and format code before each commit. The configuration is defined in `.pre-commit-config.yaml` and includes:
+
+1. Ruff linter hook
+2. Ruff formatter hook
+
+All hooks can be tested with pre-commit before commiting your changes with
+```
+pre-commit run
+```
+Note that all pre-commit hooks only run on files that have been staged. The pre-commit hooks can be ignored with the additional flag
+```
+--no-verify
+```
+
+When creating a commit:
+1. The linter displays errors immediately
+2. The formatter
+   - Fails if it finds issues
+   - Applies automatic fixes
+   - Unstages the modified files
+
+After formatter changes:
+- Review the applied changes
+- Re-stage the files
+- Try committing again (formatter should pass if no new changes were made)
+
+Some linter errors can be fixed automatically with
+```
+ruff check --fix
+```
+while others require manual corrections.
+Note that the flag `--unsafe-fixes` can change the functionality of the code, while `--fix` should keep it.
+
+### Ruff configuration
+
+Ruff's configuration is managed through the `pyproject.toml` file in the project root and specifies linting rules, checks, excludes, etc.
+
+To suppress a violation inline, Ruff uses a `noqa` system similar to Flake8. To ignore an individual violation, add `# noqa: {code}` to the end of the line, like so:
+```
+# Ignore F841.
+x = 1  # noqa: F841
+# Ignore E741 and F841.
+i = 1  # noqa: E741, F841
+# Ignore _all_ violations.
+x = 1  # noqa
+```
+
+Similar to the linter it is also possible to ignore code blocks for the formatter with
+```
+# fmt: off
+_code_
+# fmt: on
+```
+or a python specific block with
+```
+if condition: # fmt: skip
+```
+
+```
 
 # Cite
 This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the following article.
