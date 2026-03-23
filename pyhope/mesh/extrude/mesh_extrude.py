@@ -242,11 +242,11 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Obtain the element type
             elemType = elemTypeClass.inam[elemNum]
             if len(elemType) > 1:
-                elemType  = elemType[0].rstrip(digits)
+                elemType  = str(elemType[0]).rstrip(digits)
                 elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
                 elemType += str(elemDOFs)
             else:
-                elemType  = elemType[0]
+                elemType  = str(elemType[0])
                 elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
 
             # Face block: Iterate over each element
@@ -273,7 +273,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 # > We know this is the first face and 1/5 face
                 botIdx , botFace = 0, subFaces[0]
                 topIdx           = 1 if mtype.startswith('tria') else 5
-                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndexTop-1].name  # noqa: E501
+                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndexTop].name  # noqa: E501
 
                 # BC: Set the BC for the bottom face
                 appendBCSet(botFace, faceMap, nFace, nFaces, nodeToFace, faceType,
