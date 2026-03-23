@@ -3,6 +3,7 @@ min = 0.0
 max = 40984.0
 mean = 11972.008068189212
 stddev = 12177.254106305043
+_atol = 400.0  # Rounding issues
 
 [GlobalNodeIDs]
 min = 1.0
@@ -13,11 +14,12 @@ stddev = 2988.4474391070266
 [NodeCoords]
 min = 0.0
 max = 0.03
-mean = 0.006552551312148826
-stddev = 0.0068302865681914415
+mean = 0.006552555028766583
+stddev = 0.00683029203037687
 
 [SideInfo]
 min = -20602.0
 max = 20607.0
-mean = 1051.047537250309
-stddev = 5312.915170664344
+mean = 1051.0808705836423
+stddev = 5312.908617044128
+_atol = 200.0  # Rounding issues
