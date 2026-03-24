@@ -1,14 +1,14 @@
-# pyporject.toml compatible with Poetry (version 2.0.0.dev0)
+# pyproject.toml compatible with Poetry (version 2.0.0.dev0)
 [project]
 name = "PyHOPE"
-version = "0.8.0"
+version = "0.10.0"
 description = "Python High-Order Preprocessing Environment"
-license = {text = "GPL-3.0-only"}
+license = "GPL-3.0-only"
 requires-python = ">=3.10"
 readme = "README.md"
 authors = [
     {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},
-]
+    ]
 dependencies = [
     'alive-progress',
     'h5py',
@@ -21,19 +21,23 @@ dependencies = [
     'gmsh',
     # 'sortedcontainers',
     'typing-extensions',
-    'threadpoolctl'
-]
+    # 'threadpoolctl'
+    ]
 keywords = ["PyHOPE", "mesh generator"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Operating System :: POSIX :: Linux",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13"
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
+
+[project.optional-dependencies]
+numba = [ 'numba'
+    ]
 
 [project.urls]
 homepage = "https://numericsresearchgroup.org"
@@ -43,8 +47,14 @@ documentation = "https://hopr-framework.github.io/PyHOPE"
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"
 
-[tool.setuptools]
-packages = ["pyhope"]
+# Build system
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# Legacy setuptools support
+[tool.setuptools.packages.find]
+include = ["pyhope*"]
 
 # Code coverage
 [tool.coverage.run]
@@ -61,6 +71,8 @@ omit = [
     '*/pyhope/common/common_parallel.py',
     # Gmsh does not get re-installed when running non-interactively
     '*/pyhope/gmsh/gmsh_install.py',
+    # Library functions are not called internally
+    '*/pyhope/__init__.py',
     ]
 exclude_also = [
     # Exclude if code block with abort
@@ -98,6 +110,9 @@ exclude_also = [
 
     # Exclude multiprocessing blocks
     'if np_mtp > 0:',
+
+    # Exclude interactive blocks
+    'if .+IsInteractive\(\)',
     ]
 
 # Code linters
@@ -126,6 +141,9 @@ reportImportCycles              = false
 reportUnsafeMultipleInheritance = false
 enableExperimentalFeatures      = false
 
+[tool.uv]
+python-preference          = 'system'
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -141,6 +159,44 @@ exclude = [
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 
+[tool.ruff.lint]
+extend-select = [
+  # "ANN",      # flake8-annotations
+  "B",        # flake8-bugbear
+  "C4",       # flake8-comprehensions
+  "FA",       # flake8-future-annotations
+  "RET",      # flake8-return
+  "SIM",      # flake8-simplify
+  "SLOT",     # flake8-slots
+  "TID",      # flake8-tidy-imports
+  "FURB",     # refurb
+  "I",        # isort
+  "NPY",      # NumPy-specific rules
+  # "RUF",      # Ruff-specific rules
+  ]
+ignore = [
+  "EXE001",   # shebang-not-executable             - we use shebang as file format identifier
+  "I001",     # unsorted-imports                   - we use logical sorting instead of alphabetical
+  "RET501",   # unnecessary-return-none            - we want to be explicit about our return values
+  "RUF001",   # ambiguous-unicode-character-string - we want to use all characters
+  "RUF100",   # unused-noqa                        - we want to have multiple linters, thus sometimes more exceptions are necessary
+  "UP009",    # utf8-encoding-declaration          - we want to be explicit about our encoding
+  "UP007",    # non-pep604-annotation-union        - we want explicit typing.Union annotations
+  "UP045",    # non-pep604-annotation-optional     - we want explicit typing.Optional annotations
+  "PLR0402",  # manual-from-import                 - we want every import specify the module name
+  # INFO: False positives
+  "RET503",   # implicit-return                    - ruff does not detect hopout.error[NoReturn]
+  # TODO: These should be fixed eventually
+  "ANN002",   # missing-type-args                  - determine non-trivial types
+  "BLE001",   # blind-except                       - narrow errors and exceptions
+  "S110",     # try-except-pass                    - implement feature.logger branch
+  "S112",     # try-except-continue                - implement feature.logger branch
+ ]
+
+[tool.ruff.format]
+quote-style  = "single"
+indent-style = "space"
+
 # [tool.ty.src]
 # # Monkey-patching meshio.xdmf.main.XdmfWriter
 # exclude = ['pyhope/io/io_xdmf.py']
@@ -150,11 +206,10 @@ target-version = "py310"
 invalid-argument-type      = 'ignore'
 invalid-assignment         = 'ignore'
 possibly-missing-attribute = 'ignore'
+unresolved-attribute       = 'ignore'
 unsupported-operator       = 'ignore'
-
-[tool.ruff.format]
-quote-style  = "single"
-indent-style = "space"
+unused-ignore-comment      = 'ignore'
+# unused-type-ignore-comment = 'ignore'
 
 # Dead code
 [tool.vulture]
@@ -163,7 +218,12 @@ ignore_names = [
     "Basis",
     # Exclude debug function
     "time_function",
-    # Exclude monkey-patching meshio
-    "__init__", "data_counter", "h5_file"
+    # Exclude monkey-patching MeshIO
+    "__init__", "data_counter", "h5_file", "_meshio_to_gmsh_order",
+    # Exclude library functions
+    "Basis", "Mapping", "Mesh",
+    "mesh_format_to_tensor_product"
     ]
+# Exclude unit tests
+exclude = ["check_unittest.py"]
 sort_by_size = true

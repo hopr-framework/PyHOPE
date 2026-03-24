@@ -28,22 +28,23 @@
 from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, unique
 from functools import cache
-from typing import Dict, Final, Optional, Union, Tuple, final
+from typing import Final, Optional, Union, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 if typing.TYPE_CHECKING:
     import meshio
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_vars import Policy
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,13 +53,13 @@ mode     : int                                    # Mesh generation mode (1 - In
 mesh     : meshio.Mesh                            # MeshIO object holding the mesh
 nGeo     : int                                    # Order of spline-reconstruction for curved surfaces
 
-bcs      : list[Optional['BC']]                   # [list of dict] - Boundary conditions
+bcs      : list[Optional[BC]]                     # [list of dict] - Boundary conditions
 vvs      : list                                   # [list of dict] - Periodic vectors
 
 nZones   : int       = 1                          # Number of zones
 elemTypes: list[int] = []                         # Element types per zone
-elems    : list[Optional['ELEM']]                 # [list of list] - Element nodes
-sides    : list[Optional['SIDE']]                 # [list of list] - Side    nodes
+elems    : list[Optional[ELEM]]                   # [list of list] - Element nodes
+sides    : list[Optional[SIDE]]                   # [list of list] - Side    nodes
 
 # Periodic nodes
 periNodes: dict                                   # Mapping from the periodic nodes to the master nodes
@@ -67,23 +68,33 @@ periNodes: dict                                   # Mapping from the periodic no
 already_curved: bool                              # Flag if mesh is already curved
 
 # Mesh sorting
-nElemsIJK: Optional[np.ndarray]                   # Number of elements in each structured dimension
+nElemsIJK: Optional[npt.NDArray]                  # Number of elements in each structured dimension
 
 # Mesh connectitivity
 doMortars: bool                                   # Flag if mortars are enabled
+doMortarRebuild: Policy                           # Policy if mortars should be rebuilt
 doPeriodicCorrect: bool                           # Flag if displacement between periodic elements should be corrected
+
+# Mesh extrusion
+doExtrude: bool
 
 # Internal variables
 tolInternal: Final[float] = 1.E-10                # Tolerance for mesh connect (internal sides)
 tolExternal: Final[float] = 1.E-8                 # Tolerance for mesh connect (external sides)
 tolPeriodic: Final[float] = 5.E-2                 # Tolerance for mesh connect (periodic sides)
 
+# Mortars
+hasMortars: bool                                  # Flag if mesh has mortars
+hasMortarsInterzone: bool                         # Flag if mesh has mortars between zones, potentially requiring rebuild
 
+
+@unique
 class MeshMode(Enum):
     Internal = 1
     External = 3
 
 
+@unique
 class MeshSort(Enum):
     NONE  = 0
     SFC   = 1
@@ -115,7 +126,7 @@ class SIDE:
     #              sideID      : Optional[int] = None,
     #              locSide     : Optional[int] = None,
     #              face        : Optional[str] = None,
-    #              corners     : Optional[np.ndarray] = None,
+    #              corners     : Optional[npt.NDArray] = None,
     #              sideType    : Optional[int] = None,
     #              # Sorting
     #              globalSideID: Optional[int] = None,
@@ -133,7 +144,7 @@ class SIDE:
     #     self.sideID      : Optional[int] = sideID
     #     self.locSide     : Optional[int] = locSide
     #     self.face        : Optional[str] = face
-    #     self.corners     : Optional[np.ndarray] = corners
+    #     self.corners     : Optional[npt.NDArray] = corners
     #     self.sideType    : Optional[int] = sideType
     #     # Sorting
     #     self.globalSideID: Optional[int] = globalSideID
@@ -150,7 +161,7 @@ class SIDE:
     sideID      : Optional[int] = None
     locSide     : Optional[int] = None
     face        : Optional[str] = None
-    corners     : Optional[np.ndarray] = None
+    corners     : Optional[npt.NDArray] = None
     sideType    : Optional[int] = None
     # Sorting
     globalSideID: Optional[int] = None
@@ -196,23 +207,23 @@ class ELEM:
     type        : Optional[int]  = None
     zone        : Optional[int]  = None
     elemID      : Optional[int]  = None
-    sides       : Optional[Union[list, np.ndarray]] = None
-    nodes       : Optional[            np.ndarray]  = None
+    sides       : Optional[Union[list, npt.NDArray]] = None
+    nodes       : Optional[            npt.NDArray]  = None
     # Sorting
-    elemIJK     : Optional[np.ndarray] = None
+    elemIJK     : Optional[npt.NDArray] = None
     # Jacobian
     jacobian    : Optional[float] = None
     # FEM connectivity
-    edgeInfo    : Optional[Dict[int,                    # locEdgeIdx
-                                Tuple[int,              # locEdge
+    edgeInfo    : Optional[dict[int,                    # locEdgeIdx
+                                tuple[int,              # locEdge
                                       int | None,       # globalEdge
-                                      Tuple[int, ...],  # FEMVertexID
-                                      Tuple[int, ...]   # NodeID
+                                      tuple[int, ...],  # FEMVertexID
+                                      tuple[int, ...]   # NodeID
                                      ]
                                 ]] = None
-    vertexInfo  : Optional[Dict[int,                    # locNodeIdx
-                                Tuple[int,              # FEMVertexID
-                                      Tuple[int, ...]   # Vertex connectivity
+    vertexInfo  : Optional[dict[int,                    # locNodeIdx
+                                tuple[int,              # FEMVertexID
+                                      tuple[int, ...]   # Vertex connectivity
                                      ]
                                 ]] = None
 
@@ -245,10 +256,10 @@ class BC:
     #     self.bcid        : Optional[int]  = bcid
     #     self.type        : Optional[list] = type
     #     self.dir         : Optional[list] = dir
-    name        : Optional[str]        = None
-    bcid        : Optional[int]        = None
-    type        : Optional[np.ndarray] = None
-    dir         : Optional[list]       = None
+    name        : Optional[str]         = None
+    bcid        : Optional[int]         = None
+    type        : Optional[npt.NDArray] = None
+    dir         : Optional[list]        = None
 
     # def update(self, **kwargs):
     #     for key, value in kwargs.items():
@@ -265,11 +276,11 @@ class BC:
 
 @final
 class ELEMTYPE:
-    type = {'tetra'     : 4,
+    type = {'tetra'     : 4,  # noqa: RUF012
             'pyramid'   : 5,
             'wedge'     : 5,
             'hexahedron': 6}
-    name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,
+    name = {'tetra'     : 104, 'tetra10'      : 204, 'tetra20'       : 204, 'tetra35'       : 204, 'tetra56'       : 204,  # noqa: RUF012
                                'tetra84'      : 204, 'tetra120'      : 204, 'tetra165'      : 204, 'tetra220'      : 204,
                                'tetra286'     : 204,
             'pyramid'   : 105, 'pyramid13'    : 205, 'pyramid14'     : 205, 'pyramid30'     : 205, 'pyramid55'     : 205,
@@ -279,7 +290,7 @@ class ELEMTYPE:
             'hexahedron': 108, 'hexahedron20' : 208, 'hexahedron24'  : 208, 'hexahedron27'  : 208, 'hexahedron64'  : 208,
                                'hexahedron125': 208, 'hexahedron216' : 208, 'hexahedron343' : 208, 'hexahedron512' : 208,
                                'hexahedron729': 208, 'hexahedron1000': 208, 'hexahedron1331': 208}
-    inam = defaultdict(list)
+    inam = defaultdict(list)  # noqa: RUF012
     for key, value in name.items():
         inam[value].append(key)
 

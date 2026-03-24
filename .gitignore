@@ -36,6 +36,7 @@ core
 *.msh
 *.vtu
 *.vtk
+*.xdmf
 
 # Other output files
 *.old

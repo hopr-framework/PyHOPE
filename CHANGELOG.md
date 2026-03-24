@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-03-09
+### Added
+- Add extrusion of 2D meshes [3b26e70][6993cb0][9a7cf94]
+- Add rebuild step for deformed mortar geometry [6b680a5][0bb967f]
+- Add SplitToHex for hexahedra [90b0e35]
+- Add mesh read-in support for `.geo` file type [6bc3b32]
+- Add mesh deformation sine template [1bd05db]
+- Add PyHOPE version to generated HDF5 file [4050207]
+- Add GitHub actions CI/CD [dd8e0a9]
+- Add PyPI trusted publishing [fe73b52]
+- Add unit tests [f939259]
+- Add OpenSSF Baseline and Best Practices badges [9c57b17]
+
+### Changed
+- Lift library metadata, extend `staticmethods` [d595c7d]
+- Improve CGNS reader compatibility [d9de6b6]
+- Improve code support for numba dependency checking [7c9cf34]
+- Improve code performance of FEM calculations [db75884]
+- Improve code performance of mortar calculations [88b8dd8]
+- Improve code performance of health-check [fbfb6b9]
+- Improve code compatibility with Gmsh, ty [8fe1f09]
+- Improve code check compatibility with PICLas [e90f13c]
+- Update bundled Gmsh to v4.15.1 [09b6898]
+- Update rules for ruff v0.15.2 [cd4f9a3]
+- Update CI/CD container to Fedora 43 [dd34e1e]
+- Transition to namespace packages [84a2de8]
+
+### Fixed
+- Apply stretching directions in reference space [18bc20f]
+- Apply edge correction (coons mapping) during post deformation [e54beca]
+- Calculation of Jacobians for simplex elements [fb23202]
+- Explicitly specify Gmsh parameters [4c4149c][5cdca76]
+- Permit regular package install [cf98482]
+- Sort GlobalSideIDs along the SFC [6962de1]
+
+## [0.9.0] - 2026-01-14
+### Added
+- Add numba to lower to machine-code [500b1d4]
+- Add Jacobians for mixed element meshes [631bdd1]
+- Add Gmsh output for meshes [bc6d8de]
+- Add node ordering for VTK Lagrange Hexahedrons [b10a246]
+- Add JOSS paper to documentation [4f86c2d]
+
+### Changed
+- Improve code performance of Jacobian calculation [0843b0d]
+- Reduce multiprocessing memory pressure [b407a77]
+- Update Gmsh to v4.15.0 [204570a]
+- Update ty linting for numba [9be42fa]
+- Update CI/CD consistency checks to current versions of ty, ruff, [based]pyright, and vulture [9daefde]
+- Switch CI/CD to Python 3.14 and reduce docker image size [3468340]
+
+### Fixed
+- Restrict number of threads during concurrent BLAS execution [f866ac2]
+
 ## [0.8.0] - 2025-10-21
 This release brings PyHOPE to functional parity with the HOPR features currently in active use. Any additional used but missing features will be treated as bugs.
 ### Added

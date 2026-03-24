@@ -20,5 +20,6 @@ are listed in alphabetical order:
 * Stephen Copplestone
 * Patrick Kopper
 * Marius Kurz
+* Leon Teichröb
 * Felix Rodach
 * Anna Schwarz

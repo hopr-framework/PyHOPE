@@ -25,8 +25,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 import os
-# import sys
 from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -76,16 +76,16 @@ def MeshExternal() -> meshio.Mesh:
         bc.type = GetIntArray('BoundaryType', number=iBC)            # noqa: E251
 
     nVVs = CountOption('vv')
-    mesh_vars.vvs = [dict() for _ in range(nVVs)]
+    mesh_vars.vvs = [{} for _ in range(nVVs)]
     vvs = mesh_vars.vvs
     if len(vvs) > 0:
         hopout.sep()
     for iVV, _ in enumerate(vvs):
-        vvs[iVV] = dict()
+        vvs[iVV] = {}
         vvs[iVV]['Dir'] = GetRealArray('vv', number=iVV)
 
     # Load the mesh(es)
-    mesh   = meshio.Mesh(np.array(()), dict())
+    mesh   = meshio.Mesh(np.array(()), {})
     fnames = [GetStr('Filename', number=i) for i in range(CountOption('Filename'))]
 
     # Check whether mesh file exists in the current directory or in the same directory
@@ -96,42 +96,42 @@ def MeshExternal() -> meshio.Mesh:
             fnames[iFile] = os.path.abspath(os.path.join(os.path.dirname(prmfile), fname))
             print(hopout.warn('Mesh not found in the CWD, but found in the prmfile directory.'))
         else:
-            hopout.error('Mesh file [󰇘]/{} does not exist'.format(os.path.basename(fname)))
+            hopout.error(f'Mesh file [󰇘]/{os.path.basename(fname)} does not exist')
 
-    if not all(compatibleGMSH(fname) for fname in fnames):
-        if any(compatibleGMSH(fname) for fname in fnames):
-            hopout.warning('Mixed file formats detected, this is untested and may not work')
-            # sys.exit(1)
+    if not all(compatibleGMSH(fname) for fname in fnames) \
+       and any(compatibleGMSH(fname) for fname in fnames):
+        hopout.warning('Mixed file formats detected, this is untested and may not work')
+        # sys.exit(1)
 
     # Check the file sizes
-    fsizes = [os.stat(f).st_size for f in fnames]
-    minsize: Final[int] = 128
+    fsizes = tuple(os.stat(f).st_size for f in fnames)
+    minsize: Final[int] = 256
     if any(s < minsize for s in fsizes):
         # Loop over the meshes and emit the warnings
-        for f, s in zip(fnames, fsizes):
+        for f, s in zip(fnames, fsizes, strict=True):
             print(hopout.warn(f'Mesh file "{os.path.basename(f)}" appears too small [{sizeof_fmt(s)}]. Continuing anyways...'))
 
     # Gmsh has to come first as we cannot extend the mesh
-    fgmsh = [s for s in fnames if compatibleGMSH(s)]
+    fgmsh = tuple(s for s in fnames if compatibleGMSH(s))
     if len(fgmsh) > 0:
         mesh = ReadGMSH(fgmsh)
-    fnames = list(filter(lambda x: not compatibleGMSH(x), fnames))
+    fnames = tuple(filter(lambda x: not compatibleGMSH(x), fnames))
 
     # Gambit meshes can extend the Gmsh mesh
-    fgambit = [s for s in fnames if s.endswith('.neu')]
+    fgambit = tuple(s for s in fnames if s.endswith('.neu'))
     if len(fgambit) > 0:
         mesh = ReadGambit(fgambit, mesh)
-    fnames = list(filter(lambda x: x not in fgambit, fnames))
+    fnames = tuple(filter(lambda x: x not in fgambit, fnames))
 
     # HOPR meshes can extend the Gmsh mesh
-    fhopr  = [s for s in fnames if s.endswith('.h5')]
+    fhopr  = tuple(s for s in fnames if s.endswith('.h5'))
     if len(fhopr) > 0:
         mesh = ReadHOPR(fhopr, mesh)
-    fnames = list(filter(lambda x: x not in fhopr, fnames))
+    fnames = tuple(filter(lambda x: x not in fhopr, fnames))
 
     # If there are still files left, we have an unknown format
     if len(fnames) > 0:
-        hopout.error('Unknown file format {}, exiting...'.format(fnames))
+        hopout.error(f'Unknown file format {fnames}, exiting...')
 
     # Regenerate the boundary conditions
     if mesh_vars.CGNS.regenerate_BCs:
@@ -142,20 +142,26 @@ def MeshExternal() -> meshio.Mesh:
         hopout.error('No boundary conditions defined in the parameter file.')
 
     # Reconstruct periodicity vectors from mesh
-    hasPeriodic = np.any([cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)])
+    hasPeriodic = np.any(tuple(cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)))
     if len(mesh_vars.vvs) == 0 and hasPeriodic:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))
         # Get max number of periodic alphas
-        mesh_vars.vvs = [dict() for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
+        mesh_vars.vvs = [{} for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
-            hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'RECOVER')
+            hopout.printoption(f'vv[{iVV+1}]', f'{np.round(vv["Dir"], 6)}', 'READ IN')
         hopout.sep()
+
+    # Flag mortar rebuild if merging multiple meshes
+    mesh_vars.hasMortarsInterzone = len(fnames) > 1
 
     hopout.info('LOADING EXTERNAL MESH DONE!')
     hopout.sep()
+
+    # Run garbage collector to release memory
+    gc.collect()
 
     return mesh
 

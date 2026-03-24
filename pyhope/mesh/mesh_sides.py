@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import Union
+from typing import Union, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -64,19 +64,21 @@ def GenerateSides() -> None:
     sides   = mesh_vars.sides
 
     totalElems = 0
-    for elemType in mesh.cells_dict.keys():
+    for elemType in mesh.cells_dict:
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type):
             continue
 
         totalElems += mesh.get_cells_type(elemType).shape[0]
 
-    bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33, chunk=chunk)
 
     # Loop over all element types
-    for elemType in mesh.cells_dict.keys():
+    for elemType in mesh.cells_dict:
         # Only consider three-dimensional types
-        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type.keys()):
+        if not any(s in elemType for s in mesh_vars.ELEMTYPE.type):
             continue
 
         # Get the elements
@@ -90,7 +92,7 @@ def GenerateSides() -> None:
         elemSet: list[Union[None, int]]  = [None for _ in range(nIOElems)]
 
         for key, val in iocsets.items():
-            if elemType not in val.keys():
+            if elemType not in val:
                 continue
 
             # Extract the zoneID
@@ -115,8 +117,9 @@ def GenerateSides() -> None:
         sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])  # pyright: ignore[reportArgumentType]
 
         # Create the corner faces
-        corner_faces = tuple(face_to_cgns(s, elemType) for s in faces(elemType))  # noqa: E272
-        corner_index = tuple(np.array(c, dtype=int)    for c in corner_faces)     # noqa: E272
+        corner_faces  = tuple(face_to_cgns(s, elemType) for s in faces(elemType))  # noqa: E272
+        corner_length = tuple(len(c)                    for c in corner_faces)     # noqa: E272
+        corner_index  = tuple(np.array(c, dtype=int)    for c in corner_faces)     # noqa: E272
 
         # Create dictionaries
         for iElem in range(nElems, nElems+nIOElems):
@@ -136,9 +139,9 @@ def GenerateSides() -> None:
                 elems[iElem].zone = elemSet[iElem-nElems]
 
             # Create the sides
-            for key, val in enumerate(corner_faces):
+            for key, val in enumerate(corner_length):
                 # sides[iSide].update(sideType=4)
-                sides[nSides + key].sideType = len(val)
+                sides[nSides + key].sideType = val
 
             # Assign corners to sides, CGNS format
             for index, face in enumerate(faces(elemType)):
@@ -173,9 +176,9 @@ def GenerateSides() -> None:
 
     # Append sides to elem
     for side in sides:
-        elemID = side.elemID
-        sideID = side.sideID
-        elems[elemID].sides.append(sideID)
+        elemID = cast(int, side.elemID)
+        sideID = cast(int, side.sideID)
+        cast(list, elems[elemID].sides).append(sideID)
 
     # Convert lists to numpy arrays
     for elem in elems:

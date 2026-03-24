@@ -25,9 +25,12 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import gc
+import itertools
 import os
 import re
+import resource
 import shutil
 import subprocess
 import time
@@ -38,7 +41,13 @@ from typing import Final, Optional, cast
 import h5py
 import meshio
 import numpy as np
-from scipy.spatial import KDTree
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+    from scipy.spatial import KDTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,14 +55,14 @@ from scipy.spatial import KDTree
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Monkey-patching MeshIO
-meshio._mesh.topological_dimension.update({'wedge15'   : 3,  # ty: ignore [unresolved-attribute]
+meshio._mesh.topological_dimension.update({'wedge15'   : 3,
                                            'pyramid13' : 3,
                                            'pyramid55' : 3})
 # ==================================================================================================================================
 
 
 def compatibleGMSH(file: str) -> bool:
-    ioFormat = {1 : '.msh',
+    ioFormat = {1 : ['.msh', '.geo'],
                 2 : '.unv',
                 # 10: 'auto',
                 16: '.vtk',
@@ -76,14 +85,18 @@ def compatibleGMSH(file: str) -> bool:
                 # 49: '.neu',   # Cubit/Gambit reader is broken beyond repair
                 50: '.matlab'}
 
-    # get file extension
     _, ext = os.path.splitext(file)
-    return ext in ioFormat.values()
+
+    # Normalize each value to an iterable of extensions (avoid iterating over characters of strings)
+    values = (v if isinstance(v, (list, tuple, set)) else (v,) for v in ioFormat.values())
+    exts   = tuple(itertools.chain.from_iterable(values))
+
+    return ext in exts
 
 
 def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Third-party libraries --------------------------------
-    import gmsh
+    from pyhope.gmsh.gmsh import gmsh
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
@@ -95,13 +108,28 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
+    # Setup stacksize
+    resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
     hopout.sep()
     gmsh.initialize()
 
     # Setup multiprocessing
     numThreads = np_mtp if np_mtp > 0 else 1
-    gmsh.option.setNumber('General.NumThreads',   numThreads)
-    gmsh.option.setNumber('Geometry.OCCParallel', 1 if np_mtp > 0 else 0)
+    gmsh.option.setNumber('General.NumThreads'         , numThreads)              # Enable multithreading
+    gmsh.option.setNumber('Geometry.OCCParallel'       , 1 if np_mtp > 0 else 0)  # Enable multithreading
+
+    # Setup deterministic Gmsh
+    gmsh.option.setNumber('Mesh.Optimize'              , 0)                       # Skip optimizer
+    gmsh.option.setNumber('Mesh.OptimizeNetgen'        , 0)                       # Skip Netgen optimizer
+    gmsh.option.setNumber('Mesh.HighOrderOptimize'     , 0)                       # Skip high-order optimizer
+    gmsh.option.setNumber('Mesh.Smoothing'             , 0)                       # Skip mesh smoothing
+    gmsh.option.setNumber('Mesh.RandomSeed'            , 1)                       # Fixed seed for determinism
+    gmsh.option.setNumber('Mesh.RandomFactor'          , 0)                       # No perturbation
+    gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
+    gmsh.option.setNumber('Mesh.Algorithm'             , 3)                       # Initial mesh only
+    gmsh.option.setNumber('Mesh.RecombinationAlgorithm', 0)                       # Force 0 [Simple], 1 [Blossom]
+    gmsh.option.setNumber('Geometry.AutoCoherence'     , 2)                       # Remove duplicate entities
 
     # Setup mesh factory
     # gmsh.option.setString('SetFactory', 'OpenCascade')
@@ -129,13 +157,16 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
 
         # Enable agglomeration
         mesh_vars.already_curved = GetLogical('MeshIsAlreadyCurved')
-        hopout.sep()
         if mesh_vars.already_curved and mesh_vars.nGeo > 1:
             if ext == '.cgns':
                 gmsh.option.setNumber('Mesh.CgnsImportOrder', mesh_vars.nGeo)
             # Set the element order
             # > Technically, this is only required in generate_mesh but let's be precise here
             gmsh.model.mesh.setOrder(mesh_vars.nGeo)
+
+        # Enable extrusion
+        mesh_vars.doExtrude = GetLogical('MeshExtrude')
+        hopout.sep()
 
         gmsh.merge(fname)
 
@@ -145,22 +176,34 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
         # entities  = gmsh.model.getEntities()
         # nBCs_CGNS = len([s for s in entities if s[0] == 2])
 
-        # Check if GMSH read all BCs
-        # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
-        # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
-        if ext == '.cgns':
-            # WARNING: THIS PROBABLY NEVER WORKS, SO JUST USE OUR OWN APPROACH
-            # if nBCs_CGNS == len(mesh_vars.bcs):
-            #     for entDim, entTag in entities:
-            #         # Surfaces are dim-1
-            #         if entDim == 3:
-            #             continue
-            #
-            #         entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
-            #         gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
-            # else:
-            #     mesh_vars.CGNS.regenerate_BCs = True
-            mesh_vars.CGNS.regenerate_BCs = True
+        match ext:
+            # Check if GMSH needs to generate the mesh
+            case '.geo':
+                gmsh.option.setNumber('Mesh.RecombineAll'  , 1)
+                gmsh.option.setNumber('Mesh.Recombine3DAll', 1)
+                gmsh.option.setNumber('Geometry.AutoCoherence', 2)
+                gmsh.model.mesh.recombine()
+                # Force Gmsh to output all mesh elements
+                gmsh.option.setNumber('Mesh.SaveAll', 1)
+
+                gmsh.model.mesh.generate()
+
+            # Check if GMSH read all BCs
+            # > This will only work if the CGNS file identifies elementary entities by CGNS "families" and by "BC" structures
+            # > Possibly see upstream issue, https://gitlab.onelab.info/gmsh/gmsh/-/issues/2727\n'
+            case '.cgns':
+                # WARNING: THIS PROBABLY NEVER WORKS, SO JUST USE OUR OWN APPROACH
+                # if nBCs_CGNS == len(mesh_vars.bcs):
+                #     for entDim, entTag in entities:
+                #         # Surfaces are dim-1
+                #         if entDim == 3:
+                #             continue
+                #
+                #         entName = gmsh.model.get_entity_name(dim=entDim, tag=entTag)
+                #         gmsh.model.addPhysicalGroup(entDim, [entTag], name=entName)
+                # else:
+                #     mesh_vars.CGNS.regenerate_BCs = True
+                mesh_vars.CGNS.regenerate_BCs = True
 
         # gmsh.model.geo.synchronize()
         gmsh.model.occ.synchronize()
@@ -176,21 +219,42 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     if debugvisu and IsDisplay():
         gmsh.fltk.run()
 
-    # Sanity check if the mesh contains volume elements
+    # Consistency check if the mesh contains volume elements
     # > User might have modified the mesh inside the FLTK GUI
-    gmsh_elems = np.asarray((gmsh.option.getNumber('Mesh.NbTetrahedra'),
-                             gmsh.option.getNumber('Mesh.NbPrisms'    ),
-                             gmsh.option.getNumber('Mesh.NbPyramids'  ),
-                             gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
-    if not np.any(gmsh_elems):
-        hopout.error('Generated mesh does not contain volume elements, exiting...')
+    # gmshElems = np.asarray((gmsh.option.getNumber('Mesh.NbTetrahedra'),
+    #                         gmsh.option.getNumber('Mesh.NbPrisms'    ),
+    #                         gmsh.option.getNumber('Mesh.NbPyramids'  ),
+    #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
+    gmshTypes = gmsh.model.mesh.getElementTypes()
+    gmshElems = np.asarray([(elemName, dim, order) for type                          in gmshTypes                                       # noqa: E272
+                                                   for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]])  # noqa: E501
+    gmshDim   = max(int(s) for s in gmshElems[:, 1])
+    match gmshDim:
+        case 3:
+            pass
+        case 2:
+            if not mesh_vars.doExtrude:
+                hopout.error('Generated mesh does not contain volume elements, exiting...')
+        case _:
+            hopout.error(f'Generated mesh does not contain {"volume" if not mesh_vars.doExtrude else "surface"} elements, exiting...')  # noqa: E501
+
+    # Consistency check if the mesh elements have the correct order
+    gmshIssue  = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
+                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+                              if dim == gmshDim and order != mesh_vars.nGeo])
+
+    if gmshIssue.size > 0:
+        for elem in gmshIssue:
+            print(hopout.warn(f'Wrong Gmsh order {elem[1]} for element {elem[0].replace(" ", "")}'))
+        elemOrders = {int(elem[1]) for elem in gmshIssue}
+        hopout.error(f'Gmsh element order(s) {elemOrders} does not match requested mesh order { {mesh_vars.nGeo} }')
 
     # Convert Gmsh object to meshio object
     mesh = gmsh_to_meshio(gmsh)
 
     # Check whether the mesh contains high-order elements and nGeo is set to 1
     if not mesh_vars.already_curved or mesh_vars.nGeo == 1:
-        for elemtype in mesh.cells_dict.keys():
+        for elemtype in mesh.cells_dict:
             if elemtype in mesh_vars.ELEMTYPE.name and mesh_vars.ELEMTYPE.name[elemtype] > 200:
                 hopout.error('High-order elements detected in the mesh but MeshIsAlreadyCurved=F or nGeo is set to 1, exiting...')
 
@@ -215,6 +279,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     """
     # Standard libraries -----------------------------------
     import tempfile
+    from scipy.spatial import KDTree
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -239,8 +304,8 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     stree    = None
 
     if any('quad' in key for key in mesh.cells_dict):
-        nConnSide = [value for key, value in mesh.cells_dict.items() if 'quad' in key][0]
-        nConnType = [key   for key, _     in mesh.cells_dict.items() if 'quad' in key][0]  # noqa: E272, E501
+        nConnSide = next(value for key, value in mesh.cells_dict.items() if 'quad' in key)
+        nConnType = next(key   for key        in mesh.cells_dict         if 'quad' in key)  # noqa: E272, E501
         nConnNum  = cells_lst.index(nConnType)
         nConnLen  = len(cells_lst)
 
@@ -252,7 +317,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del nbCorners
 
         # Build a k-dimensional tree of all face centroids on the opposing side
-        stree = KDTree(nbCenters)
+        stree = KDTree(nbCenters, balanced_tree=False, compact_nodes=False)
 
     # Now, the same thing for triangular elements
     tConnLen  = 0
@@ -260,8 +325,8 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     ttree     = None
 
     if any('triangle' in key for key in mesh.cells_dict):
-        tConnSide = [value for key, value in mesh.cells_dict.items() if 'triangle' in key][0]
-        tConnType = [key   for key, _     in mesh.cells_dict.items() if 'triangle' in key][0]  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
+        tConnSide = next(value for key, value in mesh.cells_dict.items() if 'triangle' in key)
+        tConnType = next(key   for key        in mesh.cells_dict         if 'triangle' in key)  # FIXME: Support mixed LO/HO meshes  # noqa: E272, E501
         tConnNum  = cells_lst.index(tConnType)
         tConnLen  = len(cells_lst)
 
@@ -272,7 +337,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
         del tbCorners
 
         # Build a k-dimensional tree of all face centroids
-        ttree = KDTree(tbCenters)
+        ttree = KDTree(tbCenters, balanced_tree=False, compact_nodes=False)
 
     tol: Final[float] = mesh_vars.tolExternal
 
@@ -280,16 +345,16 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
     for fname in fnames:
 
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
         tname = tfile.name
         # Try to convert the file automatically
         if not h5py.is_hdf5(fname):
             hopout.sep()
-            hopout.info('File {} is not in HDF5 CGNS format, converting ...'.format(os.path.basename(fname)))
+            hopout.info(f'File {os.path.basename(fname)} is not in HDF5 CGNS format, converting ...')
             tStart = time.time()
             _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
             tEnd   = time.time()
-            hopout.info('File {} converted HDF5 CGNS format [{:.2f} sec]'.format(os.path.basename(fname), tEnd - tStart))
+            hopout.info(f'File {os.path.basename(fname)} converted HDF5 CGNS format [{tEnd - tStart:.2f} sec]')
 
             # Rest of this code operates on the converted file
             fname = tname
@@ -298,10 +363,10 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
             shutil.copyfile(fname, tname)
 
         with h5py.File(fname, mode='r') as f:
-            if 'CGNSLibraryVersion' not in f.keys():
+            if 'CGNSLibraryVersion' not in f:
                 hopout.error('CGNS file does not contain library version header')
 
-            key = [s for s in f.keys() if "base" in s.lower()]
+            key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
             match len(key):
                 case 0:
                     hopout.error('Object [Base] does not exist in CGNS file')
@@ -312,14 +377,14 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
                 case _:
                     hopout.error('More than one object [Base] exists in CGNS file')
 
-            for baseZone in base.keys():
+            for baseZone in base:
                 # Ignore the base dataset
                 if baseZone.strip() == 'data':
                     continue
 
                 zone = cast(h5py.Group, base[baseZone])
                 # Check if the zone contains BCs
-                if 'ZoneBC' not in zone.keys():
+                if 'ZoneBC' not in zone:
                     continue
 
                 zonedata = cast(h5py.Dataset, zone[' data'])
@@ -347,7 +412,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
 
 def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
-                          points:   np.ndarray,
+                          points:   npt.NDArray,
                           cells:    list,
                           stree:    Optional[KDTree],
                           zone,     # CGNS zone
@@ -368,11 +433,11 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     bpoints = np.column_stack([zone['GridCoordinates'][f'Coordinate{axis}'][' data'][:].astype(float) for axis in 'XYZ'])
 
     # Loop over all BCs
-    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']).keys() if s.strip() != 'innerfaces']
+    zoneBCs  = [s for s in cast(h5py.Group, zone['ZoneBC']) if s.strip() != 'innerfaces']
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
-        cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
+        cellsets[k] = [cast(np.ndarray, cell).tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
 
     for zoneBC in zoneBCs:
         # Lists to collect centroids
@@ -401,7 +466,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
         # Data attached to the zoneBC node
         elif f'{zoneBC}/PointList' in zone['ZoneBC']:
-            cgnsBC = sorted(int(s) for s in zone['ZoneBC'][zoneBC]['PointList'][' data'])
+            cgnsBC = sorted(int(s.squeeze()) for s in zone['ZoneBC'][zoneBC]['PointList'][' data'])
 
             # Identify how surface elements are stored
             surface_key = 'GridShells' if 'GridShells' in zone else 'SurfaceElements' if 'SurfaceElements' in zone else None
@@ -409,7 +474,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                 hopout.error('Format of BC implementation for FaceCenters not recognized, exiting...')
 
             cgnsShells  =     zone[surface_key]['ElementConnectivity'][' data']
-            nShells     = int(zone[surface_key]['ElementRange'][' data'][0])
+            nShells     = int(zone[surface_key]['ElementRange'       ][' data'][0])
 
             # Get the location of the BC faces
             cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
@@ -427,14 +492,14 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                 if cgnsGridLoc == 'Vertex':
                     # Check if corners can form a subset of cgnsBC
-                    corners_set = set(int(s) for s in corners)
+                    corners_set = {int(s) for s in corners}
                     if corners_set.issubset(cgns_set):
                         BCpoints = bpoints[[s-1 for s in corners]]
                         quadCenters.append(np.mean(BCpoints, axis=0))
                     count += nNodes + 1
 
                 elif cgnsGridLoc == 'FaceCenter':
-                    if nShells in cgnsBC:
+                    if nShells in cgns_set:
                         BCpoints = bpoints[[s-1 for s in corners]]
 
                         # For high-order elements, we only consider the 3/4 corner nodes for the centroid
@@ -448,6 +513,74 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                     nShells += 1
                     count   += nNodes + 1
+
+        # Data attached to the zoneBC node
+        elif f'{zoneBC}/ElementList' in zone['ZoneBC']:
+            cgnsBC     = sorted(int(s) for s in np.array(zone['ZoneBC'][zoneBC]['ElementList'][' data']).squeeze())
+            cgns_set   = set(cgnsBC)
+
+            # Collect all element sections present in the zone
+            elemSections = []
+            for key in zone:
+                if not isinstance(zone[key], h5py.Group):
+                    continue
+                if 'ElementConnectivity' not in zone[key] or 'ElementRange' not in zone[key]:
+                    continue
+
+                elemRange = zone[key]['ElementRange'][' data'][:].astype(int)
+                elemSections.append((key, int(elemRange[0]), int(elemRange[1])))
+
+            if not elemSections:
+                hopout.error('No element sections with connectivity found for ElementList, exiting...')
+
+            # Loop over element sections and scan connectivity
+            for surface_key, elemStart, elemEnd in elemSections:
+                # Skip sections that cannot contain any BC element IDs
+                if not cgnsBC:
+                    break
+                if cgnsBC[-1] < elemStart or cgnsBC[0] > elemEnd:
+                    continue
+
+                cgnsShells = zone[surface_key]['ElementConnectivity'][' data']
+
+                # Read the surface elements, one at a time
+                count  = 0
+                elemID = elemStart
+
+                # Loop over all elements and collect centroids
+                while count < cgnsShells.shape[0] and elemID <= elemEnd:
+                    elemType = ElemTypes(cgnsShells[count])
+                    nNodes   = int(elemType['Nodes'])
+
+                    # Compute centroids
+                    if elemID in cgns_set:
+                        corners  = cgnsShells[count+1:count+nNodes+1]
+                        BCpoints = bpoints[[int(s)-1 for s in corners]]
+
+                        # For high-order elements, we only consider the 3/4 corner nodes for the centroid
+                        match len(BCpoints):
+                            case 3 | 6:       # triangle, triangle6
+                                triaCenters.append(np.mean(BCpoints[:3], axis=0))
+                            case 4 | 8 | 9:   # quad, quad8, quad9
+                                quadCenters.append(np.mean(BCpoints[:4], axis=0))
+                            case _:
+                                hopout.error('Unsupported number of corners for shell elements, exiting...')
+
+                    count  += nNodes + 1
+                    elemID += 1
+
+            # Verify that all requested element IDs were within at least one known section range
+            # for elemID in cgnsBC:
+            #     in_any_section = False
+            #     for _, s, e in elemSections:
+            #         if s <= elemID <= e:
+            #             in_any_section = True
+            #             break
+            #     if not in_any_section:
+            #         hopout.error('ElementList contains element IDs outside all known ElementRange sections, exiting...')
+
+        else:
+            hopout.error('Failed reading CGNS BC information')
 
         # Use regex to check if the string ends with _<number> and split accordingly
         match  = re.match(r'(.*)_\d+$', zoneBC)
@@ -481,15 +614,13 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
     for k, v in cellsets.items():
         csets[k] = [np.array(s, dtype=int) for s in v]
 
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = csets)     # noqa: E251
-
-    return mesh
+    return meshio.Mesh(points    = points,    # noqa: E251
+                       cells     = cells,     # noqa: E251
+                       cell_sets = csets)     # noqa: E251
 
 
 def BCCGNS_Structured(mesh:     meshio.Mesh,
-                      points:   np.ndarray,
+                      points:   npt.NDArray,
                       cells:    list,
                       stree:    Optional[KDTree],
                       zone,     # CGNS zone
@@ -507,7 +638,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     cellsets = mesh.cell_sets
     # Convert the cellsets to a list of lists for easier manipulation
     for k, v in cellsets.items():
-        cellsets[k] = list(map(lambda cell: cell.tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell, v))
+        cellsets[k] = [cast(np.ndarray, cell).tolist() if isinstance(cell, (np.ndarray, np.generic)) else cell for cell in v]
 
     # Load the zone BCs
     for zoneBC, bcData in zone['ZoneBC'].items():
@@ -515,7 +646,8 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
             cgnsBC   = bcData['FamilyName'][' data']
             cgnsName = ''.join(map(chr, cgnsBC)).lower()
         except KeyError:
-            cgnsName = zoneBC.split('_', 1)[0].lower()
+            # Remove '_' followed by one or more digits at the end of the string
+            cgnsName = re.sub(r'_\d+$', '', zoneBC).lower()
 
         # Ignore internal DEFAULT BCs
         if 'DEFAULT' in cgnsName:
@@ -589,8 +721,6 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
     for k, v in cellsets.items():
         csets[k] = [np.array(s, dtype=int) for s in v]
 
-    mesh   = meshio.Mesh(points    = points,    # noqa: E251
-                         cells     = cells,     # noqa: E251
-                         cell_sets = csets)     # noqa: E251
-
-    return mesh
+    return meshio.Mesh(points    = points,    # noqa: E251
+                       cells     = cells,     # noqa: E251
+                       cell_sets = csets)     # noqa: E251

@@ -47,27 +47,6 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 
 @cache
-def NDOFperElemType(elemType: str, nGeo: int) -> int:
-    """ Calculate the number of degrees of freedom for a given element type
-    """
-    match elemType:
-        case _ if elemType.startswith('triangle'):
-            return round((nGeo+1)*(nGeo+2)/2.)
-        case _ if elemType.startswith('quad'):
-            return round((nGeo+1)**2)
-        case _ if elemType.startswith('tetra'):
-            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
-        case _ if elemType.startswith('pyramid'):
-            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
-        case _ if elemType.startswith('wedge'):
-            return round((nGeo+1)**2 *(nGeo+2)/2.)
-        case _ if elemType.startswith('hexahedron'):
-            return round((nGeo+1)**3)
-        case _:
-            raise ValueError(f'Unknown element type {elemType}')
-
-
-@cache
 def gambit_faces(elemType: Union[int, str]) -> list[str]:
     """ Return a list of all sides of an element
     """
@@ -81,10 +60,10 @@ def gambit_faces(elemType: Union[int, str]) -> list[str]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
-    return faces_map[elemType % 100]
+    return faces_map[elemType % 10]
 
 
 def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
@@ -94,6 +73,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.common.common import lines_that_contain
     from pyhope.mesh.mesh_common import face_to_cgns
     from pyhope.mesh.mesh_common import FaceOrdering
+    from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.meshio.meshio_ordering import NodeOrdering
     # ------------------------------------------------------
 
@@ -120,8 +100,8 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # Read the file content
                 content   = f.readlines()
                 useBinary = not any('CONTROL INFO' in line for line in content)
-            except UnicodeDecodeError:
-                raise ValueError('Gambit binary files are not implemented yet')
+            except UnicodeDecodeError as e:
+                raise ValueError('Gambit binary files are not implemented yet') from e
 
             if not useBinary:
                 # Search for the line containing the number of elements
@@ -200,10 +180,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 for line in grsIter:
                     lnum += 1
                     # Iterate until the number of boundary conditions is reached
-                    if 'ENDOFSECTION' in line:
-                        # Check if the next sections is also an element group
-                        if 'ELEMENT GROUP' not in content[grsLine+lnum]:
-                            break
+                    # > Check if the next sections is also an element group
+                    if 'ENDOFSECTION' in line and 'ELEMENT GROUP' not in content[grsLine+lnum]:
+                        break
 
                     tokens = line.strip().split()
                     if not tokens:
@@ -248,18 +227,18 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 for line in bcsIter:
                     # Iterate until the number of boundary conditions is reached
                     lnum += 1
-                    if 'ENDOFSECTION' in line:
-                        # Check if the next sections is also a boundary condition
-                        if bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]:
-                            break
+                    # Check if the next sections is also a boundary condition
+                    if 'ENDOFSECTION' in line \
+                    and (bcsLine+lnum >= len(content) or 'BOUNDARY CONDITIONS' not in content[bcsLine+lnum]):
+                        break
 
                     tokens = line.strip().split()
                     if not tokens:
                         continue
 
                     try:
-                        bcName, bcType, bcnData, bcnVal, _ = tokens
-                        bcName, bcType, bcnData, bcnVal    = bcName, int(bcType), int(bcnData), int(bcnVal)
+                        bcName, *ints,   _ = tokens
+                        bcType, bcnData, _ = map(int, ints)
                     except ValueError:
                         continue
 

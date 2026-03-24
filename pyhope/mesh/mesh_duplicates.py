@@ -25,25 +25,33 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import gc
 from collections import defaultdict
-from typing import Dict, Final, Tuple, cast
+from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# import fastremap as fr
 from scipy.spatial import KDTree
 from scipy.sparse.csgraph import connected_components
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+from pyhope.common.common_numba import NUMBA_AVAILABLE
+if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------------------------------------------------
-# Local definitions
-# ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_numba import jit, types
 # ==================================================================================================================================
 
 
-def _unionFind(parent: np.ndarray, x: int) -> int:
+@jit((types.int64)(types.int64[::1], types.int64), nopython=True, cache=True, nogil=True)
+def _unionFind(parent: npt.NDArray, x: int) -> int:
     # Path compression
     par = parent  # local ref
     while par[x] != x:
@@ -52,20 +60,39 @@ def _unionFind(parent: np.ndarray, x: int) -> int:
     return x
 
 
-def _unionUnion(parent: np.ndarray, rank: np.ndarray, a: int, b: int) -> None:
+@jit((types.void)(types.int64[::1], types.int64[::1], types.int64, types.int64), nopython=True, cache=True, nogil=True)
+def _unionUnion(parent: npt.NDArray, rank: npt.NDArray, a: int, b: int) -> None:
     ra, rb = _unionFind(parent, a), _unionFind(parent, b)
     if ra == rb:
-        return
+        return None
     if rank[ra] < rank[rb]:
-        parent[ra] = rb
+        parent[ra]  = rb
     elif rank[ra] > rank[rb]:
-        parent[rb] = ra
+        parent[rb]  = ra
     else:
-        parent[rb] = ra
-        rank[ra] += 1
+        parent[rb]  = ra
+        rank[  ra] += 1
 
 
-def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -> np.ndarray:
+@jit(types.int64[::1](types.int64, types.int64[:, ::1]), nopython=True, cache=True, nogil=True)
+def _run_union_find_logic(nPoints, pairs):
+    # Disjoint Set (Union-Find)
+    parent = np.arange(nPoints)
+    rank   = np.zeros(nPoints, dtype=np.int64)
+
+    # Union all pairs
+    for i in range(pairs.shape[0]):
+        _unionUnion(parent, rank, pairs[i, 0], pairs[i, 1])
+
+    # Final pass: compress and compute representatives (minimum index per root)
+    # > Find root for every point
+    for i in range(nPoints):
+        parent[i] = _unionFind(parent, i)
+
+    return parent
+
+
+def _findPointsTol(points: npt.NDArray, tol: float, method: str = 'union_find') -> npt.NDArray:
     """ Build an undirected connectivity graph for points within 'tol', then compute
         the connected components and pick the minimum index in each component as the
         representative
@@ -79,7 +106,7 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
             return np.zeros(1, dtype=int)
 
     # Create a KDTree for the mesh points
-    tree = KDTree(points)
+    tree = KDTree(points, balanced_tree=False, compact_nodes=False)
 
     match method:
         case 'union_find':
@@ -91,19 +118,8 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
                 # All isolated: each point is its own representative
                 return np.arange(nPoints, dtype=int)
 
-            # Disjoint Set (Union-Find)
-            parent = np.arange(nPoints, dtype=int)
-            rank   = np.zeros(nPoints, dtype=int)
-
-            # Union all pairs
-            for a, b in pairs:
-                _unionUnion(parent, rank, int(a), int(b))
-
-            # Final pass: compress and compute representatives (minimum index per root)
-            # > Find root for every point
-            for i in range(nPoints):
-                parent[i] = _unionFind(parent, i)
-            components, labels = nPoints, parent
+            labels     = _run_union_find_logic(nPoints, pairs)
+            components = nPoints
 
         case 'sparse':  # pragma: no cover
             # Construct a sparse adjacency matrix where edges connect points within 'tol'
@@ -137,40 +153,40 @@ def _findPointsTol(points: np.ndarray, tol: float, method: str = 'union_find') -
     repLabel  = np.full(components, nPoints, dtype=int)
     # Assign each point its component representative
     np.minimum.at(repLabel, labels, np.arange(nPoints, dtype=int))
-    repsPoint = repLabel[labels]
+    return repLabel[labels]
 
-    return repsPoint
 
 
 def EliminateDuplicates() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.common.common_unique import unique
     from pyhope.mesh.connect.connect import find_bc_index
     # ------------------------------------------------------
     hopout.routine('Removing duplicate points')
 
-    bcs:   Final[list] = mesh_vars.bcs
-    vvs:   Final[list] = mesh_vars.vvs
+    bcs:   Final[list]  = mesh_vars.bcs
+    vvs:   Final[list]  = mesh_vars.vvs
 
     # Native meshio data
-    mesh               = mesh_vars.mesh
-    points: np.ndarray = mesh.points
-    cells: Final[list] = mesh.cells
-    csets: Final[dict] = mesh.cell_sets
-    cdict: Final[dict] = mesh.cells_dict
+    mesh                = mesh_vars.mesh
+    points: npt.NDArray = mesh.points
+    cells: Final[list]  = mesh.cells
+    csets: Final[dict]  = mesh.cell_sets
+    cdict: Final[dict]  = mesh.cells_dict
 
     # Find the mapping to the (N-1)-dim elements
-    csetMap: Dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
+    csetMap: dict      = { key: tuple(i for i, cell in enumerate(cset) if cell is not None and cast(np.ndarray, cell).size > 0)
                                         for key, cset in csets.items()}
 
     # Create new periodic nodes per (original node, boundary) pair
     # > Use a dictionary mapping (node, bc_key) --> new node index
-    nodeTrans: Dict[Tuple[int, str], int] = {}
+    nodeTrans: dict[tuple[int, str], int] = {}
     # > Collect points to append to the mesh
     newPoints: list       = []
     nPoints:   Final[int] = points.shape[0]
-    BCNodes:   Dict       = {}
+    BCNodes:   dict       = {}
 
     for bc_key, cset in csets.items():
         # Find the matching boundary condition
@@ -186,10 +202,11 @@ def EliminateDuplicates() -> None:
             hopout.error(f'Could not find BC {bc_key} in list, exiting...')
 
         # Only process periodic boundaries in the positive direction
-        if bcs[bcID].type[0] != 1 or bcs[bcID].type[3] < 0:
+        if cast(np.ndarray, bcs[bcID].type)[0] != 1 or \
+           cast(np.ndarray, bcs[bcID].type)[3]  < 0:
             continue
 
-        iVV = bcs[bcID].type[3]
+        iVV = cast(np.ndarray, bcs[bcID].type)[3]
         VV  = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
 
         currentBCNodes = set()
@@ -197,7 +214,14 @@ def EliminateDuplicates() -> None:
             # Only process 2D faces (quad or triangle)
             if any(s in tuple(cdict)[iMap] for s in ('quad', 'triangle')):
                 mapFaces = cells[iMap].data
-                currentBCNodes.update(node for iSide in cset[iMap] for node in mapFaces[iSide])
+
+                # cset[iMap] is list-like, make it an ndarray for fancy indexing
+                sideIDs = np.asarray(cset[iMap], dtype=np.int64)
+                if sideIDs.size == 0:
+                    continue
+
+                # Gather all nodes on those faces and unique them
+                currentBCNodes.update(np.unique(mapFaces[sideIDs].ravel()).tolist())
 
         # Ignore nodes that have already been processed for this boundary
         if bc_key not in BCNodes:
@@ -228,7 +252,9 @@ def EliminateDuplicates() -> None:
     periNodes = nodeTrans.copy()
 
     # Eliminate duplicate points
-    points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
+    # points, inverseIndices = np.unique(points, axis=0, return_inverse=True)
+    # points, inverseIndices = fr.unique(points, axis=0, return_inverse=True)
+    points, inverseIndices = unique(points, return_inverse=True)
     # PERF: This should be faster but produces slightly wrong results
     # # > Create a 1D view of the 2D points array where each row is a single item
     # voidView = np.ascontiguousarray(points).view(np.dtype((np.void, points.dtype.itemsize * points.shape[1])))
@@ -248,7 +274,7 @@ def EliminateDuplicates() -> None:
 
     # Also, remove near duplicate points
     # > Filter the valid three-dimensional cell types
-    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type.keys()))
+    valid_cells = tuple(cell for cell in cells if any(s in cell.type for s in mesh_vars.ELEMTYPE.type))
     # > Group by number of vertices per element to avoid ragged arrays
     groups = defaultdict(list)
     for cell in valid_cells:
@@ -266,7 +292,8 @@ def EliminateDuplicates() -> None:
         bbs = min(bbs, ptp.min())
 
     # Set the tolerance to 10% of the bounding box of the smallest element
-    tol = np.max([mesh_vars.tolExternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
+    # tol = np.max([mesh_vars.tolInternal, bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else 0.0])
+    tol = bbs / ((mesh_vars.nGeo+1)*10.) if bbs != float('inf') else mesh_vars.tolInternal
 
     # Find all points within the tolerance
     reps = _findPointsTol(points, tol, method='union_find')
@@ -274,6 +301,7 @@ def EliminateDuplicates() -> None:
     # Eliminate duplicates
     # > reps[i] is the chosen representative index for point i
     indices, inverseIndices = np.unique(reps, return_inverse=True)
+    # indices, inverseIndices = fr.unique(reps, return_inverse=True)
     mesh_vars.mesh.points = points[indices]
     del reps, indices
 

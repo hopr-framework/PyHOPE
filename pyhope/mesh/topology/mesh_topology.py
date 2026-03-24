@@ -18,15 +18,19 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # PyHOPE. If not, see <http://www.gnu.org/licenses/>.
-
+#
 # ==================================================================================================================================
 # Mesh generation library
 # ==================================================================================================================================
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
+import gc
 from collections import defaultdict
+from collections.abc import Callable
 from functools import cache
+from typing import Optional, Union
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -34,11 +38,21 @@ from typing import cast
 import meshio
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Monkey-patching MeshIO
+meshio._mesh.topological_dimension.update({'wedge15'   : 3,
+                                           'pyramid13' : 3,
+                                           'pyramid55' : 3})
 # ==================================================================================================================================
 
 
@@ -64,9 +78,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
         return mesh
 
     # Simplex elements requested
-    if any(elemType % 10 != 8 for elemType in elemTypes):
-        if mesh_vars.nGeo > 4:
-            hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+    if any(elemType % 10 != 8 for elemType in elemTypes) and nGeo > 4:
+        hopout.error('Non-hexahedral elements are not supported for nGeo > 4, exiting...')
+    if nGeo > 4:
+        hopout.error(f'nGeo = {nGeo} not supported for element splitting')
 
     hopout.info('Converting hexahedral elements to simplex elements')
 
@@ -84,16 +99,17 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
             # Get the element name and skip the entries for incomplete 2nd order elements
             try:
-                if elemTypes[i] % 10 == 5:     # pyramids (skip 1)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][1]
-                elif elemTypes[i] % 10 == 6:   # prisms (skip 1)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
-                elif elemTypes[i] % 10 == 8:   # hexahedra (skip 2)
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
-                else:                          # tetrahedra
-                    elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
+                match elemTypes[i] % 10:
+                    case 5:  # pyramids   (skip 1)
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
+                    case 6:   # prisms    (skip 1)
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-1]
+                    case 8:   # hexahedra (skip 2)
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo]
+                    case _:   # tetrahedra
+                        elemNames[i] = elemTypeInam[elemTypes[i]][nGeo-2]
             except IndexError:
-                hopout.error('Element type {} not supported for nGeo = {}, exiting...'.format(elemTypes[i], nGeo))
+                hopout.error(f'Element type {elemTypes[i]} not supported for nGeo = {nGeo}, exiting...')
 
     # Copy original points
     pointl    = cast(list, mesh.points.tolist())
@@ -137,35 +153,23 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     nPoints  = len(pointl)
     nFaces   = np.zeros(2, dtype=int)
-    match nGeo:
-        case 1:
-            faceType = ['triangle'  , 'quad'  ]
-            faceNum  = [          3 ,       4 ]
-        case 2:
-            faceType = ['triangle6' , 'quad9' ]
-            faceNum  = [          6 ,       9 ]
-        case 3:
-            faceType = ['triangle10', 'quad16']
-            faceNum  = [         10 ,      16 ]
-        case 4:
-            faceType = ['triangle15', 'quad25']
-            faceNum  = [         15 ,      25 ]
-        case _:
-            hopout.error('nGeo = {} not supported for element splitting'.format(nGeo))
+    # Expected number of nodes
+    faceNum   = [ int((nGeo+1)*(nGeo+2)/2), int((nGeo+1)**2) ]
+    faceType  = [f'triangle{"" if nGeo == 1 else faceNum[0]}', f'quad{"" if nGeo == 1 else faceNum[1]}']
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
     csets_lst = {}
 
     # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v.keys()))
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('hexahedron') for key in v))
 
     # If meshcells is empty, we fake it assign it to Zone1
     if len(meshcells) == 0:
-        meshcells = tuple(('Zone1', np.array([i for i in range(len(v))])) for k, v in mesh.cells_dict.items()
-                                                                                   if k.startswith('hexahedron'))
+        meshcells = tuple(('Zone1', {k: np.array(list(range(len(v))))}) for k, v in mesh.cells_dict.items()
+                                                                                        if k.startswith('hexahedron'))
 
-    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for _, cdata in cast(dict, zdata).items())
+    nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
 
     # Build an inverted index to map each node to all face keys (from csets_old) that contain it
@@ -176,22 +180,22 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     for iElem, meshcell in enumerate(meshcells):
         _    , mdict = meshcell
-        mtype, mcell = list(cast(dict, mdict).keys())[0], list(cast(dict, mdict).values())[0]
+        mtype, mcell = next(iter(cast(dict, mdict).keys())), next(iter(cast(dict, mdict).values()))
 
         elemType     = elemTypes[iElem]
         elemName     = elemNames[iElem]
 
         split, faces = elemSplitter.get(elemType, (None, None))
-        faceMap      = faceMaper.get(elemType, None)
+        faceMap      = faceMaper.get(elemType)
 
         # Sanity check
         if faceMap is None:
-            raise ValueError('Missing faceMap for element type {}'.format(elemType))
+            raise ValueError(f'Missing faceMap for element type {elemType}')
 
         cdata = mesh.get_cells_type(mtype)[mcell]
 
         if split is None or faces is None:
-            hopout.error('Element type {} not supported for splitting'.format(elemTypes[iElem]), traceback=True)
+            hopout.error(f'Element type {elemTypes[iElem]} not supported for splitting', traceback=True)
 
         elemSplit = split(nGeo)
 
@@ -215,7 +219,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                         pointl.append(center.tolist())
 
                         # Overwrite the element with the new indices
-                        elem     = np.array(list(elem) + [nPoints])
+                        elem     = np.array([*list(elem), nPoints])
                         nPoints += 1
                     case 2:
                         # Generate the grid of new points
@@ -259,28 +263,8 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                 subFaces = tuple(np.array(subElem)[face] for face in faces(nGeo))
 
                 for subFace in subFaces:
-                    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
-                    faceSet = frozenset(subFace)
-
-                    # Get candidate cset keys using the nodes in the face
-                    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
-                    if not candidate_sets:
-                        continue
-
-                    common_candidates = set.intersection(*candidate_sets)
-                    for candidate in common_candidates:
-                        # Check if the subFace is indeed a subset of the candidate from csets_old
-                        if faceSet.issubset(candidate):
-                            # Use the associated boundary name
-                            # (Assuming all boundary names are stored in a list for this candidate. Adjust if needed.)
-                            names = csets_old[candidate]
-                            # Update csets_lst for each name in the list.
-                            for name in names:
-                                csets_lst.setdefault(name, [[], []])
-                                csets_lst[name][faceVal].append(nFaces[faceVal])
-
-                    elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
-                    nFaces[faceVal] += 1
+                    appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
+                                csets_old = csets_old, csets_lst = csets_lst, elems_lst = elems_lst)      # noqa: E251, E271
 
             elems_lst.setdefault(elemName, []).extend(subElems)
 
@@ -294,15 +278,15 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
     elems_new = {}
     csets_new = {}
 
-    for key in elems_lst:
-        if isinstance(elems_lst[key], list) and elems_lst[key]:
+    for key in elems_lst:  # noqa: PLC0206
+        if   isinstance(elems_lst[key], list) and     elems_lst[key]:  # noqa: E271
             # Convert the list of accumulated arrays/lists into a single NumPy array
             elems_new[key] = np.array(elems_lst[key], dtype=int)
         elif isinstance(elems_lst[key], list) and not elems_lst[key]:
             # Determine the expected number of columns
             elems_new[key] = np.empty((0, faceNum[faceType.index(key)]), dtype=int)
 
-    for key in csets_lst:
+    for key in csets_lst:  # noqa: PLC0206
         csets_new[key] = tuple(np.array(lst, dtype=int) for lst in csets_lst[key])
 
     # Convert points_list back to a NumPy array
@@ -312,8 +296,10 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
                          cells     = elems_new,  # noqa: E251
                          cell_sets = csets_new)  # noqa: E251
 
-    hopout.sep()
+    # Run garbage collector to release memory
+    gc.collect()
 
+    hopout.sep()
     return mesh
 
 
@@ -386,11 +372,11 @@ def split_hex_to_tets(order: int) -> list[tuple]:
         case _:
             # Lazy-load local import
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
-def tetra_faces(order: int) -> tuple[np.ndarray, ...]:
+def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
@@ -412,7 +398,7 @@ def tetra_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  1,  2,  3,  *range( 7, 10)          , *range(19, 22), *reversed(range(16, 19)), *range(25, 28)), dtype=int))  # noqa: E501
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -438,12 +424,19 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
             #         ( 6, 7, 3, 2, 4)]
         case 2:
             # Perform the 6-pyramid split of the cube-like cell
-            return [(  0,  1,  2,  3, 26,  8,  9, 10, 11, 27, 28, 30, 29, 24),
-                    (  0,  4,  5,  1, 26, 16, 12, 17,  8, 27, 31, 32, 28, 22),
-                    (  1,  5,  6,  2, 26, 17, 13, 18,  9, 28, 32, 34, 30, 21),
-                    (  0,  3,  7,  4, 26, 11, 19, 15, 16, 27, 29, 33, 31, 20),
-                    (  4,  7,  6,  5, 26, 15, 14, 13, 12, 31, 33, 34, 32, 25),
-                    (  6,  7,  3,  2, 26, 14, 19, 10, 18, 34, 33, 29, 30, 23)]
+            #  return [(  0,  1,  2,  3, 26,  8,  9, 10, 11, 27, 28, 30, 29, 24),
+            #          (  0,  4,  5,  1, 26, 16, 12, 17,  8, 27, 31, 32, 28, 22),
+            #          (  1,  5,  6,  2, 26, 17, 13, 18,  9, 28, 32, 34, 30, 21),
+            #          (  0,  3,  7,  4, 26, 11, 19, 15, 16, 27, 29, 33, 31, 20),
+            #          (  4,  7,  6,  5, 26, 15, 14, 13, 12, 31, 33, 34, 32, 25),
+            #          (  6,  7,  3,  2, 26, 14, 19, 10, 18, 34, 33, 29, 30, 23)]
+
+            return [(  0,  1,  2,  3, 26,  8,  9, 10, 11, 27, 29, 30, 28, 24),
+                    (  0,  4,  5,  1, 26, 16, 12, 17,  8, 27, 31, 33, 29, 22),
+                    (  1,  5,  6,  2, 26, 17, 13, 18,  9, 29, 33, 34, 30, 21),
+                    (  0,  3,  7,  4, 26, 11, 19, 15, 16, 27, 28, 32, 31, 20),
+                    (  4,  7,  6,  5, 26, 15, 14, 13, 12, 31, 32, 34, 33, 25),
+                    (  6,  7,  3,  2, 26, 14, 19, 10, 18, 34, 32, 28, 30, 23)]
             # 3-pyramid split
             # return [(  0,  1,  2,  3,  4,  8,  9, 10, 11, 16, 22, 26, 20, 24),
             #         (  1,  5,  6,  2,  4, 17, 13, 18,  9, 22, 12, 25, 26, 21),
@@ -475,11 +468,11 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
                      108, 172, 156, 116,  74,  73,  72,  71,  77,  76,  75,  78,  79, 171, 170, 154, 155, 121)]
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
-def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
+def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
     """
@@ -510,7 +503,7 @@ def pyram_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array(( 0,  1,  2,  3, *range(5, 17), *range(41, 50)), dtype=int))
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
@@ -581,11 +574,11 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 @cache
-def prism_faces(order: int) -> tuple[np.ndarray, ...]:
+def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
@@ -624,19 +617,19 @@ def prism_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  2, 0, 3, 5, *range(12, 15), *range(24, 27), *reversed(range(21, 24)), *reversed(range(30, 33)), *range(51, 60)), dtype=int))  # noqa: E501
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
 
 
 # Dummy function for hexahedral elements
 @cache
 def split_hex_to_hex(order: int) -> list[tuple[int, ...]]:
     nodes = np.arange((order + 1) ** 3, dtype=int)
-    return [tuple(nodes)]
+    return [tuple(nodes.tolist())]
 
 
 # Dummy function for hexahedral elements
 @cache
-def hex_faces(order: int) -> tuple[np.ndarray, ...]:
+def hex_faces(order: int) -> tuple[npt.NDArray, ...]:
     """ Given the indices of a hexahedral element, return a tuple with the 6 faces as arrays
     """
     match order:
@@ -670,4 +663,79 @@ def hex_faces(order: int) -> tuple[np.ndarray, ...]:
                     np.array((  4,  5,  6,  7, *range(20, 23), *range(23, 26),          *range(26, 29) , *reversed(range(29, 32)), 89,          *range(90, 93) , 93,          *range(94, 97) , 97), dtype=int))  # noqa: E501
         case _:
             import pyhope.output.output as hopout
-            hopout.error('Order {} not supported for element splitting'.format(order), traceback=True)
+            hopout.error(f'Order {order} not supported for element splitting', traceback=True)
+
+
+def appendBCSet(subFace:      np.ndarray,
+                faceMap:      Callable,
+                nFace:        int,
+                nFaces:       np.ndarray,
+                nodeToFace:   defaultdict,
+                faceType:     list,
+                # Cell sets
+                csets_old:    dict,
+                csets_lst:    dict,
+                elems_lst:    dict,
+                # Optional bookkeeping
+                bcFaces:      Optional[list] = None,
+                bcFaceIdx:    Optional[int]  = None,
+                bcSide:       Optional[str]  = None,
+                # Optional checks
+                requireDim:   Optional[Union[Callable[[int], bool], int]] = None,
+                requireMatch: bool = False,
+                allowMulti  : bool = True,
+               ):
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+
+    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+    faceSet = frozenset(subFace)
+
+    # Get candidate cset keys using the nodes in the face
+    candidate_sets = [nodeToFace[node] for node in faceSet if node in nodeToFace]
+    # Filter set if requested
+    if callable(requireDim):
+        dim_check      = cast(Callable[[int], bool], requireDim)
+        candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if dim_check(len(fs))})]
+    else:
+        match requireDim:
+            case 1 | 2:
+                candidate_sets = [filtered for s in candidate_sets if (filtered := {fs for fs in s if len(fs) == requireDim})]
+            case _:  # None
+                pass
+
+    if not candidate_sets:
+        if requireMatch:
+            raise ValueError('Unable to identify BC for face')
+        return None
+
+    common_candidates = set.intersection(*candidate_sets)
+    common_match      = False
+    for candidate in common_candidates:
+        # Check if the subFace is indeed a subset of the candidate from csets_old
+        # > Matching 1D BC with 2D faces requires this check to be inverted
+        if (candidate.issubset(faceSet) if requireDim in (1, 2) else faceSet.issubset(candidate)):
+            common_match = True
+            # Use the associated boundary name
+            names = csets_old[candidate]
+
+            if not allowMulti and len(names) > 1:
+                hopout.error(f'Matched more than one BC [{names}] during extrusion, exiting...', traceback=True)
+
+            # Update csets_lst for each name in the list.
+            for name in names:
+                csets_lst.setdefault(name.strip(), [[], []])
+                csets_lst[name][faceVal].append(nFaces[faceVal])
+
+                # Store the 1D faces
+                if bcFaces is not None and bcFaceIdx is not None and bcSide is not None:
+                    bcFaces[bcFaceIdx] = {'name': name.strip(),
+                                          'side': bcSide.strip(),
+                                         }
+
+                nFaces[faceVal] += 1
+                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+
+    if requireMatch and not common_match:
+        raise ValueError('Unable to identify BC for face')

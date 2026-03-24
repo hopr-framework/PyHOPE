@@ -25,18 +25,27 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import gc
 import re
-from typing import Final, Optional
+from typing import Final, Optional, cast
 from collections.abc import Iterable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+from pyhope.common.common_numba import NUMBA_AVAILABLE
+if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
+    import numpy.typing as npt
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
+from pyhope.common.common_numba import jit, types
 from pyhope.basis.basis_basis import change_basis_2D
 from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
@@ -51,7 +60,24 @@ def init_worker(function, VdmEqToGP, DGP, weights) -> None:
     function.weights   = weights
 
 
-def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.ndarray) -> np.ndarray:
+@jit(types.Tuple((types.float64, types.float64, types.float64))(
+    types.float64[:, :, ::1],
+    types.float64[:, :, ::1],
+    types.float64[:,    ::1]
+), nopython=True, cache=True, nogil=True)
+def eval_dotprod(dXdetaGP: npt.NDArray[np.float64],
+                 dXdxiGP:  npt.NDArray[np.float64],
+                 weights:  npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float64], ...]:
+    NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
+    NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
+    NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
+    return NSurf0, NSurf1, NSurf2
+
+
+def eval_nsurf(XGeo:    npt.NDArray[np.float64],
+               Vdm:     npt.NDArray[np.float64],
+               DGP:     npt.NDArray[np.float64],
+               weights: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """ Evaluate the surface integral for normals over a side of an element
     """
     # Change basis to Gauss points
@@ -91,18 +117,16 @@ def eval_nsurf(XGeo: np.ndarray, Vdm: np.ndarray, DGP: np.ndarray, weights: np.n
     # return -np.sum(nVecW, axis=(1, 2))              # Sum over the last two axes
 
     # Compute the weighted cross product integral directly
-    NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
-    NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
-    NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
+    NSurf0, NSurf1, NSurf2 = eval_dotprod(dXdetaGP, dXdxiGP, weights)
 
     return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
 
 
 def check_sides(elem,
-                # points   : np.ndarray,
-                VdmEqToGP: np.ndarray,
-                DGP      : np.ndarray,
-                weights  : np.ndarray,
+                # points   : npt.NDArray[np.float64],
+                VdmEqToGP: npt.NDArray[np.float64],
+                DGP      : npt.NDArray[np.float64],
+                weights  : npt.NDArray[np.float64],
                 # sides    : list
                 failed_only: bool = False,
                ) -> Optional[list[tuple]]:
@@ -127,7 +151,7 @@ def check_sides(elem,
             continue
 
         # Big mortar side
-        elif side.connection < 0:
+        if side.connection < 0:
             mortarType = abs(side.connection)
             # INFO: This should be faster but I could not confirm the speedup in practice
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
@@ -245,27 +269,27 @@ def CheckWatertight() -> None:
     nGeo:      Final[int] = mesh_vars.nGeo
 
     # Compute the equidistant point set used by meshIO
-    xEq:       Final[np.ndarray] = np.linspace(-1., 1., nGeo+1)
-    wBaryEq:   Final[np.ndarray] = barycentric_weights(nGeo+1, xEq)
+    xEq:       Final[npt.NDArray[np.float64]] = np.linspace(-1., 1., nGeo+1)
+    wBaryEq:   Final[npt.NDArray[np.float64]] = barycentric_weights(nGeo+1, xEq)
 
     xGP, wGP  = legendre_gauss_nodes(nGeo+1)
-    DGP:       Final[np.ndarray] = polynomial_derivative_matrix(nGeo+1, xGP)
-    VdmEqToGP: Final[np.ndarray] = calc_vandermonde(nGeo+1, nGeo+1, wBaryEq, xEq, xGP)
+    DGP:       Final[npt.NDArray[np.float64]] = polynomial_derivative_matrix(nGeo+1, xGP)
+    VdmEqToGP: Final[npt.NDArray[np.float64]] = calc_vandermonde(nGeo+1, nGeo+1, wBaryEq, xEq, xGP)
 
     # Compute the weights
-    weights:   Final[np.ndarray] = np.outer(wGP, wGP)                   # Shape: (N_GP+1, N_GP+1)
+    weights:   Final[npt.NDArray[np.float64]] = np.outer(wGP, wGP)  # Shape: (N_GP+1, N_GP+1)
 
     # Check all sides
     elems:     Final[list] = mesh_vars.elems
     sides:     Final[list] = mesh_vars.sides
-    mesh:      Final             = mesh_vars.mesh
-    points:    Final[np.ndarray] = mesh.points
+    mesh:      Final       = mesh_vars.mesh
+    points:    Final[npt.NDArray[np.float64]] = mesh.points
     # points    = mesh_vars.mesh.points
     # checked   = np.zeros((len(sides)), dtype=bool)
 
     # Only consider hexahedrons
-    if any(e.type % 100 != 8 for e in elems):
-        elemTypes = list(set([e.type for e in elems if e.type % 100 != 8]))
+    if any(e.type % 10 != 8 for e in elems):
+        elemTypes = list({e.type for e in elems if e.type % 10 != 8})
         print(hopout.warn('Ignored element type: {}'.format(
             [re.sub(r"\d+$", "", mesh_vars.ELEMTYPE.inam[e][0]) for e in elemTypes]
         )))
@@ -276,18 +300,21 @@ def CheckWatertight() -> None:
         # Run in parallel with a chunk size
         # > Dispatch the tasks to the workers, minimum 10 tasks per worker, maximum 1000 tasks per worker
         res     = run_in_parallel(process_chunk,
-                                  tuple(elems),
+                                  elems,
                                   chunk_size  = max(1, min(1000, max(10, int(len(elems)/(40.*np_mtp))))),  # noqa: E251
                                   initializer = init_worker,                                               # noqa: E251
-                                  init_args   = (process_chunk, VdmEqToGP, DGP, weights))                  # noqa: E251
+                                  init_args   = (process_chunk, VdmEqToGP, DGP, weights),                  # noqa: E251
+                                  ordering    = False,                                                     # noqa: E251
+                                 )
     else:
         res     = [elem for elem in elems if check_sides(elem,
                                                          VdmEqToGP, DGP, weights,
                                                          failed_only=True)]
 
-    if len(res) > 0:
+    if len(res) > 0:  # pragma: no cover
         # Flatten per-element results (skip None placeholders)
-        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None for result in elem_results)
+        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
+                               for result       in elem_results)  # noqa: E272
 
         # Compute total number of checked connections without materializing all results
         nconn = 0
@@ -296,7 +323,7 @@ def CheckWatertight() -> None:
             if side.connection is None or side.sideType < 0:
                 continue
             # Big mortar side is counted once
-            elif side.connection < 0:
+            if side.connection < 0:
                 nconn += 1
             # Internal side: only count the canonical representative and ignore virtual mortar sides
             elif side.connection >= 0:
@@ -306,7 +333,7 @@ def CheckWatertight() -> None:
                     continue
                 nconn += 1
 
-        for result in results:
+        for result in cast(tuple[tuple], results):
             # Unpack the results
             side    = sides[result[1]]
             elem    = elems[side.elemID]
@@ -321,24 +348,24 @@ def CheckWatertight() -> None:
             print()
             # Check if side is oriented inwards
             errStr  =      'Side is oriented inwards!' if nSurfErr < 0 \
-                  else 'Surface normals are not within tolerance {:9.6e} > {:9.6e}'.format(nSurfErr, tol)
+                  else f'Surface normals are not within tolerance {nSurfErr:9.6e} > {tol:9.6e}'
             print(hopout.warn(errStr, length=len(errStr)+16))
 
             # Print the information
             strLen  = max(len(str(side.sideID+1)), len(str(nbside.sideID+1)))
             print(hopout.warn(f'> Element {  elem.elemID+1:>{strLen}}, Side {  side.face}, Side {  side.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in   nSurf) + ']'))                    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('> Normal vector: [' + ' '.join(f'{s:12.3f}' for s in   nSurf) + ']'))                    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[  nodes[-1, -1]]) + ']'))    # noqa: E271
             # print()
             print(hopout.warn(f'> Element {nbelem.elemID+1:>{strLen}}, Side {nbside.face}, Side {nbside.sideID+1:>{strLen}}'))  # noqa: E501
-            print(hopout.warn('> Normal vector: [' + ' '.join('{:12.3f}'.format(s) for s in nbnSurf) + ']'))                    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
-            print(hopout.warn('- Coordinates  : [' + ' '.join('{:12.3f}'.format(s) for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('> Normal vector: [' + ' '.join(f'{s:12.3f}' for s in nbnSurf) + ']'))                    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
+            print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
         hopout.error(f'Watertightness check failed for {len(results)} / {nconn} connections!')
 

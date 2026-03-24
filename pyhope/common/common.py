@@ -25,13 +25,20 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import os
-from io import TextIOWrapper
-from typing import cast
+from typing import Union, cast
+from typing import TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -66,6 +73,7 @@ def InitCommon() -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     import pyhope.common.common_vars as common_vars
+    from pyhope.common.common_numba import PkgsCheckNumba
     from pyhope.gmsh.gmsh_install import PkgsCheckGmsh
     from pyhope.readintools.readintools import GetInt
     # ------------------------------------------------------
@@ -95,6 +103,9 @@ def InitCommon() -> None:
 
     # Check if we are using the NRG Gmsh version and install it if not
     PkgsCheckGmsh()
+
+    # Check if we are using numba
+    PkgsCheckNumba()
 
     # hopout.info('INIT PROGRAM DONE!')
 
@@ -127,7 +138,7 @@ def IsInteractive() -> bool:
     # Standard libraries -----------------------------------
     import sys
     # ------------------------------------------------------
-    return cast(TextIOWrapper, sys.__stdin__).isatty() and cast(TextIOWrapper, sys.__stdout__).isatty()
+    return cast(TextIO, sys.__stdin__).isatty() and cast(TextIO, sys.__stdout__).isatty()
 
 
 def IsDisplay() -> bool:
@@ -185,11 +196,11 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq, item) -> int:
+def find_index(seq: Union[list, npt.NDArray], item) -> int:
     """ Find the first occurrences of a key in a list
     """
-    if type(seq) is np.ndarray:
-        seq = seq.tolist()
+    # if type(seq) is np.ndarray:
+    #     seq = seq.tolist()
 
     if type(item) is np.ndarray:
         for index, val in enumerate(seq):
@@ -202,7 +213,7 @@ def find_index(seq, item) -> int:
     return -1
 
 
-def find_indices(seq, item) -> tuple[int, ...]:
+def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:
@@ -212,7 +223,7 @@ def find_indices(seq, item) -> tuple[int, ...]:
     locs = []
     while True:
         try:
-            loc = seq.index(item, start_at+1)
+            loc = cast(list, seq).index(item, start_at+1)
         except ValueError:
             break
         else:

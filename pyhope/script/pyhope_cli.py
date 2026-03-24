@@ -43,23 +43,24 @@ def main() -> None:
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout
-    from pyhope.common.common import DefineCommon, InitCommon
-    from pyhope.common.common_vars import Common
     from pyhope.basis.basis_connect import CheckConnect
     from pyhope.basis.basis_jacobian import CheckJacobians
     from pyhope.basis.basis_watertight import CheckWatertight
+    from pyhope.check.check import Check
+    from pyhope.common.common import DefineCommon, InitCommon
+    from pyhope.common.common_vars import Common
     from pyhope.io.io import IO, DefineIO, InitIO
     from pyhope.mesh.connect.connect import ConnectMesh
+    from pyhope.mesh.fem.fem import FEMConnect
     from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh
     from pyhope.mesh.mesh_duplicates import EliminateDuplicates
     from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
-    from pyhope.mesh.fem.fem import FEMConnect
+    from pyhope.mesh.mesh_mortar import RebuildMortarGeometry
     from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
-    from pyhope.check.check import Check
     # ------------------------------------------------------
 
     # Always spawn with "fork" method to inherit the address space of the parent process
@@ -94,23 +95,20 @@ def main() -> None:
         sys.exit(0)
 
     # Exit with checks if requested
-    if args.verify        \
-    or args.verify_health \
-    or args.verify_install:
+    if any((args.verify, args.verify_health, args.verify_install, args.verify_unittest)):
         Check(args)
         sys.exit(0)
 
     # Check if there are unrecognized arguments
     if len(argv) >= 1:
-        print('{} expects exactly one parameter or HDF5-mesh file! Exiting ...'
-              .format(program))
+        print(f'{program} expects exactly one parameter or HDF5-mesh file! Exiting ...')
         sys.exit()
-
-    with ReadConfig(args.input) as rc:
-        config.params = rc
 
     # Print banner
     hopout.header(program, version, commit)
+
+    with ReadConfig(args.input) as rc:
+        config.params = rc
 
     # Read-in required parameters
     InitCommon()
@@ -133,6 +131,9 @@ def main() -> None:
     SortMesh()
     ConnectMesh()
     TransformMesh()
+
+    # If the mesh has mortars, rebuild the (curved) geometry
+    RebuildMortarGeometry()
 
     # Generate edge/vertex connectivity
     FEMConnect()

@@ -5,8 +5,8 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (C) 2022 Nico Schlömer
 # Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+# Copyright (c) 2022 Nico Schlömer (Original Version)
 #
 # PyHOPE is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
@@ -26,13 +26,20 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
-from typing import Dict, List, Union, Optional, cast
+from typing import Union, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # from pyhope.mesh.mesh_common import NDOFS_ELEM
@@ -40,6 +47,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+from pyhope.common.common_numba import jit, types
 # ==================================================================================================================================
 
 
@@ -52,7 +60,7 @@ def HEXREORDER(order: int, incomplete: Optional[bool] = False) -> tuple[int]:
 
     order    += 1
     nNodes    = 8 + 12*(order - 2) if incomplete else order**3
-    map: List = [None for _ in range(nNodes)]
+    map: list = [None for _ in range(nNodes)]
 
     count = 0
     # Recursively build the mapping
@@ -172,7 +180,7 @@ class NodeOrdering:
     """
     # Dictionary for translation of  meshio types to gmsh codes
     # http://gmsh.info//doc/texinfo/gmsh.html#MSH-file-format-version-2
-    _gmsh_typing: Dict[int, str] = field(
+    _gmsh_typing: dict[int, str] = field(
             default_factory=lambda: { 1  : 'line'          , 2  : 'triangle'      , 3  : 'quad'          , 4  : 'tetra'         ,
                                       5  : 'hexahedron'    , 6  : 'wedge'         , 7  : 'pyramid'       , 8  : 'line3'         ,
                                       9  : 'triangle6'     , 10 : 'quad9'         , 11 : 'tetra10'       , 12 : 'hexahedron27'  ,
@@ -195,7 +203,7 @@ class NodeOrdering:
 
     # Dictionary for conversion Gmsh to meshIO
     # > TODO: IMPLEMENT RECURSIVE MAPPING USING IO_MESHIO/IO_GMSH
-    _meshio_ordering: Dict[str, List[int]] = field(
+    _meshio_ordering: dict[str, list[int]] = field(
             default_factory=lambda: {  # 0D elements
                                        # > Vertex
                                        # 'vertex'      : [ 0 ],
@@ -239,14 +247,14 @@ class NodeOrdering:
     # )
 
     # Dictionary for translation of  gambit types to gmsh codes
-    _gambit_typing: Dict[int, str] = field(
+    _gambit_typing: dict[int, str] = field(
             default_factory=lambda: { 1  : 'line'          , 2  : 'quad'          , 3  : 'triangle'      , 4  : 'hexahedron'    ,
                                       5  : 'wedge'         , 6  : 'tetrahedron'   , 7  : 'pyramid'                              ,
                                     }
     )
 
     # Dictionary for conversion of Gambit to meshIO
-    _gambit_ordering: Dict[str, List[int]] = field(
+    _gambit_ordering: dict[str, list[int]] = field(
             default_factory=lambda: {  # 0D elements
                                        # 1D elements
                                        # 2D elements
@@ -256,9 +264,8 @@ class NodeOrdering:
                                     }
     )
 
-    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
-        """
-        Return the meshIO node ordering for a given element type.
+    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+        """ Return the meshIO node ordering for a given element type
         """
 
         if isinstance(elemType, (int, np.integer)):
@@ -266,11 +273,11 @@ class NodeOrdering:
 
         # 0D/1D/2D elements
         if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
-            return cast(np.ndarray, idx)
+            return idx
 
         # Check if we have a fixed ordering
         if elemType in self._meshio_ordering:
-            return cast(np.ndarray, idx[:, self._meshio_ordering[elemType]])
+            return idx[:, self._meshio_ordering[elemType]]
 
         # Check if we are requesting higher-order simplices than currently implemented
         if not elemType.startswith('hexahedron'):
@@ -289,7 +296,47 @@ class NodeOrdering:
         ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
-    def deviation(self, x: float) -> float:
+    def ordering_meshio_to_gmsh(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+        """ Return the Gmsh node ordering for a given element type
+            > Inverse of ordering_gmsh_to_meshio
+        """
+
+        if isinstance(elemType, (int, np.integer)):
+            elemType = self._gmsh_typing[int(elemType)]
+
+        # 0D/1D/2D elements
+        if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
+            return idx
+
+        # Check if we have a fixed ordering
+        if elemType in self._meshio_ordering:
+            perm      = np.asarray(self._meshio_ordering[elemType], dtype=int)  # meshio <- gmsh
+            inv       = np.empty_like(perm)
+            inv[perm] = np.arange(perm.size, dtype=int)                    # gmsh <- meshio
+            return idx[:, inv]
+
+        # Check if we are requesting higher-order simplices than currently implemented
+        if not elemType.startswith('hexahedron'):
+            raise ValueError(f'Unknown element type {elemType}')
+
+        # For hexahedrons with analytic ordering
+        nNodes = 8 if elemType.partition('hexahedron')[2] == '' else int(elemType.partition('hexahedron')[2])
+
+        if self.deviation(nNodes ** (1/3) - 1) < self.deviation((nNodes - 8)/12 + 1):
+            nGeo = round(nNodes ** (1/3) - 1)
+            incomplete = False
+        else:
+            nGeo = round((nNodes - 8)/12 + 1)
+            incomplete = True
+
+        perm      = np.asarray(HEXREORDER(nGeo, incomplete=incomplete), dtype=int)
+        inv       = np.empty_like(perm)
+        inv[perm] = np.arange(perm.size, dtype=int)
+        return idx[:, inv]
+
+    @staticmethod
+    @jit([types.float32(types.float32), types.float64(types.float64)], nopython=True, cache=True, nogil=True)
+    def deviation(x: float) -> float:
         return abs(x - round(x))
 
     # INFO: Alternative implementation
@@ -364,7 +411,7 @@ class NodeOrdering:
 
         raise ValueError(f'Unknown element type {elemType}')
 
-    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: np.ndarray) -> np.ndarray:
+    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
         """
         Return the meshIO node ordering for a given element type
         """
@@ -373,10 +420,10 @@ class NodeOrdering:
 
         # 0D/1D/2D elements
         if elemType.startswith(('vertex', 'line', 'triangle', 'quad')):
-            return cast(np.ndarray, idx)
+            return idx
 
         # Check if we have a fixed ordering
         if elemType in self._gambit_ordering:
-            return cast(np.ndarray, idx[self._gambit_ordering[elemType]])
+            return idx[self._gambit_ordering[elemType]]
 
         raise ValueError(f'Unknown element type {elemType}')

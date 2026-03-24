@@ -26,9 +26,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
-import sys
 from functools import cache
-from typing import Union, Tuple, Any
+from typing import Any, Final, Optional, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -51,50 +50,51 @@ import pyhope.mesh.mesh_vars as mesh_vars
 elemTypeClass = mesh_vars.ELEMTYPE()
 # ==================================================================================================================================
 
+
 @cache
-def faces(elemType: Union[int, str]) -> list[str]:
+def faces(elemType: Union[int, str]) -> tuple[str, ...]:
     """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron
-                   4: ['z-', 'y-', 'x+', 'x-'            ],
+                   4: ('z-', 'y-', 'x+', 'x-'            ),
                    # Pyramid
-                   5: ['z-', 'y-', 'x+', 'y+', 'x-'      ],
+                   5: ('z-', 'y-', 'x+', 'y+', 'x-'      ),
                    # Wedge / Prism
-                   6: ['y-', 'x+', 'x-', 'z-', 'z+'      ],
+                   6: ('y-', 'x+', 'x-', 'z-', 'z+'      ),
                    # Hexahedron
-                   8: ['z-', 'y-', 'x+', 'y+', 'x-', 'z+']
+                   8: ('z-', 'y-', 'x+', 'y+', 'x-', 'z+')
                 }
 
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in faces: elemType {elemType} is not supported')
 
-    return faces_map[elemType % 100]
+    return faces_map[elemType % 10]
 
 
 @cache
-def edges(elemType: Union[int, str]) -> list[int]:
+def edges(elemType: Union[int, str]) -> tuple[int, ...]:
     """ Return a list of all edges of an element
     """
     edges_map = {  # Tetrahedron
-                   4: [0, 1, 2, 3, 4, 5],
+                   4: (0, 1, 2, 3, 4, 5                     ),
                    # Pyramid
-                   5: [0, 1, 2, 3, 4, 5, 6, 7],
+                   5: (0, 1, 2, 3, 4, 5, 6, 7               ),
                    # Wedge / Prism
-                   6: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                   6: (0, 1, 2, 3, 4, 5, 6, 7, 8            ),
                    # Hexahedron
-                   8: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                   8: (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 )
                 }
 
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edges_map:
+    if elemType % 10 not in edges_map:
         raise ValueError(f'Error in edges: elemType {elemType} is not supported')
 
-    return edges_map[elemType % 100]
+    return edges_map[elemType % 10]
 
 
 @cache
@@ -114,52 +114,78 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in dir_map:
-        raise ValueError(f'Error in edge_to_direction: elemType {elemType} is not supported')
+    if elemType % 10 not in dir_map:
+        raise ValueError(f'Error in edge_to_dir: elemType {elemType} is not supported')
 
-    dir = dir_map[elemType % 100]
+    dir = dir_map[elemType % 10]
 
     try:
         return (np.rint(abs(dir[edge]))).astype(int)
-    except KeyError:
-        raise KeyError(f'Error in edge_to_dir: edge {edge} is not supported')
+    except KeyError as e:
+        raise KeyError(f'Error in edge_to_dir: edge {edge} is not supported') from e
 
 
 @cache
-def edge_to_corner(edge: int, elemType: Union[int, str], dtype=int) -> np.ndarray:
+def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.NDArray:
     """ GMSH: Get points on edges
     """
     edge_map = {  # Tetrahedron
-                  4: [ [0, 1], [1, 2], [2, 1], [0, 3],
-                       [1, 3], [2, 3]                 ],
+                  4: ( (0, 1), (1, 2), (2, 1), (0, 3),
+                       (1, 3), (2, 3)                 ),
                   # Pyramid
-                  5: [ [0, 1], [1, 2], [2, 3], [3, 0],
-                       [0, 4], [1, 5], [2, 4], [3, 4] ],
+                  5: ( (0, 1), (1, 2), (2, 3), (3, 0),
+                       (0, 4), (1, 5), (2, 4), (3, 4) ),
                   # Wedge / Prism
-                  6: [ [0, 1], [1, 2], [2, 0], [0, 3],
-                       [2, 3], [3, 4], [4, 5], [5, 4] ],
+                  6: ( (0, 1), (1, 2), (2, 0), (0, 3),
+                       (2, 3), (3, 4), (4, 5), (5, 4) ),
                   # Hexahedron
-                  8: [ [0, 1], [1, 2], [2, 3], [3, 0],
-                       [0, 4], [1, 5], [2, 6], [3, 7],
-                       [4, 5], [5, 6], [6, 7], [7, 4] ],
+                  8: ( (0, 1), (1, 2), (2, 3), (3, 0),    # Bottom  edges
+                       (4, 5), (5, 6), (6, 7), (7, 4),    # Top     edges
+                       (0, 4), (1, 5), (2, 6), (3, 7) ),  # Upright edges
                }
 
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in edge_map:
+    if elemType % 10 not in edge_map:
         raise ValueError(f'Error in edge_to_corner: elemType {elemType} is not supported')
 
-    edges = edge_map[elemType % 100]
+    edges = edge_map[elemType % 10]
 
     try:
         return np.array(edges[edge], dtype=dtype)
-    except KeyError:
-        raise KeyError(f'Error in edge_to_corner: edge {edge} is not supported')
+    except IndexError as e:
+        raise IndexError(f'Error in edge_to_corner: edge {edge} is not supported') from e
 
 
 @cache
-def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.NDArray:
+    """ GMSH: Get signs on edges
+    """
+    edge_map = {  # Tetrahedron
+                  # Pyramid
+                  # Wedge / Prism
+                  # Hexahedron
+                  8: ( -1., -1.,  1.,  1.,   # Bottom  edges
+                       -1., -1.,  1.,  1.,   # Top     edges
+                       -1., -1., -1., -1.),  # Upright edges
+               }
+    if isinstance(elemType, str):
+        elemType = elemTypeClass.name[elemType]
+
+    if elemType % 10 not in edge_map:
+        raise ValueError(f'Error in edge_to_sign: elemType {elemType} is not supported')
+
+    edges = edge_map[elemType % 10]
+
+    try:
+        return np.array(edges[edge], dtype=dtype)
+    except IndexError as e:
+        raise IndexError(f'Error in edge_to_sign: edge {edge} is not supported') from e
+
+
+@cache
+def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
     """ GMSH: Create faces from edges in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -177,17 +203,17 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_edge: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
-    except KeyError:
-        raise KeyError(f'Error in face_to_edge: face {face} is not supported')
+        return faces_map[elemType % 10][face]
+    except KeyError as e:
+        raise KeyError(f'Error in face_to_edge: face {face} is not supported') from e
 
 
 @cache
-def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
     """ GMSH: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -205,17 +231,17 @@ def face_to_corner(face, elemType: Union[str, int], dtype=int) -> np.ndarray:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_corner: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
-    except KeyError:
-        raise KeyError(f'Error in face_to_corner: face {face} is not supported')
+        return faces_map[elemType % 10][face]
+    except KeyError as e:
+        raise KeyError(f'Error in face_to_corner: face {face} is not supported') from e
 
 
 @cache
-def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -247,106 +273,100 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
-    except KeyError:
-        raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
+        return faces_map[elemType % 10][face]
+    except KeyError as e:
+        raise KeyError(f'Error in face_to_cgns: face {face} is not supported') from e
 
 
 # @dataclass
 # class FaceOrdering:
 #     side_type: str
 #     nGeo     : int
-#     order    : np.ndarray = field(init=False)
+#     order    : npt.NDArray = field(init=False)
 #
 #     def __post_init__(self):
 #         self.order = self.compute_ordering()
 #
-#     def compute_ordering(self) -> np.ndarray:
+#     def compute_ordering(self) -> npt.NDArray:
 @cache
-def FaceOrdering(side_type: str, order: int) -> np.ndarray:
-    """
-    Compute the permutation ordering to convert from tensor-product ordering
-    to meshio ordering for a face of a given type ('quad' or 'triangle')
-    and polynomial order nGeo.
+def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
+    """ Compute the permutation ordering to convert from tensor-product ordering
+        to meshio ordering for a face of a given type ('quad' or 'triangle')
+        and polynomial order nGeo
 
-    For quadrilaterals, total nodes = (nGeo+1)**2.
-      - For nGeo==1, the natural ordering is [0, 1, 2, 3].
-      - For nGeo>1, the ordering is:
-          * Corners: bottom-left, bottom-right, top-right, top-left;
-          * Then the bottom edge (excluding corners, left-to-right);
-          * Then the right  edge (excluding corners, bottom-to-top);
-          * Then the top    edge (excluding corners, right-to-left);
-          * Then the left   edge (excluding corners, top-to-bottom);
-          * Finally, the interior nodes in row-major order.
+        For quadrilaterals, total nodes = (nGeo+1)**2.
+          - For nGeo==1, the natural ordering is [0, 1, 2, 3].
+          - For nGeo>1, the ordering is:
+              * Corners: bottom-left, bottom-right, top-right, top-left;
+              * Then the bottom edge (excluding corners, left-to-right);
+              * Then the right  edge (excluding corners, bottom-to-top);
+              * Then the top    edge (excluding corners, right-to-left);
+              * Then the left   edge (excluding corners, top-to-bottom);
+              * Finally, the interior nodes in row-major order.
 
-    For triangles, total nodes = (nGeo+1)*(nGeo+2)//2.
-      - For nGeo==1, the natural ordering is [0, 1, 2].
-      - For nGeo>1, we generate the tensor ordering as all (i,j) pairs
-        with i+j <= nGeo (in lexicographical order) and then reorder so that:
-          * Vertices come first: (0,0), (nGeo,0), (0,nGeo);
-          * Followed by edge nodes (in order along each edge);
-          * And then the interior nodes in their natural order.
+        For triangles, total nodes = (nGeo+1)*(nGeo+2)//2.
+          - For nGeo==1, the natural ordering is [0, 1, 2].
+          - For nGeo>1, we generate the tensor ordering as all (i,j) pairs
+            with i+j <= nGeo (in lexicographical order) and then reorder so that:
+              * Vertices come first: (0,0), (nGeo,0), (0,nGeo);
+              * Followed by edge nodes (in order along each edge);
+              * And then the interior nodes in their natural order.
     """
     if side_type.lower() == 'quad':
         # Total nodes on face: (nGeo+1)**2
         if order == 1:
-            return np.arange(4)
-        else:
-            n           = order
-            grid        = np.arange((n+1)**2).reshape(n+1, n+1)
-            # Corners: bottom-left, bottom-right, top-right, top-left
-            corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
-            # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
-            bottom_edge = grid[0, 1:n]
-            # Right edge: column n, rows 1 to n-1 (bottom-to-top)
-            right_edge  = grid[1:n, n]
-            # Top edge: row n, columns n-1 to 1 (right-to-left)
-            top_edge    = grid[n, n-1:0:-1]
-            # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
-            left_edge   = grid[n-1:0:-1, 0]
-            # Interior nodes: remaining nodes in row-major order
-            interior    = grid[1:n, 1:n].flatten()
-            # Assemble ordering: corners, edges, interior
-            # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
-            return ordering
+            return np.arange(4, dtype=dtype)
+        n           = order
+        grid        = np.arange((n+1)**2).reshape(n+1, n+1)
+        # Corners: bottom-left, bottom-right, top-right, top-left
+        corners     = np.array((grid[0, 0], grid[0, n], grid[n, n], grid[n, 0]))
+        # Bottom edge (excluding corners): row 0, columns 1 to n-1 (left-to-right)
+        bottom_edge = grid[0, 1:n]
+        # Right edge: column n, rows 1 to n-1 (bottom-to-top)
+        right_edge  = grid[1:n, n]
+        # Top edge: row n, columns n-1 to 1 (right-to-left)
+        top_edge    = grid[n, n-1:0:-1]
+        # Left edge: column 0, rows n-1 to 1 (top-to-bottom)
+        left_edge   = grid[n-1:0:-1, 0]
+        # Interior nodes: remaining nodes in row-major order
+        interior    = grid[1:n, 1:n].flatten()
+        # Assemble ordering: corners, edges, interior
+        # ordering    = np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior))
+        return np.concatenate((corners, bottom_edge, right_edge, top_edge, left_edge, interior), dtype=dtype)
 
-    elif side_type.lower() == 'triangle':
+    if side_type.lower() == 'triangle':
         # Total nodes on face: (nGeo+1)*(nGeo+2)//2
         if order == 1:
-            return np.arange(3)
-        else:
-            p           = order
-            # Build the tensor ordering as a list of (i, j) for which i+j <= p.
-            nodes       = []
-            for i in range(p+1):
-                for j in range(p+1 - i):
-                    nodes.append((i, j))
-            # Define vertices in the reference triangle:
-            vertices    = [(0, 0), (p, 0), (0, p)]
-            # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
-            edge01      = [(i, 0) for i in range(1, p)]
-            # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
-            edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
-            # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
-            edge20      = [(0, j) for j in range(1, p)]
-            # Interior nodes: those not on the boundary
-            boundary    = set(vertices + edge01 + edge12 + edge20)
-            interior    = [node for node in nodes if node not in boundary]
-            # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
-            desired     = vertices + edge01 + edge12 + edge20 + interior
-            ordering    = [nodes.index(nd) for nd in desired]
-            return np.array(ordering)
-    else:
-        raise ValueError(f'Unsupported side type: {side_type}')
+            return np.arange(3, dtype=dtype)
+        p           = order
+        # Build the tensor ordering as a list of (i, j) for which i+j <= p.
+        nodes       = []
+        for i in range(p+1):
+            nodes.extend((i, j) for j in range(p+1 - i))
+        # Define vertices in the reference triangle:
+        vertices    = [(0, 0), (p, 0), (0, p)]
+        # Edge from vertex0 (0,0) to vertex1 (p,0): nodes with j==0 (excluding vertices)
+        edge01      = [(i, 0) for i in range(1, p)]
+        # Edge from vertex1 (p,0) to vertex2 (0,p): nodes on the line i+j==p (excluding vertices)
+        edge12      = [(i, p-i) for i in range(p-1, 0, -1)]
+        # Edge from vertex2 (0,p) to vertex0 (0,0): nodes with i==0 (excluding vertices)
+        edge20      = [(0, j) for j in range(1, p)]
+        # Interior nodes: those not on the boundary
+        boundary    = set(vertices + edge01 + edge12 + edge20)
+        interior    = [node for node in nodes if node not in boundary]
+        # Assemble ordering: vertices, then edge nodes in order, then interior nodes.
+        desired     = vertices + edge01 + edge12 + edge20 + interior
+        ordering    = [nodes.index(nd) for nd in desired]
+        return np.array(ordering, dtype=dtype)
+    raise ValueError(f'Unsupported side type: {side_type}')
 
 
 @cache
-def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of slave to RHS of master
     """
     flip_map = {  # Tetrahedron
@@ -363,17 +383,17 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in flip_map:
+    if elemType % 10 not in flip_map:
         raise ValueError(f'Error in flip_s2m: elemType {elemType} is not supported')
 
     try:
-        return flip_map[elemType % 100][flip]
-    except KeyError:
-        raise KeyError(f'Error in flip_s2m: face {flip} is not supported')
+        return flip_map[elemType % 10][flip]
+    except KeyError as e:
+        raise KeyError(f'Error in flip_s2m: face {flip} is not supported') from e
 
 
 @cache
-def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=int) -> np.ndarray:
+def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     faces_map = {  # Tetrahedron
@@ -391,17 +411,17 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in cgns_sidetovol: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][face]
-    except KeyError:
-        raise KeyError(f'Error in cgns_sidetovol: face {face} is not supported')
+        return faces_map[elemType % 10][face]
+    except KeyError as e:
+        raise KeyError(f'Error in cgns_sidetovol: face {face} is not supported') from e
 
 
 @cache
-def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int]) -> np.ndarray:
+def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     if isinstance(elemType, str):
@@ -410,22 +430,21 @@ def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int]) -> np.nd
     # Get the reordering of the element nodes
     mapLin = LINMAP(elemType, order=N)
     # Build the (p,q) grid as arrays of shape (0:N, 0:N)
-    P, Q = np.meshgrid(np.arange(N+1, dtype=int),
-                       np.arange(N+1, dtype=int), indexing='ij')
+    P, Q = np.meshgrid(np.arange(N+1, dtype=dtype),
+                       np.arange(N+1, dtype=dtype), indexing='ij')
     # Build (r) vector for flat surface
-    R    = np.zeros_like(P, dtype=int)
+    R    = np.zeros_like(P, dtype=dtype)
     # Vectorize flip_s2m to get the flipped (p, q) values
-    vec_flip = (np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[0], otypes=[int]),
-                np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[1], otypes=[int]))
-    pq       = tuple([vec_flip[s](P, Q) for s in (0, 1)])
+    vec_flip = (np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[0], otypes=[dtype]),
+                np.vectorize(lambda p, q: flip_s2m(N, p, q, flip, elemType)[1], otypes=[dtype]))
+    pq       = tuple(vec_flip[s](P, Q) for s in (0, 1))
     # Vectorize the cgns_sidetovol function
-    vec_cgns =  np.vectorize(lambda r, p, q: cgns_sidetovol(N, r, int(p), int(q), face, elemType), otypes=[int],
+    vec_cgns =  np.vectorize(lambda r, p, q: cgns_sidetovol(N, r, int(p), int(q), face, elemType), otypes=[dtype],
                                     signature='(),(),()->(n)')
     # idx_arr will have shape (0:N, 0:N, 3)
     idx_arr = vec_cgns(R, pq[0], pq[1])
     # Use the computed indices from idx_arr to index mapLin
-    map = mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
-    return map
+    return mapLin[idx_arr[..., 0], idx_arr[..., 1], idx_arr[..., 2]]
 
 
 @cache
@@ -458,18 +477,20 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
 
-    if elemType % 100 not in flipID_map:
+    if elemType % 10 not in flipID_map:
         raise ValueError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
 
     try:
-        return flipID_map[elemType % 100]
-    except KeyError:
-        raise KeyError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported')
+        return flipID_map[elemType % 10]
+    except KeyError as e:
+        raise KeyError(f'Error in type_to_mortar_flip: elemType {elemType} is not supported') from e
 
 
 @cache
-def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
+def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.NDArray:
     """ Returns the tensor-product nodes associated with a face
+
+        CAVE: If the oriented side is required, use sidetovol2 instead!
     """
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
@@ -509,15 +530,15 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
     #                      'z+': np.transpose(LINMAP(108 if order == 1 else 208, order=order)[:    , :    , order])}                                # noqa: E272, E501
     #
     #             }
-    # if elemType % 100 not in faces_map:
+    # if elemType % 10 not in faces_map:
     #     raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
     #
     # try:
-    #     return faces_map[elemType % 100][face]
-    # except KeyError:
-    #     raise KeyError(f'Error in face_to_cgns: face {face} is not supported')
+    #     return faces_map[elemType % 10][face]
+    # except KeyError as e:
+    #     raise KeyError(f'Error in face_to_cgns: face {face} is not supported') from e
 
-    match elemType % 100:
+    match elemType % 10:
         case 4:  # Tetrahedron
             faces_map = {  # Sides aligned with the axes
                            'z-': [s for s  in LINMAP(104 if order == 1 else 204, order=order)[:    , :    , 0    ].flatten()         if s != -1],   # noqa: E272, E501
@@ -557,13 +578,13 @@ def face_to_nodes(face: str, elemType: int, nGeo: int) -> np.ndarray:
             raise ValueError(f'Error in face_to_nodes: elemType {elemType} is not supported')
 
     try:
-        return np.asarray(faces_map[face])
-    except KeyError:
-        raise KeyError(f'Error in face_to_nodes: face {face} is not supported')
+        return np.asarray(faces_map[face], dtype=dtype)
+    except KeyError as e:
+        raise KeyError(f'Error in face_to_nodes: face {face} is not supported') from e
 
 
 @cache
-def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, bool]:
+def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> tuple[Any, bool]:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
@@ -596,13 +617,13 @@ def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> Tuple[Any, b
                         'x-': ((0          , slice(None), slice(None)), False),   #              elemNodes[0    , :    , :    ],  # noqa: E262, E501
                         'z+': ((slice(None), slice(None), order      ), True )}   # np.transpose(elemNodes[:    , :    , order])} # noqa: E262, E501
                  }
-    if elemType % 100 not in faces_map:
+    if elemType % 10 not in faces_map:
         raise ValueError(f'Error in face_to_cgns: elemType {elemType} is not supported')
 
     try:
-        return faces_map[elemType % 100][dir]
-    except KeyError:
-        raise KeyError(f'Error in face_to_cgns: face {dir} is not supported')
+        return faces_map[elemType % 10][dir]
+    except KeyError as e:
+        raise KeyError(f'Error in dir_to_nodes: face {dir} is not supported') from e
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
@@ -610,7 +631,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
     nElems = 0
     for _, elemType in enumerate(mesh.cells_dict.keys()):
         # Only consider three-dimensional types
-        if not any(s in elemType for s in elemTypeClass.type.keys()):
+        if not any(s in elemType for s in elemTypeClass.type):
             continue
 
         ioelems = mesh.get_cells_type(elemType)
@@ -619,114 +640,148 @@ def count_elems(mesh: meshio.Mesh) -> int:
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
-def calc_elem_bary(elems: list) -> np.ndarray:
+def calc_elem_bary(elems: Union[list, tuple]) -> npt.NDArray[np.float64]:
     """
     Compute barycenters of all three-dimensional elements in the mesh.
 
     Returns:
         elem_bary (np.ndarray): Array of barycenters for all 3D elements, concatenated.
     """
+    # PERF: n.mean from iterator is too slow for large meshes
     # return np.asarray([mesh_vars.mesh.points[elem.nodes].mean(axis=0) for elem in elems])
-
     # Pre-allocate memory for large arrays
-    elem_bary = np.empty((len(elems), 3), dtype=np.float64)
-    for elemID, elem in enumerate(elems):
-        # Calculate barycenters
-        elem_bary[elemID] = mesh_vars.mesh.points[elem.nodes].mean(axis=0)
-    return elem_bary
+    # elem_bary = np.empty((len(elems), 3), dtype=np.float64)
+    # points: Final[np.ndarray] = mesh_vars.mesh.points
+    # for elemID, elem in enumerate(elems):
+    #     # Calculate barycenters
+    #     elem_bary[elemID] = points[elem.nodes].mean(axis=0)
+    # return elem_bary
+
+    points:  Final[npt.NDArray] = mesh_vars.mesh.points
+    nElems:  Final[int]  = len(elems)
+    nNodes:  Final[int]  = len(elems[0].nodes)
+    uniform: Final[bool] = all(len(e.nodes) == nNodes for e in elems)
+
+    # Fast path: Uniform number of nodes per element
+    if uniform:
+        idx = np.empty(nElems * nNodes, dtype=np.int64)
+        pos = 0
+        for e in elems:
+            idx[pos:pos + nNodes] = e.nodes
+            pos += nNodes
+
+        elemSum = points[idx].reshape(nElems, nNodes, 3).sum(axis=1, dtype=np.float64)
+        elemInv = 1.0 / nNodes
+        return elemSum * elemInv
+
+    # General path: varying node counts
+    counts: Final[npt.NDArray] = np.fromiter((len(e.nodes) for e in elems), dtype=np.int64, count=nElems)
+    offsets:      npt.NDArray  = np.empty(nElems + 1, dtype=np.int64)
+    offsets[0] = 0
+    np.cumsum(counts, out=offsets[1:])
+
+    idx = np.empty(offsets[-1], dtype=np.int64)
+    pos = 0
+    for e in elems:
+        m = len(e.nodes)
+        idx[pos:pos + m] = e.nodes
+        pos += m
+
+    gathered = points[idx]
+    sums     = np.add.reduceat(gathered, offsets[:-1], axis=0)
+    return sums / counts[:, None]
 
 
 @cache
-def LINTEN(elemType: int, order: int = 1) -> tuple[np.ndarray, dict[np.int64, int]]:
+def LINTEN(elemType: int,
+           order: int = 1,
+           format: Optional[str] = 'meshio'
+           ) -> tuple[npt.NDArray, dict[np.int64, int]]:
     """ MESHIO -> IJK ordering for element volume nodes
     """
     # Local imports ----------------------------------------
     # from pyhope.io.formats.cgns import genHEXMAPCGNS
-    # from pyhope.io.formats.vtk import genHEXMAPVTK
-    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
+    from pyhope.io.formats.vtk import HEXAMAPVTK
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXAMAPMESHIO
     # ------------------------------------------------------
     # Check if we try to access a curved element with a straight-sided mapping
     if order > 1 and elemType < 200:
         raise ValueError(f'Error in LINTEN: order {order} is not supported for elemType {elemType}')
 
+    match format:
+        case 'meshio':
+            TETRMAP = TETRMAPMESHIO
+            PYRAMAP = PYRAMAPMESHIO
+            PRISMAP = PRISMAPMESHIO
+            HEXAMAP = HEXAMAPMESHIO
+        case 'vtk':
+            TETRMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+                         ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
+            PYRAMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+                         ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
+            PRISMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+                         ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
+            HEXAMAP = HEXAMAPVTK
+        case _:
+            raise ValueError(f'Unsupported mesh format: {format}')
+
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            # return np.array((0, 1, 2, 3))
             TETRTEN = np.array((0, 1, 2, 3))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
             return TETRTEN, TENTETR
         case 105:  # Pyramid
-            # return np.array((0, 1, 3, 2, 4))
             PYRATEN = np.array((0, 1, 3, 2, 4))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
             return PYRATEN, TENPYRA
         case 106:  # Prism
-            # return np.array((0, 1, 2, 3, 4, 5))
             PRISTEN = np.array((0, 1, 2, 3, 4, 5))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
             return PRISTEN, TENPRIS
         case 108:  # Hexaeder
-            # return np.array((0, 1, 3, 2, 4, 5, 7, 6))
             HEXTEN = np.array((0, 1, 3, 2, 4, 5, 7, 6))
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # meshio accesses them in their own ordering, so reverse the order
             TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
             return HEXTEN, TENHEX
         # Curved elements, use mapping
         case 204:  # Tetraeder
-            _, TETRTEN = TETRMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            _, TETRTEN = TETRMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENTETR   = {k: v for v, k in enumerate(TETRTEN)}
             return TETRTEN, TENTETR
         case 205:  # Pyramid
-            _, PYRATEN = PYRAMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            _, PYRATEN = PYRAMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENPYRA   = {k: v for v, k in enumerate(PYRATEN)}
             return PYRATEN, TENPYRA
         case 206:  # Prism
-            _, PRISTEN = PRISMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            _, PRISTEN = PRISMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENPRIS   = {k: v for v, k in enumerate(PRISTEN)}
             return PRISTEN, TENPRIS
         case 208:  # Hexaeder
-            # > HEXTEN : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
-            # > HEXMAP : np.ndarray # MESHIO <-> IJK ordering for high-order hexahedrons (3D mapping)
-
-            # # CGNS
-            # _, HEXTEN = HEXMAPCGNS(order+1)
-
-            # # VTK
-            # _, HEXTEN = HEXMAPVTK(order+1)
-
-            # MESHIO
-            _, HEXTEN = HEXMAPMESHIO(order+1)
-            # meshio accesses them in their own ordering
-            # > need to reverse the mapping
+            # > HEXTEN : npt.NDArray # FORMAT <-> IJK ordering for high-order hexahedrons (1D, tensor-product style)
+            # > HEXMAP : np.ndarray # FORMAT <-> IJK ordering for high-order hexahedrons (3D mapping)
+            _, HEXTEN = HEXAMAP(order+1)
+            # meshio accesses them in their own ordering, so reverse the order
             TENHEX    = {k: v for v, k in enumerate(HEXTEN)}
             return HEXTEN, TENHEX
         case _:  # Default
-            print('Error in LINTEN, unknown elemType')
-            sys.exit(1)
+            raise ValueError(f'Unknown element type: {elemType}')
 
 
 @cache
-def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
+def LINMAP(elemType: int, order: int = 1, dtype=np.int32) -> npt.NDArray:
     """ MESHIO -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------
     # from pyhope.io.formats.cgns import HEXMAPCGNS
     # from pyhope.io.formats.vtk import HEXMAPVTK
-    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXMAPMESHIO
+    from pyhope.io.formats.meshio import TETRMAPMESHIO, PYRAMAPMESHIO, PRISMAPMESHIO, HEXAMAPMESHIO
     # ------------------------------------------------------
     # Check if we try to access a curved element with a straight-sided mapping
     if order > 1 and elemType < 200:
@@ -735,27 +790,27 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
     match elemType:
         # Straight-sided elements, hard-coded
         case 104:  # Tetraeder
-            linmap = np.full((2, 2, 2), -1, dtype=np.int32)
+            linmap = np.full((2, 2, 2), -1, dtype=dtype)
             indices = [ (0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)]
             for i, index in enumerate(indices):
                 linmap[index] = i
             return linmap
         case 105:  # Pyramid
-            linmap = np.full((2, 2, 2), -1, dtype=np.int32)
+            linmap = np.full((2, 2, 2), -1, dtype=dtype)
             indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),
                         (0, 0, 1)]
             for i, index in enumerate(indices):
                 linmap[index] = i
             return linmap
         case 106:  # Prism
-            linmap = np.full((2, 2, 2), -1, dtype=np.int32)
+            linmap = np.full((2, 2, 2), -1, dtype=dtype)
             indices = [ (0, 0, 0), (1, 0, 0), (0, 1, 0),
                         (0, 0, 1), (1, 0, 1), (0, 1, 1)]
             for i, index in enumerate(indices):
                 linmap[index] = i
             return linmap
         case 108:  # Hexaeder
-            linmap = np.zeros((2, 2, 2), dtype=np.int32)
+            linmap = np.zeros((2, 2, 2), dtype=dtype)
             indices = [ (0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0),
                         (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1) ]
             for i, index in enumerate(indices):
@@ -783,11 +838,10 @@ def LINMAP(elemType: int, order: int = 1) -> npt.NDArray[np.int32]:
             # HEXMAP  , _ = HEXMAPVTK(order+1)
 
             # MESHIO
-            HEXMAP  , _ = HEXMAPMESHIO(order+1)
+            HEXMAP  , _ = HEXAMAPMESHIO(order+1)
             return HEXMAP
         case _:  # Default
-            print('Error in LINMAP, unknown elemType')
-            sys.exit(1)
+            raise ValueError(f'Unknown element type: {elemType}')
 
 
 @cache
@@ -804,7 +858,28 @@ def NDOFS_ELEM(elemType: int, N: int, dim: int = 3) -> int:
                    8: (N+1)**dim
                 }
 
-    if elemType % 100 not in nodes_map:
+    if elemType % 10 not in nodes_map:
         raise ValueError(f'Error in nodes: elemType {elemType} is not supported')
 
-    return nodes_map[elemType % 100]
+    return nodes_map[elemType % 10]
+
+
+@cache
+def NDOFperElemType(elemType: str, nGeo: int) -> int:
+    """ Calculate the number of degrees of freedom for a given element type
+    """
+    match elemType:
+        case _ if elemType.startswith('triangle'):
+            return round((nGeo+1)*(nGeo+2)/2.)
+        case _ if elemType.startswith('quad'):
+            return round((nGeo+1)**2)
+        case _ if elemType.startswith('tetra'):
+            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
+        case _ if elemType.startswith('pyramid'):
+            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
+        case _ if elemType.startswith('wedge'):
+            return round((nGeo+1)**2 *(nGeo+2)/2.)
+        case _ if elemType.startswith('hexahedron'):
+            return round((nGeo+1)**3)
+        case _:
+            raise ValueError(f'Unknown element type {elemType}')

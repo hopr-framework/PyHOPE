@@ -24,8 +24,8 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
-# image: ${CI_REGISTRY_NAME}/nrg-python:3.13.7-trixie-x86_64
-image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.0-trixie-x86_64
+# image: ${CI_REGISTRY_NAME}/nrg-python:3.14.3-trixie-x86_64
+image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.3-trixie-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
@@ -83,10 +83,10 @@ variables:
   # Setup uv
   - uv --version
   # Setup Python virtual environment
-  - uv venv venv
-  - source venv/bin/activate
+  - uv venv .venv
+  - source .venv/bin/activate
   # Regression checks needs NRG Gmsh, pre-install it
-  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.0.post1-py3-none-linux_x86_64.whl
+  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.1.post1-py3-none-linux_x86_64.whl
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
   # Install coverage
@@ -101,8 +101,8 @@ variables:
   # Setup uv
   - uv --version
   # Setup Python virtual environment
-  - uv venv venv
-  - source venv/bin/activate
+  - uv venv .venv
+  - source .venv/bin/activate
 
 before_script: *global-before-script
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -177,13 +177,13 @@ python:3.12:
 python:3.13:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.9-trixie-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.12-trixie-x86_64
   <<: *compatibility-script
 # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.14:
   extends: .defaults
   stage: compatibility
-  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.0-trixie-x86_64 # default version at the moment
+  # image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.3-trixie-x86_64 # default version at the moment
   <<: *compatibility-script
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -330,7 +330,7 @@ coverage:
 convergence:
   extends: .defaults
   stage: verification
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:42-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-fedora:43-x86_64
   artifacts:
     paths:
       - convergence_artifacts.log
@@ -369,7 +369,11 @@ convergence:
         for N in {1..4}; do
           echo ""
           echo "=== Running Convergence Test N=$N ===" | tee -a ../convergence.log
-          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs 1 /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+          # Restrict multiprocessing
+          procs=6
+          if [ "$N" -eq 1 ]; then procs=2; fi
+          # Run FLEXI
+          python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs "$procs" /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
         done
         cd ..
         # Merge convergence.log for artifacts

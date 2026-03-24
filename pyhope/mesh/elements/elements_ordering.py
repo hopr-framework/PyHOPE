@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -48,7 +47,7 @@ class ElementInfo:
 
     # Dictionary of dictionaries for face data, keyed by element type.
     # Each entry is a dictionary of face-name to node indices.
-    _faces_map: Dict[str, Dict[str, List[int]]] = field(
+    _faces_map: dict[str, dict[str, list[int]]] = field(
         default_factory=lambda: { 'pyramid13':  { 'z-': [ 0, 1, 2, 3,  5,   6, 7, 8],
                                                   'y-': [ 0, 1, 4, 5, 10,   9],
                                                   'y+': [ 2, 3, 4, 7, 12,  11],
@@ -77,7 +76,7 @@ class ElementInfo:
                                                    }
                                 })
 
-    _params_map: Dict[str, Dict[str, Tuple[float, float, float]]] = field(
+    _params_map: dict[str, dict[str, tuple[float, float, float]]] = field(
         default_factory=lambda: { 'hexahedron20': { 'z-': ( 0.,  0., -1.),
                                                     'y-': ( 0., -1.,  0.),
                                                     'x-': (-1.,  0.,  0.),
@@ -94,7 +93,7 @@ class ElementInfo:
                                                    }
                                  })
 
-    def faces_to_nodes(self, elemType: str) -> Dict[str, List[int]]:
+    def faces_to_nodes(self, elemType: str) -> dict[str, list[int]]:
         """
         Retrieves the face definitions for the specified element type.
 
@@ -106,7 +105,7 @@ class ElementInfo:
 
         return self._faces_map[elemType]
 
-    def faces_to_params(self, elemType: str) -> Dict[str, Tuple[float, float, float]]:
+    def faces_to_params(self, elemType: str) -> dict[str, tuple[float, float, float]]:
         """
         Retrieves the face parameters for the specified element type.
 

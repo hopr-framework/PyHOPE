@@ -81,6 +81,7 @@ markdown_extensions:
   # Code blocks
   - pymdownx.highlight:
       anchor_linenums: true
+      guess_lang: false
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite

@@ -25,12 +25,19 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -49,7 +56,7 @@ class ShapeFunctions:
     to a list of lambda functions. These functions compute the shape-function value
     at a given parametric coordinate (xi, eta, zeta) for the corresponding node.
     """
-    shape_functions: Dict[str, List[Callable[[float, float, float], float]]] = field(
+    shape_functions: dict[str, list[Callable[[float, float, float], float]]] = field(
         default_factory=lambda: {
             # 20-Node Hexahedron (Hexa20)
             'hexahedron20': [
@@ -92,7 +99,7 @@ class ShapeFunctions:
         }
     )
 
-    def evaluate(self, elemType: str, xi: float, eta: float, zeta: float) -> np.ndarray:
+    def evaluate(self, elemType: str, xi: float, eta: float, zeta: float) -> npt.NDArray:
         """
         Evaluate the shape functions for a given element type at the specified
         parametric coordinates (xi, eta, zeta).

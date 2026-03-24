@@ -10,12 +10,13 @@ The following spectral element solvers have (optional) support for meshes genera
 
 | <div style="width:120px">Framework</div> | <div style="width:100px">Language</div> | <div style="width:200px">Equation System</div> | <div style="width:300px">Reference</div> |
 | ---------------------------------------- | --------------------------------------- | ---------------------------------------------- | ---------------------------------------- |
-| FLEXI                                    | Fortran                                 | NSE                                            | [Krais et al., 2021](https://doi.org/10.1016/j.camwa.2020.05.004) |
-| ƎLEXI                                    | Fortran                                 | NSE/MRG                                        | [Kopper et al., 2023](https://doi.org/10.1016/j.cpc.2023.108762)  |
-| GALÆXI                                   | Fortran/C                               | NSE                                            | [Kurz et al., 2025](https://doi.org/10.1016/j.cpc.2024.109388)    |
-| FLUXO                                    | Fortran                                 | NSE/MHD/Maxwell                                | [Rueda-Ramirez et al., 2017](https://github.com/project-fluxo/fluxo) |
-| HORSES3D                                 | Fortran                                 | NSE/Cahn-Hilliard                              | [Ferrer et al., 2023](https://doi.org/10.1016/j.cpc.2023.108700)  |
-| PICLas                                   | Fortran                                 | Maxwell/Poisson                                | [Fasoulas et al., 2019](https://doi.org/10.1063/1.5097638)        |
+| FLEXI                                    | Fortran                                 | NSE                                            | [Krais et al., 2021](https://doi.org/10.1016/j.camwa.2020.05.004)      |
+| ƎLEXI                                    | Fortran                                 | NSE/MRG                                        | [Kopper et al., 2023](https://doi.org/10.1016/j.cpc.2023.108762)       |
+| GALÆXI                                   | Fortran/C                               | NSE                                            | [Kurz et al., 2025](https://doi.org/10.1016/j.cpc.2024.109388)         |
+| FLUXO                                    | Fortran                                 | NSE/MHD/Maxwell                                | [Rueda-Ramirez et al., 2017](https://github.com/project-fluxo/fluxo)   |
+| HORSES3D                                 | Fortran                                 | NSE/Cahn-Hilliard                              | [Ferrer et al., 2023](https://doi.org/10.1016/j.cpc.2023.108700)       |
+| PICLas                                   | Fortran                                 | Maxwell/Poisson                                | [Fasoulas et al., 2019](https://doi.org/10.1063/1.5097638)             |
+| SELF                                     | Fortran                                 | Shallow Water/Euler                            | [github.com/FluidNumerics/SELF](https://github.com/FluidNumerics/SELF) |
 
 <style>.footnote {  font-size: 0.8em; }
 </style>

@@ -160,6 +160,10 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
         if ctype.startswith('triangle') or ctype.startswith('quad'):
             continue
 
+        # Only process pyramids for splitting
+        if ctype.startswith('pyramid'):
+            continue
+
         # Iterate over element types
         for elem in cdata:
             nodes = np.array(elem.tolist(), dtype=int)
@@ -201,7 +205,7 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
         if not ctype.startswith('pyramid'):
             continue
 
-        splitElems, splitFaces = elemSplitter.get(ctype, (None, None))
+        splitElems, splitFaces = elemSplitter.get(ctype[:7], (None, None))
 
         # Only process valid splits
         if splitElems is None or splitFaces is None:
@@ -213,10 +217,6 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
 
         # Process each element in cell data
         for elem in cdata:
-            # Skip elements whose first 4 points do not meet the criteria
-            if not (np.all(np.array(points[elem])[:4, 1] == 1.) or np.all(np.array(points[elem])[:4, 1] == 2.)):
-                continue
-
             # Split each element into sub-elements
             subElems = elem[subIdxs]
 

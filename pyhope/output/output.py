@@ -44,6 +44,7 @@ STD_LENGTH: Final[int] = 79  # Standard length for output to console
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Symbols:
     OK:      Final[str] = '✅ OK'
+    INFO:    Final[str] = 'ℹ️ INFO'
     WARN:    Final[str] = '⚠️ WARNING'
     ERR:     Final[str] = '❌ ERROR'
 
@@ -104,7 +105,8 @@ def small_banner(string: str, length: int = STD_LENGTH) -> None:
 def warn(string:   str,
          length:   int  = STD_LENGTH,
          prefix:   str  = Colors.WARN + '│  WARNING  ┃ '  + Colors.END,
-         warnonce: bool = False) -> str:
+         warnonce: bool = False,
+         split:    bool = True) -> str:
     """ Format the input `string` as a warning with the corresponding color
 
         Args:
@@ -119,7 +121,7 @@ def warn(string:   str,
     ansiEscape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     lprefix    = len(ansiEscape.sub('', prefix))
     # Wrap the message to account for the visible prefix width
-    wrap_msg   = textwrap.fill(string, width=length - lprefix)
+    wrap_msg   = textwrap.fill(string, width=length - lprefix) if split else string
 
     # Split into lines and format
     lines = wrap_msg.splitlines()
@@ -176,7 +178,7 @@ def separator(length: int = 46) -> None:
 
 def end(program: str, time: float, length: int = STD_LENGTH) -> None:
     print('┢' + '━'*(length-1))
-    print('┃ {} completed in [{:.2f} sec]'.format(program, time))
+    print(f'┃ {program} completed in [{time:.2f} sec]')
     print('┗' + '━'*(length-1))
 
 
@@ -214,10 +216,7 @@ def printoption(option: str, value: str, status: str, length: int = 31) -> None:
             length (int): (Optional.) Number of characters in each line
     """
     try:
-        if len(value) > length:
-            pvalue = '{}...'.format(value[:(length-3)])
-        else:
-            pvalue = value
+        pvalue = f'{value[:length - 3]}...' if len(value) > length else value
     except TypeError:
         pvalue = value
     print(f'│ {option:>{length}} │ {pvalue:<{length}} │ {status} │')

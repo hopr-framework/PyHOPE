@@ -1,10 +1,14 @@
+[![CI](https://github.com/hopr-framework/PyHOPE/actions/workflows/ci.yml/badge.svg)](https://github.com/hopr-framework/PyHOPE/actions/workflows/ci.yml)
+[![Documentation](https://github.com/hopr-framework/PyHOPE/actions/workflows/github-pages.yml/badge.svg)](https://github.com/hopr-framework/PyHOPE/actions/workflows/github-pages.yml)
+[![JOSS](https://joss.theoj.org/papers/39eb3be78f37c78588fe6dc443785024/status.svg)](https://joss.theoj.org/papers/39eb3be78f37c78588fe6dc443785024)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12060/badge)](https://www.bestpractices.dev/projects/12060)
+[![OpenSSF Baseline](https://www.bestpractices.dev/projects/12060/baseline)](https://www.bestpractices.dev/projects/12060)
+
 PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python framework for the generation of three-dimensional unstructured high-order meshes. These meshes are needed by high-order numerical methods like Discontinuous Galerkin, Spectral Element Methods, or pFEM, in order to retain their accuracy if the computational domain includes curved boundaries.
 
 PyHOPE has been developed by the Numerics Research Group (NRG) lead by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.
 
 PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. Furthermore, PyHOPE utilizes [Gmsh](https://gmsh.info) for the initial mesh generation and conversion before converting it to its internal representation. The internal representation is loosely based on [meshio](https://github.com/nschloe/meshio) but augmented with additional information required for high-order meshes.
-
-This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing our publications given at [numericsresearchgroup.org](https://numericsresearchgroup.org/publications.html).
 
 # Installation
 PyHOPE is built using standard Python packages. You can install PyHOPE by following these steps. 
@@ -26,12 +30,19 @@ PyHOPE is built using standard Python packages. You can install PyHOPE by follow
     python -m pip install pyhope
     ```
 
+> [!NOTE]  
+> PyHOPE can optionally use [Numba](https://numba.pydata.org) to accelerate some compute-heavy routines. If Numba is not available in your environment, PyHOPE will fall back to pure NumPy implementations.
+> ```bash
+> python -m pip install pyhope[numba]
+> ```
+
 # Testing
 PyHOPE features internal health checks to verify that everything works as expected. The checks can be invoked directly from the terminal.
 ```bash
 pyhope --verify [tutorials]          # Run all health checks
 pyhope --verify-health               # Run Python health checks
 pyhope --verify-install [tutorials]  # Run PyHOPE mesh generation checks
+pyhope --verify-unittest             # Run PyHOPE unit tests
 ```
 
 > [!NOTE]  
@@ -128,6 +139,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├────
 │               doPeriodicCorrect │ False                           │ DEFAULT │
 │                       doMortars │ True                            │ DEFAULT │
+│                Processing Sides |█████████████████████████████████| 3072/3072 [100%] in 0.0s (24000.00/s)
 ├────
 │  Number of sides                :         3072
 │  Number of inner sides          :         2688
@@ -178,10 +190,36 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ```
 
 ## Python Library Usage
-PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [source code](https://github.com/hopr-framework/PyHOPE/blob/main/pyhope/__init__.py).
+PyHOPE can be included in other Python libraries. PyHOPE exposes its functionally via runtime contexts defined by [Context Managers](https://docs.python.org/3/library/stdtypes.html#typecontextmanager). The following Python code loads a HOPR HDF5 mesh and derived quantities. For a complete list of currently implemented functions, see the [PyHOPE documentation](https://hopr-framework.github.io/PyHOPE/user-guide/library_usage).
 ```python
 from pyhope import Basis, Mesh
 with Mesh('1-01-cartbox_mesh.h5') as m:
     elems = m.elems
     lobatto_nodes = Basis.legendre_gauss_lobatto_nodes(order=m.nGeo)
+```
+
+# Cite
+This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the following article.
+```bibtex
+@article{kopper2025pyhope:joss,
+  title        = {{PyHOPE}: A Python Toolkit for Three-Dimensional Unstructured High-Order Meshes},
+  author       = {Kopper, Patrick and Blind, Marcel P. and Schwarz, Anna and Kurz, Marius and Rodach, Felix and Copplestone, Stephen M. and Beck, Andrea D.},
+  journal      = {Journal of Open Source Software},
+  year         = {2025},
+  volume       = {10}, 
+  number       = {115}, 
+  pages        = {8769},
+  publisher    = {The Open Journal},
+  doi          = {10.21105/joss.08769}
+}
+```
+In addition, you can also directly refer to this repository as
+```bibtex
+@misc{kopper2025pyhope:repo,
+  title        = {{PyHOPE}: A Python Toolkit for Three-Dimensional Unstructured High-Order Meshes},
+  author       = {Kopper, Patrick and Blind, Marcel P. and Schwarz, Anna and Kurz, Marius and Rodach, Felix and Copplestone, Stephen M. and Beck, Andrea D.},
+  year         = {2025},
+  howpublished = {\url{https://github.com/hopr-framework/PyHOPE}},
+  doi          = {10.5281/zenodo.17414843}
+}
 ```

@@ -25,17 +25,20 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import importlib.util
-import os
-import sys
-from typing import Optional
-from types import ModuleType
+from __future__ import annotations
+from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
-import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
@@ -43,7 +46,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarray) -> np.ndarray:
+def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDArray) -> npt.NDArray:
     """ Calculate the stretching parameter for meshing the current zone
     """
     # Local imports ----------------------------------------
@@ -62,7 +65,7 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
                   (nZones, nZones): 'combination'   # Stretched element arrangement with a combination of l0 and factor
                  }
 
-    stretchingType = conditions.get((nl0, nFactor), None)
+    stretchingType = conditions.get((nl0, nFactor))
 
     if stretchingType == 'combination':
         print(hopout.warn('Both l0 and a stretching factor are provided. ' +
@@ -109,7 +112,7 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
             if nElems[iDim] == 1 or dx[iDim] == 0:
                 progFac[iDim] = 1.
                 continue
-            elif nElems[iDim] == 2:
+            if nElems[iDim] == 2:
                 progFac[iDim] = dx[iDim] - 1.
                 continue
 
@@ -139,17 +142,21 @@ def CalcStretching(nZones: int, zone: int, nElems: np.ndarray, lEdges: np.ndarra
 
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
 
+    if np.any(progFac == 0):
+        hopout.error('Stretching factor = 0 is invalid, exiting...')
+
     # Return stretching factor
     return progFac
 
 
 def TransformMesh() -> None:
     # Local imports ----------------------------------------
-    from pyhope.config.config import prmfile
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    from pyhope.common.common_template import LoadTemplate
+    from pyhope.mesh.mesh_vars import mesh
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
-    from pyhope.mesh.mesh_vars import mesh
-    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     nMeshScale = CountOption('meshScale')
@@ -172,94 +179,66 @@ def TransformMesh() -> None:
     hopout.sep()
 
     # Get scaling factor for mesh
-    meshScale = GetReal('meshScale')
+    meshScale: Final[            np.float64 ] = np.float64(GetReal('meshScale'))
 
     # Get translation vector for mesh
-    meshTrans = GetRealArray('meshTrans')
+    meshTrans: Final[npt.NDArray[np.float64]] = GetRealArray('meshTrans')
 
     # Get rotation matrix for mesh
-    meshRot3D = GetRealArray('meshRot3D')
-    meshRotC  = GetRealArray('meshRotCenter')
+    meshRot3D: Final[npt.NDArray[np.float64]] = GetRealArray('meshRot3D')
+    meshRotC:  Final[npt.NDArray[np.float64]] = GetRealArray('meshRotCenter')
 
     if not np.array_equal(meshRot3D, [0.0, 0.0, 0.0]):
-      a = meshRot3D[0]*np.pi/180
-      b = meshRot3D[1]*np.pi/180
-      c = meshRot3D[2]*np.pi/180
-      meshRot      = np.zeros((3,3))
-      meshRot[0,0] = np.cos(a)*np.cos(b)
-      meshRot[0,1] = np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
-      meshRot[0,2] = np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
-      meshRot[1,0] = np.sin(a)*np.cos(b)
-      meshRot[1,1] = np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
-      meshRot[1,2] = np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
-      meshRot[2,0] = -np.sin(b)
-      meshRot[2,1] = np.cos(b)*np.sin(c)
-      meshRot[2,2] = np.cos(b)*np.cos(c)
+        a = meshRot3D[0]*np.pi/180
+        b = meshRot3D[1]*np.pi/180
+        c = meshRot3D[2]*np.pi/180
+        meshRot       =  np.zeros((3, 3))
+        meshRot[0, 0] =  np.cos(a)*np.cos(b)
+        meshRot[0, 1] =  np.cos(a)*np.sin(b)*np.sin(c)-np.sin(a)*np.cos(c)
+        meshRot[0, 2] =  np.cos(a)*np.sin(b)*np.cos(c)+np.sin(a)*np.cos(c)
+        meshRot[1, 0] =  np.sin(a)*np.cos(b)
+        meshRot[1, 1] =  np.sin(a)*np.sin(b)*np.sin(c)+np.cos(a)*np.cos(c)
+        meshRot[1, 2] =  np.sin(a)*np.sin(b)*np.cos(c)-np.cos(a)*np.sin(c)
+        meshRot[2, 0] = -np.sin(b)
+        meshRot[2, 1] =  np.cos(b)*np.sin(c)
+        meshRot[2, 2] =  np.cos(b)*np.cos(c)
     else:
-      meshRot   = GetRealArray('meshRot')
-      meshRot   = np.array(meshRot).reshape(3, 3)
+        meshRot   = GetRealArray('meshRot')
+        meshRot   = np.array(meshRot).reshape(3, 3)
 
     # Scale mesh
     if meshScale != 1.0:
         mesh.points *= meshScale
+        for vv in mesh_vars.vvs:
+            vv['Dir'] *= meshScale
 
     # Rotate mesh
-    if not np.array_equal(meshRot, [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]):
+    if not np.array_equal(meshRot, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))):
         mesh.points = meshRotC + (mesh.points-meshRotC) @ meshRot
 
     # Translate mesh
-    if not np.array_equal(meshTrans, [0.0, 0.0, 0.0]):
+    if not np.array_equal(meshTrans, (0.0, 0.0, 0.0)):
         mesh.points += meshTrans
 
     # Exit routine if no further advanced transformation is required
     if meshPostDeform == 'none':
         hopout.sep()
         hopout.info('TRANSFORM MESH DONE!')
-        return
+        return None
 
     # Continue with advanced transformations
     hopout.sep()
     hopout.routine('Performing advanced transformations')
-    hopout.routine('  Template: {}'.format(meshPostDeform))
+    hopout.routine(f'  Template: {meshPostDeform}')
 
-    # Define locations of the transformation files ( Priority: prmfile folder > CWD > templates )
-    DeformLocations = [
-        os.path.join(os.path.dirname(prmfile), f'{meshPostDeform}.py'),                # Search folder of parameter file
-        os.path.join(os.getcwd(), f'{meshPostDeform}.py'),                             # Search in CWD
-        os.path.join(os.path.dirname(__file__), 'templates', f'{meshPostDeform}.py')   # Search in 'templates'
-    ]
-
-    # Check if the transformation file exists
-    PostDeformMod: Optional[ModuleType] = None
-    for loc in DeformLocations:
-        if os.path.exists(loc):
-            spec = importlib.util.spec_from_file_location(meshPostDeform, loc)
-            # Skip to the next location if spec is None
-            if spec is None:
-                continue
-
-            PostDeformMod = importlib.util.module_from_spec(spec)
-            sys.modules[meshPostDeform] = PostDeformMod
-            spec.loader.exec_module(PostDeformMod)
-
-            # Output filename of template
-            hopout.routine('     found: {}'.format(loc))
-
-            # Stop once the module is successfully loaded
-            break
-
-    # If the transformation file is not found, exit
-    if PostDeformMod is None:
-        hopout.warning(f'Post Transformation template "{meshPostDeform}" not found!')
-        # Print all available default templates for post-deformation
-        templist = []
-        for file in os.listdir(os.path.join(os.path.dirname(__file__), 'templates')):
-            if file.endswith('.py'):
-                templist.append(f'  {file[:-3]}')
-        hopout.error('Available default transformation templates:' + ','.join(templist))
+    # Setup the transformation
+    transformModule = LoadTemplate(meshPostDeform.strip().lower(), __file__, 'Post transformation')
 
     # Perform actual post-deformation
-    mesh.points = PostDeformMod.PostDeform(mesh.points)  # ty: ignore [unresolved-attribute]
+    mesh.points = transformModule.PostDeform(mesh.points)
+
+    # Flag mortar rebuild if performing advanced transformation
+    mesh_vars.hasMortarsInterzone = True
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')

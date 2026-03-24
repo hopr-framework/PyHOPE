@@ -46,7 +46,7 @@ def PyPIVersion(package: str, timeout: int = 10) -> Optional[Version]:
     """ Query PyPI JSON API for the latest version
 
         Returns:
-            Optional[str]: Version string
+            Optional[Version]: Version string
     """
     url = f"https://pypi.org/pypi/{package}/json"
     try:
@@ -62,6 +62,9 @@ def PyPIVersion(package: str, timeout: int = 10) -> Optional[Version]:
 
 def _ParseVersion(text: str) -> Optional[Version]:
     """ Find a semver-like version in arbitrary text
+
+        Returns:
+            Optional[Version]: Version string
     """
     # Local imports ----------------------------------------
     from re import search
@@ -70,8 +73,8 @@ def _ParseVersion(text: str) -> Optional[Version]:
     if not text:
         return None
 
-    # 1) Prefer to capture numeric version before a "-git" marker
-    #    Example: "4.14.0-git-8425b99f0" -> capture "4.14.0"
+    # Prefer to capture numeric version before a "-git" marker
+    # > Example: "4.14.0-git-8425b99f0" -> capture "4.14.0"
     m = search(r"\bv?(\d+(?:\.\d+){0,3})(?=-git\b)", text)
     if m:
         try:
@@ -79,8 +82,8 @@ def _ParseVersion(text: str) -> Optional[Version]:
         except Exception:  # pragma: no cover
             return None
 
-    # 2) Fallback: capture semver-like token including -rc / +build etc.
-    #    Example: "v1.2.3-rc1", "1.2.3+build.1"
+    # Fallback: capture semver-like token including -rc / +build etc.
+    # > Example: "v1.2.3-rc1", "1.2.3+build.1"
     m = search(r"\bv?(\d+(?:\.\d+){0,3}(?:[-_a-zA-Z0-9+.]+)?)\b", text)
     if m:
         try:
@@ -95,7 +98,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     """ Query the local system for the Gmsh version
 
         Returns:
-            Optional[str]: Version string
+            tuple: (version, package)
     """
     # Local imports ----------------------------------------
     import re
@@ -108,7 +111,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
 
     if path:
         try:
-            p   = subprocess.run([path, '--info'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+            p   = subprocess.run([path, '--info'], capture_output=True, text=True, timeout=5, check=True)
             raw = (p.stdout or '') + "\n" + (p.stderr or '')
             # Parse version from the Version line if present
             v   = _ParseVersion(raw)
@@ -132,11 +135,32 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     return ver, pac
 
 
+def ParaViewVersion() -> Optional[Union[Version, bool]]:
+    """ Query the local system for the ParaView version
+
+        Returns:
+            Optional[Version | bool]: Version string or install status
+    """
+    # Try Python metadata first (near-instant)
+    v = _PackageInstalledVersion('paraview')
+    if isinstance(v, Version):
+        return v
+
+    # Try headless binaries (fast)
+    for cmd in ('pvpython', 'pvbatch'):
+        v = DependencyVersion(cmd)
+        if isinstance(v, Version):
+            return v
+
+    # Fallback to the GUI binary (slow due to GUI/OpenGL initialization)
+    return DependencyVersion('paraview')
+
+
 def DependencyVersion(program: str) -> Optional[Version | bool]:
     """ Query the local system for the version of a dependency
 
         Returns:
-            Optional[str]: Version string
+            Optional[Version | bool]: Version string or install status
     """
     # Local imports ----------------------------------------
     import shutil
@@ -148,7 +172,7 @@ def DependencyVersion(program: str) -> Optional[Version | bool]:
     if path:
         for flag in ('--version', '-V', 'version', '-v'):
             try:
-                p = subprocess.run([path, flag], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
+                p = subprocess.run([path, flag], capture_output=True, text=True, timeout=5, check=True)
             except Exception:
                 continue
 
@@ -184,11 +208,11 @@ def DependencyHealth(program: str,
         hopout.info(f'{status} {program} not installed' + ('' if info is None else info))
 
 
-def _PackageInstalledVersion(package: str) -> Optional["Version"]:
+def _PackageInstalledVersion(package: str) -> Optional[Version]:
     """ Query the local system for the version of a Python package
 
         Returns:
-            Optional[str]: Version string
+            Optional[Version]: Version string
     """
     # Local imports ----------------------------------------
     import importlib
@@ -217,9 +241,33 @@ def _PackageInstalledVersion(package: str) -> Optional["Version"]:
     return None
 
 
-def PackageHealth(   pkg:    str,
-                     version: Union[Version, None],
-                     pypiver: Union[Version, None]  # noqa: E272
+def _PackageExtractName(package: str) -> str:
+    """ Extract the clean package name from a dependency string
+    """
+    try:
+        # packaging.Requirement will handle extras and environment markers
+        return Requirement(package).name
+    except Exception:  # pragma: no cover
+        # If parsing fails, fall back to a simple split at first space or semicolon
+        return package.split()[0].split(';')[0].split('(')[0].strip()
+
+
+def _PackageExtractRequirement(p_str: str) -> tuple[str, Optional[str]]:
+    """ Extract name and version specifier from a dependency string
+    """
+    try:
+        req = Requirement(p_str)
+        return req.name, str(req.specifier) if req.specifier else None
+    except Exception:  # pragma: no cover
+        name = p_str.split()[0].split(';')[0].split('(')[0].strip()
+        return name, None
+
+
+def PackageHealth(   pkg:      str,
+                     version:  Union[Version, None],
+                     pypiver:  Union[Version, None],  # noqa: E272
+                     optional: Optional[bool] = False,
+                     reason:   Optional[str]  = None,
                  ) -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -230,18 +278,22 @@ def PackageHealth(   pkg:    str,
                 hopout.info(f'{hopout.Symbols.OK  } {pkg} [v{version}] is up-to-date')
             else:
                 hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is outdated (PyPI: v{pypiver})')
+                if reason:
+                    hopout.routine(f' {hopout.Symbols.INFO} constrained by {reason}')
         except Exception:  # pragma: no cover
             hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI: v{pypiver}) -- unable to compare reliably')
     elif version:  # pragma: no cover
         hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI info unavailable)')
     else:  # pragma: no cover
-        hopout.info(f'{hopout.Symbols.ERR} {pkg} [v{version}] is not installed')
+        symbol = hopout.Symbols.ERR if optional is False else hopout.Symbols.INFO
+        hopout.info(f'{symbol} {pkg} (PyPI: v{pypiver}) is not installed')
 
 
 def CheckHealth() -> None:
     """ Internal health check
     """
     # Local imports ----------------------------------------
+    from concurrent.futures import ThreadPoolExecutor
     from pyhope.common.common_vars import Common
     import pyhope.output.output as hopout
     from importlib import metadata as importlib_metadata
@@ -250,14 +302,6 @@ def CheckHealth() -> None:
     common  = Common()
     program = common.program
     symbols = hopout.Symbols
-
-    hopout.small_banner('System')
-
-    pypiver = PyPIVersion('pyhope')
-    PackageHealth(common.program, Version(common.version), pypiver)
-
-    hopout.info('')
-    hopout.small_banner('Packages')
 
     # Try to read the installed distribution metadata
     try:
@@ -272,33 +316,74 @@ def CheckHealth() -> None:
         except Exception:
             pkgs = []
 
-    if not pkgs:  # pragma: no cover
-        print(hopout.warn(f'Could not discover declared Python requirements for {program}.'))
-        print(hopout.warn( 'If you are running from a source checkout, install the package first (pip install -e .) to ' +
-                           'enable requirement checks.'))
+    # Map requirements to their constraints and origins
+    pkg_reasons = {}
+    for p in pkgs:
+        name, spec = _PackageExtractRequirement(p)
+        if spec:
+            pkg_reasons[name] = program
 
-    for pack in pkgs:
-        # packaging.Requirement will handle extras and environment markers
-        try:
-            req = Requirement(pack)
-        except Exception:  # pragma: no cover
-            # If parsing fails, fall back to a simple split at first space or semicolon
-            raw_name = pack.split()[0].split(';')[0]
-            name = raw_name.split('(')[0].strip()
-            req  = None
-            pkg  = name
-        else:  # pragma: no cover
-            pkg  = req.name
+        # Also check requirements of installed dependencies to find downstream constraints
+        dep_name = _PackageExtractName(p)
+        if _PackageInstalledVersion(dep_name):
+            try:
+                for dep in (importlib_metadata.requires(dep_name) or []):
+                    sub_name, sub_spec = _PackageExtractRequirement(dep)
+                    if sub_spec:
+                        pkg_reasons[sub_name] = f'{dep_name}{sub_spec}'
+            except Exception:
+                pass
 
-        pkgver  = _PackageInstalledVersion(pkg)
-        pypiver = PyPIVersion(pkg)
-        PackageHealth(pkg, pkgver, pypiver)
+    # Filter for required packages
+    deps = [p               for p in pkgs if len(p.split(';')) == 1]  # noqa: E272
+    # For optional dependencies, split the first part
+    opts = [p.split(';')[0] for p in pkgs if len(p.split(';')) >  1]  # noqa: E272
+
+    all_pkg_names = sorted(set([program] + [_PackageExtractName(p) for p in deps + opts]))
+
+    # Fetch all versions in parallel
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit binary checks
+        gmsh_future  = executor.submit(GmshVersion)
+        para_future  = executor.submit(ParaViewVersion)
+
+        # Query PyPI for all packages
+        pypi_results = list(executor.map(PyPIVersion, all_pkg_names))
+        pypi_map     = dict(zip(all_pkg_names, pypi_results, strict=True))
+
+        # Display system and packages sections
+        hopout.small_banner('System')
+        PackageHealth(common.program, Version(common.version), pypi_map.get(program))
+
+        hopout.info('')
+        hopout.small_banner('Packages')
+
+        if not pkgs:  # pragma: no cover
+            print(hopout.warn(f'Could not discover declared Python requirements for {program}.'))
+            print(hopout.warn( 'If you are running from a source checkout, install the package first (pip install -e .) to ' +
+                               'enable requirement checks.'))
+
+        for pack in sorted(deps):
+            pkg     = _PackageExtractName(pack)
+            pkgver  = _PackageInstalledVersion(pkg)
+            PackageHealth(pkg, pkgver, pypi_map.get(pkg), reason=pkg_reasons.get(pkg))
+
+        if len(opts):
+            hopout.info('')
+            hopout.info('Optional Packages:')
+            for pack in sorted(opts):
+                pkg     = _PackageExtractName(pack)
+                pkgver  = _PackageInstalledVersion(pkg)
+                PackageHealth(pkg, pkgver, pypi_map.get(pkg), optional=True, reason=pkg_reasons.get(pkg))
+
+        # Collect binary results
+        gmshv, gmshp = gmsh_future.result()
+        parav        = para_future.result()
 
     hopout.info('')
     hopout.small_banner('Dependencies')
 
     # For Gmsh, also check the packager
-    gmshv, gmshp = GmshVersion()
     if gmshp is not None and gmshp.strip() == 'NRG':
         gmshi = ' (packaged by NRG)'
         gmshs = symbols.OK
@@ -306,9 +391,10 @@ def CheckHealth() -> None:
         gmshi = ' (packaged externally)'
         gmshs = symbols.WARN
 
-    DependencyHealth('Gmsh'    , version=gmshv,           status=gmshs, info=gmshi)
+    DependencyHealth('Gmsh'    , version=gmshv,  status=gmshs, info=gmshi)
     # Warn if we know that Gmsh uses an outdated CGNS
     if gmshp is not None and gmshp.strip() != 'NRG':  # pragma: no cover
         print(hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). ' +
                           'For compatibility, replace with the updated NRG version'))
-    DependencyHealth('ParaView', version=DependencyVersion('paraview'), info=' (optional)')
+
+    DependencyHealth('ParaView', version=parav,                info=' (optional)')

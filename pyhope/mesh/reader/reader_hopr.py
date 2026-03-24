@@ -31,7 +31,6 @@ import os
 import shutil
 from collections import defaultdict
 # from dataclasses import dataclass, field
-from functools import cache
 from string import digits
 from typing import Any, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -50,27 +49,6 @@ from alive_progress import alive_bar
 # ==================================================================================================================================
 
 
-@cache
-def NDOFperElemType(elemType: str, nGeo: int) -> int:
-    """ Calculate the number of degrees of freedom for a given element type
-    """
-    match elemType:
-        case _ if elemType.startswith('triangle'):
-            return round((nGeo+1)*(nGeo+2)/2.)
-        case _ if elemType.startswith('quad'):
-            return round((nGeo+1)**2)
-        case _ if elemType.startswith('tetra'):
-            return round((nGeo+1)*(nGeo+2)*(nGeo+3)/6.)
-        case _ if elemType.startswith('pyramid'):
-            return round((nGeo+1)*(nGeo+2)*(2*nGeo+3)/6.)
-        case _ if elemType.startswith('wedge'):
-            return round((nGeo+1)**2 *(nGeo+2)/2.)
-        case _ if elemType.startswith('hexahedron'):
-            return round((nGeo+1)**3)
-        case _:
-            raise ValueError(f'Unknown element type {elemType}')
-
-
 def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     # Standard libraries -----------------------------------
     import tempfile
@@ -80,6 +58,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde, change_basis_3D
     from pyhope.mesh.mesh_common import LINTEN, FaceOrdering
     from pyhope.mesh.mesh_common import faces, face_to_cgns
+    from pyhope.mesh.mesh_common import NDOFperElemType
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
@@ -105,10 +84,10 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     for fnum, fname in enumerate(fnames):
         # Check if the file is using HDF5 format internally
         if not h5py.is_hdf5(fname):
-            hopout.error('[󰇘]/{} is not in HDF5 format, exiting...'.format(os.path.basename(fname)))
+            hopout.error(f'[󰇘]/{os.path.basename(fname)} is not in HDF5 format, exiting...')
 
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
         tname = tfile.name
         # Alternatively, load the file directly into tmpfs for faster access
         shutil.copyfile(fname, tname)
@@ -116,7 +95,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
         with h5py.File(tname, mode='r') as f:
             # Check if file contains the Hopr version
             if 'HoprVersion' not in f.attrs:
-                hopout.error('[󰇘]/{} does not contain the Hopr version, exiting...'.format(os.path.basename(fname)))
+                hopout.error(f'[󰇘]/{os.path.basename(fname)} does not contain the Hopr version, exiting...')
 
             # Read the globalNodeIDs
             nodeInfo   = np.array(f['GlobalNodeIDs'])
@@ -125,15 +104,15 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             nodeCoords = np.array(f['NodeCoords'])
 
             # Read nGeo
-            nGeo       = int(cast(int, f.attrs['Ngeo']))
+            nGeo       = int(cast(np.ndarray, f.attrs['Ngeo']).squeeze())
 
             # Try reading in periodic vector if it is not provided in file
             if len(mesh_vars.vvs) == 0:
                 try:
                     vvs = np.array(f['VV'])
-                    mesh_vars.vvs = [dict() for _ in range(vvs.shape[0])]
+                    mesh_vars.vvs = [{} for _ in range(vvs.shape[0])]
                     for iVV, _ in enumerate(mesh_vars.vvs):
-                        mesh_vars.vvs[iVV] = dict()
+                        mesh_vars.vvs[iVV] = {}
                         mesh_vars.vvs[iVV]['Dir'] = vvs[iVV]
                     # Output vectors
                     print(hopout.warn('Periodicity vectors not defined in parameter file. '
@@ -141,7 +120,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     hopout.sep()
                     hopout.routine('The following vectors were found:')
                     for iVV, vv in enumerate(mesh_vars.vvs):
-                        hopout.printoption('vv[{}]'.format(iVV+1), '{0:}'.format(np.round(vv['Dir'], 6)), 'READ IN')
+                        hopout.printoption(f'vv[{iVV+1}]', f'{np.round(vv["Dir"], 6)}', 'READ IN')
                     hopout.sep()
                 # old hopr files might not contain the VV
                 except KeyError:
@@ -160,7 +139,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 filename = os.path.basename(fname)
                 print(hopout.warn(f'[󰇘]/{filename} has different polynomial order than the current mesh, converting...',
                       length=999))
-                print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo}') + '\n')
+                warning  = (hopout.Colors.BANNERA + '[Watertightness not guaranteed!]' + hopout.Colors.END) if nGeo < mesh_vars.nGeo else ''  # noqa: E501
+                print(hopout.warn(f'> NGeo [HDF5] = {nGeo}, NGeo [Mesh] = {mesh_vars.nGeo} {warning}', length=100))
+                hopout.info('')
 
                 # Compute the equidistant point set used by HOPR
                 xEqHdf5     = np.linspace(-1, 1, num=nGeo+1, dtype=np.float64)
@@ -182,7 +163,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
             # > Cache the mapping here, so we consider the mesh order
             linCache  = {}
             elemOrder = 100 if mesh_vars.nGeo == 1 else 200
-            elemTypes = tuple([s + elemOrder for s in (4, 5, 6, 8)])
+            elemTypes = tuple(s + elemOrder for s in (4, 5, 6, 8))
             for elemType in elemTypes:
                 try:
                     _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
@@ -196,7 +177,7 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                 # Construct the elements, meshio format
                 for elem in elemInfo:
                     # Correct ElemType if NGeo is changed
-                    elemNum  = elem[0] % 100
+                    elemNum  = elem[0] % 10
                     elemNum += 200 if mesh_vars.nGeo > 1 else 100
 
                     # Obtain the element type
@@ -234,8 +215,8 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                             # points    = np.append(points, meshNodes, axis=0)
                             # IMPORTANT: We need to extend the list of points, not append to it
                             pointl.extend(meshNodes.tolist())
-                        except UnboundLocalError:
-                            raise UnboundLocalError('Something went wrong with the change basis')
+                        except UnboundLocalError as e:
+                            raise UnboundLocalError('Something went wrong with the change basis') from e
 
                     cells.setdefault(elemType, []).append(elemNodes.astype(np.uint64))
 

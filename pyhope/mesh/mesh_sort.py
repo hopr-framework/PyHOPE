@@ -26,28 +26,35 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
-from typing import Final, List, Optional, Tuple, cast, final
+from typing import Final, Optional, cast, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
+# from pyhope.common.common_numba import jit, types
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 
 
-def Coords2Int(coords: np.ndarray, spacing: np.ndarray, xmin: np.ndarray) -> np.ndarray:
+# @jit((types.int64[:, ::1])(types.float64[:, ::1], types.float64[::1], types.float64[::1]), nopython=True, cache=True, parallel=True)
+def Coords2Int(coords : npt.NDArray[np.float64],
+               spacing: npt.NDArray[np.float64],
+               xmin   : npt.NDArray[np.float64]) -> npt.NDArray[np.int64]:
     """ Compute the integer discretization in each direction
     """
     return np.round((coords - xmin) * spacing).astype(np.int64)
 
 
-def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, np.ndarray]:
+def SFCResolution(kind: int, xmin: npt.NDArray, xmax: npt.NDArray) -> tuple[int, npt.NDArray]:
     """ Compute the resolution of the SFC for the given bounding box
         and the given integer kind
     """
@@ -61,10 +68,10 @@ def SFCResolution(kind: int, xmin: np.ndarray, xmax: np.ndarray) -> tuple[int, n
 
 def UpdateElemID(elems         : list,
                  sides         : list,
-                 sorted_indices: np.ndarray,
+                 sorted_indices: npt.NDArray,
                  bar,
-                 nElemsIJK     : Optional[np.ndarray] = None,
-                 ) -> Tuple[List, List]:
+                 nElemsIJK     : Optional[npt.NDArray] = None,
+                 ) -> tuple[list, list]:
 
     totalElems = len(elems)
     totalSides = len(sides)
@@ -94,17 +101,20 @@ def UpdateElemID(elems         : list,
         sorted_elems[newElemID] = elem
 
         # Correct the sideID
+        nSides = 0
         for key, val in enumerate(elem.sides):
             side        = sides[val]
             side.sideID = offsetSide + key
             side.elemID = newElemID
             sorted_sides[sideID] = side
             sideID     += 1
+            nSides     += 1
 
         # Correct the sideID
-        nSides      = len(elem.sides)
+        # nSides      = len(elem.sides)
         elem.sides  = list(range(offsetSide, offsetSide + nSides))
         offsetSide += nSides
+
         bar.step()
 
     return sorted_elems, sorted_sides
@@ -112,7 +122,7 @@ def UpdateElemID(elems         : list,
 
 @final
 class tBox:
-    __slots__ = ('mini', 'intfact', 'spacing')
+    __slots__ = ('intfact', 'mini', 'spacing')
 
     def __init__(self, mini: int, maxi: int):
         self.mini = mini
@@ -124,7 +134,7 @@ class tBox:
         blen = maxi - mini
         nbits = (np.iinfo(np.int64).bits - 1) // 3
         self.intfact = 2 ** nbits - 1
-        self.spacing = np.where(blen > 0, self.intfact / blen, self.intfact)
+        self.spacing = np.divide(self.intfact, blen, out=np.ones_like(blen, dtype=float) * self.intfact, where=blen > 0)
 
 
 def SortMeshBySFC() -> None:
@@ -135,9 +145,13 @@ def SortMeshBySFC() -> None:
     from pyhope.common.common_progress import ProgressBar
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    # Monkey-patching HilbertCurve
+    from pyhope.mesh.sort.sort_hilbert import HilbertCurveNumpy
     # INFO: Alternative Hilbert curve sorting (not on PyPI)
     # from hilsort import hilbert_sort
     # ------------------------------------------------------
+    # Monkey-patching HilbertCurve
+    HilbertCurveNumpy()
 
     hopout.routine('Sorting elements along space-filling curve')
 
@@ -145,7 +159,9 @@ def SortMeshBySFC() -> None:
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
-    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
 
     # Global bounding box
     points = mesh.points
@@ -153,10 +169,10 @@ def SortMeshBySFC() -> None:
     xmax = points.max(axis=0)
 
     # Calculate the element barycenters and associated element offsets
-    elem_bary  = calc_elem_bary(elems)
+    elem_bary      = calc_elem_bary(elems)
 
     # Calculate the space-filling curve resolution for the given KIND
-    kind = 4
+    kind: Final[int] = 4
     nbits, spacing = SFCResolution(kind, xmin, xmax)
 
     # Discretize the element positions according to the chosen resolution
@@ -273,8 +289,8 @@ def SortMeshByIJK() -> None:
         hopout.warning('Problem during sort elements by coordinate: nElems /= nElems_I * Elems_J * nElems_K')
 
     hopout.sep()
-    hopout.info(' Number of structured dirs      : {}'.format(nStructDirs))
-    hopout.info(' Number of elems [I,J,K]        : {}'.format(nElemsIJK))
+    hopout.info(f' Number of structured dirs      : {nStructDirs}')
+    hopout.info(f' Number of elems [I,J,K]        : {nElemsIJK}')
 
     bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
 

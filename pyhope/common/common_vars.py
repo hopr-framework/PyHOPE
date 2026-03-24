@@ -30,8 +30,9 @@ import os
 import pathlib
 import re
 import subprocess
-from functools import cache
-from typing import Callable, Final, Optional, final
+from collections.abc import Callable
+from enum import Enum, unique
+from typing import Final, Optional, final
 from typing_extensions import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -49,6 +50,13 @@ from packaging.version import Version
 np_mtp : int  # Number of threads for multiprocessing
 
 
+@unique
+class Policy(Enum):
+    never  = 0
+    auto   = 1
+    always = 2
+
+
 # PEP 318 – Decorators for Functions and Methods
 # > https://peps.python.org/pep-0318/
 def singleton(cls) -> Callable:
@@ -62,48 +70,52 @@ def singleton(cls) -> Callable:
 
 
 @singleton
-class Common():
+class Common:
     def __init__(self: Self) -> None:
         self._program: Final[str] = self.__program__
         self._version: Final      = self.__version__
         self._commit:  Final      = self.__commit__
 
     @property
-    @cache
     def __version__(self) -> Version:
         # Retrieve version from package metadata
         try:
             package = pathlib.Path(__file__).parent.parent.name
             version = importlib.metadata.version(package)
         # Fallback to pyproject.toml
-        except importlib.metadata.PackageNotFoundError:
+        except importlib.metadata.PackageNotFoundError as e:
             pyproject = pathlib.Path(__file__).parent.parent.parent / 'pyproject.toml'
             if not pyproject.exists():
-                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}')
+                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}') from e
 
             with pyproject.open('r') as p:
                 match = re.search(r'version\s*=\s*["\'](.+?)["\']', p.read())
             if not match:
-                raise ValueError('Version not found in pyproject.toml')
+                raise ValueError('Version not found in pyproject.toml')             from e  # noqa: E272
             version = match.group(1)
 
         return Version(version)
 
     @property
-    @cache
     def __commit__(self) -> Optional[str]:
         # Retrieve commit from git
-        process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
-                                   shell=False,
-                                   cwd=os.path.dirname(os.path.realpath(__file__)),
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.DEVNULL)
+        try:
+            process = subprocess.Popen(['git', 'rev-parse', '--short', 'HEAD'],
+                                       shell=False,
+                                       cwd=os.path.dirname(os.path.realpath(__file__)),
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.DEVNULL)
 
-        commit = process.communicate()[0].strip().decode('ascii')
+            commit = process.communicate()[0].strip().decode('ascii')
 
-        # Return the commit if valid
-        if process.returncode != 0:
+            # Return the commit if valid
+            if process.returncode != 0:
+                return None
+
+        # Return if git is not available
+        except FileNotFoundError:
             return None
+
         return commit
 
     @property
@@ -124,23 +136,23 @@ class Common():
 
 
 @final
-class Gitlab():
+class Gitlab:
     # Gitlab "python-gmsh" access
     LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: str = '797'
-    LIB_VERSION: dict[str, dict[str, str]] = {
+    LIB_VERSION: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
-            'x86_64' : '4.15.0.post1',
+            'x86_64' : '4.15.1.post1',
             'aarch64': '4.13.1.post1'
         },
         'darwin': {
             'arm64'  : '4.13.1.post1'
         },
     }
-    LIB_SUPPORT: dict[str, dict[str, str]] = {
+    LIB_SUPPORT: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
-            'x86_64' : '4890119b9203788dbffea7e42f398680c5c5dd575cf4c8a5ebc83308db1a1d4b',
+            'x86_64' : '4f2b923a164f8f8b77494df943ea52a3f7050716f9b9cbac9190f7460ca822fb',
             'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'
         },
         'darwin': {
