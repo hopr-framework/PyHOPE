@@ -510,7 +510,7 @@ def extrude_hexa(nodes:   np.ndarray,
 
             for i in range(shifts.shape[0]-1):
                 # Calculate offset for current layer indices
-                offsetCurr =  i   
+                offsetCurr =  i*18   
                 shiftCurr  = shifts[i+1, :]
                 shiftPrev  = shifts[i  , :]
 
