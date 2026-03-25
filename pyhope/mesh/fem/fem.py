@@ -263,7 +263,7 @@ def FEMConnect() -> None:
 
     # > 5. Generate final edge keys for all raw edges
     nEdgesRaw  = len(edgesRaw)
-    edgeKeys   = [_] * nEdgesRaw
+    edgeKeys   = [()] * nEdgesRaw
     edgeKeySet = set()
     for i, (elemID, locEdge, (n0, n1)) in enumerate(edgesRaw):
         # Get the initial representation of the edge
