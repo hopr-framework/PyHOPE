@@ -82,9 +82,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     elif not [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]:
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
 
-    if nGeo > 3:
-        hopout.error(f'nGeo = {nGeo} not supported for mesh extrusion')
-
     hopout.info('Extruding surface to volume mesh')
 
     # Read in the mesh post-deformation flag
@@ -382,6 +379,47 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.sep()
     return mesh
 
+@cache
+def quad_meshio_to_ij(order: int) -> npt.NDArray[np.int64]:
+    """Return meshio quad-node ordering mapped to tensor indices (i,j).
+
+    The ordering is generated ring-by-ring:
+    corners, edge nodes, then inner rings, matching meshio high-order quad ordering.
+    """
+    if order < 1:
+        raise ValueError(f'Quad ordering requires order >= 1, got {order}')
+
+    ij: list[tuple[int, int]] = []
+
+    # Fill rings from outside to inside
+    for ring in range(order // 2 + 1):
+        start = ring
+        end   = order - ring
+
+        if start > end:
+            break
+
+        # Odd order: final center point
+        if start == end:
+            ij.append((start, start))
+            break
+
+        # Ring corners
+        ij.extend(((start, start), (end, start), (end, end), (start, end)))
+        # Bottom edge (left -> right), excluding corners
+        ij.extend((i, start) for i in range(start + 1, end))
+        # Right edge (bottom -> top), excluding corners
+        ij.extend((end, j) for j in range(start + 1, end))
+        # Top edge (right -> left), excluding corners
+        ij.extend((i, end) for i in range(end - 1, start, -1))
+        # Left edge (top -> bottom), excluding corners
+        ij.extend((start, j) for j in range(end - 1, start, -1))
+
+    expected = (order + 1) ** 2
+    if len(ij) != expected:
+        raise RuntimeError(f'Invalid quad ordering length for order {order}: got {len(ij)}, expected {expected}')
+
+    return np.asarray(ij, dtype=np.int64)
 
 def extrude_pris(nodes:   np.ndarray,
                  points:  np.ndarray,
@@ -488,98 +526,50 @@ def extrude_hexa(nodes:   np.ndarray,
 
     nDOFsElem = (order+1)**3
     newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
+    
+    if order == 0:
+        raise ValueError(f'Extrusion not implemented for NGeo={order}')
+    else:
+        # Local imports ----------------------------------------
+        from pyhope.mesh.mesh_common import LINMAP
+        # ------------------------------------------------------
 
-    match order:
-        case 1:
-            newPoints = np.empty((4*(shifts.shape[0]-1), 3))
+        nFaceDOFs = (order+1)**2
+        nNewDOFs  = order*nFaceDOFs
+        newPoints = np.empty((nNewDOFs*(shifts.shape[0]-1), 3))
 
-            # Append the bottom layer of the first element, then stack all the other elements
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr =  i   *4
-                shiftCurr  = shifts[i+1, :]
+        # Generic meshio(quadN) -> meshio(hexaM) layer mapping for any NGeo>=1.
+        linmap   = LINMAP(208, order)
+        q_to_ij  = quad_meshio_to_ij(order)
+        layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
+        for q, (ii, jj) in enumerate(q_to_ij):
+            for k in range(order+1):
+                layerPos[k, q] = int(linmap[ii, jj, k])
 
-                newNodes[i][  : 4] = nodes[ :4] if i == 0 else newNodes[i-1][ 4: 8]
-                newNodes[i][ 4: 8] = np.add(np.arange(4, dtype=np.int64), nPoints+offsetCurr)
-                newPoints[offsetCurr:offsetCurr+4, :] = points[:4] + shiftCurr
+        # Append the bottom layer of the first element, then stack all the other elements
+        for i in range(shifts.shape[0]-1):
+            offsetCurr = i*nNewDOFs
+            shiftCurr  = shifts[i+1, :]
+            shiftPrev  = shifts[i  , :]
 
-        case 2:
-            newPoints = np.empty((18*(shifts.shape[0]-1), 3))
+            # Bottom layer
+            for q in range(nFaceDOFs):
+                idxBot = int(layerPos[0    , q])
+                idxTop = int(layerPos[order, q])
+                newNodes[i][idxBot] = nodes[q] if i == 0 else newNodes[i-1][idxTop]
 
-            # Append the bottom layer of the first element, then stack all the other elements
-
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr =  i*18   
-                shiftCurr  = shifts[i+1, :]
-                shiftPrev  = shifts[i  , :]
-
-                # Bottom/top corners
-                newNodes[i][  : 4] = nodes[ :4] if i == 0 else newNodes[i-1][ 4: 8]
-                newNodes[i][ 4: 8] = np.add(np.arange( 0,  4), nPoints+offsetCurr)
-                newPoints[offsetCurr   :offsetCurr+ 4, :] = points[ :4] +      shiftCurr
-                # Edges bottom/top
-                newNodes[i][ 8:12] = nodes[4:8] if i == 0 else newNodes[i-1][12:16]
-                newNodes[i][12:16] = np.add(np.arange( 4,  8), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 4:offsetCurr+ 8, :] = points[4:8] +      shiftCurr
-                # Edges upright
-                newNodes[i][16:20]  = np.add(np.arange( 8, 12), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 8:offsetCurr+12, :] = points[ :4] + 0.5*(shiftCurr+shiftPrev)
-                # Face centers
-                newNodes[i][20:24]  = np.add(np.arange(12, 16), nPoints+offsetCurr)
-                newNodes[i][24:26]  = np.array([int(nodes[8])if i == 0 else newNodes[i-1][25] , nPoints + 16 + offsetCurr])
-                newPoints[offsetCurr+12:offsetCurr+13, :] = points[  7] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+13:offsetCurr+14, :] = points[  5] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+14:offsetCurr+15, :] = points[  4] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+15:offsetCurr+16, :] = points[  6] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+16:offsetCurr+17, :] = points[  8] +      shiftCurr
-                # Volume center
-                newNodes[i][26:27]  = nPoints + 17 + offsetCurr
-                newPoints[offsetCurr+17:offsetCurr+18, :] = points[  8] + 0.5*(shiftCurr+shiftPrev)
-
-        case 3:
-            nFaceDOFs = (order+1)**2
-            nNewDOFs  = order*nFaceDOFs
-            newPoints = np.empty((nNewDOFs*(shifts.shape[0]-1), 3))
-
-            # Hardcoded meshio(quad16) -> meshio(hexa64) layer mapping for NGeo=3.
-            # Each entry is the hexa64 node position for face node q at layer k.
-            layer0 = np.array(( 0,  1,  2,  3,  8,  9, 10, 11, 12, 13, 15, 14, 48, 51, 50, 49), dtype=np.int64)
-            layer1 = np.array((24, 26, 28, 30, 40, 41, 36, 37, 44, 45, 35, 32, 56, 57, 58, 59), dtype=np.int64)
-            layer2 = np.array((25, 27, 29, 31, 43, 42, 39, 38, 47, 46, 34, 33, 60, 61, 62, 63), dtype=np.int64)
-            layer3 = np.array(( 4,  5,  6,  7, 16, 17, 18, 19, 20, 21, 23, 22, 52, 53, 54, 55), dtype=np.int64)
-            layers = (layer0, layer1, layer2, layer3)
-
-            # Append the bottom layer of the first element, then stack all the other elements
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr = i*nNewDOFs
-                shiftCurr  = shifts[i+1, :]
-                shiftPrev  = shifts[i  , :]
-
-                # Bottom layer: from original face for first layer, else from previous top layer.
+            # New points for layers k=1...order
+            p = 0
+            for k in range(1, order+1):
+                alpha  = k/order
+                shiftK = (1.0-alpha)*shiftPrev + alpha*shiftCurr
                 for q in range(nFaceDOFs):
-                    idxBot = int(layer0[q])
-                    idxTop = int(layer3[q])
-                    newNodes[i][idxBot] = nodes[q] if i == 0 else newNodes[i-1][idxTop]
+                    idx = nPoints + offsetCurr + p
+                    pos = int(layerPos[k, q])
 
-                # New points for layers k=1..3
-                p = 0
-                for k in (1, 2, 3):
-                    alpha  = k/order
-                    shiftK = (1.0-alpha)*shiftPrev + alpha*shiftCurr
-                    layerK = layers[k]
-                    for q in range(nFaceDOFs):
-                        idx = nPoints + offsetCurr + p
-                        pos = int(layerK[q])
-
-                        newNodes[i][pos] = idx
-                        newPoints[offsetCurr + p, :] = points[q] + shiftK
-                        p += 1
-
-        # FIXME: Implement the other orders
-        case _:
-            raise ValueError(f'Extrusion not implemented for NGeo={order}')
+                    newNodes[i][pos] = idx
+                    newPoints[offsetCurr + p, :] = points[q] + shiftK
+                    p += 1
 
     return newNodes, newPoints
 
