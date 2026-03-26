@@ -169,6 +169,7 @@ extend-select = [
   "SIM",      # flake8-simplify
   "SLOT",     # flake8-slots
   "TID",      # flake8-tidy-imports
+  "PERF",     # Perflint
   "FURB",     # refurb
   "I",        # isort
   "NPY",      # NumPy-specific rules

@@ -224,7 +224,7 @@ def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
     while True:
         try:
             loc = cast(list, seq).index(item, start_at+1)
-        except ValueError:
+        except ValueError:  # noqa: PERF203
             break
         else:
             locs.append(loc)

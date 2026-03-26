@@ -207,7 +207,7 @@ def CheckJacobians() -> None:
             mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
             linCache[elemType] = mapLin
         # Only hexahedrons supported for specific nGeo
-        except ValueError:
+        except ValueError:  # noqa: PERF203
             pass
 
     for elem in elems:

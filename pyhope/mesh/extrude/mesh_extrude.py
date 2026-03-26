@@ -89,8 +89,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Read in the mesh post-deformation flag
     hopout.sep()
-    extrTemplate = GetStr( 'MeshExtrudeTemplate')
-    extrBCIndex  = GetInt( 'MeshExtrudeBCIndex')
+    extrTemplate   = GetStr('MeshExtrudeTemplate')
+    extrBCIndexTop = GetInt('MeshExtrudeBCIndexTop') - 1
+    extrBCIndexBot = GetInt('MeshExtrudeBCIndexBot') - 1
 
     # Continue with extrusion
     hopout.sep()
@@ -108,11 +109,36 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # Get base key to distinguish between linear and high-order elements
     ho_key    = 100 if nGeo == 1 else 200
     nPoints   = len(pointl)
-    nFaces    = np.zeros(2, dtype=int)
 
     # Expected number of nodes
     faceNum   = [ int((nGeo+1)*(nGeo+2)/2), int((nGeo+1)**2) ]
     faceType  = [f'triangle{"" if nGeo == 1 else faceNum[0]}', f'quad{"" if nGeo == 1 else faceNum[1]}']
+
+    # For zones, we need to append the expected extruded elements
+    for cblock in cell_sets.values():
+        # Each set_blocks is a list of arrays, one entry per cell block
+        for blockID in range(len(cblock)):
+            etype = elems_old[blockID].type
+            if etype[:4] not in ('tria', 'quad'):
+                continue
+
+            elemNum = ho_key + (8 if cast(str, etype).startswith('quad') else 6)
+            # Obtain the element type
+            elemType = elemTypeClass.inam[elemNum]
+            if len(elemType) > 1:
+                elemType  = elemType[0].rstrip(digits)
+                elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+                elemType += str(elemDOFs)
+            else:
+                elemType  = elemType[0]
+                elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+
+            if elemType not in faceType:
+                faceType.append(elemType)
+                faceNum .append(elemDOFs)
+
+    # nFaces contains the existing number of [Triangle, Quad, Wedge, Hexahedron]
+    nFaces    = np.zeros(len(faceType), dtype=int)
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
@@ -127,10 +153,26 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # INFO: We reduce the new faces to first-order. Yes, this breaks direkt meshio output. But we are not using this anyways.
     #       If you want to use mesh.write() for debug purposes, comment out the BC face creation.
     # nFace = (nGeo+1)*(nGeo+2)/2
-    nFace = 3
+    nFace: Final[int] = 3
+
+    # Create the element sets
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
+                                                                     or any(key.startswith('quad') for key in v))
+
+    # Take the correct BC index for the bottom BC
+    meshcells = tuple(s for s in meshcells if s[0].lower() == mesh_vars.bcs[extrBCIndexBot].name)
+
+    match len(meshcells):
+        case 0:
+            hopout.error('Could not find boundary condition for extrusion, exiting...')
+        case 1:
+            pass
+        case _:
+            hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
     # Convert the (1D, 2D) boundary cell set into a dictionary
     csets_old = {}
+    zsets_old = {}
     for cname, cblock in cell_sets.items():
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
@@ -145,23 +187,22 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Determine how many corner nodes to keep
             nCorners = 2 if 'line' in etype else (3 if 'tria' in etype else 4)
 
+            # Filter the zone 2D faces
+            if nCorners > 2 and cname.lower() != mesh_vars.bcs[extrBCIndexBot].name:
+                # Sort them as a set for membership checks
+                for face in block:
+                    # Slice to only include corners for the search dictionary
+                    nodes = mesh.cells[blockID].data[face][:nCorners]
+                    zsets_old.setdefault(frozenset(nodes), []).append(cname)
+
+                # Do not add them to the boundary conditions
+                continue
+
             # Sort them as a set for membership checks
             for face in block:
                 # Slice to only include corners for the search dictionary
                 nodes = mesh.cells[blockID].data[face][:nCorners]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
-
-    # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
-                                                                     or any(key.startswith('quad') for key in v))
-
-    match len(meshcells):
-        case 0:
-            hopout.error('Could not found boundary condition for extrusion, exiting...')
-        case 1:
-            pass
-        case _:
-            hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
@@ -171,6 +212,12 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     for subFace in csets_old:
         for node in subFace:
             nodeToFace[node].add(subFace)
+
+    # Build an inverted index to map each node to all zone keys (from zsets_old) that contain it
+    nodeToZone = defaultdict(set)
+    for subFace in zsets_old:
+        for node in subFace:
+            nodeToZone[node].add(subFace)
 
     # We need to unwrap meshcells for each zone, i.e. each 2D boundary condition
     for meshcell in meshcells:
@@ -195,11 +242,11 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Obtain the element type
             elemType = elemTypeClass.inam[elemNum]
             if len(elemType) > 1:
-                elemType  = elemType[0].rstrip(digits)
+                elemType  = str(elemType[0]).rstrip(digits)
                 elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
                 elemType += str(elemDOFs)
             else:
-                elemType  = elemType[0]
+                elemType  = str(elemType[0])
                 elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
 
             # Face block: Iterate over each element
@@ -226,7 +273,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 # > We know this is the first face and 1/5 face
                 botIdx , botFace = 0, subFaces[0]
                 topIdx           = 1 if mtype.startswith('tria') else 5
-                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndex-1].name
+                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndexTop].name  # noqa: E501
 
                 # BC: Set the BC for the bottom face
                 appendBCSet(botFace, faceMap, nFace, nFaces, nodeToFace, faceType,
@@ -234,12 +281,19 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                             bcFaces    = bcFaces        , bcFaceIdx    = botIdx   , bcSide     = 'bottom',   # noqa: E251, E271
                             requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
+                # ZONE: Set the ZONE for the bottom element
+                appendBCSet(botFace, faceMap, nFace, nFaces, nodeToZone, faceType,
+                            csets_old  = zsets_old      , csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
+                            bcFaces    = bcFaces        , bcFaceIdx    = botIdx   , bcSide     = 'zone',     # noqa: E251, E271
+                            elemType   = elemType,                                                           # noqa: E251, E271
+                            requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
+
                 # BC: Next, iterate over the 1D (side faces)
                 for iFace, subFace in enumerate(subFaces[1::]):
                     appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
-                                csets_old  = csets_old, csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
-                                bcFaces    = bcFaces  , bcFaceIdx    = iFace+1  , bcSide     = 'side',     # noqa: E251, E271
-                                requireDim = 2        , requireMatch = False    , allowMulti = False)      # noqa: E251, E271
+                                csets_old  = csets_old, csets_lst    = csets_lst, elems_lst  = elems_lst,    # noqa: E251, E271
+                                bcFaces    = bcFaces  , bcFaceIdx    = iFace+1  , bcSide     = 'side',       # noqa: E251, E271
+                                requireDim = 2        , requireMatch = False    , allowMulti = False)        # noqa: E251, E271
 
                 for extElem in extElems[1:]:
                     # Overwrite the element with the new indices
@@ -249,22 +303,31 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                     # Create the new faces
                     subFaces = tuple(np.array(extElem)[face] for face in faces(nGeo))
                     sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s and s['side'] == 'side'))
+                    zonFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s and s['side'] == 'zone'))
 
                     for iFace, sidFace in sidFaces:
                         subFace = subFaces[iFace]
                         faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
 
                         name = sidFace['name']
-                        csets_lst.setdefault(name.strip(), [[], []])
+                        csets_lst.setdefault(name.strip(), [[] for _ in range(len(faceType))])
                         csets_lst[name][faceVal].append(nFaces[faceVal])
 
                         nFaces[faceVal] += 1
                         elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
 
+                    # Assign the new elements to the zone
+                    if zonFaces:
+                        faceVal = faceType.index(elemType)
+                        name    = zonFaces[0][1]['name']
+                        # Append the volume zones and increment
+                        csets_lst[name][faceVal].append(nFaces[faceVal])
+                        nFaces[faceVal] += 1
+
                 # BC: We should have one face left, assign the bottom BC
                 # > We need to hardcode this since we might have internal faces
-                faceVal    = faceMap(0) if len(topFace) == nFace else faceMap(1)
-                csets_lst.setdefault(topName, [[], []])
+                faceVal = faceMap(0) if len(topFace) == nFace else faceMap(1)
+                csets_lst.setdefault(topName, [[] for _ in range(len(faceType))])
                 csets_lst[topName][faceVal].append(nFaces[faceVal])
 
                 nFaces[faceVal] += 1
