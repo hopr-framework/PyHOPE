@@ -36,12 +36,7 @@ from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
-# ----------------------------------------------------------------------------------------------------------------------------------
-# Typing libraries
-# ----------------------------------------------------------------------------------------------------------------------------------
-import typing
-if typing.TYPE_CHECKING:
-    import numpy.typing as npt
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -526,50 +521,50 @@ def extrude_hexa(nodes:   np.ndarray,
 
     nDOFsElem = (order+1)**3
     newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
-    
+
     if order == 0:
         raise ValueError(f'Extrusion not implemented for NGeo={order}')
-    else:
-        # Local imports ----------------------------------------
-        from pyhope.mesh.mesh_common import LINMAP
-        # ------------------------------------------------------
 
-        nFaceDOFs = (order+1)**2
-        nNewDOFs  = order*nFaceDOFs
-        newPoints = np.empty((nNewDOFs*(shifts.shape[0]-1), 3))
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_common import LINMAP
+    # ------------------------------------------------------
 
-        # Generic meshio(quadN) -> meshio(hexaM) layer mapping for any NGeo>=1.
-        linmap   = LINMAP(208, order)
-        q_to_ij  = quad_meshio_to_ij(order)
-        layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
-        for q, (ii, jj) in enumerate(q_to_ij):
-            for k in range(order+1):
-                layerPos[k, q] = int(linmap[ii, jj, k])
+    nFaceDOFs = (order+1)**2
+    nNewDOFs  = order*nFaceDOFs
+    newPoints = np.empty((nNewDOFs*(shifts.shape[0]-1), 3))
 
-        # Append the bottom layer of the first element, then stack all the other elements
-        for i in range(shifts.shape[0]-1):
-            offsetCurr = i*nNewDOFs
-            shiftCurr  = shifts[i+1, :]
-            shiftPrev  = shifts[i  , :]
+    # Generic meshio(quadN) -> meshio(hexaM) layer mapping for any NGeo>=1.
+    linmap   = LINMAP(208, order)
+    q_to_ij  = quad_meshio_to_ij(order)
+    layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
+    for q, (ii, jj) in enumerate(q_to_ij):
+        for k in range(order+1):
+            layerPos[k, q] = int(linmap[ii, jj, k])
 
-            # Bottom layer
+    # Append the bottom layer of the first element, then stack all the other elements
+    for i in range(shifts.shape[0]-1):
+        offsetCurr = i*nNewDOFs
+        shiftCurr  = shifts[i+1, :]
+        shiftPrev  = shifts[i  , :]
+
+        # Bottom layer
+        for q in range(nFaceDOFs):
+            idxBot = int(layerPos[0    , q])
+            idxTop = int(layerPos[order, q])
+            newNodes[i][idxBot] = nodes[q] if i == 0 else newNodes[i-1][idxTop]
+
+        # New points for layers k=1...order
+        p = 0
+        for k in range(1, order+1):
+            alpha  = k/order
+            shiftK = (1.0-alpha)*shiftPrev + alpha*shiftCurr
             for q in range(nFaceDOFs):
-                idxBot = int(layerPos[0    , q])
-                idxTop = int(layerPos[order, q])
-                newNodes[i][idxBot] = nodes[q] if i == 0 else newNodes[i-1][idxTop]
+                idx = nPoints + offsetCurr + p
+                pos = int(layerPos[k, q])
 
-            # New points for layers k=1...order
-            p = 0
-            for k in range(1, order+1):
-                alpha  = k/order
-                shiftK = (1.0-alpha)*shiftPrev + alpha*shiftCurr
-                for q in range(nFaceDOFs):
-                    idx = nPoints + offsetCurr + p
-                    pos = int(layerPos[k, q])
-
-                    newNodes[i][pos] = idx
-                    newPoints[offsetCurr + p, :] = points[q] + shiftK
-                    p += 1
+                newNodes[i][pos] = idx
+                newPoints[offsetCurr + p, :] = points[q] + shiftK
+                p += 1
 
     return newNodes, newPoints
 
