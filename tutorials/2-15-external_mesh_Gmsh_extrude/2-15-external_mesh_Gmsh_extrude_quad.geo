@@ -23,4 +23,4 @@ Physical Curve("BC_Top")        = {3};  // Put all curves in boundary conditions
 Physical Curve("BC_Left")       = {4};  // Put all curves in Zone1
 Physical Surface("BC_Front")    = {1};  // Put the surface (and its elements) in Zone1
 
-Mesh.ElementOrder = 2;                  // Linear elements
+Mesh.ElementOrder = 4;                  // Linear elements

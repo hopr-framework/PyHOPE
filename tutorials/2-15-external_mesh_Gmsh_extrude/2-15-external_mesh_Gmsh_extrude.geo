@@ -41,4 +41,4 @@ Physical Surface("BC_Front") = {1,2};           // Entire front (2D) domain
 Physical Surface("Zone_1")   = {1};             // Zone 1 (all extruded quads)
 Physical Surface("Zone_2")   = {2};             // Zone 2 (all extruded wedges)
 
-Mesh.ElementOrder = 2;                          // Linear elements
+Mesh.ElementOrder = 4;                          // Linear elements
