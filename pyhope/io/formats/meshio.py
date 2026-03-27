@@ -125,29 +125,29 @@ def edgePointMESHIO(start: int, end: int, edge: int, node: int) -> npt.NDArray:
     """
     match edge:
         case 0:
-            return np.array((node          , start , start  ), dtype=int)
+            return np.array((node          , start         , start  ), dtype=int)
         case 1:
-            return np.array((end           , node  , start  ), dtype=int)
+            return np.array((end           , node          , start  ), dtype=int)
         case 2:
-            return np.array((end+start-node, end   , start  ), dtype=int)
+            return np.array((end+start-node, end           , start  ), dtype=int)
         case 3:
-            return np.array((start         , node  , start  ), dtype=int)
+            return np.array((start         , end+start-node, start  ), dtype=int)
         case 4:
-            return np.array((node          , start , end    ), dtype=int)
+            return np.array((start         , start         , node   ), dtype=int)
         case 5:
-            return np.array((end           , node  , end    ), dtype=int)
+            return np.array((end           , start         , node   ), dtype=int)
         case 6:
-            return np.array((end+start-node, end   , end    ), dtype=int)
+            return np.array((end           , end           , node   ), dtype=int)
         case 7:
-            return np.array((start         , node  , end    ), dtype=int)
+            return np.array((start         , end           , node   ), dtype=int)
         case 8:
-            return np.array((start         , start , node   ), dtype=int)
+            return np.array((node          , start         , end    ), dtype=int)
         case 9:
-            return np.array((end           , start , node   ), dtype=int)
+            return np.array((end           , node          , end    ), dtype=int)
         case 10:
-            return np.array((end           , end   , node   ), dtype=int)
+            return np.array((end+start-node, end           , end    ), dtype=int)
         case 11:
-            return np.array((start         , end   , node   ), dtype=int)
+            return np.array((start         , end+start-node, end    ), dtype=int)
         case _:
             raise ValueError(f'Invalid edge index: {edge}.')
 

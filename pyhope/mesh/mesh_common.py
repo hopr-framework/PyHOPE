@@ -106,9 +106,9 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
                   # Pyramid
                   # Wedge / Prism
                   # Hexahedron
-                  8: {  0:  eps,  2:  eps,  4: eps,  6:   eps,  # Direction 0
-                        1:   1.,  3:   1.,  5:  1.,  7:    1.,  # Direction 1
-                        8:   2.,  9:   2., 10:  2., 11:    2.}  # Direction 2
+                  8: {  0:  eps,  2:  eps,  8: eps, 10:   eps,  # Direction 0
+                        1:   1.,  3:   1.,  9:  1., 11:    1.,  # Direction 1
+                        4:   2.,  5:   2.,  6:  2.,  7:    2.}  # Direction 2
                }
 
     if isinstance(elemType, str):
@@ -130,18 +130,18 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype: type = np.int32)
     """ GMSH: Get points on edges
     """
     edge_map = {  # Tetrahedron
-                  4: ( (0, 1), (1, 2), (2, 1), (0, 3),
+                  4: ( (0, 1), (1, 2), (2, 0), (0, 3),
                        (1, 3), (2, 3)                 ),
                   # Pyramid
                   5: ( (0, 1), (1, 2), (2, 3), (3, 0),
-                       (0, 4), (1, 5), (2, 4), (3, 4) ),
+                       (0, 4), (1, 4), (2, 4), (3, 4) ),
                   # Wedge / Prism
                   6: ( (0, 1), (1, 2), (2, 0), (0, 3),
-                       (2, 3), (3, 4), (4, 5), (5, 4) ),
+                       (1, 4), (2, 5), (3, 4), (4, 5), (5, 3) ),
                   # Hexahedron
                   8: ( (0, 1), (1, 2), (2, 3), (3, 0),    # Bottom  edges
-                       (4, 5), (5, 6), (6, 7), (7, 4),    # Top     edges
-                       (0, 4), (1, 5), (2, 6), (3, 7) ),  # Upright edges
+                       (0, 4), (1, 5), (2, 6), (3, 7),    # Upright edges
+                       (4, 5), (5, 6), (6, 7), (7, 4) ),  # Top     edges
                }
 
     if isinstance(elemType, str):
@@ -167,8 +167,8 @@ def edge_to_sign(edge: int, elemType: Union[int, str], dtype: type = np.float64)
                   # Wedge / Prism
                   # Hexahedron
                   8: ( -1., -1.,  1.,  1.,   # Bottom  edges
-                       -1., -1.,  1.,  1.,   # Top     edges
-                       -1., -1., -1., -1.),  # Upright edges
+                       -1., -1., -1., -1.,   # Upright edges
+                       -1., -1.,  1.,  1.),  # Top     edges
                }
     if isinstance(elemType, str):
         elemType = elemTypeClass.name[elemType]
@@ -192,12 +192,12 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype: type = np.int32) -
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: {  'z-': np.array((  0,  1,   2,   3), dtype=dtype),
-                         'y-': np.array((  0,  9,  -4,  -8), dtype=dtype),
-                         'x+': np.array((  1, 10,  -5,  -9), dtype=dtype),
-                         'y+': np.array(( -2, 10,   6, -11), dtype=dtype),
-                         'x-': np.array((  8, -7, -11,   3), dtype=dtype),
-                         'z+': np.array((  4,  5,   6,   7), dtype=dtype)}
+                   8: {  'z-': np.array((  0,   1,   2,   3), dtype=dtype),
+                         'y-': np.array((  0,   5,  -8,  -4), dtype=dtype),
+                         'x+': np.array((  1,   6,  -9,  -5), dtype=dtype),
+                         'y+': np.array((  6,  10,  -7, -2), dtype=dtype),
+                         'x-': np.array((  4, -11,  -7,   3), dtype=dtype),
+                         'z+': np.array((  8,   9,  10,  11), dtype=dtype)}
                 }
 
     if isinstance(elemType, str):
