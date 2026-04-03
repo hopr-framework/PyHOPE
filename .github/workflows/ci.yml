@@ -61,6 +61,9 @@ jobs:
       image: python:3.14.3-slim-trixie
     steps:
       - uses: actions/checkout@v6
+        # with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
@@ -83,9 +86,50 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
+      # - uses: actions/setup-node@v6
+      #   with:
+      #     node-version: 'latest'
+      # Cached LFS requires node
+      # - name: Ensure NodeJS
+      #   shell: bash
+      #   run: |
+      #     if command -v node &> /dev/null; then exit 0; fi
+      #     # Container is Debian-based (apt)
+      #     if command -v apt-get &> /dev/null; then
+      #       apt-get update -y
+      #       apt-get install -y --no-install-recommends nodejs
+      #     fi
+      #     # Container Fedora-based (dnf)
+      #     if command -v dnf &> /dev/null; then
+      #       dnf makecache
+      #       dnf update -y
+      #       dnf install -y node
+      #     fi
+      # This does not strictly require LFS but we want the checkout before the compatibility matrix
       - uses: actions/checkout@v6
-        with:
-          lfs: true
+      # - uses: nschloe/action-cached-lfs-checkout@v1
+        # with:  Reduce Git LFS bandwidth
+        #   fetch-depth: 0
+        #   fetch-tags: true
+        #   lfs: true
+      # - name: Create Git LFS file list
+      #   run: |
+      #     pwd
+      #     ls -al
+      #     ls -al .git
+      #     git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      # - name: Restore Git LFS object cache
+      #   uses: actions/cache@v5
+      #   with:
+      #     path: .git/lfs/objects
+      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.lfs-assets-id') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-lfsdata-v1-
+      #       ${{ runner.os }}-lfsdata
+      # - name: Fetch any needed Git LFS objects and prune extraneous ones
+      #   run: git lfs fetch --prune
+      # - name: Check out Git LFS content
+      #   run: git lfs checkout
       - uses: ./.github/actions/setup
         # with:
         #   minimal: 'false'
@@ -103,6 +147,9 @@ jobs:
       image: python:3.14.3-slim-trixie
     steps:
       - uses: actions/checkout@v6
+        # with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
@@ -138,9 +185,45 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
+      # - uses: actions/setup-node@v6
+      #   with:
+      #     node-version: 'latest'
+      # Cached LFS requires node
+      # - name: Ensure NodeJS
+      #   shell: bash
+      #   run: |
+      #     if command -v node &> /dev/null; then exit 0; fi
+      #     # Container is Debian-based (apt)
+      #     if command -v apt-get &> /dev/null; then
+      #       apt-get update -y
+      #       apt-get install -y --no-install-recommends nodejs
+      #     fi
+      #     # Container Fedora-based (dnf)
+      #     if command -v dnf &> /dev/null; then
+      #       dnf makecache
+      #       dnf update -y
+      #       dnf install -y node
+      #     fi
       - uses: actions/checkout@v6
+      # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
           lfs: true
+      # - name: Create Git LFS file list
+      #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
+      # - name: Restore Git LFS object cache
+      #   uses: actions/cache@v5
+      #   with:
+      #     path: .git/lfs
+      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.git/lfs-assets-id') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-lfsdata-v1-
+      #       ${{ runner.os }}-lfsdata
+      # - name: Fetch any needed Git LFS objects and prune extraneous ones
+      #   run: git lfs fetch --prune
+      # - name: Check out Git LFS content
+      #   run: git lfs checkout
       - uses: ./.github/actions/setup
       - name: Run compatibility tests
         shell: bash
@@ -165,12 +248,45 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      - uses: actions/checkout@v6
-        with:
-          lfs: true
       # - uses: actions/setup-node@v6
       #   with:
       #     node-version: 'latest'
+      # Cached LFS requires node
+      # - name: Ensure NodeJS
+      #   shell: bash
+      #   run: |
+      #     if command -v node &> /dev/null; then exit 0; fi
+      #     # Container is Debian-based (apt)
+      #     if command -v apt-get &> /dev/null; then
+      #       apt-get update -y
+      #       apt-get install -y --no-install-recommends nodejs
+      #     fi
+      #     # Container Fedora-based (dnf)
+      #     if command -v dnf &> /dev/null; then
+      #       dnf makecache
+      #       dnf update -y
+      #       dnf install -y node
+      #     fi
+      - uses: actions/checkout@v6
+      # - uses: nschloe/action-cached-lfs-checkout@v1
+        with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
+          lfs: true
+      # - name: Create Git LFS file list
+      #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
+      # - name: Restore Git LFS object cache
+      #   uses: actions/cache@v5
+      #   with:
+      #     path: .git/lfs
+      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.git/lfs-assets-id') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-lfsdata-v1-
+      #       ${{ runner.os }}-lfsdata
+      # - name: Fetch any needed Git LFS objects and prune extraneous ones
+      #   run: git lfs fetch --prune
+      # - name: Check out Git LFS content
+      #   run: git lfs checkout
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -203,9 +319,42 @@ jobs:
       # - uses: actions/setup-node@v6
       #   with:
       #     node-version: 'latest'
+      # Cached LFS requires node
+      # - name: Ensure NodeJS
+      #   shell: bash
+      #   run: |
+      #     if command -v node &> /dev/null; then exit 0; fi
+      #     # Container is Debian-based (apt)
+      #     if command -v apt-get &> /dev/null; then
+      #       apt-get update -y
+      #       apt-get install -y --no-install-recommends nodejs
+      #     fi
+      #     # Container Fedora-based (dnf)
+      #     if command -v dnf &> /dev/null; then
+      #       dnf makecache
+      #       dnf update -y
+      #       dnf install -y node
+      #     fi
       - uses: actions/checkout@v6
+      # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
           lfs: true
+      # - name: Create Git LFS file list
+      #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
+      # - name: Restore Git LFS object cache
+      #   uses: actions/cache@v5
+      #   with:
+      #     path: .git/lfs
+      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.git/lfs-assets-id') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-lfsdata-v1-
+      #       ${{ runner.os }}-lfsdata
+      # - name: Fetch any needed Git LFS objects and prune extraneous ones
+      #   run: git lfs fetch --prune
+      # - name: Check out Git LFS content
+      #   run: git lfs checkout
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -235,17 +384,19 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       # Git LFS requires git
-      - name: Install Git LFS
-        shell: bash
-        run: |
-          dnf update -y
-          dnf install -y git-lfs
+      # - name: Install Git LFS
+      #   shell: bash
+      #   run: |
+      #     dnf update -y
+      #     dnf install -y git-lfs
       # - uses: actions/setup-node@v6
       #   with:
       #     node-version: 'latest'
       - uses: actions/checkout@v6
-        with:
-          lfs: true
+        # with:  Reduce Git LFS bandwidth
+        #   fetch-depth: 0
+        #   fetch-tags: true
+        #   lfs: true
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -272,6 +423,9 @@ jobs:
       image: python:3.14.3-slim-trixie
     steps:
       - uses: actions/checkout@v6
+        # with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
       # - uses: actions/setup-node@v6
       #   with:
       #     node-version: 'latest'

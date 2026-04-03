@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from typing import Final
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -92,6 +93,9 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
     progFac, l0, dx = handler() if handler else (np.array(()), np.array(()), np.array(()))
 
     if stretchingType == 'combination':
+        if progFac is None or l0 is None or dx is None:
+            hopout.error(f'Missing parameter {[n for (s, n) in zip((progFac, l0, dx), ("factor", "l0", "dx"), strict=True) if s is None]}, exiting...')  # noqa: E501
+
         for iDim in range(3):
             if np.isclose(progFac[iDim], 0., atol=mesh_vars.tolInternal):
                 continue  # Skip if factor is zero, (nElem, l0) given, factor calculated later
@@ -107,6 +111,9 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
 
     # Calculate the required factor from ratio or combination input
     if stretchingType in {'ratio', 'combination'}:
+        if progFac is None or l0 is None or dx is None:
+            hopout.error(f'Missing parameter {[n for (s, n) in zip((progFac, l0, dx), ("factor", "l0", "dx"), strict=True) if s is None]}, exiting...')  # noqa: E501
+
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
         for iDim in range(3):
             if nElems[iDim] == 1 or dx[iDim] == 0:
@@ -146,7 +153,7 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
         hopout.error('Stretching factor = 0 is invalid, exiting...')
 
     # Return stretching factor
-    return progFac
+    return cast(np.ndarray, progFac)
 
 
 def TransformMesh() -> None:
