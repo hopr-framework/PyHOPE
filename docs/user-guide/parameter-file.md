@@ -114,10 +114,11 @@ Mesh parameters controlling the respective mesh generation mode.
 
 | <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `Mode`                                   | int &#124; string                  | —                                    | `1` (internal) &#124; `3` (external)    | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators. |
+| `Mode`                                   | int &#124; string                  | —                                     | `1` (internal) &#124; `3` (external)    | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators. |
 | `NGeo`                                   | int                                | `1`                                   | ≥ 1                                    | Polynomial order used for representation of curved elements. Higher orders improve geometric fidelity. |
 | `BoundaryOrder`                          | int                                | `2`                                   | ≥ 2                                    | Legacy parameter for polynomial order used for representation of curved elements. Prefer `NGeo` where applicable; kept for backward compatibility. |
-| `MeshSorting`                            | sting                              | `SFC`                                 | `SFC`, `IJK`, `LEX`, `Snake`, `None`   | Mesh sorting mode to reorder the elements. |
+| `MeshSorting`                            | string                             | `SFC`                                 | `SFC`, `IJK`, `LEX`, `Snake`, `None`   | Mesh sorting mode to reorder the elements. |
+| `MeshSortingSFC`                         | string                             | `default`                             | `default` (PYPI hilbertcurve), `hilbert` (HOPR), `hilbertZ` (HOPR), `morton` (HOPR), `mortonZ` (HOPR)   | The "default" space-filling curve is from the Python PYPI package and the others are C-ported from HOPR. |
 | `doSortIJK`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Reorder elements primarily along I, then J, then K instead of the default space-filling Hilbert curve (legacy). |
 
 ### Internal Mesh Generator (Mode = `1` | `internal`)

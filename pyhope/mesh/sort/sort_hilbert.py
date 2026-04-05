@@ -245,9 +245,7 @@ def _adjust_rotation(n_dims  : int        , bits    : npt.NDArray,
         rotation  = np.where(active, rotation + np.uint64(1), rotation)
         b         = np.where(active, b >> np.uint64(1), b)
     rotation += np.uint64(1)
-    rotation  = np.where(rotation >= np.uint64(n_dims), rotation - np.uint64(n_dims), rotation)
-
-    return rotation
+    return np.where(rotation >= np.uint64(n_dims), rotation - np.uint64(n_dims), rotation)
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------
