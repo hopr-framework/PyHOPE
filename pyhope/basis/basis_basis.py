@@ -312,12 +312,14 @@ def polynomial_derivative_matrix_prism(order: int, xGP: npt.NDArray[np.float64])
     D   = np.zeros((3, nDOFs, nDOFs), dtype=np.float64)
 
     # Precompute required Jacobi polynomials and derivatives
-    # fZETA(i) = P_i^(0,0)(c), dfZETA(i) = 0.5*(i+1)*P_{i-1}^{(1,1)}(c)
-    fZETA_all  = np.array(tuple(          sp.special.eval_jacobi(i  , 0, 0, c) for i in range(order)))
-    dfZETA_all = np.array(tuple(0.5*(i+1)*sp.special.eval_jacobi(i-1, 1, 1, c) for i in range(order)))
-    # fETA(j) = P_j^(0,0)(tuple(), dfETA(j) = 0.5*(j+1)*P_{j-1}^{(1,1)}(b)
-    fETA_all   = np.array(tuple(          sp.special.eval_jacobi(j  , 0, 0, b) for j in range(order)))
-    dfETA_all  = np.array(tuple(0.5*(j+1)*sp.special.eval_jacobi(j-1, 1, 1, b) for j in range(order)))
+    # fZETA(i) = P_i^(0,0)(c), dfZETA(i) = 0.5*(i+1)*P_{i-1}^{(1,1)}(c), with dfZETA(0)=0
+    fZETA_all  = np.array(tuple(sp.special.eval_jacobi(i, 0, 0, c) for i in range(order)))
+    dfZETA_all = np.array(tuple(np.zeros_like(c) if i == 0 else 0.5*(i+1)*sp.special.eval_jacobi(i-1, 1, 1, c)
+                                for i in range(order)))
+    # fETA(j) = P_j^(0,0)(b), dfETA(j) = 0.5*(j+1)*P_{j-1}^{(1,1)}(b), with dfETA(0)=0
+    fETA_all   = np.array(tuple(sp.special.eval_jacobi(j, 0, 0, b) for j in range(order)))
+    dfETA_all  = np.array(tuple(np.zeros_like(b) if j == 0 else 0.5*(j+1)*sp.special.eval_jacobi(j-1, 1, 1, b)
+                                for j in range(order)))
 
     jacobi_xi_polys  = [[sp.special.jacobi(i, 2*j + 1, 0) for i in range(order - j)] for j in range(order)]
     jacobi_xi_derivs = [[p.deriv() for p in row] for row in jacobi_xi_polys]
