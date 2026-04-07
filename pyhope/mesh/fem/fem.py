@@ -482,14 +482,14 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
                 if sibElem == masterElem and sibLoc == masterLoc:
                     # Sibling is the master   — current is slave pointing to master
-                    edgeConn_arr[connOffset, 0] = -(sibElem + 1)
+                    edgeConn_arr[connOffset, 0] =  sibElem + 1
                     edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * masterOrient)
                 else:
                     # Sibling is also a slave - check relative orientation
                     sibVertices    = occVertexPair[sibIdx]
                     masterVertices = occVertexPair[masterOccIdx]
                     orient         = masterOrient if sibVertices[0] == masterVertices[0] else -masterOrient
-                    edgeConn_arr[connOffset, 0] =  sibElem + 1
+                    edgeConn_arr[connOffset, 0] = -(sibElem + 1)
                     edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * orient)
 
                 connOffset += 1
