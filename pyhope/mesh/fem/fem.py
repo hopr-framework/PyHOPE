@@ -63,7 +63,7 @@ def FEMConnect() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetLogical
-    from pyhope.mesh.mesh_common import edges, edge_to_corner
+    from pyhope.mesh.mesh_common import LINTEN, edges, edge_to_corner
     # ------------------------------------------------------
 
     if CountOption('doFEMConnect') == 0:
@@ -187,8 +187,12 @@ def FEMConnect() -> None:
     edgeGraph = defaultdict(set)
     edgesRaw  = []
     for elemID, elem in enumerate(elems):
-        elemType  = elem.type
-        elemNodes = cast(np.ndarray, elem.nodes)
+        elemType = cast(int, elem.type)
+        nCorner  = elemType % 10
+        mapLin, _ = LINTEN(elemType, order=mesh_vars.nGeo)
+        perm      = np.asarray(mapLin[:nCorner], dtype=np.int32)
+        # Get the nodes for this element in the correct order
+        elemNodes = cast(np.ndarray, elem.nodes)[perm]
         for edge in edges(elemType):
             # Get the local corner indices for the current edge
             corners = edge_to_corner(edge, elemType)
@@ -286,7 +290,12 @@ def FEMConnect() -> None:
 
     # Build the vertex connectivity
     for elem in elems:
-        elemNodes = cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]
+        elemType  = cast(int, elem.type)
+        nCorner   = elemType % 10
+        mapLin, _ = LINTEN(elemType, order=mesh_vars.nGeo)
+        perm      = np.asarray(mapLin[:nCorner], dtype=np.int32)
+        # Get the nodes for this element in the correct order
+        elemNodes = cast(np.ndarray, elem.nodes)[perm]
         vertexInfo: dict[int, tuple[int, tuple[int, ...]]] = {}
         for locNode in range(len(elemNodes)):
             # Determine canonical vertex id
