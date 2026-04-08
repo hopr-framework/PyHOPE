@@ -25,15 +25,23 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import time
 # from sortedcontainers import SortedDict
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
-from typing import Final
+from typing import Any, Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import numpy as np
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    from types import GeneratorType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -43,7 +51,7 @@ import numpy as np
 # ==================================================================================================================================
 
 
-def sizeof_fmt(num, suffix='B'):
+def sizeof_fmt(num: int, suffix: str = 'B') -> str:
     """ A helper function to format a string in human-readable format
         > https://stackoverflow.com/a/1094933/23851165
     """
@@ -54,7 +62,7 @@ def sizeof_fmt(num, suffix='B'):
     return f'{num:.1f} Yi{suffix}'
 
 
-def time_function(func, *args, **kwargs) -> float:  # pragma: no cover
+def time_function(func: Callable, *args: Any, **kwargs: Any) -> float:  # noqa: ANN401
     """ A helper function to measure the execution time of an arbitrary function.
 
     Parameters:
@@ -93,7 +101,7 @@ def allocate_or_resize( dict: dict, key: str, shape: tuple[int, int]) -> tuple[d
 
 
 @contextmanager
-def temporary_assign(obj, attr, value):
+def temporary_assign(obj: Any, attr: Any, value: Any) -> GeneratorType:  # noqa: ANN401
     """ Temporarily assigns the object to a given attribute
         > Object lifetime is restricted by the contextmanager
     """
@@ -121,7 +129,7 @@ class IndexedLists:
         # Inverse mapping: for each value, store the set of keys (indices) that contain it
         self._inverse = defaultdict(set)
 
-    def add(self, index: int, values) -> None:
+    def add(self, index: int, values: Iterable) -> None:
         """ Add a sublist at a specific integer index
         """
         value_set = set(values)  # Use set for fast removals
@@ -129,7 +137,7 @@ class IndexedLists:
         for v in value_set:
             self._inverse[v].add(index)
 
-    def remove_index(self, indices) -> None:
+    def remove_index(self, indices: Iterable | int) -> None:
         """ Remove the sublist at idx and remove the integer idx from all remaining sublists
         """
         # Convert to a set for fast operations
@@ -151,7 +159,7 @@ class IndexedLists:
             if key in self.data:
                 self.data[key].difference_update(indices)
 
-    def __getitem__(self, index) -> list[int]:
+    def __getitem__(self, index: int) -> list[int]:
         """ Retrieve a sublist by index
         """
         return list(self.data[index])  # Convert set back to list when accessed

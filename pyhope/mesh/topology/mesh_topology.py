@@ -681,7 +681,7 @@ def appendBCSet(subFace:      np.ndarray,
                 requireDim:   Optional[Union[Callable[[int], bool], int]] = None,
                 requireMatch: bool = False,
                 allowMulti  : bool = True,
-               ):
+               ) -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------

@@ -59,10 +59,10 @@ class Policy(Enum):
 
 # PEP 318 – Decorators for Functions and Methods
 # > https://peps.python.org/pep-0318/
-def singleton(cls) -> Callable:
+def singleton(cls: Callable) -> Callable:
     instances = {}
 
-    def getinstance():
+    def getinstance() -> Callable:
         if cls not in instances:
             instances[cls] = cls()
         return instances[cls]

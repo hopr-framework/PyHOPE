@@ -126,7 +126,7 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
 
 
 @cache
-def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.NDArray:
+def edge_to_corner(edge: int, elemType: Union[int, str], dtype: type = np.int32) -> npt.NDArray:
     """ GMSH: Get points on edges
     """
     edge_map = {  # Tetrahedron
@@ -159,7 +159,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.
 
 
 @cache
-def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.NDArray:
+def edge_to_sign(edge: int, elemType: Union[int, str], dtype: type = np.float64) -> npt.NDArray:
     """ GMSH: Get signs on edges
     """
     edge_map = {  # Tetrahedron
@@ -185,7 +185,7 @@ def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.
 
 
 @cache
-def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def face_to_edge(face: str, elemType: Union[str, int], dtype: type = np.int32) -> npt.NDArray:
     """ GMSH: Create faces from edges in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -213,7 +213,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
 
 
 @cache
-def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def face_to_corner(face: str, elemType: Union[str, int], dtype: type = np.int32) -> npt.NDArray:
     """ GMSH: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -241,7 +241,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArr
 
 
 @cache
-def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def face_to_cgns(face: str, elemType: Union[str, int], dtype: type = np.int32) -> npt.NDArray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -293,7 +293,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
 #
 #     def compute_ordering(self) -> npt.NDArray:
 @cache
-def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
+def FaceOrdering(side_type: str, order: int, dtype: type = np.int32) -> npt.NDArray:
     """ Compute the permutation ordering to convert from tensor-product ordering
         to meshio ordering for a face of a given type ('quad' or 'triangle')
         and polynomial order nGeo
@@ -366,7 +366,7 @@ def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
 
 
 @cache
-def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype: type = np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of slave to RHS of master
     """
     flip_map = {  # Tetrahedron
@@ -393,7 +393,7 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
 
 
 @cache
-def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype: type = np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     faces_map = {  # Tetrahedron
@@ -421,7 +421,7 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
 
 
 @cache
-def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype: type = np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     if isinstance(elemType, str):
@@ -475,7 +475,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
 
 
 @cache
-def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.NDArray:
+def face_to_nodes(face: str, elemType: int, nGeo: int, dtype: type = np.int32) -> npt.NDArray:
     """ Returns the tensor-product nodes associated with a face
 
         CAVE: If the oriented side is required, use sidetovol2 instead!
@@ -763,7 +763,7 @@ def LINTEN(elemType: int,
 
 
 @cache
-def LINMAP(elemType: int, order: int = 1, dtype=np.int32) -> npt.NDArray:
+def LINMAP(elemType: int, order: int = 1, dtype: type = np.int32) -> npt.NDArray:
     """ MESHIO -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------

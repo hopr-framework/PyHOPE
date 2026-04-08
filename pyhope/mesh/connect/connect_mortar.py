@@ -33,6 +33,7 @@ from collections import defaultdict
 from functools import lru_cache
 from itertools import combinations
 from typing import Optional, Final
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -53,6 +54,7 @@ if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
 import pyhope.output.output as hopout
 import pyhope.mesh.mesh_vars as mesh_vars
 from pyhope.common.common_numba import jit, types
+from pyhope.mesh.connect.connect_rbtree import LinkOffsetManager, RedBlackTree
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -68,14 +70,13 @@ def ConnectMortar( nConnSide  : list
                  # , mesh       : meshio.Mesh
                  , elems      : list
                  , sides      : list
-                 , bar) -> tuple[list, list]:
+                 , bar        : type) -> tuple[list, list]:
     """ Function to connect mortar sides
     """
     # Local imports ----------------------------------------
     from scipy.spatial import KDTree
     from pyhope.common.common_tools import IndexedLists
     from pyhope.common.common_vars import np_mtp
-    from pyhope.mesh.connect.connect_rbtree import LinkOffsetManager, RedBlackTree
     # ------------------------------------------------------
 
     if not mesh_vars.hasMortars:
@@ -284,8 +285,8 @@ def ConnectMortar( nConnSide  : list
 
 def connect_mortar_sides( sideIDs    : tuple
                         , elems      : list
-                        , rbtsides
-                        , offsetManager
+                        , rbtsides   : RedBlackTree
+                        , offsetManager: LinkOffsetManager
                         , bcID         : Optional[int] = None) -> None:
     """ Connect the master (big mortar) and the slave (small mortar) sides
         > Create the virtual sides as needed
@@ -303,7 +304,7 @@ def connect_mortar_sides( sideIDs    : tuple
 
     if bcID is not None:
         bcName        = mesh_vars.bcs[bcID].name
-        masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in masterCorners), dtype=int)
+        masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in cast(np.ndarray, masterCorners)), dtype=int)
 
     # Convert to hashable tuple
     masterCorners = tuple(masterCorners)
@@ -639,7 +640,7 @@ def build_edges(corners: npt.NDArray, points: npt.NDArray) -> tuple:
 
 # @cache
 @lru_cache(maxsize=65536)
-def find_edge_combinations(comboEdges) -> tuple:
+def find_edge_combinations(comboEdges: tuple) -> tuple:
     """Build combinations of edges that share exactly one point and form a line
     """
     points = mesh_vars.mesh.points

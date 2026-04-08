@@ -142,7 +142,7 @@ if not NUMBA_AVAILABLE:
         return 1.0 / wBary
 else:
     @jit(types.float64[:](types.int64, types.float64[:]), nopython=True, cache=True, nogil=True)
-    def barycentric_weights(_, xGP):
+    def barycentric_weights(_: Any, xGP: npt.NDArray[np.float64]) -> float:  # noqa: ANN401
         """ Compute the barycentric weights for a given node set
             > Algorithm 30, Kopriva
         """
@@ -713,7 +713,7 @@ def evaluate_jacobian(xGeo_In:   npt.NDArray[np.float64],
 
 
 def evaluate_jacobian_simplex(xGeo_In:  npt.NDArray[np.float64],
-                              _:        Any,
+                              _:        Any,  # noqa: ANN401
                               D_EqToGL: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     # Perform tensor contraction for each derivative
     # Change basis for each direction

@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from collections.abc import Callable
 from typing import Any
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -41,11 +42,11 @@ NUMBA_AVAILABLE: bool = False
 
 
 # Optional numba support
-def jit(*args: Any, **kwargs: Any):
+def jit(*args: Any, **kwargs: Any) -> Callable:   # noqa: ANN401
     return lambda f: f
 
 
-def njit(*args: Any, **kwargs: Any):
+def njit(*args: Any, **kwargs: Any) -> Callable:  # noqa: ANN401
     return lambda f: f
 
 
@@ -53,13 +54,13 @@ def njit(*args: Any, **kwargs: Any):
 class _NumbaTypesStub:
     """ Stub class that always returns itself
     """
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str):     # noqa: ANN204
         return self
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):  # noqa: ANN002, ANN003, ANN204
         return self
 
-    def __getitem__(self, item):
+    def __getitem__(self, item):          # noqa: ANN001, ANN204
         return self
 
 

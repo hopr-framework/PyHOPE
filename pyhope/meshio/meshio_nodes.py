@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 class NumNodesPerCell:
     _data: dict[str, int] = field(init=False, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         object.__setattr__(self, '_data', {
             # NGeo = 1
             'vertex'         : 1,

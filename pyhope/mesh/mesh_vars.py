@@ -194,7 +194,7 @@ class SIDE:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
     # Comparison operator for bisect
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: ELEM) -> bool:
         return self.sideID < other.sideID
 
 
@@ -246,7 +246,7 @@ class ELEM:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
     # Comparison operator for bisect
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: ELEM) -> bool:
         return self.elemID < other.elemID
 
 

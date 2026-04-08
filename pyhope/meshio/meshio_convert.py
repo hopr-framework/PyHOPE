@@ -28,6 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import importlib
+from types import ModuleType
 from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -49,7 +50,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def gmsh_to_meshio(gmsh) -> meshio.Mesh:
+def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
     """
     Convert a Gmsh object to a meshio object.
     """

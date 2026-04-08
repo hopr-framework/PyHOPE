@@ -44,7 +44,8 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections.abc import Iterable
-from typing import Literal, Union, overload
+from typing import Literal, Union
+from typing import overload
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -82,11 +83,11 @@ def HilbertCurveNumpy() -> None:
 
     # Typing helpers
     @overload
-    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[False] = False) -> list: ...
+    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[False] = False) -> list: ...         # noqa: ANN001
     @overload
-    def _distances_from_points_numpy(self, points: list       , match_type: Literal[True])          -> list: ...
+    def _distances_from_points_numpy(self, points: list       , match_type: Literal[True])          -> list: ...         # noqa: ANN001
     @overload
-    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[True])          -> npt.NDArray: ...
+    def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[True])          -> npt.NDArray: ...  # noqa: ANN001
     # Function
     def _distances_from_points_numpy(self,
                                      points    : Union[list, npt.NDArray],
@@ -172,7 +173,7 @@ def HilbertCurveNumpy() -> None:
     # Wrap the public API to prefer the NumPy path
     _orig_dfp = HilbertCurve.distances_from_points
 
-    def _dfp_patched(self, points: Iterable[Iterable[int]], match_type: bool = False):
+    def _dfp_patched(self, points: Iterable[Iterable[int]], match_type: bool = False) -> Iterable[int]:  # noqa: ANN001
         """ Wrapper for the monkey-patched numby implementation
         """
         # Prefer NumPy path when possible

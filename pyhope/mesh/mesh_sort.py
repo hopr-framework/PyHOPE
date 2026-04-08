@@ -69,7 +69,7 @@ def SFCResolution(kind: int, xmin: npt.NDArray, xmax: npt.NDArray) -> tuple[int,
 def UpdateElemID(elems         : list,
                  sides         : list,
                  sorted_indices: npt.NDArray,
-                 bar,
+                 bar           : type,
                  nElemsIJK     : Optional[npt.NDArray] = None,
                  ) -> tuple[list, list]:
 
@@ -124,13 +124,13 @@ def UpdateElemID(elems         : list,
 class tBox:
     __slots__ = ('intfact', 'mini', 'spacing')
 
-    def __init__(self, mini: int, maxi: int):
+    def __init__(self, mini: int, maxi: int) -> None:
         self.mini = mini
         self.intfact = 0
         self.spacing = np.zeros(3)
         self._set_bounding_box(mini, maxi)
 
-    def _set_bounding_box(self, mini, maxi):
+    def _set_bounding_box(self, mini: float, maxi: float) -> None:
         blen = maxi - mini
         nbits = (np.iinfo(np.int64).bits - 1) // 3
         self.intfact = 2 ** nbits - 1

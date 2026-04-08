@@ -415,7 +415,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                           points:   npt.NDArray,
                           cells:    list,
                           stree:    Optional[KDTree],
-                          zone,     # CGNS zone
+                          zone:     h5py.Group,     # CGNS zone
                           tol:      float,
                           nConnNum: int,
                           nConnLen: int,
@@ -623,7 +623,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   npt.NDArray,
                       cells:    list,
                       stree:    Optional[KDTree],
-                      zone,     # CGNS zone
+                      zone:     h5py.Group,     # CGNS zone
                       tol:      float,
                       nConnNum: int,
                       nConnLen: int) -> meshio.Mesh:
