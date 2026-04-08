@@ -50,6 +50,11 @@ nav:
       - External: user-guide/mesh-generators/external.md
     - Parameter File Format: user-guide/parameter-file.md
   # - Issue Tracker: 'https://github.com/hopr-framework/PyHOPE/issues'
+  - Developer Guide:
+    - Introduction: developer-guide/index.md
+    - GitHub Workflow: developer-guide/github-workflow.md
+    - Environment Setup: developer-guide/get-the-source.md
+    - Style Guide: developer-guide/style-guide.md
   - Mesh Format: mesh-format.md
   - About:
     - Authors: 'AUTHORS.md'
