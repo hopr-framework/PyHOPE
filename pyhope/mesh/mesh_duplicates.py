@@ -75,7 +75,7 @@ def _unionUnion(parent: npt.NDArray, rank: npt.NDArray, a: int, b: int) -> None:
 
 
 @jit(types.int64[::1](types.int64, types.int64[:, ::1]), nopython=True, cache=True, nogil=True)
-def _run_union_find_logic(nPoints, pairs):
+def _run_union_find_logic(nPoints: int, pairs: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
     # Disjoint Set (Union-Find)
     parent = np.arange(nPoints)
     rank   = np.zeros(nPoints, dtype=np.int64)

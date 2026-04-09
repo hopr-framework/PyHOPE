@@ -29,7 +29,7 @@ from __future__ import annotations
 import gc
 import re
 from typing import Final, Optional, cast
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,6 +41,7 @@ import typing
 from pyhope.common.common_numba import NUMBA_AVAILABLE
 if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
     import numpy.typing as npt
+    from pyhope.mesh.mesh_vars import ELEM
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +53,10 @@ from pyhope.mesh.mesh_common import face_to_nodes
 
 
 # Use Pool initializer to attach process-local data to the worker function
-def init_worker(function, VdmEqToGP, DGP, weights) -> None:
+def init_worker(function : Callable,
+                VdmEqToGP: npt.NDArray[np.float64],
+                DGP      : npt.NDArray[np.float64],
+                weights  : npt.NDArray[np.float64]) -> None:
     """Initializer to set process-local attributes on the worker function
     """
     function.VdmEqToGP = VdmEqToGP
@@ -122,7 +126,7 @@ def eval_nsurf(XGeo:    npt.NDArray[np.float64],
     return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
 
 
-def check_sides(elem,
+def check_sides(elem     : ELEM,
                 # points   : npt.NDArray[np.float64],
                 VdmEqToGP: npt.NDArray[np.float64],
                 DGP      : npt.NDArray[np.float64],
@@ -142,6 +146,9 @@ def check_sides(elem,
     elemTol  = np.cbrt(np.prod(np.ptp(points[elem.nodes], axis=0)))
     elemType = elem.type
 
+    if elem.sides is None:
+        return None
+
     for SideID in elem.sides:
         side   = sides[SideID]
 
@@ -156,7 +163,7 @@ def check_sides(elem,
             # INFO: This should be faster but I could not confirm the speedup in practice
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
             # nSurf   = eval_nsurf(np.transpose(np.take(points,   nodes, axis=0), axes=(2, 0, 1)), VdmEqToGP, DGP, weights)
-            idx     = elem.nodes[face_to_nodes(side.face, elemType, nGeo)]
+            idx     = cast(np.ndarray, elem.nodes)[face_to_nodes(side.face, elemType, nGeo)]
             nSurf   = eval_nsurf(points[idx].transpose(2, 0, 1), VdmEqToGP, DGP, weights)
 
             # Calculate the L2 norm of the side and take the maximum
@@ -191,7 +198,7 @@ def check_sides(elem,
 
             # INFO: This should be faster but I could not confirm the speedup in practice
             # nSurf   = eval_nsurf(np.moveaxis( points[  nodes], 2, 0), VdmEqToGP, DGP, weights)
-            idx     = elem.nodes[face_to_nodes(side.face, elemType, nGeo)]
+            idx     = cast(np.ndarray, elem.nodes)[face_to_nodes(side.face, elemType, nGeo)]
             nSurf   = eval_nsurf(np.transpose(points[idx]), VdmEqToGP, DGP, weights)
 
             # Calculate the L2 norm of the side and take the maximum
@@ -229,7 +236,7 @@ def check_sides(elem,
     return results
 
 
-def process_chunk(chunk) -> list:
+def process_chunk(chunk: tuple) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
     # Only keep failures to reduce memory and avoid building large arrays of successes

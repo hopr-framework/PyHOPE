@@ -167,7 +167,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 extend-select = [
-  # "ANN",      # flake8-annotations
+  "ANN",      # flake8-annotations
   "B",        # flake8-bugbear
   "C4",       # flake8-comprehensions
   "FA",       # flake8-future-annotations
@@ -194,7 +194,6 @@ ignore = [
   # INFO: False positives
   "RET503",   # implicit-return                    - ruff does not detect hopout.error[NoReturn]
   # TODO: These should be fixed eventually
-  "ANN002",   # missing-type-args                  - determine non-trivial types
   "BLE001",   # blind-except                       - narrow errors and exceptions
   "S110",     # try-except-pass                    - implement feature.logger branch
   "S112",     # try-except-continue                - implement feature.logger branch

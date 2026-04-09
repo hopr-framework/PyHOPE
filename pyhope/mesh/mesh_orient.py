@@ -54,7 +54,7 @@ from pyhope.mesh.mesh_common import dir_to_nodes, faces
 
 
 @jit((types.float64)(types.float64[:, :, ::1], types.float64[::1]), nopython=True, cache=True, nogil=True)
-def eval_dotprod(fpoints, nVecFace) -> np.float64:
+def eval_dotprod(fpoints: npt.NDArray[np.float64], nVecFace: npt.NDArray[np.float64]) -> np.float64:
     # nVecFace = nVecFace / np.linalg.norm(nVecFace)
     # > Manually compute norm
     nVecFace = nVecFace / np.sqrt(nVecFace[0]*nVecFace[0] + nVecFace[1]*nVecFace[1] + nVecFace[2]*nVecFace[2])
@@ -110,7 +110,7 @@ def check_orientation(ionodes : npt.NDArray,
     return success, sface
 
 
-def process_chunk(chunk) -> list:
+def process_chunk(chunk: tuple) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
     # Only keep failures to reduce memory and avoid building large arrays of successes

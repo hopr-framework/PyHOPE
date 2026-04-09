@@ -47,7 +47,7 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 def LoadTemplate(template: str,
                  origin:   str,
-                 reason:   str):
+                 reason:   str) -> ModuleType:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.config.config import prmfile

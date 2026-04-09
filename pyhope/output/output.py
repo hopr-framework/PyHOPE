@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from dataclasses import dataclass
-from typing import Final, Optional, NoReturn
+from typing import Final, Optional, NoReturn, TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -141,7 +141,7 @@ def warn(string:   str,
     return '\n'.join(formatted_lines)
 
 
-def warning(string: str, file=sys.stdout) -> None:
+def warning(string: str, file: TextIO = sys.stdout) -> None:
     """ Print the input `string` as a warning with the corresponding color
 
         Args:
@@ -151,7 +151,7 @@ def warning(string: str, file=sys.stdout) -> None:
     print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True, file=file)
 
 
-def error(string: str, traceback=False, file=sys.stderr) ->  NoReturn:
+def error(string: str, traceback: bool = False, file: TextIO = sys.stderr) ->  NoReturn:
     """ Print the input `string` as a error with the corresponding color
 
         Args:

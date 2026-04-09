@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 import os
 import platform
 import subprocess
@@ -38,6 +39,12 @@ from typing import Final, Optional
 import h5py
 import numpy as np
 import pathlib
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    from urllib.response import addinfourl
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -78,7 +85,7 @@ def downloadGitDir(user    : str,
     # Helper to manage API requests and rate limiting
     def _make_request(url : str,
                       base: Optional[str]         = None,
-                      bar : Optional[ProgressBar] = None):
+                      bar : Optional[ProgressBar] = None) -> addinfourl:
 
         headers = {}
         if token:
@@ -283,7 +290,6 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 continue
 
             # Validate expected config fields
-            projectName = None
             try:
                 projectName = params['general']['projectname']
             except Exception:

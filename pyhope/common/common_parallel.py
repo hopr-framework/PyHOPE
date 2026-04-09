@@ -29,7 +29,7 @@ import sys
 import traceback
 from collections.abc import Callable
 from multiprocessing import Pool, Queue, Process
-from typing import Union
+from typing import Optional, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -60,12 +60,12 @@ def update_progress(progress_queue: Queue, total_elements: int) -> None:
             processed_count += chunk_size
 
 
-def run_in_parallel(process_chunk: Callable,            # noqa: E251
-                    elems        : Union[list, tuple],  # noqa: E251
-                    chunk_size   : int   = 10,          # noqa: E251
-                    initializer          = None,        # noqa: E251
-                    init_args    : tuple = (),          # noqa: E251
-                    ordering     : bool  = True,        # noqa: E251
+def run_in_parallel(process_chunk: Callable,                   # noqa: E251
+                    elems        : Union[list, tuple],         # noqa: E251
+                    chunk_size   : int   = 10,                 # noqa: E251
+                    initializer  : Optional[Callable] = None,  # noqa: E251
+                    init_args    : tuple = (),                 # noqa: E251
+                    ordering     : bool  = True,               # noqa: E251
                    ) -> list:
     """Run the element processing in parallel using a specified number of processes
     """

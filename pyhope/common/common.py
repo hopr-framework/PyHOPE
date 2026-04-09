@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
+from collections.abc import Iterable
 from typing import Union, cast
 from typing import TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -196,7 +197,7 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq: Union[list, npt.NDArray], item) -> int:
+def find_index(seq: Union[list, npt.NDArray], item: npt.NDArray | Iterable) -> int:
     """ Find the first occurrences of a key in a list
     """
     # if type(seq) is np.ndarray:
@@ -213,7 +214,7 @@ def find_index(seq: Union[list, npt.NDArray], item) -> int:
     return -1
 
 
-def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
+def find_indices(seq: Union[list, npt.NDArray], item: npt.NDArray | Iterable) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if type(seq) is np.ndarray:
@@ -238,7 +239,7 @@ def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
 #     return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
 
 
-def lines_that_contain(   string: str, fp: list, start_idx=0) -> list[int]:
+def lines_that_contain(   string: str, fp: list, start_idx: int = 0) -> list[int]:
     """ Find all occurrences of a string in a file-like object
     """
     return [num for num, line in enumerate(fp[start_idx:], start=start_idx) if string in line]

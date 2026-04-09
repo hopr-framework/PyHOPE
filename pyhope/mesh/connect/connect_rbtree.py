@@ -27,9 +27,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import bisect
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Optional, cast
-from typing import final
+from typing import Optional
+from typing import cast, final
 from functools import cache, lru_cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -378,7 +379,7 @@ class RedBlackTree:
         self.inorder(self._root, result)
         return result
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         """ Iterate over the nodes in order
         """
         return iter(self.to_list())

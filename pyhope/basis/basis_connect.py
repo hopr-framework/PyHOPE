@@ -39,6 +39,7 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 if typing.TYPE_CHECKING:
+    from pyhope.mesh.mesh_vars import ELEM
     import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
@@ -49,7 +50,7 @@ from pyhope.mesh.mesh_common import face_to_nodes
 # ==================================================================================================================================
 
 
-def check_sides(elem,
+def check_sides(elem       : ELEM,
                 failed_only: bool = False,
                ) -> Optional[list[tuple]]:
     """ Check if connected sides have matching corner nodes
@@ -63,6 +64,9 @@ def check_sides(elem,
     tol:    Final[float] = mesh_vars.tolPeriodic
     vvs:    Final[list]  = mesh_vars.vvs
     points: Final[npt.NDArray] = mesh_vars.mesh.points
+
+    if elem.sides is None:
+        return None
 
     for SideID in elem.sides:
         master = sides[SideID]
@@ -121,7 +125,7 @@ def check_sides(elem,
     return results
 
 
-def process_chunk(chunk) -> list:
+def process_chunk(chunk: tuple) -> list:
     """Process a chunk of elements by checking surface normal orientation
     """
     # Only keep failures to reduce memory and avoid building large arrays of successes

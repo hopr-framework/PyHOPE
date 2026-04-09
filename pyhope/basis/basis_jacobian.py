@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+from collections.abc import Callable
 from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -49,7 +50,10 @@ SIMPLEX_TYPES: Final = {4, 5, 6}
 HEX_TYPE:      Final = 8
 
 
-def evaluate_jacobian_dispatch(nodeCoords, VdmGLtoAP, D_EqToGL, elem_type):
+def evaluate_jacobian_dispatch(nodeCoords: npt.NDArray[np.float64],
+                               VdmGLtoAP : npt.NDArray[np.float64],
+                               D_EqToGL  : npt.NDArray[np.float64],
+                               elem_type : int) -> npt.NDArray:
     if elem_type in SIMPLEX_TYPES:
         return evaluate_jacobian_simplex(nodeCoords, VdmGLtoAP, D_EqToGL)
     if elem_type == HEX_TYPE:
@@ -96,14 +100,14 @@ def plot_histogram(data: npt.NDArray[np.float64]) -> None:
 
 
 # Use Pool initializer to attach process-local data to the worker function
-def init_worker(function, VdmGLtoAP: npt.NDArray[np.float64], D_EqToGL: npt.NDArray[np.float64]) -> None:
+def init_worker(function: Callable, VdmGLtoAP: npt.NDArray[np.float64], D_EqToGL: npt.NDArray[np.float64]) -> None:
     """Initializer to set process-local attributes on the worker function
     """
     function.VdmGLtoAP = VdmGLtoAP
     function.D_EqToGL  = D_EqToGL
 
 
-def process_chunk(chunk) -> list[npt.NDArray[np.float64]]:
+def process_chunk(chunk: tuple) -> list[npt.NDArray[np.float64]]:
     """Process a chunk of elements by evaluating the Jacobian for each
     """
     chunk_results = []
