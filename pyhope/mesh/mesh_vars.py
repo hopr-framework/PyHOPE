@@ -103,6 +103,15 @@ class MeshSort(Enum):
     Snake = 4
 
 
+@unique
+class MeshSortSFC(Enum):
+    default  = 0
+    hilbert  = 1
+    hilbertZ = 2
+    morton   = 3
+    mortonZ  = 4
+
+
 @dataclass(init=False, repr=False, eq=False, slots=False)
 class CGNS:
     regenerate_BCs: bool = False                  # Flag if CGNS needs BC regeneration
