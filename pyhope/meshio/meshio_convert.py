@@ -52,7 +52,7 @@ if typing.TYPE_CHECKING:
 
 def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
     """
-    Convert a Gmsh object to a meshio object.
+    Convert a Gmsh object to a meshio object
     """
     # Local imports ----------------------------------------
     from pyhope.meshio.meshio_ordering import NodeOrdering

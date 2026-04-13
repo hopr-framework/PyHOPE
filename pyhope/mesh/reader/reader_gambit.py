@@ -83,11 +83,11 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
     cells    = mesh.cells_dict
-    cellsets = defaultdict(lambda: defaultdict(list))
+    cellsets = defaultdict(lambda: defaultdict(list), mesh.cell_sets_dict)
 
-    nodeCoords   = mesh.points
-    nSides       = np.zeros(2, dtype=int)
-    elemTypes    = []
+    # Create the reader objects
+    nSides    = np.zeros(2, dtype=int)
+    elemTypes = []
 
     # Initialize the node ordering
     node_ordering = NodeOrdering()
@@ -170,7 +170,6 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
                     # Increment the element counter
                     elemCnt[elemTypeClass.name[elemType]] += 1
                     elemMap[elemID-1] = elemCnt[elemTypeClass.name[elemType]]
-
 
                 # Clean-up for memory safety
                 del elemLine
