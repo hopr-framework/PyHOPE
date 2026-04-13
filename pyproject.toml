@@ -219,6 +219,12 @@ unused-ignore-comment      = 'ignore'
 
 # Dead code
 [tool.vulture]
+paths = [
+    "pyhope",
+    "tools",
+    ".github",
+    ".gmsh"
+]
 ignore_names = [
     # Exclude context manager
     "Basis",
