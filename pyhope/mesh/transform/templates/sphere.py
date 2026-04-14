@@ -52,8 +52,15 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
           sphere
     """
     # Local imports ----------------------------------------
-    from pyhope.readintools.readintools import CreateReal, GetReal
+    import pyhope.output.output as hopout
+    import pyhope.config.config as config
+    from pyhope.readintools.readintools import CreateReal, GetReal, CountOption
     # ------------------------------------------------------
+
+    # Handle the case that the variable was already used
+    config.prms['meshScale']['counter'] = max(config.prms['meshScale']['counter'] - 1, 0)
+    if CountOption('meshScale') and GetReal('meshScale') != 1.:
+        hopout.error('"meshScale" cannot be combined with template "cylinder"')
 
     # Readin parameters
     CreateReal('PostDeform_R0', default=1.0, multiple=False, help='Radius of the sphere')
