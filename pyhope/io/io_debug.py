@@ -97,7 +97,6 @@ def DebugIO() -> None:
     pname  : Final[str]        = io_vars.projectname
 
     # Create empty meshio objects
-    points    = set()
     elems     = {}
     elemtypes = set()
     sides     = {}

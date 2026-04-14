@@ -348,7 +348,7 @@ def MeshCartesian() -> meshio.Mesh:
 
             # If the number of sides do not match, we cannot impose periodicity
             # > Leave it out here and assume we can sort it out in ConnectMesh
-            except Exception as e:
+            except Exception:
                 print(hopout.warn(' No GMSH periodicity with vector {}'.format(
                     vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
                 continue

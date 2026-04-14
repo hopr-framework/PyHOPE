@@ -499,7 +499,7 @@ def ConnectMesh() -> None:
         # Connect the mortar sides
         elems, sides = ConnectMortar(nConnSide, nConnCenter, elems, sides, bar)
 
-    nConnSide, nConnCenter = get_nonconnected_sides(sides, mesh)
+    nConnSide, _ = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
         print()  # Empty line for spacing
         for side in nConnSide:

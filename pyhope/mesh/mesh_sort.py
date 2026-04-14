@@ -45,7 +45,7 @@ import numpy.typing as npt
 # ==================================================================================================================================
 
 
-# @jit((types.int64[:, ::1])(types.float64[:, ::1], types.float64[::1], types.float64[::1]), nopython=True, cache=True, parallel=True)
+# @jit((types.int64[:, ::1])(types.float64[:, ::1], types.float64[::1], types.float64[::1]), nopython=True, cache=True, parallel=True)  # noqa: E501
 def Coords2Int(coords : npt.NDArray[np.float64],
                spacing: npt.NDArray[np.float64],
                xmin   : npt.NDArray[np.float64]) -> npt.NDArray[np.int64]:

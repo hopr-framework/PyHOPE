@@ -519,14 +519,14 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
             return [(  0,  1,  2,  4,  5,  6,  8,  9, 24, 12, 13, 25, 16, 17, 18, 22, 21, 26),
                     (  0,  2,  3,  4,  6,  7, 24, 10, 11, 25, 14, 15, 16, 18, 19, 26, 23, 20)]
         case 3:
-            return [(  0,  1,  3,  4,  5,  7,                                                 # 6 vertices
-                       8,  9, 51, 49, 15, 14, 16, 17, 53, 55, 23, 22, 24, 25, 26, 27, 30, 31, # Edges 6:24
-                      40, 41, 42, 43, 57, 59, 63, 61, 35, 32, 33, 34, 52, 48,                 # Faces
-                      56, 60),                                                                # Volume
-                    (  1,  2,  3,  5,  6,  7,                                                 # 6 vertices
-                      10, 11, 12, 13, 49, 51, 18, 19, 20, 21, 55, 53, 26, 27, 28, 29, 30, 31, # Edges
-                      36, 37, 38, 39, 44, 45, 46, 47, 59, 57, 61, 63, 54, 50,                 # Faces
-                      58, 62)]                                                                # Volume
+            return [(  0,  1,  3,  4,  5,  7,                                                  # 6 vertices
+                       8,  9, 51, 49, 15, 14, 16, 17, 53, 55, 23, 22, 24, 25, 26, 27, 30, 31,  # Edges 6:24
+                      40, 41, 42, 43, 57, 59, 63, 61, 35, 32, 33, 34, 52, 48,                  # Faces
+                      56, 60),                                                                 # Volume
+                    (  1,  2,  3,  5,  6,  7,                                                  # 6 vertices
+                      10, 11, 12, 13, 49, 51, 18, 19, 20, 21, 55, 53, 26, 27, 28, 29, 30, 31,  # Edges
+                      36, 37, 38, 39, 44, 45, 46, 47, 59, 57, 61, 63, 54, 50,                  # Faces
+                      58, 62)]                                                                 # Volume
         case 4:
             # prism1 = (   0,   1,   3,   4,   5,   7,
             #              8,   9,  10,  83,  88,  81,  19,  18,  17,            # 6 vertices
@@ -596,12 +596,12 @@ def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
                     np.array((  2,  0,  3,  5,  8, 12, 11, 14, 17), dtype=int))
         case 3:
             return (# Triangular faces  # noqa: E261
-                    np.array((  0,  1,  2,  *range(6 ,12), 37   ), dtype=int),
-                    np.array((  3,  4,  5,  *range(12,18), 36   ), dtype=int),
+                    np.array((  0,  1,  2,  *range(6 , 12), 37   ), dtype=int),
+                    np.array((  3,  4,  5,  *range(12, 18), 36   ), dtype=int),
                     # Quadrilateral faces
-                    np.array((  0,  1,  4,  3,  6,  7, 20, 21, 12, 13, 19, 18, *range(24,28)), dtype=int),
-                    np.array((  1,  2,  5,  4,  8,  9, 22, 23, 15, 14, 21, 20, *range(28,32)), dtype=int),
-                    np.array((  2,  0,  3,  5, 10, 11, 18, 19, 17, 16, 23, 22, *range(32,36)), dtype=int))
+                    np.array((  0,  1,  4,  3,  6,  7, 20, 21, 12, 13, 19, 18, *range(24, 28)), dtype=int),
+                    np.array((  1,  2,  5,  4,  8,  9, 22, 23, 15, 14, 21, 20, *range(28, 32)), dtype=int),
+                    np.array((  2,  0,  3,  5, 10, 11, 18, 19, 17, 16, 23, 22, *range(32, 36)), dtype=int))
         case 4:
             return (# Triangular faces  # noqa: E261
                     np.array((  0, 1, 2, *range( 6, 15), *range(63, 66)), dtype=int),  # z-
