@@ -31,10 +31,12 @@ import re
 import subprocess
 import sys
 from collections import deque
+from collections.abc import Iterable
 from dataclasses import dataclass
 from shutil import which
 from time import time
 from typing import Final, Optional
+import pathlib
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -86,28 +88,25 @@ def find_git_root() -> str:
         result = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
                                 capture_output=True, text=True, check=True)
         return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        raise FileNotFoundError('Not a Git repository or unable to determine Git root.')
+    except subprocess.CalledProcessError as e:
+        raise FileNotFoundError('Not a Git repository or unable to determine Git root.') from e
 
 
 def parse_dependencies(toml_file: str) -> list:
     """ Parse the pyproject.toml file to obtain the dependencies
     """
-    with open(toml_file, 'r') as f:
-        content = f.read()
+    content = pathlib.Path(toml_file).read_text()
 
     dependencies_match = re.search(r'dependencies\s*=\s*\[([^\]]+)\]', content, re.DOTALL)
     if not dependencies_match:
         return []
 
     raw_dependencies = dependencies_match.group(1).strip()
-    dependencies = [
+    return [
         re.split(r'[<=>~]', dep.strip().strip("'\""))[0]
         for dep in raw_dependencies.split(',')
         if dep.strip()
     ]
-
-    return dependencies
 
 
 def fetch_import_name(package: str) -> Optional[str]:
@@ -135,14 +134,14 @@ def fetch_import_name(package: str) -> Optional[str]:
         try:
             _ = importlib.import_module(name_variant)
             return name_variant
-        except ImportError:
+        except ImportError:  # noqa: PERF203
             continue
 
     print(f'Warning: Unable to determine import name for {package_name}.', file=sys.stderr)
     return None
 
 
-def fetch_transitive_dependencies(package):
+def fetch_transitive_dependencies(package: str) -> list:
     """ Attempt to fetch transitive dependencies of the direct dependencies
     """
     try:
@@ -161,7 +160,7 @@ def fetch_transitive_dependencies(package):
         return []
 
 
-def collect_all_dependencies(initial_dependencies):
+def collect_all_dependencies(initial_dependencies: Iterable) -> set:
     """ Gather all collected dependencies
     """
     visited          = set()
@@ -182,7 +181,7 @@ def collect_all_dependencies(initial_dependencies):
     return all_dependencies
 
 
-def run_pyright_on_dependencies(pyright_path, dependencies):
+def run_pyright_on_dependencies(pyright_path: str, dependencies: Iterable) -> None:
     """ Run (based)pyright to generate the stubs
     """
     for dep in dependencies:

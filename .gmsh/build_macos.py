@@ -28,8 +28,10 @@
 import os
 import sys
 import build  # ty: ignore [unresolved-import]
+import contextlib
 # import errno
 import multiprocessing
+import pathlib
 import platform
 import re
 import shutil
@@ -37,6 +39,7 @@ import subprocess
 import tarfile
 import urllib.request
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from typing import Optional, Final
 # ==================================================================================================================================
 
@@ -48,17 +51,17 @@ def print_header(title: str) -> None:
     """ Prints a nicely formatted header with a title
     """
     header_line = '=' * 80
-    print('\n{}\n{:^80}\n{}'.format(header_line, title, header_line))
+    print(f'\n{header_line}\n{title:^80}\n{header_line}')
 
 
 def print_step(step_description: str) -> None:
     """ Prints a step description in a consistent format
     """
-    print('➤ {}'.format(step_description))
+    print(f'➤ {step_description}')
 
 
 # Helper function for version checks
-def get_latest_version(fetch_fn, name: str, fallback: str) -> str:
+def get_latest_version(fetch_fn: Callable, name: str, fallback: str) -> str:
     """ Updates a vresion string
     """
     try:
@@ -74,15 +77,15 @@ def get_latest_version(fetch_fn, name: str, fallback: str) -> str:
 # Helper function for downloads
 def download(url: str, dir: str) -> str:
     file = os.path.join(dir, os.path.basename(url))
-    print_step('Downloading: {} to {}'.format(url, file))
+    print_step(f'Downloading: {url} to {file}')
     urllib.request.urlretrieve(url, file)
     return file
 
 
 # Helper function to extract .tar.gz files
 def extract(file: str, dir: str) -> None:
-    print_step('Extracting: {} to {}'.format(file, dir))
-    if file.endswith('.tar.gz') or file.endswith('.tgz'):
+    print_step(f'Extracting: {file} to {dir}')
+    if file.endswith(('.tar.gz', '.tgz')):
         mode = 'r:gz'
     elif file.endswith('.tar.xz'):
         mode = 'r:xz'
@@ -90,7 +93,7 @@ def extract(file: str, dir: str) -> None:
     #     subprocess.call(['unzip', '-j', file])
     #     return None
     else:
-        raise ValueError('Unsupported archive format: {}'.format(file))
+        raise ValueError(f'Unsupported archive format: {file}')
 
     with tarfile.open(file, mode) as tar:
         tar.extractall(path=dir)
@@ -102,18 +105,8 @@ def configure(configure_cmd: list, cwd: Optional[str] = None, env: Optional[dict
 
     # Run the configure script ...
     configure_path = os.path.join(cwd, 'configure')
-    if os.path.isfile(configure_path):
-        print_step('Configuring with: {}'.format(configure_cmd))
-        subprocess.run(configure_cmd, check=True, cwd=cwd, env=env, stderr=sys.stderr, stdout=sys.stdout)
-
-    # ... or the cmake script
-    elif configure_cmd[0] == 'cmake':
-        print_step('Configuring with: {}'.format(configure_cmd))
-        subprocess.run(configure_cmd, check=True, cwd=cwd, env=env, stderr=sys.stderr, stdout=sys.stdout)
-
-    # ... or the meson script
-    elif configure_cmd[0] == 'meson':
-        print_step('Configuring with: {}'.format(configure_cmd))
+    if os.path.isfile(configure_path) or configure_cmd[0] == 'cmake' or configure_cmd[0] == 'meson':
+        print_step(f'Configuring with: {configure_cmd}')
         subprocess.run(configure_cmd, check=True, cwd=cwd, env=env, stderr=sys.stderr, stdout=sys.stdout)
 
     else:
@@ -123,7 +116,7 @@ def configure(configure_cmd: list, cwd: Optional[str] = None, env: Optional[dict
 
 def compile(install_cmd: Optional[list] = None, ncores: int = 1, cwd: Optional[str] = None, env: Optional[dict] = None) -> None:
     # Build the software
-    print_step('Building with {} cores'.format(ncores))
+    print_step(f'Building with {ncores} cores')
     subprocess.run(['make', f'-j{ncores}'], check=True, cwd=cwd, env=env, stderr=sys.stderr, stdout=sys.stdout)
 
     # Run the install command if provided
@@ -272,7 +265,7 @@ def _scrape_latest(url: str, pattern: str) -> str:
     if not versions:
         raise ValueError(f'No versions found at {url}')
 
-    return sorted(versions, key=lambda v: list(map(int, v.split('.'))))[-1]
+    return max(versions, key=lambda v: list(map(int, v.split('.'))))
 
 
 def _github_latest_tag(owner: str, repo: str, prefix: str = '', tag_filter: Optional[str] = None) -> str:
@@ -316,7 +309,7 @@ GMSH_STRING           = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 # ------------------------------------------------------------------------
 # Clean any previous build artifacts
 # ------------------------------------------------------------------------
-def clean():
+def clean() -> None:
     print_header('CLEANING UP PREVIOUS BUILD ARTIFACTS...')
 
     shutil.rmtree(BUILD_DIR,         ignore_errors=True)
@@ -342,10 +335,8 @@ def clean():
     shutil.rmtree(DIST_DIR,          ignore_errors=True)
     shutil.rmtree(EGG_DIR,           ignore_errors=True)
     # Python wheel
-    try:
+    with contextlib.suppress(OSError):
         os.remove(os.path.join(WORK_DIR, 'dist', f'gmsh-{GMSH_FULLVER}-py3-none-any.whl'))
-    except OSError:
-        pass
 
     os.makedirs(BUILD_DIR,   exist_ok=True)
     os.makedirs(INSTALL_DIR, exist_ok=True)
@@ -364,7 +355,7 @@ def build_zlib() -> None:
     zlib_src_dir = os.path.join(BUILD_DIR, f'zlib-{ZLIB_VERSION}')
     conf_cmd = [ 'cmake',
                  '-G', 'Unix Makefiles',
-                 '-DCMAKE_INSTALL_PREFIX={}'.format(ZLIB_DIR),
+                 f'-DCMAKE_INSTALL_PREFIX={ZLIB_DIR}',
                  '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
                  '-DBUILD_SHARED_LIBS=OFF',
                  '-DZLIB_BUILD_EXAMPLES=OFF',
@@ -441,7 +432,7 @@ def build_hdf5() -> None:
 
     hdf5_src_dir = os.path.join(BUILD_DIR, f'hdf5-{HDF5_VERSION}')
     conf_cmd = [ './configure',
-                '--prefix={}'.format(HDF5_DIR),
+                f'--prefix={HDF5_DIR}',
                 '--enable-static',
                 # '--enable-shared'
                 '--disable-shared',
@@ -450,7 +441,7 @@ def build_hdf5() -> None:
                 '--disable-hl',
                 '--disable-tools',
                 '--disable-tests',
-                '--with-zlib={}'.format(ZLIB_DIR),
+                f'--with-zlib={ZLIB_DIR}',
                 ]
     conf_env = os.environ.copy()
     conf_env['CFLAGS'  ] = '-O2 -fPIC'
@@ -484,7 +475,7 @@ def build_tcl() -> None:
 
     tcl_src_dir = os.path.join(BUILD_DIR, f'tcl{TCL_VERSION}', 'unix')
     conf_cmd = ['./configure',
-                '--prefix={}'.format(TCL_DIR),
+                f'--prefix={TCL_DIR}',
                 # '--enable-static',
                 '--disable-shared',
                 '--enable-64bit',
@@ -517,8 +508,8 @@ def build_tk() -> None:
 
     tk_src_dir = os.path.join(BUILD_DIR, f'tk{TK_VERSION}', 'unix')
     conf_cmd = ['./configure',
-                '--prefix={}'.format(TK_DIR),
-                '--with-tcl={}/lib'.format(TCL_DIR),
+                f'--prefix={TK_DIR}',
+                f'--with-tcl={TCL_DIR}/lib',
                 # '--enable-static',
                 '--disable-shared',
                 '--enable-64bit',
@@ -544,7 +535,7 @@ def build_tk() -> None:
 # ------------------------------------------------------------------------
 # Build FreeTyoe
 # ------------------------------------------------------------------------
-def build_freetype():
+def build_freetype() -> None:
     print_header('BUILDING FREETYPE2')
 
     freetype_src_dir = os.path.join(BUILD_DIR, f'freetype-{FREETYPE_VERSION}')
@@ -555,7 +546,7 @@ def build_freetype():
     extract(file, BUILD_DIR)
 
     conf_cmd  = ['./configure',
-                 '--prefix={}'.format(FREETYPE_DIR),
+                 f'--prefix={FREETYPE_DIR}',
                  '--enable-static',
                  '--disable-shared',
                  # '--enable-shared',
@@ -576,13 +567,13 @@ def build_freetype():
     configure(conf_cmd,              env=conf_env, cwd=freetype_src_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=freetype_src_dir)
 
-    print_step('FreeType2 installed at: {}'.format(FREETYPE_DIR))
+    print_step(f'FreeType2 installed at: {FREETYPE_DIR}')
 
 
 # ------------------------------------------------------------------------
 # Build libPNG
 # ------------------------------------------------------------------------
-def build_libpng():
+def build_libpng() -> None:
     print_header('BUILDING LIBPNG')
 
     libpng_src_dir = os.path.join(BUILD_DIR, f'libpng-{LIBPNG_VERSION}')
@@ -594,11 +585,11 @@ def build_libpng():
     extract(file, BUILD_DIR)
 
     conf_cmd  = ['./configure',
-                 '--prefix={}'.format(LIBPNG_DIR),
-                 #'--disable-static',
+                 f'--prefix={LIBPNG_DIR}',
+                 # '--disable-static',
                  '--enable-static',
                  '--disable-shared',
-                 #'--enable-shared',
+                 # '--enable-shared',
                  ]
     conf_env = os.environ.copy()
     conf_env['CFLAGS']          = '-O2 -fPIC'
@@ -613,13 +604,13 @@ def build_libpng():
     configure(conf_cmd,              env=conf_env, cwd=libpng_src_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=libpng_src_dir)
 
-    print_step('libPNG installed at: {}'.format(LIBPNG_DIR))
+    print_step(f'libPNG installed at: {LIBPNG_DIR}')
 
 
 # ------------------------------------------------------------------------
 # Build libPNG
 # ------------------------------------------------------------------------
-def build_libjpeg():
+def build_libjpeg() -> None:
     print_header('BUILDING LIBJPEG(-TURBO)')
 
     libjpeg_src_dir = os.path.join(BUILD_DIR, f'libjpeg-turbo-{LIBJPEG_TURBO_VERSION}')
@@ -644,7 +635,7 @@ def build_libjpeg():
                  # '-DENABLE_STATIC=OFF',
                  # '-DENABLE_SHARED=ON',
                  '-DWITH_JPEG8=ON',
-                 '-DCMAKE_INSTALL_PREFIX={}'.format(LIBJPEG_TURBO_DIR),
+                 f'-DCMAKE_INSTALL_PREFIX={LIBJPEG_TURBO_DIR}',
                  '-DCMAKE_POSITION_INDEPENDENT_CODE=1',
                  '-DENABLE_EXECUTABLES=OFF',
                  '-DWITH_TURBOJPEG=OFF',
@@ -664,13 +655,13 @@ def build_libjpeg():
     configure(conf_cmd,              env=conf_env, cwd=libjpeg_src_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=libjpeg_src_dir)
 
-    print_step('libJPEG(-turbo) installed at: {}'.format(LIBJPEG_TURBO_DIR))
+    print_step(f'libJPEG(-turbo) installed at: {LIBJPEG_TURBO_DIR}')
 
 
 # ------------------------------------------------------------------------
 # Build libxft
 # ------------------------------------------------------------------------
-def build_libxft():
+def build_libxft() -> None:
     print_header('BUILDING LIBXFT...')
 
     libxft_src_dir = os.path.join(BUILD_DIR, f'libXft-{LIBXFT_VERSION}')
@@ -685,11 +676,11 @@ def build_libxft():
     # Configure and build libxft with freetype dependency
     conf_cmd = [
         './configure',
-        '--prefix={}'.format(LIBXFT_DIR),
+        f'--prefix={LIBXFT_DIR}',
         '--disable-static',
         '--enable-shared',
         # '--enable-static',
-        '--with-freetype-config={}/bin/freetype-config'.format(FREETYPE_DIR),  # Link freetype
+        f'--with-freetype-config={FREETYPE_DIR}/bin/freetype-config',  # Link freetype
         '--with-fontconfig'  # Fontconfig is commonly used with Xft for font handling
     ]
     conf_env  = os.environ.copy()
@@ -709,7 +700,7 @@ def build_libxft():
 # ------------------------------------------------------------------------
 # Build Fontconfig (Static)
 # ------------------------------------------------------------------------
-def build_fontconfig():
+def build_fontconfig() -> None:
     print_header('Building Fontconfig...')
     # fontconfig_url = f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{FONTCONFIG_VERSION}.tar.gz'
     fontconfig_url = f'https://gitlab.freedesktop.org/api/v4/projects/890/packages/generic/fontconfig/{FONTCONFIG_VERSION}/fontconfig-{FONTCONFIG_VERSION}.tar.xz'
@@ -749,7 +740,7 @@ def build_fontconfig():
 # ------------------------------------------------------------------------
 # Build FLTK
 # ------------------------------------------------------------------------
-def build_fltk():
+def build_fltk() -> None:
     print_header('BUILDING FLTK')
 
     fltk_src_dir = os.path.join(BUILD_DIR, f'fltk-{FLTK_VERSION}')
@@ -768,7 +759,7 @@ def build_fltk():
 
     conf_cmd = [
         './configure',
-        '--prefix={}'.format(FLTK_DIR),
+        f'--prefix={FLTK_DIR}',
         # '--includedir={}'.format(os.path.join(BUILD_DIR, 'include')),
         # '--enable-static',
         '--disable-shared',
@@ -810,7 +801,7 @@ def build_fltk():
                                                       conf_env['LD_LIBRARY_PATH'])
 
     conf_env['FREETYPE_LIBS'  ] = os.path.join(FREETYPE_DIR, 'lib')
-    conf_env['LIBPNG_PATH'    ] = '{}'.format(LIBPNG_DIR)
+    conf_env['LIBPNG_PATH'    ] = f'{LIBPNG_DIR}'
     conf_env['PKG_CONFIG_PATH'] = '{}{}{}'.format(os.path.join(FREETYPE_DIR,      'lib',   'pkgconfig'), os.pathsep,
                                                   os.path.join(FONTCONFIG_DIR,    'lib',   'pkgconfig'))
     conf_env['PKG_CONFIG_PATH'] = '{}{}{}'.format(os.path.join(LIBPNG_DIR,        'lib',   'pkgconfig'), os.pathsep,
@@ -830,13 +821,13 @@ def build_fltk():
     configure(conf_cmd,              env=conf_env, cwd=fltk_src_dir)
     compile( build_cmd, build_cores, env=conf_env, cwd=fltk_src_dir)
 
-    print_step('FLTK installed at: {}'.format(FLTK_DIR))
+    print_step(f'FLTK installed at: {FLTK_DIR}')
 
 
 # ------------------------------------------------------------------------
 # Ensure gperf is installed
 # ------------------------------------------------------------------------
-def build_gperf():
+def build_gperf() -> None:
     print_header('Building gperf...')
     gperf_url = f"https://ftp.gnu.org/pub/gnu/gperf/gperf-{GPERF_VERSION}.tar.gz"
 
@@ -886,17 +877,17 @@ def build_cgns() -> None:
     if 'PATH' in conf_env:
         conf_env['PATH']  = '{}{}{}'.format(os.path.join(HDF5_DIR), os.pathsep, conf_env['PATH'])
     else:
-        conf_env['PATH']  = '{}'.format(   os.path.join(HDF5_DIR))
-    conf_env['HDF5_DIR']  = '{}'.format(   os.path.join(HDF5_DIR))
-    conf_env['HDF5_ROOT'] = '{}'.format(   os.path.join(HDF5_DIR))
+        conf_env['PATH']  = f'{os.path.join(HDF5_DIR)}'
+    conf_env['HDF5_DIR']  = f'{os.path.join(HDF5_DIR)}'
+    conf_env['HDF5_ROOT'] = f'{os.path.join(HDF5_DIR)}'
     conf_cmd = [
         'cmake', cgns_dir,
-        '-DCMAKE_INSTALL_PREFIX={}/install'.format(CGNS_DIR),
+        f'-DCMAKE_INSTALL_PREFIX={CGNS_DIR}/install',
         '-DCMAKE_BUILD_TYPE=Release',
-        '-DHDF5_DIR={}'.format(HDF5_DIR),
-        '-DHDF5_ROOT={}'.format(HDF5_DIR),
-        '-DHDF5_INCLUDE_DIR={}/include'.format(HDF5_DIR),
-        '-DHDF5_LIBRARY={}/lib/libhdf5.a'.format(HDF5_DIR),
+        f'-DHDF5_DIR={HDF5_DIR}',
+        f'-DHDF5_ROOT={HDF5_DIR}',
+        f'-DHDF5_INCLUDE_DIR={HDF5_DIR}/include',
+        f'-DHDF5_LIBRARY={HDF5_DIR}/lib/libhdf5.a',
         '-DCGNS_ENABLE_HDF5=ON',
         '-DCGNS_BUILD_SHARED=OFF',
         '-DCGNS_ENABLE_FORTRAN=OFF',
@@ -964,7 +955,7 @@ def build_occt() -> None:
     conf_cmd = [
         'cmake', occ_dir,
         '-DCMAKE_BUILD_TYPE=Release',
-        '-DCMAKE_INSTALL_PREFIX={}/install'.format(OCC_DIR),
+        f'-DCMAKE_INSTALL_PREFIX={OCC_DIR}/install',
         '-DBUILD_LIBRARY_TYPE=Static',
         '-DBUILD_MODULE_ApplicationFramework=OFF',
         '-DBUILD_MODULE_DataExchange=ON',           # needed by Gmsh for STEP/IGES
@@ -1060,21 +1051,19 @@ def build_gmsh() -> None:
                                                      conf_env['CMAKE_INCLUDE_PATH'])
 
     # Now, patch the file paths
-    with open(os.path.join(WORK_DIR, 'gmsh', 'CMakeLists.txt'), 'r') as file:
-        filedata = file.read()
+    filedata = pathlib.Path(os.path.join(WORK_DIR, 'gmsh', 'CMakeLists.txt')).read_text()
 
     # Replace the target string
     filedata = filedata.replace('--use-gl --use-images --ldflags', '--use-gl --use-images --ldstaticflags')
 
     # Write the file out again
-    with open(os.path.join(WORK_DIR, 'gmsh', 'CMakeLists.txt'), 'w') as file:
-        file.write(filedata)
+    pathlib.Path(os.path.join(WORK_DIR, 'gmsh', 'CMakeLists.txt')).write_text(filedata)
 
     conf_env['PATH']      = '{}{}{}'.format(os.path.join(HDF5_DIR, 'bin'), os.pathsep, conf_env['PATH'])
     conf_env['PATH']      = '{}{}{}'.format(os.path.join(FLTK_DIR, 'bin'), os.pathsep, conf_env['PATH'])
     conf_env['PATH']      = '{}{}{}'.format(os.path.join(HDF5_DIR)       , os.pathsep, conf_env['PATH'])
-    conf_env['FLTK_DIR']  = '{}'.format(    os.path.join(FLTK_DIR))
-    conf_env['HDF5_DIR']  = '{}'.format(    os.path.join(HDF5_DIR))
+    conf_env['FLTK_DIR']  = f'{os.path.join(FLTK_DIR)}'
+    conf_env['HDF5_DIR']  = f'{os.path.join(HDF5_DIR)}'
     # conf_env['HDF5_ROOT'    ] = os.path.join(HDF5_DIR)
     # conf_env['FREETYPE_LIBS'] = os.path.join(FREETYPE_DIR, 'lib')
     conf_env['CASROOT']   = os.path.join(OCC_DIR , 'install')
@@ -1082,16 +1071,16 @@ def build_gmsh() -> None:
     conf_cmd = [
         'cmake', '..',
         '-DCMAKE_BUILD_TYPE=Release',
-        '-DCMAKE_INSTALL_PREFIX={}'.format(INSTALL_DIR),
-        '-DFREETYPE_LIBRARY={}/lib/libfreetype.a'.format(FREETYPE_DIR),
-        '-DFREETYPE_INCLUDE_DIRS={}/include'.format(FREETYPE_DIR),
-        '-DHDF5_INCLUDE_DIRS={}/include'.format(HDF5_DIR),
-        '-DJPEG_LIBRARY={}/lib64/libjpeg.a'.format(LIBJPEG_TURBO_DIR),
-        '-DJPEG_INCLUDE_DIR={}/include'.format(LIBJPEG_TURBO_DIR),
+        f'-DCMAKE_INSTALL_PREFIX={INSTALL_DIR}',
+        f'-DFREETYPE_LIBRARY={FREETYPE_DIR}/lib/libfreetype.a',
+        f'-DFREETYPE_INCLUDE_DIRS={FREETYPE_DIR}/include',
+        f'-DHDF5_INCLUDE_DIRS={HDF5_DIR}/include',
+        f'-DJPEG_LIBRARY={LIBJPEG_TURBO_DIR}/lib64/libjpeg.a',
+        f'-DJPEG_INCLUDE_DIR={LIBJPEG_TURBO_DIR}/include',
         # '-DPNG_LIBRARY={}/lib/libpng.so'.format(LIBPNG_DIR),
-        '-DPNG_LIBRARY={}/lib/libpng.a'.format(LIBPNG_DIR),
-        '-DPNG_INCLUDE_DIR={}/include'.format(LIBPNG_DIR),
-        '-DPNG_PNG_INCLUDE_DIR={}/include'.format(LIBPNG_DIR),
+        f'-DPNG_LIBRARY={LIBPNG_DIR}/lib/libpng.a',
+        f'-DPNG_INCLUDE_DIR={LIBPNG_DIR}/include',
+        f'-DPNG_PNG_INCLUDE_DIR={LIBPNG_DIR}/include',
         '-DENABLE_BUILD_LIB=ON',
         '-DENABLE_BUILD_SHARED=ON',
         '-DENABLE_MPEG_ENCODE=OFF',
@@ -1144,17 +1133,17 @@ def package() -> None:
     # Copy the CGNS adf2hdf executable
     CGNS_ADF2HDF = os.path.join(WORK_DIR   , 'CGNS', 'install', 'bin', 'adf2hdf')
     CGNS_ADF_DIR = os.path.join(INSTALL_DIR, 'bin' , 'adf2hdf')
-    print_step('Copying adf2hdf from {} to {}'.format(CGNS_ADF2HDF, CGNS_ADF_DIR))
+    print_step(f'Copying adf2hdf from {CGNS_ADF2HDF} to {CGNS_ADF_DIR}')
     shutil.copy(CGNS_ADF2HDF, CGNS_ADF_DIR)
 
     # Copy the CGNS cgnsconvert executable
     CGNS_CGNSCON = os.path.join(WORK_DIR   , 'CGNS', 'install', 'bin', 'cgnsconvert')
     CGNS_CGN_DIR = os.path.join(INSTALL_DIR, 'bin' , 'cgnsconvert')
-    print_step('Copying cgnsconvert from {} to {}'.format(CGNS_CGNSCON, CGNS_CGN_DIR))
+    print_step(f'Copying cgnsconvert from {CGNS_CGNSCON} to {CGNS_CGN_DIR}')
     shutil.copy(CGNS_CGNSCON, CGNS_CGN_DIR)
 
     # Copy the Gmsh Python API file
-    print_step('Copying gmsh.py from {} to {}'.format(GMESH_PY_API, GMESH_PY_DST))
+    print_step(f'Copying gmsh.py from {GMESH_PY_API} to {GMESH_PY_DST}')
     shutil.copy(GMESH_PY_API, GMESH_PY_DST)
 
     # Run setup to build the Python wheel
@@ -1220,14 +1209,13 @@ def package() -> None:
     """
 
     # Open the file in write mode and write the content
-    with open(os.path.join(WORK_DIR, 'pyproject.toml'), 'w') as file:
-        file.write(pyproject)
+    pathlib.Path(os.path.join(WORK_DIR, 'pyproject.toml')).write_text(pyproject)
 
     builder = build.ProjectBuilder(WORK_DIR)
     builder.build('wheel', os.path.join(WORK_DIR, 'dist'))
 
     # Rename the generated Python wheel
-    print_step('Renaming the wheel to {}'.format(PYTHON_WHEEL))
+    print_step(f'Renaming the wheel to {PYTHON_WHEEL}')
     shutil.move(os.path.join(WORK_DIR, 'dist', f'gmsh-{GMSH_FULLVER}-py3-none-any.whl'), os.path.join(WORK_DIR, PYTHON_WHEEL))
 
     print_header('PYTHON WHEEL BUILD COMPLETED!')

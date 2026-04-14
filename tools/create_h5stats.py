@@ -32,6 +32,7 @@ import argparse
 import h5py
 import numpy as np
 import toml  # ty: ignore [unresolved-import]
+from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -41,11 +42,11 @@ import toml  # ty: ignore [unresolved-import]
 # ==================================================================================================================================
 
 
-def collectStats(file_path):
+def collectStats(file_path: str) -> dict:
     stats = {}
     with h5py.File(file_path, 'r') as f:
 
-        def visit_func(name, obj):
+        def visit_func(name: str, obj: Union[np.ndarray, h5py.Dataset]) -> None:
             if name not in ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo'):
                 return
 
@@ -72,7 +73,7 @@ def collectStats(file_path):
     return stats
 
 
-def writeTOML(stats, output_file='analyze.toml'):
+def writeTOML(stats: dict, output_file: str = 'analyze.toml') -> None:
     # TOML tables can't have slashes, so replace with dot or underscore
     toml_compatible_stats = {name.replace('/', '.') : values for name, values in stats.items()}
     with open(output_file, 'w') as f:
@@ -80,7 +81,7 @@ def writeTOML(stats, output_file='analyze.toml'):
     print(f'Stats written to {output_file}')
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description='Collect statistics for HDF5 HOPR mesh file and output to TOML')
     parser.add_argument('file_path',      type    = str,                      # noqa: E251
                                           help    = 'Path to the HDF5 file')  # noqa: E251
