@@ -154,15 +154,13 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Connect the corner points
         e = [None for _ in range(12)]
-        # Bottom face edges (0-3)
+        # First, the plane surface
+        for i in range(2):
+            for j in range(4):
+                e[j + i*4] = gmsh.model.geo.addLine(p[j + i*4], p[(j+1) % 4 + i*4])
+        # Then, the connection
         for j in range(4):
-            e[j] = gmsh.model.geo.addLine(p[j], p[(j+1) % 4])
-        # Upright edges (4-7)
-        for j in range(4):
-            e[j+4] = gmsh.model.geo.addLine(p[j], p[j+4])
-        # Top face edges (8-11)
-        for j in range(4):
-            e[j+8] = gmsh.model.geo.addLine(p[j+4], p[(j+1) % 4 + 4])
+            e[j+8] = gmsh.model.geo.addLine(p[j], p[j+4])
 
         # Get dimensions of domain
         gmsh.model.geo.synchronize()
