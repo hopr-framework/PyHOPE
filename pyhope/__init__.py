@@ -108,7 +108,7 @@ class Mapping:
 
 
 # Define a named tuple to hold the mesh data
-MeshContainer = namedtuple('Mesh',
+MeshContainer = namedtuple('Mesh',   # ty: ignore [mismatched-type-name]
                           ['mesh',   # The generated mesh object
                            'nGeo',   # Polynomial order
                            'bcs',    # Boundary conditions
