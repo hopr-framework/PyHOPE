@@ -412,7 +412,6 @@ def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int
     mapping = config.prms[name]['mapping']
     options = {v.lower(): int(k) for k, v in mapping.items()}
 
-    result = None
     try:
         result = int(value)
     except (ValueError, TypeError):

@@ -106,7 +106,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     import subprocess
     # ------------------------------------------------------
     path = shutil.which('gmsh')
-    ver: Union[Version, bool, None] = None
+    # ver: Union[Version, bool, None] = None
     pac: Union[str,           None] = None  # noqa: E272
 
     if path:
@@ -114,9 +114,9 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
             p   = subprocess.run([path, '--info'], capture_output=True, text=True, timeout=5, check=True)
             raw = (p.stdout or '') + "\n" + (p.stderr or '')
             # Parse version from the Version line if present
-            v   = _ParseVersion(raw)
-            if v:
-                ver = v
+            # v   = _ParseVersion(raw)
+            # if v:
+            #     ver = v
             # Parse Packaged by: <who>
             m   = re.search(r'Packaged by\s*:\s*(.+)', raw, flags=re.IGNORECASE)
             if m:

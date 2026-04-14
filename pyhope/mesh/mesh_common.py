@@ -703,11 +703,11 @@ def LINTEN(elemType: int,
             PRISMAP = PRISMAPMESHIO
             HEXAMAP = HEXAMAPMESHIO
         case 'vtk':
-            TETRMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+            TETRMAP = lambda _, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
                          ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
-            PYRAMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+            PYRAMAP = lambda _, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
                          ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
-            PRISMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+            PRISMAP = lambda _, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
                          ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
             HEXAMAP = HEXAMAPVTK
         case _:

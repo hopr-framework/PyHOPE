@@ -127,11 +127,12 @@ def ConnectMortar( nConnSide  : list
 
     # INFO: Parallel version, using np_mtp workers
     # Build arrays for parallel query
-    nConn   = len(nConnSide)
-    targetCenters = np.empty((nConn, 3), dtype=np.float64)
-    targetCorners = np.empty((nConn, 4), dtype=np.int64)
-    targetRadius  = np.empty((nConn   ), dtype=np.float64)
-    targetArea    = np.empty((nConn   ), dtype=np.float64)
+    nConn:   Final[int] = len(nConnSide)
+    nCorner: Final[int] = len(nConnSide[0].corners)
+    targetCenters = np.empty((nConn,       3), dtype=np.float64)
+    targetCorners = np.empty((nConn, nCorner), dtype=np.int64)
+    targetRadius  = np.empty((nConn         ), dtype=np.float64)
+    targetArea    = np.empty((nConn         ), dtype=np.float64)
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter, strict=True)):
         targetArea   [nConnID   ] = calculate_area(points[side.corners])  # noqa: E211
@@ -193,14 +194,13 @@ def ConnectMortar( nConnSide  : list
         bcID       = targetSide.bcid if targetSide.bcid is not None and bcs[targetSide.bcid].type[0] == 1 else None
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
-        comboSides = ()
         matchFound = False
 
         # Attempt to match the target side with 2-candidate combinations
         targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) >= 2)  # noqa: E501
         for comboIDs in itertools.combinations(targetTest, 2):
             # Get the candidate sides
-            comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
+            comboSides = tuple(nConnSide[iSide] for iSide in comboIDs)
 
             # Check if we found a valid match
             if not find_mortar_match(targetSide.corners, comboSides, bcID):
@@ -463,7 +463,7 @@ def find_mortar_match( targetCorners: npt.NDArray
     targetEdges = build_edges(targetCorners, points[targetCorners])
     # INFO: Cached version
     # targetEdges = build_edges(arrayToTuple(targetCorners), tuple(map(tuple, points[targetCorners])))
-    matches     = []
+    # matches     = []
 
     # First, check for 2-1 matches
     if len(comboSides) == 2:

@@ -156,7 +156,6 @@ def _findPointsTol(points: npt.NDArray, tol: float, method: str = 'union_find') 
     return repLabel[labels]
 
 
-
 def EliminateDuplicates() -> None:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars

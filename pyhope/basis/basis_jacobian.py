@@ -269,5 +269,5 @@ def CheckJacobians() -> None:
     # Append the Jacobians to the elements
     jacIter = iter(jacs)
     for elem in elems:
-        elemType = elem.type
+        # elemType = elem.type
         elem.jacobian = next(jacIter)

@@ -97,7 +97,6 @@ def IO() -> None:
 
     match io_vars.outputformat:
         case MeshFormat.HDF5.value:
-            mesh  = mesh_vars.mesh
             elems: Final[list] = cast(list, mesh_vars.elems)
             sides: Final[list] = cast(list, mesh_vars.sides)
             bcs:   Final[list] = cast(list, mesh_vars.bcs)
@@ -301,7 +300,6 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         elemIJK = np.vstack(tuple(cast(int, elem.elemIJK) for elem in elems)).astype(np.int32)
 
     # Set the global side ID
-    globalSideID     = 0
     highestSideID    = 0
 
     for side in sides:

@@ -239,7 +239,6 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 elemType += str(elemDOFs)
             else:
                 elemType  = str(elemType[0])
-                elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
 
             # Face block: Iterate over each element
             for elem in cdata:
@@ -259,7 +258,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
                 # Create the new faces
                 subFaces   = tuple(np.array(extElem, dtype=np.int64)[face] for face in faces(nGeo))
-                bcFaces    = [{} for s in range(len(subFaces))]
+                bcFaces    = [{} for _ in range(len(subFaces))]
 
                 # BC: First, identify the 2D (bottom) faces
                 # > We know this is the first face and 1/5 face
@@ -374,6 +373,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.sep()
     return mesh
 
+
 @cache
 def quad_meshio_to_ij(order: int) -> npt.NDArray[np.int64]:
     """Return meshio quad-node ordering mapped to tensor indices (i,j).
@@ -461,7 +461,7 @@ def extrude_pris(nodes:   np.ndarray,
                  order:   int) -> tuple[list, ...]:
 
     nDOFsElem = round((order+1)**(3-1)*(order+2)/2.)
-    newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
+    newNodes  = [np.empty((nDOFsElem, )) for _ in range(len(shifts)-1)]
 
     if order == 0:
         raise ValueError(f'Extrusion not implemented for NGeo={order}')
@@ -517,7 +517,7 @@ def extrude_hexa(nodes:   np.ndarray,
                  order:   int) -> tuple[list, ...]:
 
     nDOFsElem = (order+1)**3
-    newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
+    newNodes  = [np.empty((nDOFsElem, )) for _ in range(len(shifts)-1)]
 
     if order == 0:
         raise ValueError(f'Extrusion not implemented for NGeo={order}')
