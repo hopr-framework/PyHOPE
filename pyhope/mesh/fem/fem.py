@@ -63,7 +63,7 @@ def FEMConnect() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetLogical
-    from pyhope.mesh.mesh_common import edges, edge_to_corner
+    from pyhope.mesh.mesh_common import LINTEN, edges, edge_to_corner
     # ------------------------------------------------------
 
     if CountOption('doFEMConnect') == 0:
@@ -187,8 +187,12 @@ def FEMConnect() -> None:
     edgeGraph = defaultdict(set)
     edgesRaw  = []
     for elemID, elem in enumerate(elems):
-        elemType  = elem.type
-        elemNodes = cast(np.ndarray, elem.nodes)
+        elemType = cast(int, elem.type)
+        nCorner  = elemType % 10
+        mapLin, _ = LINTEN(elemType, order=mesh_vars.nGeo)
+        perm      = np.asarray(mapLin[:nCorner], dtype=np.int32)
+        # Get the nodes for this element in the correct order
+        elemNodes = cast(np.ndarray, elem.nodes)[perm]
         for edge in edges(elemType):
             # Get the local corner indices for the current edge
             corners = edge_to_corner(edge, elemType)
@@ -286,7 +290,12 @@ def FEMConnect() -> None:
 
     # Build the vertex connectivity
     for elem in elems:
-        elemNodes = cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10]
+        elemType  = cast(int, elem.type)
+        nCorner   = elemType % 10
+        mapLin, _ = LINTEN(elemType, order=mesh_vars.nGeo)
+        perm      = np.asarray(mapLin[:nCorner], dtype=np.int32)
+        # Get the nodes for this element in the correct order
+        elemNodes = cast(np.ndarray, elem.nodes)[perm]
         vertexInfo: dict[int, tuple[int, tuple[int, ...]]] = {}
         for locNode in range(len(elemNodes)):
             # Determine canonical vertex id
@@ -410,19 +419,21 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     # Edge   connectivity info ---------------------------------------------------
     # > Build flat arrays of all raw edge occurrences
     # > > Same order as the elements
-    nOccEdge   = sum(len(cast(dict, elem.edgeInfo)) for elem in elems)
-    occEdgeID  = np.empty(nOccEdge, dtype=np.int32)   # FEMEdgeID        per occurrence
-    occElemID  = np.empty(nOccEdge, dtype=np.int32)   # Element index    per occurrence
-    occLocEdge = np.empty(nOccEdge, dtype=np.int32)   # Local edge index per occurrence
-    occNodes   = [_] * nOccEdge                       # Edge node pair   per occurrence
+    nOccEdge      = sum(len(cast(dict, elem.edgeInfo)) for elem in elems)
+    occEdgeID     = np.empty(nOccEdge, dtype=np.int32)   # FEMEdgeID        per occurrence
+    occElemID     = np.empty(nOccEdge, dtype=np.int32)   # Element index    per occurrence
+    occLocEdge    = np.empty(nOccEdge, dtype=np.int32)   # Local edge index per occurrence
+    occVertexPair = [(0, 0)]  * nOccEdge                 # FEM vertex pair  per occurrence (canonical)
+    occNodes      = [(0, 0)]  * nOccEdge                 # Edge node pair   per occurrence
 
     idx = 0
     for elemID, elem in enumerate(elems):
-        for locEdge, (_, edgeIdx, _, edgeNodes) in cast(dict, elem.edgeInfo).items():
-            occEdgeID[ idx] = edgeIdx
-            occElemID[ idx] = elemID
-            occLocEdge[idx] = locEdge
-            occNodes[  idx] = edgeNodes
+        for locEdge, (_, edgeIdx, edgePair, edgeNodes) in cast(dict, elem.edgeInfo).items():
+            occEdgeID[    idx] = edgeIdx
+            occElemID[    idx] = elemID
+            occLocEdge[   idx] = locEdge
+            occVertexPair[idx] = edgePair
+            occNodes[     idx] = edgeNodes
             idx += 1
 
     # > EdgeID starts at zero, so add 1
@@ -439,11 +450,11 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     edgeConn_arr   = np.empty((nEdgeConnTotal,  2), dtype=np.int32)  # [nbElemID, nbLocEdgeID]
 
     # > Precompute master orientation per edge group
-    #   orientation = 1 if nodeInfo[masterNodes[0]] < nodeInfo[masterNodes[1]] else -1
+    #   Global edge direction: smaller node ID -> larger node ID
     masterOrientation: dict[int, int] = {}
     for vertexID, idxs in groups_e.items():
         mNodes = occNodes[idxs[0]]
-        masterOrientation[vertexID] = 1 if nodeInfo[mNodes[0]] < nodeInfo[mNodes[1]] else -1
+        masterOrientation[vertexID] = 1 if mNodes[0] < mNodes[1] else -1
 
     connOffset   = 0
     edgeOffset   = 0  # Cumulative edge count for FEMElemInfo
@@ -471,19 +482,24 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
                 if sibElem == masterElem and sibLoc == masterLoc:
                     # Sibling is the master   — current is slave pointing to master
-                    edgeConn_arr[connOffset, 0] = -(sibElem + 1)
+                    edgeConn_arr[connOffset, 0] =  sibElem + 1
                     edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * masterOrient)
                 else:
                     # Sibling is also a slave - check relative orientation
-                    sibNodes    = occNodes[sibIdx]
-                    masterNodes = occNodes[masterOccIdx]
-                    orient      = masterOrient if nodeInfo[sibNodes[0]] == nodeInfo[masterNodes[0]] else -1
-                    edgeConn_arr[connOffset, 0] =  sibElem + 1
+                    sibVertices    = occVertexPair[sibIdx]
+                    masterVertices = occVertexPair[masterOccIdx]
+                    orient         = masterOrient if sibVertices[0] == masterVertices[0] else -masterOrient
+                    edgeConn_arr[connOffset, 0] = -(sibElem + 1)
                     edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * orient)
 
                 connOffset += 1
 
-            edgeInfoArr[occGlobalIdx, 0] = eid
+            # Compute current edge's orientation relative to global edge direction
+            # Global edge direction: smaller node ID -> larger node ID
+            curNodes  = occNodes[occGlobalIdx]
+            curOrient = 1 if curNodes[0] < curNodes[1] else -1
+
+            edgeInfoArr[occGlobalIdx, 0] = (eid + 1) * curOrient
             edgeInfoArr[occGlobalIdx, 1] = offset
             edgeInfoArr[occGlobalIdx, 2] = connOffset
             occGlobalIdx += 1
