@@ -307,17 +307,15 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
 @cache
 def split_hex_to_tets(order: int) -> list[tuple]:
-    """
-    Given the indices of a single hexahedral element, return a list of new tetra element connectivity tuples
+    """ Given the indices of a single hexahedral element, return a list of new tetra element connectivity tuples
 
-    The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
-          7-------6
-         /|      /|
-        4-------5 |
-        | 3-----|-2
-        |/      |/
-        0-------1
-
+        The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
+              7-------6
+             /|      /|
+            4-------5 |
+            | 3-----|-2
+            |/      |/
+            0-------1
     """
     # Perform the 6-tet split of the cube-like cell
     match order:
@@ -379,8 +377,7 @@ def split_hex_to_tets(order: int) -> list[tuple]:
 
 @cache
 def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
-    """
-    Given the tetrahedral indices, return the 4 triangular faces as tuples
+    """ Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
     match order:
         case 1:
@@ -405,8 +402,7 @@ def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
 
 @cache
 def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
-    """
-    Given the indices of a single hexahedral element, return a list of new pyramid element connectivity tuples
+    """ Given the indices of a single hexahedral element, return a list of new pyramid element connectivity tuples
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -468,8 +464,7 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
 
 @cache
 def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
-    """
-    Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
+    """ Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
     """
     match order:
         case 1:
@@ -503,21 +498,19 @@ def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
 
 @cache
 def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
-    """
-    Given the indices of a single hexahedral element, return a list of new prism element connectivity tuples
+    """ Given the indices of a single hexahedral element, return a list of new prism element connectivity tuples
     """
     match order:
         case 1:
-            #  return [( 0,  1,  3,  4,  5,  7),
-            #          ( 1,  2,  3,  5,  6,  7)]
-            return [( 0,  1,  2,  4,  5,  6),
-                    ( 0,  2,  3,  4,  6,  7)]
+            return [( 0,  1,  3,  4,  5,  7),
+                    ( 1,  2,  3,  5,  6,  7)]
+            # return [( 0,  1,  2,  4,  5,  6),
+            #         ( 0,  2,  3,  4,  6,  7)]
         case 2:
-            #  HEXA: [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 24 22 21 23 20 25 26]
-            #  return [(  0,  1,  3,  4,  5,  7,  8, 24, 11, 12, 25, 15, 16, 17, 19, 22, 26, 20),
-            #          (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
-            return [(  0,  1,  2,  4,  5,  6,  8,  9, 24, 12, 13, 25, 16, 17, 18, 22, 21, 26),
-                    (  0,  2,  3,  4,  6,  7, 24, 10, 11, 25, 14, 15, 16, 18, 19, 26, 23, 20)]
+            return [(  0,  1,  3,  4,  5,  7,  8, 24, 11, 12, 25, 15, 16, 17, 19, 22, 26, 20),
+                    (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
+            # return [(  0,  1,  2,  4,  5,  6,  8,  9, 24, 12, 13, 25, 16, 17, 18, 22, 21, 26),
+            #         (  0,  2,  3,  4,  6,  7, 24, 10, 11, 25, 14, 15, 16, 18, 19, 26, 23, 20)]
         case 3:
             return [(  0,  1,  3,  4,  5,  7,                                                  # 6 vertices
                        8,  9, 51, 49, 15, 14, 16, 17, 53, 55, 23, 22, 24, 25, 26, 27, 30, 31,  # Edges 6:24
@@ -574,8 +567,7 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 
 @cache
 def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
-    """
-    Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
+    """ Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
     match order:
         case 1:
