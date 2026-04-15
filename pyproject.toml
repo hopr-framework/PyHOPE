@@ -1,13 +1,17 @@
-# pyproject.toml compatible with Poetry (version 2.0.0.dev0)
+# pyproject.toml compatible with Poetry (version 2.0+)
 [project]
 name = "PyHOPE"
-version = "0.10.0"
+version = "0.11.0"
 description = "Python High-Order Preprocessing Environment"
 license = "GPL-3.0-only"
 requires-python = ">=3.10"
 readme = "README.md"
 authors = [
     {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},
+    ]
+maintainers = [
+    {name = "Patrick Kopper", email = "kopper@iag.uni-stuttgart.de"},
+    {name = "StephenCopplestone", email = "copplestone@boltzplatz.eu"}
     ]
 dependencies = [
     'alive-progress',
@@ -19,7 +23,6 @@ dependencies = [
     'plotext',
     'scipy',
     'gmsh',
-    # 'sortedcontainers',
     'typing-extensions',
     # 'threadpoolctl'
     ]
@@ -41,8 +44,10 @@ numba = [ 'numba'
 
 [project.urls]
 homepage = "https://numericsresearchgroup.org"
-repository = "https://github.com/hopr-framework/pyhope"
 documentation = "https://hopr-framework.github.io/PyHOPE"
+repository = "https://github.com/hopr-framework/PyHOPE"
+issues = "https://github.com/hopr-framework/PyHOPE/issues"
+changelog = "https://github.com/hopr-framework/PyHOPE/blob/main/CHANGELOG.md"
 
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"
