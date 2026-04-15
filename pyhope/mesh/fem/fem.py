@@ -423,8 +423,8 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     occEdgeID     = np.empty(nOccEdge, dtype=np.int32)   # FEMEdgeID        per occurrence
     occElemID     = np.empty(nOccEdge, dtype=np.int32)   # Element index    per occurrence
     occLocEdge    = np.empty(nOccEdge, dtype=np.int32)   # Local edge index per occurrence
-    occVertexPair = [()]  * nOccEdge                     # FEM vertex pair  per occurrence (canonical)
-    occNodes      = [()]  * nOccEdge                     # Edge node pair   per occurrence
+    occVertexPair = [(0, 0)]  * nOccEdge                 # FEM vertex pair  per occurrence (canonical)
+    occNodes      = [(0, 0)]  * nOccEdge                 # Edge node pair   per occurrence
 
     idx = 0
     for elemID, elem in enumerate(elems):
