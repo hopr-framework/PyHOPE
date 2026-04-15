@@ -105,7 +105,7 @@ def DefineMesh() -> None:
     CreateLogical(  'CheckConnectivity'  ,     default=True,  help='Check if the side connectivity, including correct flip')
     CreateLogical(  'CheckWatertightness',     default=True,  help='Check if the mesh is watertight')
     CreateLogical(  'CheckSurfaceNormals',     default=True,  help='Check if the surface normals point outwards')
-    CreateLogical(  'CheckInternalBoundaries', default=True,  help='Check if interal faces have multiple BCs attached')
+    CreateLogical(  'CheckInternalBoundaries', default=True,  help='Check if internal faces have multiple BCs attached')
     # Transformation
     CreateSection('Transformation')
     CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
