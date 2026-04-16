@@ -130,7 +130,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype: type = np.int32)
     """ GMSH: Get points on edges
     """
     edge_map = {  # Tetrahedron
-                  4: ( (0, 1), (1, 2), (2, 1), (0, 3),
+                  4: ( (0, 1), (1, 2), (2, 0), (0, 3),
                        (1, 3), (2, 3)                 ),
                   # Pyramid
                   5: ( (0, 1), (1, 2), (2, 3), (3, 0),
