@@ -140,8 +140,8 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype: type = np.int32)
                        (2, 3), (3, 4), (4, 5), (5, 4) ),
                   # Hexahedron
                   8: ( (0, 1), (1, 2), (2, 3), (3, 0),    # Bottom  edges
-                       (4, 5), (5, 6), (6, 7), (7, 4),    # Top     edges
-                       (0, 4), (1, 5), (2, 6), (3, 7) ),  # Upright edges
+                       (0, 4), (1, 5), (2, 6), (3, 7),    # Upright edges
+                       (4, 5), (5, 6), (6, 7), (7, 4) ),  # Top     edges
                }
 
     if isinstance(elemType, str):
