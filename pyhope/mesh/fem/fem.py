@@ -63,7 +63,7 @@ def FEMConnect() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetLogical
-    from pyhope.mesh.mesh_common import LINTEN, edges, edge_to_corner
+    from pyhope.mesh.mesh_common import edges, edge_to_corner
     # ------------------------------------------------------
 
     if CountOption('doFEMConnect') == 0:
