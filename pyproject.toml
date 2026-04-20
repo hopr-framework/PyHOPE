@@ -46,8 +46,9 @@ numba = [ 'numba'
 homepage = "https://numericsresearchgroup.org"
 documentation = "https://hopr-framework.github.io/PyHOPE"
 repository = "https://github.com/hopr-framework/PyHOPE"
-issues = "https://github.com/hopr-framework/PyHOPE/issues"
-changelog = "https://github.com/hopr-framework/PyHOPE/blob/main/CHANGELOG.md"
+# PyPI is case-sensitive on the following entries
+Issues = "https://github.com/hopr-framework/PyHOPE/issues"
+Changelog = "https://github.com/hopr-framework/PyHOPE/blob/main/CHANGELOG.md"
 
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"
