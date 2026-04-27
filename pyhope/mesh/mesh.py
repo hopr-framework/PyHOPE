@@ -183,15 +183,21 @@ def GenerateMesh() -> None:
         Mode 1 - Use internal mesh generator
         Mode 2 - Readin external mesh through GMSH
     """
+    # Standard libraries -----------------------------------
+    import math
+    import numpy as np
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.mesh.extrude.mesh_extrude import MeshExtrude
     from pyhope.mesh.mesh_builtin import MeshCartesian
     from pyhope.mesh.mesh_external import MeshExternal
     from pyhope.mesh.mesh_vars import MeshMode
     from pyhope.mesh.topology.mesh_splittohex import MeshSplitToHex
     from pyhope.mesh.topology.mesh_topology import MeshChangeElemType
+    from pyhope.meshio.meshio_nodes import NumNodesPerCell
     # ------------------------------------------------------
 
     hopout.separator()
@@ -218,6 +224,20 @@ def GenerateMesh() -> None:
     for cellType in mesh.cells:
         if any(s in cellType.type for s in mesh_vars.ELEMTYPE.type):
             nElems += mesh.get_cells_type(cellType.type).shape[0]
+
+    # Instantiate the Gmsh cell type mapping
+    gmshCellTypes = GMSHCELLTYPES()
+    numNodes      = NumNodesPerCell()
+
+    # Final number of nodes
+    nNodes = 0
+    for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
+        cellType  = ''.join([s for s in cell.type if not s.isdigit()])
+        nNodes += len(cell)*numNodes[cellType]
+
+    # Check if nGlobalNodes fits in the mesh format
+    if math.ceil(nNodes.bit_length() / 8.0) > np.dtype(io_vars.outputbytes).itemsize:
+        hopout.error(f'Mesh size too large for selected OutputBytes "{io_vars.outputbytes.__name__}". Try increasing OutputBytes!')
 
     hopout.routine(f'Generated mesh with {nElems} cells')
     # hopout.sep()

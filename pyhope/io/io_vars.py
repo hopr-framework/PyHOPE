@@ -53,6 +53,12 @@ class MeshFormat(Enum):
     GMSH = 2
 
 
+@unique
+class OutputBytes(Enum):
+    int32 = 0
+    int64 = 1
+
+
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class ELEM:
     INFOSIZE:  int = 6

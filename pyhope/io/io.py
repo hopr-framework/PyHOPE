@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
-from enum import Enum, unique
 from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -42,15 +41,9 @@ import numpy as np
 # ==================================================================================================================================
 
 
-@unique
-class OutputBytes(Enum):
-    KIND4 = 0
-    KIND8 = 1
-
-
 def DefineIO() -> None:
     # Local imports ----------------------------------------
-    from pyhope.io.io_vars import MeshFormat
+    from pyhope.io.io_vars import MeshFormat, OutputBytes
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption, CreateLogical, CreateSection, CreateStr
     # ------------------------------------------------------
 
@@ -60,9 +53,9 @@ def DefineIO() -> None:
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.HDF5.value  , name=MeshFormat.HDF5.name)
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.VTK.value   , name=MeshFormat.VTK.name)
     CreateIntOption(    'OutputFormat'  , number=MeshFormat.GMSH.value  , name=MeshFormat.GMSH.name)
-    CreateIntFromString('OutputBytes'   , default=OutputBytes.KIND4.name, help=f'Mesh output bytes [{", ".join( s.name for s in OutputBytes)}]')  # noqa: E501
-    CreateIntOption(    'OutputBytes'   , number=OutputBytes.KIND4.value, name=OutputBytes.KIND4.name)
-    CreateIntOption(    'OutputBytes'   , number=OutputBytes.KIND8.value, name=OutputBytes.KIND8.name)
+    CreateIntFromString('OutputBytes'   , default=OutputBytes.int32.name, help=f'Mesh output bytes [{", ".join( s.name for s in OutputBytes)}]')  # noqa: E501
+    CreateIntOption(    'OutputBytes'   , number=OutputBytes.int32.value, name=OutputBytes.int32.name)
+    CreateIntOption(    'OutputBytes'   , number=OutputBytes.int64.value, name=OutputBytes.int64.name)
     CreateLogical(      'DebugMesh'     , default=False , help='Output debug mesh in XDMF format')
     CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
@@ -80,7 +73,8 @@ def InitIO() -> None:
     io_vars.projectname  = GetStr('ProjectName')
     io_vars.outputformat = GetIntFromStr('OutputFormat')
     # PyHOPE supports both 32 and 64-bit integer outputs
-    io_vars.outputbytes  = np.int32 if GetIntFromStr('OutputBytes') == OutputBytes.KIND4.value else np.int64
+    io_vars.outputbytes  = {io_vars.OutputBytes.int32: np.int32,
+                            io_vars.OutputBytes.int64: np.int64, }[io_vars.OutputBytes(GetIntFromStr('OutputBytes'))]
 
     # Debug output
     io_vars.debugmesh    = GetLogical('DebugMesh')
@@ -222,10 +216,10 @@ def IO() -> None:
 
             # Instantiate the Gmsh cell type mapping
             gmshCellTypes = GMSHCELLTYPES()
+            numNodes      = NumNodesPerCell()
 
             # Print the final output
             hopout.sep()
-            numNodes = NumNodesPerCell()
             for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
                 cellType  = ''.join([s for s in cell.type if not s.isdigit()])
                 cellNodes = numNodes[cellType]

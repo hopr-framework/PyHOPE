@@ -380,14 +380,14 @@ def MeshCartesian() -> meshio.Mesh:
     #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
     gmshTypes = gmsh.model.mesh.getElementTypes()
     gmshElems = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+                                              for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
                               if dim == 3])
     if not np.any(gmshElems):
         hopout.error('Generated mesh does not contain volume elements, exiting...')
 
     # Consistency check if the mesh elements have the correct order
-    gmshIssue  = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+    gmshIssue = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
+                                              for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
                               if dim == 3 and order != mesh_vars.nGeo])
 
     if gmshIssue.size > 0:
