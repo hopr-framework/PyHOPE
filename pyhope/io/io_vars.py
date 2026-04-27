@@ -40,6 +40,7 @@ from functools import cache
 # ==================================================================================================================================
 projectname  : str                               # Name of output files
 outputformat : int                               # Mesh output format
+outputbytes  : type                              # Mesh output bytes
 
 debugmesh    : bool                              # Mesh output debug mesh
 debugvisu    : bool                              # Enable and show debug output / visualization
