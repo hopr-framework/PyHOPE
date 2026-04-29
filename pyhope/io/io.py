@@ -43,16 +43,19 @@ import numpy as np
 
 def DefineIO() -> None:
     # Local imports ----------------------------------------
-    from pyhope.io.io_vars import MeshFormat
+    from pyhope.io.io_vars import MeshFormat, OutputBytes
     from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption, CreateLogical, CreateSection, CreateStr
     # ------------------------------------------------------
 
     CreateSection('Output')
     CreateStr('ProjectName', help='Name of output files')
-    CreateIntFromString('OutputFormat'  , default='HDF5', help=f'Mesh output format [{", ".join(s.name for s in MeshFormat)}]')
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.HDF5.value, name=MeshFormat.HDF5.name)
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.VTK.value , name=MeshFormat.VTK.name)
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.GMSH.value, name=MeshFormat.GMSH.name)
+    CreateIntFromString('OutputFormat'  , default=MeshFormat.HDF5.name  , help=f'Mesh output format [{", ".join(s.name for s in MeshFormat)}]')  # noqa: E501
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.HDF5.value  , name=MeshFormat.HDF5.name)
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.VTK.value   , name=MeshFormat.VTK.name)
+    CreateIntOption(    'OutputFormat'  , number=MeshFormat.GMSH.value  , name=MeshFormat.GMSH.name)
+    CreateIntFromString('OutputBytes'   , default=OutputBytes.int32.name, help=f'Mesh output bytes [{", ".join( s.name for s in OutputBytes)}]')  # noqa: E501
+    CreateIntOption(    'OutputBytes'   , number=OutputBytes.int32.value, name=OutputBytes.int32.name)
+    CreateIntOption(    'OutputBytes'   , number=OutputBytes.int64.value, name=OutputBytes.int64.name)
     CreateLogical(      'DebugMesh'     , default=False , help='Output debug mesh in XDMF format')
     CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
 
@@ -69,7 +72,11 @@ def InitIO() -> None:
 
     io_vars.projectname  = GetStr('ProjectName')
     io_vars.outputformat = GetIntFromStr('OutputFormat')
+    # PyHOPE supports both 32 and 64-bit integer outputs
+    io_vars.outputbytes  = {io_vars.OutputBytes.int32: np.int32,
+                            io_vars.OutputBytes.int64: np.int64, }[io_vars.OutputBytes(GetIntFromStr('OutputBytes'))]
 
+    # Debug output
     io_vars.debugmesh    = GetLogical('DebugMesh')
     io_vars.debugvisu    = GetLogical('DebugVisu')
 
@@ -105,9 +112,9 @@ def IO() -> None:
             nSides: Final[int] = len(sides)
             nBCs:   Final[int] = len(bcs)
             # Number of non-unique nodes, vertices, edges
-            nNodes:    Final[int] = np.array(tuple(elem.nodes.size       for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
-            nVertices: Final[int] = np.array(tuple(elem.type % 10        for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
-            nEdges:    Final[int] = np.array(tuple(len(edges(elem.type)) for elem in elems), dtype=np.int32).sum(dtype=int)  # noqa: E272
+            nNodes:    Final[int] = np.array(tuple(elem.nodes.size       for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
+            nVertices: Final[int] = np.array(tuple(elem.type % 10        for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
+            nEdges:    Final[int] = np.array(tuple(len(edges(elem.type)) for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
 
             fname = f'{pname}_mesh.h5'
 
@@ -145,7 +152,7 @@ def IO() -> None:
                 f.attrs['nUniqueNodes'  ] = np.max(nodeInfo)
 
                 _ = f.create_dataset('ElemInfo'     , data=elemInfo)
-                _ = f.create_dataset('ElemCounter'  , data=np.array(list(elemCounter.items()), dtype=np.int32))
+                _ = f.create_dataset('ElemCounter'  , data=np.array(list(elemCounter.items()), dtype=io_vars.outputbytes))
                 _ = f.create_dataset('SideInfo'     , data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
                 _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
@@ -173,7 +180,7 @@ def IO() -> None:
                 # Store boundary information
                 f.attrs['nBCs'          ] = nBCs
                 bcNames = [f'{bc.name:<255}' for bc in bcs]
-                bcTypes = np.array([bc.type  for bc in bcs], dtype=np.int32).reshape(-1, 4)  # noqa: E272
+                bcTypes = np.array([bc.type  for bc in bcs], dtype=io_vars.outputbytes).reshape(-1, 4)  # noqa: E272
 
                 _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
                 _ = f.create_dataset('BCType'    , data=bcTypes)
@@ -209,10 +216,10 @@ def IO() -> None:
 
             # Instantiate the Gmsh cell type mapping
             gmshCellTypes = GMSHCELLTYPES()
+            numNodes      = NumNodesPerCell()
 
             # Print the final output
             hopout.sep()
-            numNodes = NumNodesPerCell()
             for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
                 cellType  = ''.join([s for s in cell.type if not s.isdigit()])
                 cellNodes = numNodes[cellType]
@@ -245,6 +252,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
                            dict[int, int]
                           ]:
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.fem.fem import getFEMInfo
     from pyhope.mesh.mesh_common import LINTEN
@@ -265,15 +273,15 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         elemCounter[elemType] = 0
 
     # Pre-allocate arrays
-    elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=np.int32)
+    elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=io_vars.outputbytes)
     # sideCount = 0  # elem['Sides'] might work as well
     # nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
     # Calculate the ElemInfo
-    elem_types = np.array(tuple(elem.type                                 for elem in elems), dtype=np.int32)  # noqa: E272
-    elem_zones = np.array(tuple(elem.zone if elem.zone is not None else 1 for elem in elems), dtype=np.int32)  # noqa: E272
-    elem_sides = np.array(tuple(len(elem.sides)                           for elem in elems), dtype=np.int32)  # noqa: E272
-    elem_nodes = np.array(tuple(elem.nodes.size                           for elem in elems), dtype=np.int32)  # noqa: E272
+    elem_types = np.array(tuple(elem.type                                 for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
+    elem_zones = np.array(tuple(elem.zone if elem.zone is not None else 1 for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
+    elem_sides = np.array(tuple(len(elem.sides)                           for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
+    elem_nodes = np.array(tuple(elem.nodes.size                           for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
 
     # Fill basic element info
     elemInfo[:, ELEM.TYPE] = elem_types
@@ -297,7 +305,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     # Fill the IJK-sorting array
     elemIJK = None
     if hasattr(mesh_vars, 'nElemsIJK'):
-        elemIJK = np.vstack(tuple(cast(int, elem.elemIJK) for elem in elems)).astype(np.int32)
+        elemIJK = np.vstack(tuple(cast(int, elem.elemIJK) for elem in elems)).astype(io_vars.outputbytes)
 
     # Set the global side ID
     highestSideID    = 0
@@ -328,11 +336,11 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         highestSideID = max(globalSideID, highestSideID)
 
     # Pre-allocate arrays
-    sideInfo   = np.zeros((nSides, SIDE.INFOSIZE), dtype=np.int32)
+    sideInfo   = np.zeros((nSides, SIDE.INFOSIZE), dtype=io_vars.outputbytes)
 
     # Calculate the SideInfo
-    side_types = np.array(tuple(side.sideType     for side in sides), dtype=np.int32)  # noqa: E272
-    side_gloID = np.array(tuple(side.globalSideID for side in sides), dtype=np.int32)  # noqa: E272
+    side_types = np.array(tuple(side.sideType     for side in sides), dtype=io_vars.outputbytes)  # noqa: E272
+    side_gloID = np.array(tuple(side.globalSideID for side in sides), dtype=io_vars.outputbytes)  # noqa: E272
 
     # Fill basic side info
     sideInfo[:, SIDE.TYPE] = side_types
@@ -376,7 +384,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
 
     # Pre-allocate arrays
     nNodes: Final[int] = elem_nodes.sum(dtype=int)  # number of non-unique nodes
-    nodeInfo   = np.zeros((nNodes)   , dtype=np.int32)
+    nodeInfo   = np.zeros((nNodes)   , dtype=io_vars.outputbytes)
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
 
     # Pre-compute LINTEN mappings for all element types
@@ -404,7 +412,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         nodeCoords[idx] = points[outNodes]
 
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
-        FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo = getFEMInfo(nodeInfo)
+        FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo = getFEMInfo()
     else:
         nFEMVertices = nFEMEdges  = 0
         FEMElemInfo  = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None

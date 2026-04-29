@@ -28,18 +28,15 @@ PyHOPE enforces code quality through three static analysis tools which are wired
 
 ### Tools
 
-**[Ruff](https://docs.astral.sh/ruff/)** is a fast Python linter that consolidates the roles of `flake8`, `black`, `isort`, and many others in a single tool. It checks style and common errors across all `.py` files.  
-
+- **[Ruff](https://docs.astral.sh/ruff/)** is a fast Python linter that consolidates the roles of `flake8`, `black`, `isort`, and many others in a single tool. It checks style and common errors across all `.py` files.  
 !!! note
     Some linter errors can be fixed automatically:
     ```bash
     ruff check --fix
     ```
     Note that `--unsafe-fixes` may silently change program behaviour; `--fix` is guaranteed to be behaviour-preserving.
-
-**[ty](https://github.com/astral-sh/ty)** is a static type checker by Astral. It resolves all imports against the full installed dependency set.
-
-**[vulture](https://github.com/jendrikseipp/vulture)** detects dead code such as unused functions, unreachable branches, and variables that are assigned but never read.
+- **[ty](https://github.com/astral-sh/ty)** is a static type checker by Astral. It resolves all imports against the full installed dependency set.
+- **[vulture](https://github.com/jendrikseipp/vulture)** detects dead code such as unused functions, unreachable branches, and variables that are assigned but never read.
 
 ### Pre-commit Integration
 

@@ -72,6 +72,9 @@ def UpdateElemID(elems         : list,
                  bar           : type,
                  nElemsIJK     : Optional[npt.NDArray] = None,
                  ) -> tuple[list, list]:
+    # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
+    # ------------------------------------------------------
 
     totalElems = len(elems)
     totalSides = len(sides)
@@ -96,7 +99,7 @@ def UpdateElemID(elems         : list,
             k =  newElemID                                       // (nElemsIJK[0] * nElemsIJK[1])
             j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1])    //  nElemsIJK[0]
             i =  newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j *   nElemsIJK[0]
-            elem.elemIJK = np.array([i+1, j+1, k+1], dtype=np.int32)
+            elem.elemIJK = np.array([i+1, j+1, k+1], dtype=io_vars.outputbytes)
 
         sorted_elems[newElemID] = elem
 
