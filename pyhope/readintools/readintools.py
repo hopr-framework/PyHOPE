@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -66,12 +67,15 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
+def strToBool(name: str, val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
-        True values  are 'y', 'yes', 't', 'true', 'on', and '1';
+        True values  are 'y', 'yes', 't', 'true' , 'on' , and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.
         Raises ValueError if 'val' is anything else.
     """
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
     if isinstance(val, bool):
         return val
     if isinstance(val, int):
@@ -79,39 +83,51 @@ def strToBool(val: Union[int, bool, str]) -> bool:  # From distutils.util.strtob
     if isinstance(val, str):
         val = val.lower()
 
-    if   val in ('y', 'yes', 't', 'true' , 'on' , '1'):  # noqa: E271
+    if val in ('y', 'yes', 't', 'true' , 'on' , '1'):  # noqa: E271
         return True
     if val in ('n', 'no' , 'f', 'false', 'off', '0'):  # noqa: E271
         return False
-    raise ValueError(f'invalid truth value {val!r}')
+    # raise ValueError(f'Invalid truth value {val!r}')
+    hopout.error(f'Invalid truth value for boolean parameter {name!r} with input string {val!r}')
 
 
-def strToFloatOrPi(helpstr: str) -> float:
+def strToFloat(name: str, val: str) -> float:
     """ Parses a string that may contain 'pi' or a numerical value.
     """
-    # split string at case-insensitive 'pi'
-    splitstr = helpstr.lower().split('pi')
-
-    match len(splitstr):
-        # Determine prefactor of pi, interpreting empty string as one
-        case 2:
-            value = float(splitstr[0]) * np.pi if splitstr[0] else np.pi
-
-        # No 'pi' found in splitstr, parse as float
-        case 1:
-            value = float(splitstr[0])
-
-        case _:
-            raise ValueError(f'Failed to parse input string {helpstr}')
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from math import pi
+    # ------------------------------------------------------
+    try:
+        # Normalize input
+        expr = re.sub(r'(\d)\s*(pi)', r'\1*\2', val.strip().lower())
+        # Normalize integers with leading zeros
+        if re.fullmatch(r'[+-]?0+\d+', expr):
+            expr = str(int(expr))
+        # Restricted eval
+        value = float(eval(expr.strip().lower(), {'__builtins__': {}}, {'pi': pi}))
+    except (NameError, SyntaxError, TypeError, ZeroDivisionError, ValueError) as e:  # pragma: no cover
+        print()
+        print(hopout.warn(f'{e}'))
+        hopout.error(f'Failed to parse parameter {name!r} with input string {val!r}')
 
     return value
 
 
-def is_numeric(var_value: str) -> bool:
+def is_numeric(val: str) -> bool:
     """ Check if a string can be converted to a float
     """
+    # Local imports ----------------------------------------
+    from math import pi
+    # ------------------------------------------------------
     try:
-        float(var_value)
+        # Normalize input
+        expr = re.sub(r'(\d)\s*(pi)', r'\1*\2', val.strip().lower())
+        # Normalize integers with leading zeros
+        if re.fullmatch(r'[+-]?0+\d+', expr):
+            expr = str(int(expr))
+        # Restricted eval
+        float(eval(expr.strip().lower(), {'__builtins__': {}}, {'pi': pi}))
     except ValueError:
         return False
     else:
@@ -383,7 +399,7 @@ def GetStr(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetReal(name: str, default: Optional[str] = None, number: Optional[int] = None) -> float:
     value = GetParam(name=name, default=default, number=number, calltype='real')
-    return strToFloatOrPi(str(value))
+    return strToFloat(str(name), str(value))
 
 
 def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -393,7 +409,7 @@ def GetInt(name: str, default: Optional[str] = None, number: Optional[int] = Non
 
 def GetLogical(name: str, default: Optional[str] = None, number: Optional[int] = None) -> bool:
     value = GetParam(name=name, default=default, number=number, calltype='bool')
-    return strToBool(value)
+    return strToBool(name, value)
 
 
 def GetIntFromStr(name: str, default: Optional[str] = None, number: Optional[int] = None) -> int:
@@ -444,7 +460,7 @@ def GetRealArray(name: str, default: Optional[str] = None, number: Optional[int]
     value = [s.split(',') for s in value.split(',,')] if ',,' in value else value.split(',')
 
     try:
-        value = np.vectorize(strToFloatOrPi)(value)
+        value = np.vectorize(strToFloat)(name, value)
     except ValueError as e:  # pragma: no cover
         print()
         print(hopout.warn(f'{e}'))
