@@ -43,10 +43,10 @@ STD_LENGTH: Final[int] = 79  # Standard length for output to console
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Symbols:
-    OK:      Final[str] = '✅ OK'
+    OK:      Final[str] = '✅ OK  '
     INFO:    Final[str] = 'ℹ️ INFO'
-    WARN:    Final[str] = '⚠️ WARNING'
-    ERR:     Final[str] = '❌ ERROR'
+    WARN:    Final[str] = '⚠️ WARN'
+    ERR:     Final[str] = '❌ ERR '
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
