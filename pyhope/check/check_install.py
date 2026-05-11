@@ -40,133 +40,17 @@ import h5py
 import numpy as np
 import pathlib
 # ----------------------------------------------------------------------------------------------------------------------------------
-# Typing libraries
-# ----------------------------------------------------------------------------------------------------------------------------------
-import typing
-if typing.TYPE_CHECKING:
-    from urllib.response import addinfourl
-# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+user  : Final[str] = 'hopr-framework'
+repo  : Final[str] = 'PyHOPE'
+branch: Final[str] = 'main'
 # ==================================================================================================================================
 
 
-def findGitRoot() -> Optional[str]:
-    """ Attempt to find the git root
-    """
-    try:
-        result = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
-                                capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
-
-
-def downloadGitDir(user    : str,
-                   repo    : str,
-                   path    : str,
-                   target  : str,
-                   token   : Optional[str]  = None,
-                   branch  : str            = 'main',
-                   progress: Optional[bool] = True) -> None:
-    # Standard libraries -----------------------------------
-    import json
-    import time
-    import urllib.request
-    from urllib.error import HTTPError
-    # Local imports ----------------------------------------
-    import pyhope.output.output as hopout
-    from pyhope.common.common_progress import ProgressBar
-    # ------------------------------------------------------
-
-    # Helper to manage API requests and rate limiting
-    def _make_request(url : str,
-                      base: Optional[str]         = None,
-                      bar : Optional[ProgressBar] = None) -> addinfourl:
-
-        headers = {}
-        if token:
-            headers['Authorization'] = f'token {token}'
-
-        req = urllib.request.Request(url, headers=headers)
-
-        while True:
-            try:
-                return urllib.request.urlopen(req)
-            except HTTPError as e:  # noqa: PERF203
-                # Check for rate-limiting error
-                if  e.code == 403                        \
-                and 'X-RateLimit-Remaining' in e.headers \
-                and int(e.headers['X-RateLimit-Remaining']) == 0:  # noqa: E271
-                    timeReset = int(e.headers['X-RateLimit-Reset'])
-                    timeWait  = max(timeReset - time.time(), 1)
-                    if base is not None and bar is not None:
-                        bar.title(f'│ Rate limited, waiting {timeWait} sec')
-                    time.sleep(timeWait)
-                    if base is not None and bar is not None:
-                        bar.title( '│               Downloading tests')
-                    # Retry the request
-                    continue
-                # Re-raise other HTTP errors
-                raise
-
-    apiURL = f'https://api.github.com/repos/{user}/{repo}/contents/{path}?ref={branch}'
-
-    with _make_request(apiURL) as u:
-        contents = json.loads(u.read().decode())
-
-    # Exlude all tutorials with index 5 or higher
-    # > These are only used for internal testing
-    if progress:
-        contents = [s for s in contents if s['name'][0] in '1234']
-
-    # If we are in a subdirectory, create it
-    os.makedirs(target, exist_ok=True)
-
-    bar = None
-    if progress:
-        bar = ProgressBar(value=len(contents), title='│               Downloading tests', length=33, threshold=1)
-
-    for item in contents:
-        name     = item['name']
-        subPath  = os.path.join(target, name)
-        itemType = item.get('type')
-
-        match itemType:
-            case 'file':
-                # Initially, download the file content
-                # > This might be the actual file or an LFS pointer
-                with _make_request(item['download_url'], os.path.basename(path), bar) as u:
-                    content = u.read()
-
-                # Check if the content is a Git LFS pointer
-                if content.startswith(b'version https://git-lfs.github.com/spec/v1'):
-                    # If it's an LFS pointer, the actual file needs to be downloaded
-                    # from the media URL, which is constructed from the file's path
-                    # print(f'Downloading LFS file: {item["path"]}...')
-                    lfs_url = f'https://media.githubusercontent.com/media/{user}/{repo}/{branch}/{item["path"]}'
-                    with _make_request(lfs_url, os.path.basename(path), bar) as lfs_u:
-                        content = lfs_u.read()
-
-                # Write the final content (either regular file or LFS file) to disk
-                pathlib.Path(subPath).write_bytes(content)
-
-            case 'dir':
-                # Recursively call the function for subdirectories
-                # > Progress is disabled for sub-calls to issues with duplicate progressBar
-                downloadGitDir(user, repo, item['path'], subPath, branch=branch, progress=False)
-
-            case _:
-                print(hopout.warn(f'Unknown item type "{itemType}" for item "{name}". Skipping.'))
-
-        if progress:
-            bar.step()
-
-    if progress:
-        bar.close()
 
 
 def hdf5Stats(obj: h5py.Dataset) -> Optional[dict[str, float]]:
