@@ -229,7 +229,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                         except urllib.error.HTTPError:  # noqa: PERF203
                             lfsWarn = lfsWarn.lfsErr
                             meshOK  = False
-                            hopout.info(f'{hopout.Symbols.WARN } Failed obtaining mesh for test "{tutorial}"')
+                            hopout.printtest(f'Failed obtaining mesh for test "{tutorial}"', hopout.Symbols.WARN)
                             break
 
                     if meshOK:
@@ -266,18 +266,18 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 #     p.terminate()
             except subprocess.CalledProcessError as exc:
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } PyHOPE failed for "{tutorial}": ' +
-                               f'Return code = {getattr(exc, "returncode", "")}')
+                hopout.printtest(f'PyHOPE failed for "{tutorial}": Return code = {getattr(exc, "returncode", "")}',
+                                 hopout.Symbols.ERR)
                 bar.step()
                 continue
             except subprocess.TimeoutExpired:
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } PyHOPE timed out for "{tutorial}"')
+                hopout.printtest(f'PyHOPE timed out for "{tutorial}"', hopout.Symbols.ERR)
                 bar.step()
                 continue
             except Exception as exc:
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } Unexpected error running PyHOPE for "{tutorial}": {exc}')
+                hopout.printtest(f'Unexpected error running PyHOPE for "{tutorial}": {exc}', hopout.Symbols.ERR)
                 bar.step()
                 continue
 
@@ -291,7 +291,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
             if not os.path.isfile(os.path.join(tutorialPath, f'{projectName}_mesh.h5')):
                 # raise ExecError(f'PyHOPE failed to generate mesh for {tutorial}')
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } PyHOPE did not produce {projectName}_mesh.h5 for "{tutorial}"')
+                hopout.printtest(f'PyHOPE did not produce {projectName}_mesh.h5 for "{tutorial}"', hopout.Symbols.ERR)
                 bar.step()
                 continue
 
@@ -308,7 +308,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     # Python 3.10-: Mark the tutorial as successful
                     bar.step()
                     if Version(platform.python_version()) < Version('3.11'):
-                        hopout.info(f'{hopout.Symbols.OK  } Successfully completed test (w/o verification) "{tutorial}"')
+                        hopout.printtest(f'Successfully completed test (w/o verification) "{tutorial}"', hopout.Symbols.OK)
                         tsuccess[tNum] = True
                     continue
 
@@ -400,9 +400,9 @@ def CheckInstall(path: Optional[str] = None) -> None:
             bar.step()
 
             if tsuccess[tNum]:
-                hopout.info(f'{hopout.Symbols.OK  } Successfully completed test "{tutorial}"')
+                hopout.printtest(f'Successfully completed test "{tutorial}"', hopout.Symbols.OK)
             else:
-                hopout.info(f'{hopout.Symbols.ERR } Failed test "{tutorial}"')
+                hopout.printtest(f'Failed test "{tutorial}"'                , hopout.Symbols.ERR)
 
         # Cleanup temporary directory
         if  tmpDir is not None             \
@@ -427,9 +427,9 @@ def CheckInstall(path: Optional[str] = None) -> None:
         # Print the final output
         hopout.small_banner('Verification summary')
         if all(tsuccess):
-            hopout.info(f'{hopout.Symbols.OK  } Successfully completed {np.sum(tsuccess)}/{len(tutorials)} tests')
+            hopout.printtest(f'Successfully completed {np.sum(tsuccess)}/{len(tutorials)} tests', hopout.Symbols.OK)
         else:
-            hopout.info(f'{hopout.Symbols.ERR } Failed {np.sum(~tsuccess)}/{len(tutorials)} tests')
+            hopout.printtest(f'Failed {np.sum(~tsuccess)}/{len(tutorials)} tests'               , hopout.Symbols.ERR)
         hopout.separator(length=79)
 
         # Final exit code

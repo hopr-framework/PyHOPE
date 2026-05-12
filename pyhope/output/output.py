@@ -220,3 +220,13 @@ def printoption(option: str, value: str, status: str, length: int = 31) -> None:
     except TypeError:
         pvalue = value
     print(f'│ {option:>{length}} │ {pvalue:<{length}} │ {status} │')
+
+
+def printtest(string: str, status: str, end: Optional[str] = None) -> None:
+    """ Print the input `string` as test output
+
+        Args:
+            string (str): String to be printed in banner
+            status (str): Status of the test result
+    """
+    print('│ '  + f'{status  :<5}  │ ' + string, end=end)
