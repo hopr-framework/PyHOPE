@@ -164,7 +164,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                           threshold    = 1,                                    # noqa: E251
                           enrich_print = False)                                # noqa: E251
         for tNum, tutorial in enumerate(tutorials):
-            tutorialPath = os.path.join(path, tutorial)
+            tutorialPath = os.path.abspath(os.path.join(path, tutorial))
 
             # Assemble the parameter path
             parameter = os.path.join(tutorialPath, 'parameter.ini')
