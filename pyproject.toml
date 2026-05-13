@@ -67,6 +67,8 @@ include = ["pyhope*"]
 omit = [
     # Multiprocessing is disabled for code coverage
     '*/pyhope/common/common_parallel.py',
+    # Git LFS is always available for code coverage
+    '*/pyhope/common/common_git.py',
     # Gmsh does not get re-installed when running non-interactively
     '*/pyhope/gmsh/gmsh_install.py',
     ]

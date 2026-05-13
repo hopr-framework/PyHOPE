@@ -49,7 +49,7 @@ from pyhope.common.common_progress import ProgressBar
 # ==================================================================================================================================
 
 
-def findGitRoot() -> Optional[str]:
+def findGitRoot() -> Optional[str]:  # pragma: no cover
     """ Attempt to find the git root
     """
     try:
@@ -72,9 +72,9 @@ def isLFSFile(path: str) -> bool:
 
 # Helper to manage API requests and rate limiting
 def makeAPIRequest(url  : str,
-                  token: Optional[str]         = None,
-                  # base : Optional[str]         = None,
-                  bar  : Optional[ProgressBar] = None) -> addinfourl:
+                   token: Optional[str]         = None,
+                   # base : Optional[str]         = None,
+                   bar  : Optional[ProgressBar] = None) -> addinfourl:  # pragma: no cover
     # Standard libraries -----------------------------------
     import time
     import urllib.request
@@ -115,7 +115,7 @@ def downloadGitDir(user    : str,
                    target  : str,
                    token   : Optional[str]  = None,
                    branch  : str            = 'main',
-                   progress: Optional[bool] = True) -> None:
+                   progress: Optional[bool] = True) -> None:  # pragma: no cover
     # Standard libraries -----------------------------------
     import json
     # ------------------------------------------------------
