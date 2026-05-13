@@ -31,6 +31,7 @@ import platform
 import subprocess
 import sys
 import tempfile
+from enum import Enum, unique
 from packaging.version import Version
 from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,133 +41,22 @@ import h5py
 import numpy as np
 import pathlib
 # ----------------------------------------------------------------------------------------------------------------------------------
-# Typing libraries
-# ----------------------------------------------------------------------------------------------------------------------------------
-import typing
-if typing.TYPE_CHECKING:
-    from urllib.response import addinfourl
-# ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+user  : Final[str] = 'hopr-framework'
+repo  : Final[str] = 'PyHOPE'
+branch: Final[str] = 'main'
 # ==================================================================================================================================
 
 
-def findGitRoot() -> Optional[str]:
-    """ Attempt to find the git root
-    """
-    try:
-        result = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
-                                capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
-
-
-def downloadGitDir(user    : str,
-                   repo    : str,
-                   path    : str,
-                   target  : str,
-                   token   : Optional[str]  = None,
-                   branch  : str            = 'main',
-                   progress: Optional[bool] = True) -> None:
-    # Standard libraries -----------------------------------
-    import json
-    import time
-    import urllib.request
-    from urllib.error import HTTPError
-    # Local imports ----------------------------------------
-    import pyhope.output.output as hopout
-    from pyhope.common.common_progress import ProgressBar
-    # ------------------------------------------------------
-
-    # Helper to manage API requests and rate limiting
-    def _make_request(url : str,
-                      base: Optional[str]         = None,
-                      bar : Optional[ProgressBar] = None) -> addinfourl:
-
-        headers = {}
-        if token:
-            headers['Authorization'] = f'token {token}'
-
-        req = urllib.request.Request(url, headers=headers)
-
-        while True:
-            try:
-                return urllib.request.urlopen(req)
-            except HTTPError as e:  # noqa: PERF203
-                # Check for rate-limiting error
-                if  e.code == 403                        \
-                and 'X-RateLimit-Remaining' in e.headers \
-                and int(e.headers['X-RateLimit-Remaining']) == 0:  # noqa: E271
-                    timeReset = int(e.headers['X-RateLimit-Reset'])
-                    timeWait  = max(timeReset - time.time(), 1)
-                    if base is not None and bar is not None:
-                        bar.title(f'│ Rate limited, waiting {timeWait} sec')
-                    time.sleep(timeWait)
-                    if base is not None and bar is not None:
-                        bar.title( '│               Downloading tests')
-                    # Retry the request
-                    continue
-                # Re-raise other HTTP errors
-                raise
-
-    apiURL = f'https://api.github.com/repos/{user}/{repo}/contents/{path}?ref={branch}'
-
-    with _make_request(apiURL) as u:
-        contents = json.loads(u.read().decode())
-
-    # Exlude all tutorials with index 5 or higher
-    # > These are only used for internal testing
-    if progress:
-        contents = [s for s in contents if s['name'][0] in '1234']
-
-    # If we are in a subdirectory, create it
-    os.makedirs(target, exist_ok=True)
-
-    bar = None
-    if progress:
-        bar = ProgressBar(value=len(contents), title='│               Downloading tests', length=33, threshold=1)
-
-    for item in contents:
-        name     = item['name']
-        subPath  = os.path.join(target, name)
-        itemType = item.get('type')
-
-        match itemType:
-            case 'file':
-                # Initially, download the file content
-                # > This might be the actual file or an LFS pointer
-                with _make_request(item['download_url'], os.path.basename(path), bar) as u:
-                    content = u.read()
-
-                # Check if the content is a Git LFS pointer
-                if content.startswith(b'version https://git-lfs.github.com/spec/v1'):
-                    # If it's an LFS pointer, the actual file needs to be downloaded
-                    # from the media URL, which is constructed from the file's path
-                    # print(f'Downloading LFS file: {item["path"]}...')
-                    lfs_url = f'https://media.githubusercontent.com/media/{user}/{repo}/{branch}/{item["path"]}'
-                    with _make_request(lfs_url, os.path.basename(path), bar) as lfs_u:
-                        content = lfs_u.read()
-
-                # Write the final content (either regular file or LFS file) to disk
-                pathlib.Path(subPath).write_bytes(content)
-
-            case 'dir':
-                # Recursively call the function for subdirectories
-                # > Progress is disabled for sub-calls to issues with duplicate progressBar
-                downloadGitDir(user, repo, item['path'], subPath, branch=branch, progress=False)
-
-            case _:
-                print(hopout.warn(f'Unknown item type "{itemType}" for item "{name}". Skipping.'))
-
-        if progress:
-            bar.step()
-
-    if progress:
-        bar.close()
+@unique
+class lfsFlag(Enum):
+    lfsOkay = 0
+    lfsWarn = 1
+    lfsErr  = 2
 
 
 def hdf5Stats(obj: h5py.Dataset) -> Optional[dict[str, float]]:
@@ -195,10 +85,14 @@ def CheckInstall(path: Optional[str] = None) -> None:
     """
     # Third-party libraries --------------------------------
     import h5py
+    import re
+    import urllib.error
     from contextlib import redirect_stdout
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common_progress import ProgressBar
+    from pyhope.common.common_git import findGitRoot, downloadGitDir, downloadGitFile
+    from pyhope.common.common_git import isLFSFile
     from pyhope.readintools.readintools import ReadConfig
     # ------------------------------------------------------
 
@@ -211,7 +105,8 @@ def CheckInstall(path: Optional[str] = None) -> None:
     testDir: Final[str]   = 'tutorials'
     testArr: Final[tuple] = ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo')
     testLen: Final[int]   = max(len(s) for s in testArr)
-    tmpDir = None
+    tmpDir  = None
+    lfsWarn = lfsFlag.lfsOkay
 
     hopout.small_banner('Verifying installation')
 
@@ -243,8 +138,8 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 print(hopout.warn('No GitHub token found. Using unauthenticated requests which are severely rate-limited.'))
                 hopout.sep()
 
-        tmpDir = tempfile.TemporaryDirectory(delete=False)  # pyright: ignore[reportCallIssue] # ty: ignore[no-matching-overload]
-        downloadGitDir('hopr-framework', 'PyHOPE', testDir, tmpDir.name, token)
+        tmpDir = tempfile.TemporaryDirectory()
+        downloadGitDir(user, repo, testDir, tmpDir.name, token)
         path = tmpDir.name
         hopout.sep()
 
@@ -258,7 +153,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
 
         # Exlude all tutorials with index 5 or higher
         # > These are only used for internal testing
-        tutorials = [s for s in tutorials if s[0] in '1234']
+        tutorials = tuple(s for s in tutorials if s[0] in '1234')
 
         tsuccess  = np.ones(len(tutorials), dtype=bool)
 
@@ -269,15 +164,15 @@ def CheckInstall(path: Optional[str] = None) -> None:
                           threshold    = 1,                                    # noqa: E251
                           enrich_print = False)                                # noqa: E251
         for tNum, tutorial in enumerate(tutorials):
-            tutorialPath = os.path.join(path, tutorial)
-
-            # Skip the test if the parameter file is missing
-            if not os.path.isfile(os.path.join(tutorialPath, 'parameter.ini')):
-                bar.step()
-                continue
+            tutorialPath = os.path.abspath(os.path.join(path, tutorial))
 
             # Assemble the parameter path
             parameter = os.path.join(tutorialPath, 'parameter.ini')
+
+            # Skip the test if the parameter file is missing
+            if not os.path.isfile(parameter):
+                bar.step()
+                continue
 
             # Suppress output to standard output
             try:
@@ -296,9 +191,64 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 bar.step()
                 continue
 
+            # Ensure the mesh file is valid as Git LFS might leave dangling pointers
+            meshTmp = None
+            meshOK  = True
+            if 'filename' in (s.lower() for s in params['general']):
+                # Check if any mesh file is actually an LFS pointer
+                meshNames = tuple(s for s in params['general']['filename'].splitlines() if s)
+                needsMesh = any(isLFSFile(os.path.join(tutorialPath, s)) for s in meshNames)
+
+                # Only perform mesh replacements if we actually need to
+                if needsMesh:
+                    meshTmp = tempfile.TemporaryDirectory()
+                    replIni = pathlib.Path(parameter).read_text()
+
+                    for meshFile in meshNames:
+                        # Skip mesh files that are already valid
+                        if not isLFSFile(os.path.join(tutorialPath, meshFile)):
+                            continue
+
+                        # Try to re-download the missing LFS meshes
+                        try:
+                            bar.title('│             Re-downloading mesh')
+                            downloadGitFile(user, repo, meshTmp.name, {'name'        : meshFile,
+                                                                       'type'        : 'file',
+                                                                       'download_url': f'https://media.githubusercontent.com/media/{user}/{repo}/{branch}/tutorials/{tutorial}/{meshFile}'
+                                                                      })
+
+                            # Replace only the next FileName occurrence in the parameter file
+                            old = re.escape(meshFile)
+                            new = f"FileName = {os.path.join(meshTmp.name, meshFile)}"
+                            replIni, _ = re.subn(rf'^[ \t]*FileName[ \t]*=[ \t]*{old}[ \t]*.*$', new, replIni, count=1, flags=re.IGNORECASE | re.MULTILINE)  # noqa: E501
+                            bar.title('│                   Running tests')
+
+                            if lfsWarn is lfsFlag.lfsOkay:
+                                lfsWarn = lfsFlag.lfsWarn
+
+                        except urllib.error.HTTPError:  # noqa: PERF203
+                            lfsWarn = lfsWarn.lfsErr
+                            meshOK  = False
+                            hopout.printtest(f'Failed obtaining mesh for test "{tutorial}"', hopout.Symbols.WARN)
+                            break
+
+                    if meshOK:
+                        parameter = os.path.join(meshTmp.name, 'parameter.ini')  # ty:ignore[no-matching-overload]
+                        pathlib.Path(parameter).write_text(replIni)
+
+                    if not meshOK:
+                        # Cleanup temporary directory
+                        if  meshTmp is not None             \
+                        and os.path.isdir(meshTmp.name)     \
+                        and meshTmp.name.startswith('/tmp'):  # noqa: E271
+                            meshTmp.cleanup()
+
+                        bar.step()
+                        continue
+
             # Run pyhope to generate mesh; trap errors and timeouts
             try:
-                subprocess.run([sys.executable, '-m', 'pyhope', 'parameter.ini', '--skip-checks'],
+                subprocess.run([sys.executable, '-m', 'pyhope', parameter, '--skip-checks'],
                                 cwd     = tutorialPath,        # noqa: E251
                                 check   = True,                # noqa: E251
                                 stdout  = subprocess.DEVNULL,  # noqa: E251
@@ -316,26 +266,32 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 #     p.terminate()
             except subprocess.CalledProcessError as exc:
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } PyHOPE failed for "{tutorial}": ' +
-                               f'Return code = {getattr(exc, "returncode", "")}')
+                hopout.printtest(f'PyHOPE failed for "{tutorial}": Return code = {getattr(exc, "returncode", "")}',
+                                 hopout.Symbols.ERR)
                 bar.step()
                 continue
             except subprocess.TimeoutExpired:
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } PyHOPE timed out for "{tutorial}"')
+                hopout.printtest(f'PyHOPE timed out for "{tutorial}"', hopout.Symbols.ERR)
                 bar.step()
                 continue
             except Exception as exc:
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } Unexpected error running PyHOPE for "{tutorial}": {exc}')
+                hopout.printtest(f'Unexpected error running PyHOPE for "{tutorial}": {exc}', hopout.Symbols.ERR)
                 bar.step()
                 continue
+
+            # Clean the temporary mesh directory
+            if  meshTmp is not None             \
+            and os.path.isdir(meshTmp.name)     \
+            and meshTmp.name.startswith('/tmp'):  # noqa: E271
+                meshTmp.cleanup()
 
             # Check if PyHOPE generated an output file
             if not os.path.isfile(os.path.join(tutorialPath, f'{projectName}_mesh.h5')):
                 # raise ExecError(f'PyHOPE failed to generate mesh for {tutorial}')
                 tsuccess[tNum] = False
-                hopout.info(f'{hopout.Symbols.ERR } PyHOPE did not produce {projectName}_mesh.h5 for "{tutorial}"')
+                hopout.printtest(f'PyHOPE did not produce {projectName}_mesh.h5 for "{tutorial}"', hopout.Symbols.ERR)
                 bar.step()
                 continue
 
@@ -352,7 +308,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     # Python 3.10-: Mark the tutorial as successful
                     bar.step()
                     if Version(platform.python_version()) < Version('3.11'):
-                        hopout.info(f'{hopout.Symbols.OK  } Successfully completed test (w/o verification) "{tutorial}"')
+                        hopout.printtest(f'Successfully completed test (w/o verification) "{tutorial}"', hopout.Symbols.OK)
                         tsuccess[tNum] = True
                     continue
 
@@ -444,9 +400,9 @@ def CheckInstall(path: Optional[str] = None) -> None:
             bar.step()
 
             if tsuccess[tNum]:
-                hopout.info(f'{hopout.Symbols.OK  } Successfully completed test "{tutorial}"')
+                hopout.printtest(f'Successfully completed test "{tutorial}"', hopout.Symbols.OK)
             else:
-                hopout.info(f'{hopout.Symbols.ERR } Failed test "{tutorial}"')
+                hopout.printtest(f'Failed test "{tutorial}"'                , hopout.Symbols.ERR)
 
         # Cleanup temporary directory
         if  tmpDir is not None             \
@@ -459,14 +415,21 @@ def CheckInstall(path: Optional[str] = None) -> None:
             hopout.sep()
             bar.title('│          Finished running tests')
             bar.close()
-        hopout.info('')
+
+        match lfsWarn:
+            case lfsFlag.lfsOkay:
+                # hopout.info('')
+                pass
+            case lfsFlag.lfsWarn | lfsFlag.lfsErr:
+                hopout.sep()
+                print(hopout.warn('Encountered missing mesh files. Please ensure Git LFS [https://git-lfs.com] is set-up correctly'))  # noqa: E501
 
         # Print the final output
         hopout.small_banner('Verification summary')
         if all(tsuccess):
-            hopout.info(f'{hopout.Symbols.OK  } Successfully completed {np.sum(tsuccess)}/{len(tutorials)} tests')
+            hopout.printtest(f'Successfully completed {np.sum(tsuccess)}/{len(tutorials)} tests', hopout.Symbols.OK)
         else:
-            hopout.info(f'{hopout.Symbols.ERR } Failed {np.sum(~tsuccess)}/{len(tutorials)} tests')
+            hopout.printtest(f'Failed {np.sum(~tsuccess)}/{len(tutorials)} tests'               , hopout.Symbols.ERR)
         hopout.separator(length=79)
 
         # Final exit code

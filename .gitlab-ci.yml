@@ -253,13 +253,17 @@ examples:
         popd > /dev/null
       done
 
-    # Combine coverage reports from all example directories
-    - echo "Combining coverage reports..."
-    - coverage combine --keep
+    - echo "Save coverage reports"
+    - mkdir -p .tmp/coverage
+    - cp .coverage.* .tmp/coverage
 
-    # Generate the coverage report in XML format
+    # Combine coverage reports from all example directories
+    # - echo "Combining coverage reports..."
+    # - coverage combine --keep --data-file=".coverage"
+
+    # Generate the coverage report
     - echo "Generating coverage report..."
-    - coverage xml
+    # > Coverage 7.14.0 changed to implicit combine which deletes the parallel files
     - coverage report --skip-empty --precision=2
 
     # Output the final sorted report as a UTF-8 box-drawing table
@@ -292,12 +296,22 @@ examples:
     # Repeat the coverage report for Gitlab CI/CD to pick up
     - coverage report --skip-empty --precision=2 | grep TOTAL
 
+    - echo "Restore coverage reports"
+    - cp .tmp/coverage/.coverage.* .
+
 healthcheck:
   extends: .defaults_coverage
   stage: verification
+  # Remove Git LFS on purpose to check the LFS downloader
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
   script:
     # Run the internal health check
     - coverage run --data-file=".coverage.verify" -m pyhope --verify
+    # Generate the coverage report
+    # - echo "Generating coverage report..."
+    # > Coverage 7.14.0 changed to implicit combine which deletes the parallel files
+    # - coverage report --skip-empty --precision=2 --data-file=".coverage.verify"
 
 coverage:
   extends: .defaults_coverage
@@ -322,6 +336,7 @@ coverage:
     # Generate the coverage report in XML format
     - echo "Generating coverage report..."
     - coverage xml
+    # > Coverage 7.14.0 changed to implicit combine which deletes the parallel files
     - coverage report --skip-empty --precision=2
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

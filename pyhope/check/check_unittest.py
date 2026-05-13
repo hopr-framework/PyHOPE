@@ -65,21 +65,21 @@ class TestOutput(unittest.TextTestResult):
         import pyhope.output.output as hopout
         # ------------------------------------------------------
         super().addSuccess(test)
-        self.hopout.info(f'{hopout.Symbols.OK  :<9}  │ {test._testMethodName.split("test_")[1]}')
+        self.hopout.printtest(test._testMethodName.split("test_")[1], hopout.Symbols.OK)
 
     def addFailure(self, test: TestCase, err: tuple) -> None:
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
         super().addFailure(test, err)
-        self.hopout.info(f'{hopout.Symbols.WARN:<9}  │ {test._testMethodName.split("test_")[1]}')
+        self.hopout.printtest(test._testMethodName.split("test_")[1], hopout.Symbols.WARN)
 
     def addError(self, test: TestCase, err: tuple) -> None:
         # Local imports ----------------------------------------
         import pyhope.output.output as hopout
         # ------------------------------------------------------
         super().addError(test, err)
-        self.hopout.info(f'{hopout.Symbols.ERR :<9}  │ {test._testMethodName.split("test_")[1]}')
+        self.hopout.printtest(test._testMethodName.split("test_")[1], hopout.Symbols.ERR)
 
 
 class TestLibraryMethods(unittest.TestCase):
@@ -332,6 +332,6 @@ def CheckUnittest() -> None:
         for line in diff.splitlines():
             hopout.info(line)
 
-    hopout.separator()
+    hopout.sep()
     hopout.info(f'Ran {n_run} tests in {t_end - t_start:.3f}s')
     hopout.small_banner(f'Results: {n_pass}/{n_run} passed')

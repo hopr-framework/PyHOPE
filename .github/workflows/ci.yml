@@ -86,50 +86,8 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
-      # Cached LFS requires node
-      # - name: Ensure NodeJS
-      #   shell: bash
-      #   run: |
-      #     if command -v node &> /dev/null; then exit 0; fi
-      #     # Container is Debian-based (apt)
-      #     if command -v apt-get &> /dev/null; then
-      #       apt-get update -y
-      #       apt-get install -y --no-install-recommends nodejs
-      #     fi
-      #     # Container Fedora-based (dnf)
-      #     if command -v dnf &> /dev/null; then
-      #       dnf makecache
-      #       dnf update -y
-      #       dnf install -y node
-      #     fi
       # This does not strictly require LFS but we want the checkout before the compatibility matrix
       - uses: actions/checkout@v6
-      # - uses: nschloe/action-cached-lfs-checkout@v1
-        # with:  Reduce Git LFS bandwidth
-        #   fetch-depth: 0
-        #   fetch-tags: true
-        #   lfs: true
-      # - name: Create Git LFS file list
-      #   run: |
-      #     pwd
-      #     ls -al
-      #     ls -al .git
-      #     git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
-      # - name: Restore Git LFS object cache
-      #   uses: actions/cache@v5
-      #   with:
-      #     path: .git/lfs/objects
-      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.lfs-assets-id') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-lfsdata-v1-
-      #       ${{ runner.os }}-lfsdata
-      # - name: Fetch any needed Git LFS objects and prune extraneous ones
-      #   run: git lfs fetch --prune
-      # - name: Check out Git LFS content
-      #   run: git lfs checkout
       - uses: ./.github/actions/setup
         # with:
         #   minimal: 'false'
@@ -185,45 +143,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
-      # Cached LFS requires node
-      # - name: Ensure NodeJS
-      #   shell: bash
-      #   run: |
-      #     if command -v node &> /dev/null; then exit 0; fi
-      #     # Container is Debian-based (apt)
-      #     if command -v apt-get &> /dev/null; then
-      #       apt-get update -y
-      #       apt-get install -y --no-install-recommends nodejs
-      #     fi
-      #     # Container Fedora-based (dnf)
-      #     if command -v dnf &> /dev/null; then
-      #       dnf makecache
-      #       dnf update -y
-      #       dnf install -y node
-      #     fi
       - uses: actions/checkout@v6
       # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
         #   fetch-depth: 0
         #   fetch-tags: true
           lfs: true
-      # - name: Create Git LFS file list
-      #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
-      # - name: Restore Git LFS object cache
-      #   uses: actions/cache@v5
-      #   with:
-      #     path: .git/lfs
-      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.git/lfs-assets-id') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-lfsdata-v1-
-      #       ${{ runner.os }}-lfsdata
-      # - name: Fetch any needed Git LFS objects and prune extraneous ones
-      #   run: git lfs fetch --prune
-      # - name: Check out Git LFS content
-      #   run: git lfs checkout
       - uses: ./.github/actions/setup
       - name: Run compatibility tests
         shell: bash
@@ -248,45 +173,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
-      # Cached LFS requires node
-      # - name: Ensure NodeJS
-      #   shell: bash
-      #   run: |
-      #     if command -v node &> /dev/null; then exit 0; fi
-      #     # Container is Debian-based (apt)
-      #     if command -v apt-get &> /dev/null; then
-      #       apt-get update -y
-      #       apt-get install -y --no-install-recommends nodejs
-      #     fi
-      #     # Container Fedora-based (dnf)
-      #     if command -v dnf &> /dev/null; then
-      #       dnf makecache
-      #       dnf update -y
-      #       dnf install -y node
-      #     fi
       - uses: actions/checkout@v6
       # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
         #   fetch-depth: 0
         #   fetch-tags: true
           lfs: true
-      # - name: Create Git LFS file list
-      #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
-      # - name: Restore Git LFS object cache
-      #   uses: actions/cache@v5
-      #   with:
-      #     path: .git/lfs
-      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.git/lfs-assets-id') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-lfsdata-v1-
-      #       ${{ runner.os }}-lfsdata
-      # - name: Fetch any needed Git LFS objects and prune extraneous ones
-      #   run: git lfs fetch --prune
-      # - name: Check out Git LFS content
-      #   run: git lfs checkout
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -295,12 +187,51 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/examples.sh
+      - name: Save coverage reports
+        shell: bash
+        run: |
+          mkdir -p .tmp/coverage
+          cp .coverage.* .tmp/coverage
+      - name: Generate the coverage report in XML format
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          coverage report --skip-empty --precision=2
+      - name: Output the final report
+        shell: bash
+        run: |
+          echo ""
+          printf "┌─%s─┬────────┐\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+          printf "│ %-$(($col_width-2))s │ %-5s │\n" "Example Directory" "Result"
+          printf "├─%s─┼────────┤\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+          for result in "${results[@]}"; do
+            paramdir=$(echo "$result" | cut -d ':' -f 1)
+            paramres=$(echo "$result" | cut -d ':' -f 2 | tr -d '[:space:]')
+
+            if [[ "$paramres" == "PASS" ]]; then
+              printf "│ %-$(($col_width-2))s │ ${green}%-6s${reset} │\n" "$paramdir" "$paramres"
+            else
+              printf "│ %-$(($col_width-2))s │ ${red}%-6s${reset} │\n" "$paramdir" "$paramres"
+            fi
+          done
+          printf "└─%s─┴────────┘\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+
+          # Fail the job if any examples failed
+          if [[ "${results[*]}" == *"FAIL"* ]]; then
+            echo "Some examples failed.";
+            exit 1;
+          else
+            echo "All examples passed.";
+          fi
+      - name: Restore coverage reports
+        shell: bash
+        run: |
+          cp .tmp/coverage/.coverage.* .
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-examples
           include-hidden-files: true
           path: |
-            coverage.xml
             .coverage.*
 
   healthcheck:
@@ -316,45 +247,10 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
-      # Cached LFS requires node
-      # - name: Ensure NodeJS
-      #   shell: bash
-      #   run: |
-      #     if command -v node &> /dev/null; then exit 0; fi
-      #     # Container is Debian-based (apt)
-      #     if command -v apt-get &> /dev/null; then
-      #       apt-get update -y
-      #       apt-get install -y --no-install-recommends nodejs
-      #     fi
-      #     # Container Fedora-based (dnf)
-      #     if command -v dnf &> /dev/null; then
-      #       dnf makecache
-      #       dnf update -y
-      #       dnf install -y node
-      #     fi
       - uses: actions/checkout@v6
-      # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
-        #   fetch-depth: 0
-        #   fetch-tags: true
-          lfs: true
-      # - name: Create Git LFS file list
-      #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
-      # - name: Restore Git LFS object cache
-      #   uses: actions/cache@v5
-      #   with:
-      #     path: .git/lfs
-      #     key: ${{ runner.os }}-lfsdata-v1-${{ hashFiles('.git/lfs-assets-id') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-lfsdata-v1-
-      #       ${{ runner.os }}-lfsdata
-      # - name: Fetch any needed Git LFS objects and prune extraneous ones
-      #   run: git lfs fetch --prune
-      # - name: Check out Git LFS content
-      #   run: git lfs checkout
+        # # Remove Git LFS on purpose to check the LFS downloader
+          lfs: false
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -383,15 +279,6 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      # Git LFS requires git
-      # - name: Install Git LFS
-      #   shell: bash
-      #   run: |
-      #     dnf update -y
-      #     dnf install -y git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
       - uses: actions/checkout@v6
         # with:  Reduce Git LFS bandwidth
         #   fetch-depth: 0
@@ -405,12 +292,6 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/convergence.sh
-      # - uses: actions/upload-artifact@v7
-      #   with:
-      #     name: coverage-convergence
-      #     include-hidden-files: true
-      #     path: |
-      #       .coverage.*
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Code coverage

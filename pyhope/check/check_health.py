@@ -199,13 +199,13 @@ def DependencyHealth(program: str,
     if version:
         if isinstance(version, Version):
             status = status if status is not None else hopout.Symbols.OK
-            hopout.info(f'{status} {program} found [v{version}]'      + ('' if info is None else info))
+            hopout.printtest(f'{program} found [v{version}]'      + ('' if info is None else info), status)
         else:  # pragma: no cover
             status = status if status is not None else hopout.Symbols.WARN
-            hopout.info(f'{status} {program} found [unknown version]' + ('' if info is None else info))
+            hopout.printtest(f'{program} found [unknown version]' + ('' if info is None else info), status)
     else:
         status = status if status is not None else hopout.Symbols.WARN
-        hopout.info(f'{status} {program} not installed' + ('' if info is None else info))
+        hopout.printtest(f'{program} not installed' + ('' if info is None else info), status)
 
 
 def _PackageInstalledVersion(package: str) -> Optional[Version]:
@@ -275,18 +275,18 @@ def PackageHealth(   pkg:      str,
     if pypiver and version:
         try:
             if version >= pypiver:
-                hopout.info(f'{hopout.Symbols.OK  } {pkg} [v{version}] is up-to-date')
+                hopout.printtest(f'{pkg} [v{version}] is up-to-date',                  hopout.Symbols.OK)
             else:
-                hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is outdated (PyPI: v{pypiver})')
+                hopout.printtest(f'{pkg} [v{version}] is outdated (PyPI: v{pypiver})', hopout.Symbols.WARN)
                 if reason:
                     hopout.routine(f' {hopout.Symbols.INFO} constrained by {reason}')
         except Exception:  # pragma: no cover
-            hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI: v{pypiver}) -- unable to compare reliably')
+            hopout.printtest(f'{pkg} [v{version}] is installed (PyPI: v{pypiver}) -- unable to compare reliably', hopout.Symbols.WARN)  # noqa: E501
     elif version:  # pragma: no cover
-        hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI info unavailable)')
+        hopout.printtest(f'{pkg} [v{version}] is installed (PyPI info unavailable)', hopout.Symbols.WARN)  # noqa: E501
     else:  # pragma: no cover
         symbol = hopout.Symbols.ERR if optional is False else hopout.Symbols.INFO
-        hopout.info(f'{symbol} {pkg} (PyPI: v{pypiver}) is not installed')
+        hopout.printtest(f'{pkg} (PyPI: v{pypiver}) is not installed', symbol)
 
 
 def CheckHealth() -> None:

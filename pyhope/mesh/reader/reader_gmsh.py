@@ -343,66 +343,61 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     # Now set the missing CGNS boundaries
     for fname in fnames:
-
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
-        tname = tfile.name
-        # Try to convert the file automatically
-        if not h5py.is_hdf5(fname):
-            hopout.sep()
-            hopout.info(f'File {os.path.basename(fname)} is not in HDF5 CGNS format, converting ...')
-            tStart = time.time()
-            _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
-            tEnd   = time.time()
-            hopout.info(f'File {os.path.basename(fname)} converted HDF5 CGNS format [{tEnd - tStart:.2f} sec]')
+        with tempfile.NamedTemporaryFile() as tfile:
+            tname = tfile.name
+            # Try to convert the file automatically
+            if not h5py.is_hdf5(fname):
+                hopout.sep()
+                hopout.info(f'File {os.path.basename(fname)} is not in HDF5 CGNS format, converting ...')
+                tStart = time.time()
+                _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
+                tEnd   = time.time()
+                hopout.info(f'File {os.path.basename(fname)} converted HDF5 CGNS format [{tEnd - tStart:.2f} sec]')
 
-            # Rest of this code operates on the converted file
-            fname = tname
-        else:
-            # Alternatively, load the file directly into tmpfs for faster access
-            shutil.copyfile(fname, tname)
+                # Rest of this code operates on the converted file
+                fname = tname
+            else:
+                # Alternatively, load the file directly into tmpfs for faster access
+                shutil.copyfile(fname, tname)
 
-        with h5py.File(fname, mode='r') as f:
-            if 'CGNSLibraryVersion' not in f:
-                hopout.error('CGNS file does not contain library version header')
+            with h5py.File(fname, mode='r') as f:
+                if 'CGNSLibraryVersion' not in f:
+                    hopout.error('CGNS file does not contain library version header')
 
-            key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
-            match len(key):
-                case 0:
-                    hopout.error('Object [Base] does not exist in CGNS file')
-                case 1:
-                    if not isinstance(f[key[0]], h5py.Group):
-                        hopout.error('Object [Base] is not a group in CGNS file')
-                    base = cast(h5py.Group, f[key[0]])
-                case _:
-                    hopout.error('More than one object [Base] exists in CGNS file')
+                key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
+                match len(key):
+                    case 0:
+                        hopout.error('Object [Base] does not exist in CGNS file')
+                    case 1:
+                        if not isinstance(f[key[0]], h5py.Group):
+                            hopout.error('Object [Base] is not a group in CGNS file')
+                        base = cast(h5py.Group, f[key[0]])
+                    case _:
+                        hopout.error('More than one object [Base] exists in CGNS file')
 
-            for baseZone in base:
-                # Ignore the base dataset
-                if baseZone.strip() == 'data':
-                    continue
+                for baseZone in base:
+                    # Ignore the base dataset
+                    if baseZone.strip() == 'data':
+                        continue
 
-                zone = cast(h5py.Group, base[baseZone])
-                # Check if the zone contains BCs
-                if 'ZoneBC' not in zone:
-                    continue
+                    zone = cast(h5py.Group, base[baseZone])
+                    # Check if the zone contains BCs
+                    if 'ZoneBC' not in zone:
+                        continue
 
-                zonedata = cast(h5py.Dataset, zone[' data'])
-                match len(zonedata[0]):
-                    case 1:  # Unstructured mesh, 1D arrays
-                        mesh = BCCGNS_Unstructured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen,  # noqa: E501
-                                                   # Support for triangular elements
-                                                   ttree, tConnNum, tConnLen)
-                    case 3:  # Structured 3D mesh, 3D arrays
-                        # Structured grid can only contain tensor-product elements
-                        mesh = BCCGNS_Structured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen)
-                    case _:  # Unsupported number of dimensions
-                        # raise ValueError('Unsupported number of dimensions')
-                        hopout.error('Unsupported number of dimensions')
-
-        # Cleanup temporary file
-        if tfile is not None:
-            os.unlink(tfile.name)
+                    zonedata = cast(h5py.Dataset, zone[' data'])
+                    match len(zonedata[0]):
+                        case 1:  # Unstructured mesh, 1D arrays
+                            mesh = BCCGNS_Unstructured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen,  # noqa: E501
+                                                       # Support for triangular elements
+                                                       ttree, tConnNum, tConnLen)
+                        case 3:  # Structured 3D mesh, 3D arrays
+                            # Structured grid can only contain tensor-product elements
+                            mesh = BCCGNS_Structured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen)
+                        case _:  # Unsupported number of dimensions
+                            # raise ValueError('Unsupported number of dimensions')
+                            hopout.error('Unsupported number of dimensions')
 
     # Run garbage collector to release memory
     gc.collect()
