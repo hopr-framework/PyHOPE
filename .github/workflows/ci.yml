@@ -340,7 +340,8 @@ jobs:
         with:
         #   fetch-depth: 0
         #   fetch-tags: true
-          lfs: true
+        # # Remove Git LFS on purpose to check the LFS downloader
+          lfs: false
       # - name: Create Git LFS file list
       #   run: git lfs ls-files -l | cut -d' ' -f1 | sort > .git/lfs-assets-id
       # - name: Restore Git LFS object cache

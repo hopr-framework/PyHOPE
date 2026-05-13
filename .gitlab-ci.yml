@@ -295,6 +295,9 @@ examples:
 healthcheck:
   extends: .defaults_coverage
   stage: verification
+  # Remove Git LFS on purpose to check the LFS downloader
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
   script:
     # Run the internal health check
     - coverage run --data-file=".coverage.verify" -m pyhope --verify
