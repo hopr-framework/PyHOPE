@@ -47,14 +47,15 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 
 @cache
-def gambit_faces(elemType: Union[int, str]) -> list[str]:
+def gambit_faces(elemType: Union[int, str]) -> tuple[str, ...]:
     """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron
+                   4: ('y-', 'x+', 'y+', 'z-'            ),
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
-                   8: ['y-', 'x+', 'y+', 'x-', 'z-', 'z+']
+                   8: ('y-', 'x+', 'y+', 'x-', 'z-', 'z+'),
                 }
 
     if isinstance(elemType, str):
