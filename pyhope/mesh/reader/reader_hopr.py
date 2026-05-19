@@ -64,14 +64,14 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     hopout.sep()
 
-    # Create an empty meshio object
+    # Create or re-use the meshio object
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
     cells    = mesh.cells_dict
-    cellsets = defaultdict(lambda: defaultdict(list))
+    cellsets = defaultdict(lambda: defaultdict(list), mesh.cell_sets_dict)
 
-    nodeCoords   = mesh.points
-    offsetnNodes = nodeCoords.shape[0]
+    # Create the reader objects
+    offsetnNodes = mesh.points.shape[0]
     nSides       = np.zeros(2, dtype=int)
 
     # Vandermonde for changeBasis

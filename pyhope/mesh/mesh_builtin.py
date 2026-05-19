@@ -80,7 +80,13 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.option.setNumber('Mesh.RandomFactor'          , 0)                       # No perturbation
     gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
     gmsh.option.setNumber('Mesh.Algorithm'             , 3)                       # Initial mesh only
+    # gmsh.option.setNumber('Mesh.Algorithm3D'           , 10)                      # HXT algorithm
     gmsh.option.setNumber('Geometry.AutoCoherence'     , 2)                       # Remove duplicate entities
+
+    # Avoid mesh size interpolation
+    gmsh.option.setNumber('Mesh.MeshSizeFromPoints'        , 0)
+    gmsh.option.setNumber('Mesh.MeshSizeFromCurvature'     , 0)
+    gmsh.option.setNumber('Mesh.MeshSizeExtendFromBoundary', 0)
 
     # To connect the generated cells, we can simply set
     gmsh.option.setNumber('Mesh.RecombineAll'          , 1)
