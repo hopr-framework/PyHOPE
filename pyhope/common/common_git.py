@@ -79,6 +79,8 @@ def makeAPIRequest(url  : str,
     import time
     import urllib.request
     from urllib.error import HTTPError
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
     # ------------------------------------------------------
 
     headers = {}
@@ -86,25 +88,30 @@ def makeAPIRequest(url  : str,
         headers['Authorization'] = f'token {token}'
 
     req = urllib.request.Request(url, headers=headers)
-    # print(url)
 
     while True:
         try:
             return urllib.request.urlopen(req)
         except HTTPError as e:  # noqa: PERF203
+            # Check for authentification error
+            if e.code == 401                         \
+            and token:
+                hopout.error('HTTP Error 401: Unauthorized. Please verify "gh auth status"')
             # Check for rate-limiting error
-            if  e.code == 403                        \
+            if e.code == 403                         \
             and 'X-RateLimit-Remaining' in e.headers \
             and int(e.headers['X-RateLimit-Remaining']) == 0:  # noqa: E271
                 timeReset = int(e.headers['X-RateLimit-Reset'])
                 timeWait  = max(timeReset - time.time(), 1)
                 if bar is not None:
                     bar.title(f'│ Rate limited, waiting {timeWait} sec')
+                # Back-off for a while
                 time.sleep(timeWait)
                 if bar is not None:
                     bar.title( '│               Downloading tests')
                 # Retry the request
                 continue
+
             # Re-raise other HTTP errors
             raise
 
