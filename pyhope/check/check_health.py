@@ -27,7 +27,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import json
 import urllib.request
+from dataclasses import dataclass
 from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 from typing import Optional, Union
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,6 +42,12 @@ from typing import Optional, Union
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class PackageReason:
+    name: str
+    spec: SpecifierSet
 
 
 def PyPIVersion(package: str, timeout: int = 10) -> Optional[Version]:
@@ -267,7 +275,7 @@ def PackageHealth(   pkg:      str,
                      version:  Union[Version, None],
                      pypiver:  Union[Version, None],  # noqa: E272
                      optional: Optional[bool] = False,
-                     reason:   Optional[str]  = None,
+                     reason:   Optional['PackageReason'] = None,
                  ) -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -278,8 +286,8 @@ def PackageHealth(   pkg:      str,
                 hopout.printtest(f'{pkg} [v{version}] is up-to-date',                  hopout.Symbols.OK)
             else:
                 hopout.printtest(f'{pkg} [v{version}] is outdated (PyPI: v{pypiver})', hopout.Symbols.WARN)
-                if reason:
-                    hopout.routine(f' {hopout.Symbols.INFO} constrained by {reason}')
+                if reason and (version in reason.spec) and (pypiver not in reason.spec):
+                    hopout.routine(f' {hopout.Symbols.INFO} constrained by {reason.name} ({reason.spec})')
         except Exception:  # pragma: no cover
             hopout.printtest(f'{pkg} [v{version}] is installed (PyPI: v{pypiver}) -- unable to compare reliably', hopout.Symbols.WARN)  # noqa: E501
     elif version:  # pragma: no cover
@@ -321,7 +329,7 @@ def CheckHealth() -> None:
     for p in pkgs:
         name, spec = _PackageExtractRequirement(p)
         if spec:
-            pkg_reasons[name] = program
+            pkg_reasons[name] = PackageReason(name=program, spec=SpecifierSet(str(spec)))
 
         # Also check requirements of installed dependencies to find downstream constraints
         dep_name = _PackageExtractName(p)
@@ -330,7 +338,7 @@ def CheckHealth() -> None:
                 for dep in (importlib_metadata.requires(dep_name) or []):
                     sub_name, sub_spec = _PackageExtractRequirement(dep)
                     if sub_spec:
-                        pkg_reasons[sub_name] = f'{dep_name}{sub_spec}'
+                        pkg_reasons[sub_name] = PackageReason(name=dep_name, spec=SpecifierSet(str(sub_spec)))
             except Exception:
                 pass
 
