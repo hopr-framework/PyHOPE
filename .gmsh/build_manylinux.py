@@ -67,7 +67,7 @@ def get_latest_version(fetch_fn: Callable, name: str, fallback: str) -> str:
     try:
         version = fetch_fn()
         if version:
-            print_step(f' {name:<13} → resolved: {version}')
+            print_step(f' {name:<13} → resolved: {version}' + ('' if version == fallback else f' (from {fallback})'))
             return version
     except Exception as exc:
         print_step(f' {name:<13} → version check failed ({exc}), using fallback: {fallback}')
@@ -150,13 +150,13 @@ ZLIB_URL     = ('madler', 'zlib')
 
 # TK
 TK_DIR       = os.path.join(WORK_DIR, 'tk')
-TK_VERSION   = '8.6.16'
-TK_URL       = ('https://sourceforge.net/projects/tcl/files/Tcl/', r'href="[^"]+/Tcl/(\d+\.\d+\.\d+)/"')
+TK_VERSION   = '9.0.3'
+# TK_URL       = ('https://sourceforge.net/projects/tcl/files/Tcl/', r'href="[^"]+/Tcl/(\d+\.\d+\.\d+)/"')
 
 # TCL
 TCL_DIR      = os.path.join(WORK_DIR, 'tcl')
-TCL_VERSION  = '8.6.16'
-TCL_URL      = ('https://sourceforge.net/projects/tcl/files/Tcl/', r'href="[^"]+/Tcl/(\d+\.\d+\.\d+)/"')
+TCL_VERSION  = '9.0.3'
+# TCL_URL      = ('https://sourceforge.net/projects/tcl/files/Tcl/', r'href="[^"]+/Tcl/(\d+\.\d+\.\d+)/"')
 
 # CGNS
 CGNS_DIR     = os.path.join(WORK_DIR, 'CGNS')
@@ -165,8 +165,8 @@ CGNS_URL     = ('CGNS', 'CGNS', 'v')
 
 # OpenCASCADE
 OCC_DIR      = os.path.join(WORK_DIR, 'occt')
-OCC_VERSION  = 'V7_9_2'
-OCC_URL      = ('Open-Cascade-SAS', 'OCCT', 'V')
+OCC_VERSION  = 'V7_9_3'
+# OCC_URL      = ('Open-Cascade-SAS', 'OCCT', 'V')
 
 # FreeType
 FREETYPE_VERSION = '2.14.1'
@@ -209,7 +209,7 @@ FONTCONFIG_URL     = ('https://www.freedesktop.org/software/fontconfig/release/'
 # GLU_VERSION  = '9.0.3'
 
 # Gmsh
-GMSH_VERSION = '4.15.1'
+GMSH_VERSION = '4.15.2'
 GMSH_PATCH   = '1'
 GMSH_FULLVER = f'{GMSH_VERSION}.post{GMSH_PATCH}' if GMSH_PATCH else GMSH_VERSION
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
@@ -291,10 +291,10 @@ print_header('RESOLVING DEPENDENCY VERSIONS...')
 # HDF5_VERSION needs to match h5py - do not automatically update
 ZLIB_VERSION          = get_latest_version(lambda: _github_latest_tag (*ZLIB_URL          )                 , 'zlib'         , ZLIB_VERSION)           # noqa: E211, E501
 # MINIZIP_VERSION       = get_latest_version(lambda: _github_latest_tag (*MINIZIP_URL       )                 , 'minizip-ng'   , MINIZIP_VERSION)        # noqa: E211, E501
-TCL_VERSION           = get_latest_version(lambda: _scrape_latest     (*TK_URL           )                  , 'TCL'          , TCL_VERSION)            # noqa: E211, E501
-TK_VERSION            = get_latest_version(lambda: _scrape_latest     (*TCL_URL          )                  , 'TK'           , TK_VERSION)             # noqa: E211, E501
+# TCL_VERSION           = get_latest_version(lambda: _scrape_latest     (*TK_URL           )                  , 'TCL'          , TCL_VERSION)            # noqa: E211, E501
+# TK_VERSION            = get_latest_version(lambda: _scrape_latest     (*TCL_URL          )                  , 'TK'           , TK_VERSION)             # noqa: E211, E501
 CGNS_VERSION          = get_latest_version(lambda: _github_latest_tag (*CGNS_URL         )                  , 'CGNS'         , CGNS_VERSION)           # noqa: E211, E501
-OCC_VERSION           = get_latest_version(lambda: _github_latest_tag (*OCC_URL          ).replace('.', '_'), 'OpenCascade'  , OCC_VERSION)            # noqa: E211, E501
+# OCC_VERSION           = get_latest_version(lambda: _github_latest_tag (*OCC_URL          ).replace('.', '_'), 'OpenCascade'  , OCC_VERSION)            # noqa: E211, E501
 FREETYPE_VERSION      = get_latest_version(lambda: _github_latest_tag (*FREETYPE_URL     )                  , 'FreeType'     , FREETYPE_VERSION)       # noqa: E211, E501
 LIBXFT_VERSION        = get_latest_version(lambda: _scrape_latest     (*LIBXFT_URL       )                  , 'LibXFT'       , LIBXFT_VERSION)         # noqa: E211, E501
 LIBPNG_VERSION        = get_latest_version(lambda: _github_latest_tag (*LIBPNG_URL       )                  , 'LibPNG'       , LIBPNG_VERSION)         # noqa: E211, E501
