@@ -143,7 +143,7 @@ class Gitlab:
     LIB_PROJECT: str = '797'
     LIB_VERSION: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
-            'x86_64' : '4.15.1.post1',
+            'x86_64' : '4.15.2.post1',
             'aarch64': '4.13.1.post1'
         },
         'darwin': {
@@ -152,7 +152,7 @@ class Gitlab:
     }
     LIB_SUPPORT: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
-            'x86_64' : '4f2b923a164f8f8b77494df943ea52a3f7050716f9b9cbac9190f7460ca822fb',
+            'x86_64' : '54753d19e73bd8e1e671b576bb70c2adc56237c07ac60215f5478b5f0d369017',
             'aarch64': '104fe49eeb75ee91cb237acd251533aae98fb48c7e4e16517be6c0f4ccf677da'
         },
         'darwin': {
