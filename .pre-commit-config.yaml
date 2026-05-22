@@ -8,8 +8,7 @@ repos:
     hooks:
       # Run the linter
       - id: ruff
-        name: ruff linter
-        alias: lint
+        name: ruff       [linter]
       # Run the formatter
       # - id: ruff-format
       #   name: ruff formatter
@@ -22,17 +21,35 @@ repos:
       # Run dead code detection
       # Paths are configured under [tool.vulture] in pyproject.toml
       - id: vulture
-        name: vulture dead code
-        alias: vulture
+        name: vulture    [dead code]
 
   # ty has no official pre-commit hook yet (https://github.com/astral-sh/ty/issues/269).
   # Run it as a local hook using the system-installed binary
   - repo: local
     hooks:
       - id: ty
-        name: ty type checker
-        alias: ty
+        name: ty         [type checker]
         entry: ty check --color always --project pyhope pyhope
         language: system
         pass_filenames: false
         types: [python]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      # Run secrets detection engine
+      - id: gitleaks
+        name: gitleaks   [detect hardcoded secrets]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Check for files that contain merge conflict strings
+      - id: check-merge-conflict
+        name: pre-commit [check for merge conflicts]
+      - id: check-symlinks
+        name: pre-commit [check for broken symlinks]
+      - id: trailing-whitespace
+        name: pre-commit [trim trailing whitespace]
+        exclude: \.(msh|patch)$
+        exclude_types: [markdown]
