@@ -114,7 +114,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             if etype[:4] not in ('tria', 'quad'):
                 continue
 
-            elemNum = ho_key + (8 if cast(str, etype).startswith('quad') else 6)
+            elemNum = ho_key + (8 if etype.startswith('quad') else 6)
             # Obtain the element type
             elemType = elemTypeClass.inam[elemNum]
             if len(elemType) > 1:
