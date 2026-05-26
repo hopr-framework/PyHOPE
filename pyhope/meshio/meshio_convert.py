@@ -109,7 +109,7 @@ def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
             for j, i in enumerate(idx):
                 cell_sets[name][i].append(elem_tags[j])
 
-        cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]
+        cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]  # ty: ignore [no-matching-overload]
 
     return meshio.Mesh(points, cells, cell_sets=cell_sets)
 
