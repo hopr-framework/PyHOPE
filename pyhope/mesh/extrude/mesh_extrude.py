@@ -454,11 +454,11 @@ def tri_meshio_to_ij(order: int) -> npt.NDArray[np.int64]:
     return np.asarray(ij, dtype=np.int64)
 
 
-def extrude_pris(nodes:   np.ndarray,
-                 points:  np.ndarray,
-                 shifts:  np.ndarray,
+def extrude_pris(nodes:   npt.NDArray,
+                 points:  npt.NDArray,
+                 shifts:  npt.NDArray,
                  nPoints: int,
-                 order:   int) -> tuple[list, ...]:
+                 order:   int) -> tuple[list[npt.NDArray], npt.NDArray]:
 
     nDOFsElem = round((order+1)**(3-1)*(order+2)/2.)
     newNodes  = [np.empty((nDOFsElem, )) for _ in range(len(shifts)-1)]
@@ -510,11 +510,11 @@ def extrude_pris(nodes:   np.ndarray,
     return newNodes, newPoints
 
 
-def extrude_hexa(nodes:   np.ndarray,
-                 points:  np.ndarray,
-                 shifts:  np.ndarray,
+def extrude_hexa(nodes:   npt.NDArray,
+                 points:  npt.NDArray,
+                 shifts:  npt.NDArray,
                  nPoints: int,
-                 order:   int) -> tuple[list, ...]:
+                 order:   int) -> tuple[list[npt.NDArray], npt.NDArray]:
 
     nDOFsElem = (order+1)**3
     newNodes  = [np.empty((nDOFsElem, )) for _ in range(len(shifts)-1)]
@@ -567,7 +567,7 @@ def extrude_hexa(nodes:   np.ndarray,
 
 
 @cache
-def pris_faces(order: int) -> tuple[np.ndarray, ...]:
+def pris_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
@@ -593,7 +593,7 @@ def pris_faces(order: int) -> tuple[np.ndarray, ...]:
 
 
 @cache
-def hexa_faces(order: int) -> tuple[np.ndarray, ...]:
+def hexa_faces(order: int) -> tuple[npt.NDArray, ...]:
     """ Given the indices of a hexahedral element, return a tuple with the 6 faces as arrays
     """
     match order:
