@@ -29,7 +29,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
-from typing import Union, Optional
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -268,7 +268,7 @@ class NodeOrdering:
                                     }
     )
 
-    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+    def ordering_gmsh_to_meshio(self, elemType: int | str | np.uint, idx: npt.NDArray) -> npt.NDArray:
         """ Return the meshIO node ordering for a given element type
         """
 
@@ -300,7 +300,7 @@ class NodeOrdering:
         ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
-    def ordering_meshio_to_gmsh(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+    def ordering_meshio_to_gmsh(self, elemType: int | str | np.uint, idx: npt.NDArray) -> npt.NDArray:
         """ Return the Gmsh node ordering for a given element type
             > Inverse of ordering_gmsh_to_meshio
         """
@@ -406,7 +406,7 @@ class NodeOrdering:
     #
     #     return mapping
 
-    def typing_gambit_to_meshio(self, elemType: Union[int, str, np.uint]) -> str:
+    def typing_gambit_to_meshio(self, elemType: int | str | np.uint) -> str:
         """ Return the meshIO element type for a given Gambit element type
         """
         if isinstance(elemType, (int, np.integer)):
@@ -414,7 +414,7 @@ class NodeOrdering:
 
         raise ValueError(f'Unknown element type {elemType}')
 
-    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+    def ordering_gambit_to_meshio(self, elemType: int | str | np.uint, idx: npt.NDArray) -> npt.NDArray:
         """ Return the meshIO node ordering for a given element type
         """
         if isinstance(elemType, (int, np.integer)):

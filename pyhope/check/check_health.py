@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
-from typing import Optional, Union
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ def _ParseVersion(text: str) -> Optional[Version]:
     return None
 
 
-def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
+def GmshVersion() -> tuple[Version | bool | None, str | None]:
     """ Query the local system for the Gmsh version
 
         Returns:
@@ -114,8 +114,8 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     import subprocess
     # ------------------------------------------------------
     path = shutil.which('gmsh')
-    # ver: Union[Version, bool, None] = None
-    pac: Union[str,           None] = None  # noqa: E272
+    # ver: Version | bool | None = None
+    pac: str | None = None
 
     if path:
         try:
@@ -143,7 +143,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     return ver, pac
 
 
-def ParaViewVersion() -> Optional[Union[Version, bool]]:
+def ParaViewVersion() -> Optional[Version | bool]:
     """ Query the local system for the ParaView version
 
         Returns:
@@ -195,7 +195,7 @@ def DependencyVersion(program: str) -> Optional[Version | bool]:
 
 
 def DependencyHealth(program: str,
-                     version: Union[Version, bool, None],
+                     version: Version | bool | None,
                      status:  Optional[str] = None,
                      info:    Optional[str] = None) -> None:
     """ Print the dependency health
@@ -272,8 +272,8 @@ def _PackageExtractRequirement(p_str: str) -> tuple[str, Optional[str]]:
 
 
 def PackageHealth(   pkg:      str,
-                     version:  Union[Version, None],
-                     pypiver:  Union[Version, None],  # noqa: E272
+                     version:  Version | None,
+                     pypiver:  Version | None,  # noqa: E272
                      optional: Optional[bool] = False,
                      reason:   Optional['PackageReason'] = None,
                  ) -> None:

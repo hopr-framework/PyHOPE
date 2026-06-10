@@ -30,7 +30,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, unique
 from functools import cache
-from typing import Final, Optional, Union, final
+from typing import Final, Optional, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -216,8 +216,8 @@ class ELEM:
     type        : Optional[int]  = None
     zone        : Optional[int]  = None
     elemID      : Optional[int]  = None
-    sides       : Optional[Union[list, npt.NDArray]] = None
-    nodes       : Optional[            npt.NDArray]  = None
+    sides       : Optional[list | npt.NDArray] = None
+    nodes       : Optional[       npt.NDArray] = None
     # Sorting
     elemIJK     : Optional[npt.NDArray] = None
     # Jacobian

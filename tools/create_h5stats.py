@@ -32,7 +32,6 @@ import argparse
 import h5py
 import numpy as np
 import toml  # ty: ignore [unresolved-import]
-from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +45,7 @@ def collectStats(file_path: str) -> dict:
     stats = {}
     with h5py.File(file_path, 'r') as f:
 
-        def visit_func(name: str, obj: Union[np.ndarray, h5py.Dataset]) -> None:
+        def visit_func(name: str, obj: np.ndarray | h5py.Dataset) -> None:
             if name not in ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo'):
                 return
 

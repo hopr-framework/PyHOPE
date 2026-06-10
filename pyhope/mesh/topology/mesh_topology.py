@@ -30,7 +30,7 @@ import gc
 from collections import defaultdict
 from collections.abc import Callable
 from functools import cache
-from typing import Optional, Union
+from typing import Optional
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -670,7 +670,7 @@ def appendBCSet(subFace:      np.ndarray,
                 # Optional zone element
                 elemType:     Optional[str]  = None,
                 # Optional checks
-                requireDim:   Optional[Union[Callable[[int], bool], int]] = None,
+                requireDim:   Optional[Callable[[int], bool] | int] = None,
                 requireMatch: bool = False,
                 allowMulti  : bool = True,
                ) -> None:
