@@ -44,7 +44,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections.abc import Iterable
-from typing import Literal, Union
+from typing import Literal
 from typing import overload
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -90,8 +90,8 @@ def HilbertCurveNumpy() -> None:
     def _distances_from_points_numpy(self, points: npt.NDArray, match_type: Literal[True])          -> npt.NDArray: ...  # noqa: ANN001
     # Function
     def _distances_from_points_numpy(self,
-                                     points    : Union[list, npt.NDArray],
-                                     match_type: bool = False) -> Union[npt.NDArray, list]:
+                                     points    : list | npt.NDArray,
+                                     match_type: bool = False) -> npt.NDArray | list:
         """ Batch implementation for distances_from_points in numpy
         """
         pts = np.asarray(points)

@@ -28,7 +28,7 @@
 import gc
 from collections import defaultdict
 from functools import cache
-from typing import Any, Union, cast
+from typing import Any, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 
 @cache
-def gambit_faces(elemType: Union[int, str]) -> tuple[str, ...]:
+def gambit_faces(elemType: int | str) -> tuple[str, ...]:
     """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron

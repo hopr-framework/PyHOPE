@@ -196,7 +196,7 @@ ignore = [
   "RUF001",   # ambiguous-unicode-character-string - we want to use all characters
   "RUF100",   # unused-noqa                        - we want to have multiple linters, thus sometimes more exceptions are necessary
   "UP009",    # utf8-encoding-declaration          - we want to be explicit about our encoding
-  "UP007",    # non-pep604-annotation-union        - we want explicit typing.Union annotations
+  # "UP007",    # non-pep604-annotation-union        - we want explicit typing.Union annotations
   "UP045",    # non-pep604-annotation-optional     - we want explicit typing.Optional annotations
   "PLR0402",  # manual-from-import                 - we want every import specify the module name
   # INFO: False positives

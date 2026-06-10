@@ -31,7 +31,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Union, cast, final
+from typing import Optional, cast, final
 from typing_extensions import override
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -67,7 +67,7 @@ class MultiOrderedDict(OrderedDict):
             super().__setitem__(key, value)
 
 
-def strToBool(name: str, val: Union[int, bool, str]) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
+def strToBool(name: str, val: int | bool | str) -> bool:  # From distutils.util.strtobool() [Python 3.11.2]
     """ Convert a string representation of truth to True or False.
         True values  are 'y', 'yes', 't', 'true' , 'on' , and '1';
         False values are 'n', 'no' , 'f', 'false', 'off', and '0'.

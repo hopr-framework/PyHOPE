@@ -28,7 +28,7 @@
 from __future__ import annotations
 import os
 from collections.abc import Iterable
-from typing import Union, cast
+from typing import cast
 from typing import TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -197,7 +197,7 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq: Union[list, npt.NDArray], item: npt.NDArray | Iterable) -> int:
+def find_index(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> int:
     """ Find the first occurrences of a key in a list
     """
     # if isinstance(seq, np.ndarray):
@@ -214,7 +214,7 @@ def find_index(seq: Union[list, npt.NDArray], item: npt.NDArray | Iterable) -> i
     return -1
 
 
-def find_indices(seq: Union[list, npt.NDArray], item: npt.NDArray | Iterable) -> tuple[int, ...]:
+def find_indices(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if isinstance(seq, np.ndarray):

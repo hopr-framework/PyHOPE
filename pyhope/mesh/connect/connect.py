@@ -30,7 +30,7 @@ from __future__ import annotations
 import gc
 import sys
 from collections import defaultdict
-from typing import Final, Optional, Union, cast
+from typing import Final, Optional, cast
 # from multiprocessing import Pool
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -99,7 +99,7 @@ def connect_sides(sideIDs: list[int], sides: list, flipID: int) -> None:
     # slaveSide.nbLocSide   = sides[sideIDs[0]].locSide  # noqa: E251
 
 
-def find_bc_index(bcs: Union[list, tuple], key: str) -> Optional[int]:
+def find_bc_index(bcs: list | tuple, key: str) -> Optional[int]:
     """ Find the index of a BC from its name in the list of BCs
     """
     for iBC, bc in enumerate(bcs):
@@ -310,7 +310,7 @@ def ConnectMesh() -> None:
     # Build the reverse dictionary
     corner_side = defaultdict(list)
     for elem in elems:
-        for side in cast(Union[list, np.ndarray], elem.sides):
+        for side in cast(list | np.ndarray, elem.sides):
             corner_side[hash(tuple(sorted(sides[side].corners)))].append(side)
 
     # > Create a dict containing only the periodic corners
