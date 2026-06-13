@@ -30,7 +30,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, unique
 from functools import cache
-from typing import Final, Optional, Union, final
+from typing import Final, Optional, final
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -101,6 +101,15 @@ class MeshSort(Enum):
     IJK   = 2
     LEX   = 3
     Snake = 4
+
+
+@unique
+class MeshSortSFC(Enum):
+    default  = 0
+    hilbert  = 1
+    hilbertZ = 2
+    morton   = 3
+    mortonZ  = 4
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False)
@@ -185,7 +194,7 @@ class SIDE:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
     # Comparison operator for bisect
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: ELEM) -> bool:
         return self.sideID < other.sideID
 
 
@@ -207,8 +216,8 @@ class ELEM:
     type        : Optional[int]  = None
     zone        : Optional[int]  = None
     elemID      : Optional[int]  = None
-    sides       : Optional[Union[list, npt.NDArray]] = None
-    nodes       : Optional[            npt.NDArray]  = None
+    sides       : Optional[list | npt.NDArray] = None
+    nodes       : Optional[       npt.NDArray] = None
     # Sorting
     elemIJK     : Optional[npt.NDArray] = None
     # Jacobian
@@ -237,7 +246,7 @@ class ELEM:
     #     return {key: value for key, value in self.__dict__.items() if value is not None}
 
     # Comparison operator for bisect
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: ELEM) -> bool:
         return self.elemID < other.elemID
 
 

@@ -52,7 +52,7 @@ def RebuildMortarGeometry() -> None:
     # Local imports ----------------------------------------
     from pyhope.basis.basis_basis import barycentric_weights, calc_vandermonde
     from pyhope.common.common_vars import Policy
-    from pyhope.mesh.mesh_common import LINTEN
+    # from pyhope.mesh.mesh_common import LINTEN
     from pyhope.mesh.mesh_common import sidetovol2
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -98,8 +98,8 @@ def RebuildMortarGeometry() -> None:
 
     elemOrder: Final[int] = 100 if mesh_vars.nGeo == 1 else 200
     elemType:  Final[int] = elemOrder + 8
-    _, mapLin = LINTEN(elemType, order=nGeo)
-    mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+    # _, mapLin = LINTEN(elemType, order=nGeo)
+    # mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
 
     # Loop over all big mortar sides
     for side in (s for s in sides if s.connection is not None and s.connection < 0):

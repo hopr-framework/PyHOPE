@@ -30,10 +30,11 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping
+from typing import Optional
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import argparse
-from typing import List, Optional, Mapping, Tuple
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +53,7 @@ RESET = '\033[0m'
 def printHeader(title: str, width: int) -> None:
     ''' Print a box header for a section.
     '''
-    print('')
+    print()
     print('┌─' + '─' * width + '─┐')
     print('│ ' + f'{title:<{width}}' + ' │')
     print('└─' + '─' * width + '─┘')
@@ -60,29 +61,28 @@ def printHeader(title: str, width: int) -> None:
 
 def findCoverageFiles(base_dir   : str,
                       pattern    : str,
-                      output_name: str) -> List[str]:
+                      output_name: str) -> list[str]:
     ''' Find coverage data files in base_dir that match pattern, excluding the combined output
     '''
     candidates    = sorted(f for f in glob.glob(os.path.join(base_dir, pattern)) if os.path.isfile(f))
     combined_path = os.path.join(base_dir, output_name)
     combined_abs  = os.path.abspath(combined_path)
-    input_datafiles = [f for f in candidates if os.path.abspath(f) != combined_abs]
-    return input_datafiles
+    return [f for f in candidates if os.path.abspath(f) != combined_abs]
 
 
 def findParameterFiles(base_dir  : str,
-                       param_name: str) -> List[str]:
+                       param_name: str) -> list[str]:
     ''' Recursively find all parameter.ini files under tutorials_root
     '''
-    matches: List[str] = []
-    for base_dir, _dirs, files in os.walk(base_dir):
+    matches: list[str] = []
+    for dir, _dirs, files in os.walk(base_dir):
         if param_name in files:
-            matches.append(os.path.join(base_dir, param_name))
+            matches.append(os.path.join(dir, param_name))
     matches.sort()
     return matches
 
 
-def runCmd(cmd: List[str],
+def runCmd(cmd: list[str],
            cwd: str,
            env: Optional[Mapping[str, str]] = None) -> None:
     ''' Run a command, streaming output to the console. Raise on failure.
@@ -96,7 +96,7 @@ def runCmd(cmd: List[str],
 
 def runExamples(base_dir  : str,
                 exam_dir  : str,
-                param_name: str) -> Tuple[List[Tuple[str, str]], int]:
+                param_name: str) -> tuple[list[tuple[str, str]], int]:
     ''' Run all examples found under tutorials_root with coverage collection
     '''
     paramfiles = findParameterFiles(exam_dir, param_name)
@@ -106,14 +106,13 @@ def runExamples(base_dir  : str,
     max_dir_length = 0
     paramdirs      = [os.path.dirname(p) for p in paramfiles]
     for d in paramdirs:
-        if len(d) > max_dir_length:
-            max_dir_length = len(d)
+        max_dir_length = max(max_dir_length, len(d))
     box_width = max_dir_length + 10  # Add padding for aesthetics
     col_width = max_dir_length + 2   # Add padding for the table
 
     print('Running PyHOPE with coverage for each parameter.ini file...')
 
-    results: List[Tuple[str, str]] = []
+    results: list[tuple[str, str]] = []
     failures                        = 0
 
     for paramfile in paramfiles:
@@ -131,7 +130,7 @@ def runExamples(base_dir  : str,
             f'--source={base_dir}',
             '-m', 'pyhope', paramini,
         ]
-        proc = subprocess.run(cmd, cwd=paramdir)
+        proc = subprocess.run(cmd, cwd=paramdir, check=True)
         if proc.returncode == 0:
             results.append((paramdir, 'PASS'))
             print(f'{GREEN}✔ PASS{RESET}: {paramini}')
@@ -142,7 +141,7 @@ def runExamples(base_dir  : str,
 
     # Output the final sorted report as a UTF-8 box-drawing table
     if results:
-        print('')
+        print()
         print('┌─' + '─' * max_dir_length + '─┬────────┐')
         print('│ ' + f'{"Example Directory":<{col_width-2}}' + ' │ ' + f'{"Result":<5}' + ' │')
         print('├─' + '─' * max_dir_length + '─┼────────┤')
@@ -163,7 +162,7 @@ def runVerify(base_dir: str) -> int:
     print('Running internal health check with coverage...')
     data_file = os.path.join(base_dir, '.coverage.verify')
     cmd       = ['coverage', 'run', f'--data-file={data_file}', '-m', 'pyhope', '--verify']
-    proc      = subprocess.run(cmd, cwd=base_dir)
+    proc      = subprocess.run(cmd, cwd=base_dir, check=True)
     if proc.returncode == 0:
         print(f'{GREEN}✔ PASS{RESET}: pyhope --verify')
     else:
@@ -234,7 +233,7 @@ def main() -> int:
         if args.strict:
             print(f'{RED}{msg}{RESET}')
             # Preserve failures precedence if any occurred earlier
-            return 1 if any_failures == 0 else 1
+            return 1
         print(msg)
         # Still return failures if generation failed
         if any_failures or verify_rc != 0:

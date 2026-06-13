@@ -58,9 +58,12 @@ jobs:
     name: Lint / ruff
     runs-on: ubuntu-latest
     container:
-      image: python:3.14.3-slim-trixie
+      image: python:3.14.5-slim-trixie
     steps:
       - uses: actions/checkout@v6
+        # with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
@@ -69,13 +72,13 @@ jobs:
           source .venv/bin/activate
           uv pip install ruff
           ruff --version
-          ruff check --target-version=py310 --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope
+          ruff check --config pyproject.toml --preview
 
   ty:
     name: Lint / ty
     runs-on: ubuntu-latest
     container:
-      image: python:3.14.3-slim-trixie
+      image: python:3.14.5-slim-trixie
     steps:
       # Git LFS requires git
       - name: Install Git LFS
@@ -83,9 +86,8 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
+      # This does not strictly require LFS but we want the checkout before the compatibility matrix
       - uses: actions/checkout@v6
-        with:
-          lfs: true
       - uses: ./.github/actions/setup
         # with:
         #   minimal: 'false'
@@ -100,9 +102,12 @@ jobs:
     name: Lint / vulture
     runs-on: ubuntu-latest
     container:
-      image: python:3.14.3-slim-trixie
+      image: python:3.14.5-slim-trixie
     steps:
       - uses: actions/checkout@v6
+        # with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
@@ -111,7 +116,32 @@ jobs:
           source .venv/bin/activate
           uv pip install vulture
           vulture --version
-          vulture .gmsh pyhope
+          vulture --config pyproject.toml .gmsh pyhope
+
+  gitleaks:
+    name: Lint / gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: gitleaks
+
+  pre-commit:
+    name: Lint / pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: check-merge-conflict
+      - uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: check-symlinks
+      - uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: trailing-whitespace
+
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Compatibility
@@ -119,16 +149,16 @@ jobs:
   compatibility:
     name: Compatibility / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: [ruff, ty, vulture]
+    needs: [ruff, ty, vulture, gitleaks, pre-commit]
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { python-version: "3.10", image: "python:3.10.19-slim-trixie" }
-          - { python-version: "3.11", image: "python:3.11.14-slim-trixie" }
-          - { python-version: "3.12", image: "python:3.12.12-slim-trixie" }
-          - { python-version: "3.13", image: "python:3.13.12-slim-trixie" }
-          - { python-version: "3.14", image: "python:3.14.3-slim-trixie"  }
+          - { python-version: "3.10", image: "python:3.10.20-slim-trixie" }
+          - { python-version: "3.11", image: "python:3.11.15-slim-trixie" }
+          - { python-version: "3.12", image: "python:3.12.13-slim-trixie" }
+          - { python-version: "3.13", image: "python:3.13.13-slim-trixie" }
+          - { python-version: "3.14", image: "python:3.14.5-slim-trixie"  }
     container:
       image: ${{ matrix.image }}
     steps:
@@ -139,7 +169,10 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v6
+      # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
           lfs: true
       - uses: ./.github/actions/setup
       - name: Run compatibility tests
@@ -157,7 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [compatibility]
     container:
-      image: python:3.14.3-slim-trixie
+      image: python:3.14.5-slim-trixie
     steps:
       # Git LFS requires git
       - name: Install Git LFS
@@ -166,11 +199,11 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
       - uses: actions/checkout@v6
+      # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
           lfs: true
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -179,12 +212,51 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/examples.sh
+      - name: Save coverage reports
+        shell: bash
+        run: |
+          mkdir -p .tmp/coverage
+          cp .coverage.* .tmp/coverage
+      - name: Generate the coverage report in XML format
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          coverage report --skip-empty --precision=2
+      - name: Output the final report
+        shell: bash
+        run: |
+          echo ""
+          printf "┌─%s─┬────────┐\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+          printf "│ %-$(($col_width-2))s │ %-5s │\n" "Example Directory" "Result"
+          printf "├─%s─┼────────┤\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+          for result in "${results[@]}"; do
+            paramdir=$(echo "$result" | cut -d ':' -f 1)
+            paramres=$(echo "$result" | cut -d ':' -f 2 | tr -d '[:space:]')
+
+            if [[ "$paramres" == "PASS" ]]; then
+              printf "│ %-$(($col_width-2))s │ ${green}%-6s${reset} │\n" "$paramdir" "$paramres"
+            else
+              printf "│ %-$(($col_width-2))s │ ${red}%-6s${reset} │\n" "$paramdir" "$paramres"
+            fi
+          done
+          printf "└─%s─┴────────┘\n" "$(printf '─%.0s' $(seq 1 $((max_dir_length))))"
+
+          # Fail the job if any examples failed
+          if [[ "${results[*]}" == *"FAIL"* ]]; then
+            echo "Some examples failed.";
+            exit 1;
+          else
+            echo "All examples passed.";
+          fi
+      - name: Restore coverage reports
+        shell: bash
+        run: |
+          cp .tmp/coverage/.coverage.* .
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-examples
           include-hidden-files: true
           path: |
-            coverage.xml
             .coverage.*
 
   healthcheck:
@@ -192,7 +264,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [compatibility]
     container:
-      image: python:3.14.3-slim-trixie
+      image: python:3.14.5-slim-trixie
     steps:
       # Git LFS requires git
       - name: Install Git LFS
@@ -200,12 +272,10 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
       - uses: actions/checkout@v6
         with:
-          lfs: true
+        # # Remove Git LFS on purpose to check the LFS downloader
+          lfs: false
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -234,18 +304,11 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      # Git LFS requires git
-      - name: Install Git LFS
-        shell: bash
-        run: |
-          dnf update -y
-          dnf install -y git-lfs
-      # - uses: actions/setup-node@v6
-      #   with:
-      #     node-version: 'latest'
       - uses: actions/checkout@v6
-        with:
-          lfs: true
+        # with:  Reduce Git LFS bandwidth
+        #   fetch-depth: 0
+        #   fetch-tags: true
+        #   lfs: true
       - uses: ./.github/actions/setup
         with:
           coverage: 'true'
@@ -254,12 +317,31 @@ jobs:
         run: |
           source .venv/bin/activate
           bash ./.github/scripts/convergence.sh
-      # - uses: actions/upload-artifact@v7
-      #   with:
-      #     name: coverage-convergence
-      #     include-hidden-files: true
-      #     path: |
-      #       .coverage.*
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Code coverage
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+  documentation:
+    name: Verification / documentation
+    runs-on: ubuntu-latest
+    needs: [examples, healthcheck]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.x
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+      - uses: actions/cache@v5
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+      # Install MkDocs
+      - run: pip install mkdocs-material mkdocs-autorefs mkdocs-glightbox
+      # Build documentation
+      - run: mkdocs build
+
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Code coverage
@@ -269,9 +351,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [examples, healthcheck]
     container:
-      image: python:3.14.3-slim-trixie
+      image: python:3.14.5-slim-trixie
     steps:
       - uses: actions/checkout@v6
+        # with:
+        #   fetch-depth: 0
+        #   fetch-tags: true
       # - uses: actions/setup-node@v6
       #   with:
       #     node-version: 'latest'
@@ -322,7 +407,7 @@ jobs:
           # include-hidden-files: true
           merge-multiple: true
       - name: Report coverage
-        uses: orgoro/coverage@v3.2
+        uses: orgoro/coverage@v3.3
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}

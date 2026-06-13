@@ -18,8 +18,10 @@ are listed in alphabetical order:
 * Daniel Appel
 * Marcel Blind
 * Stephen Copplestone
+* Justin Du Plessis
 * Patrick Kopper
 * Marius Kurz
 * Leon Teichröb
 * Felix Rodach
 * Anna Schwarz
+* Michel Tirapelle

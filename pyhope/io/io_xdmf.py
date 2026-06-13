@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pathlib
-from typing import Union
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,9 +45,9 @@ from xml.etree import ElementTree as ET
 
 # Monkey-patching meshio.xdmf.main.XdmfWriter
 # > We want to be able to write multiple grids into the same HDF5 file
-def XdmfWriterInit(self,
+def XdmfWriterInit(self,           # noqa: ANN001
                    filename        : str,
-                   meshes          : Union[Mesh, list[Mesh]],
+                   meshes          : Mesh | list[Mesh],
                    data_format     : str = 'HDF',
                    compression     : str = 'gzip',
                    compression_opts: int = 4) -> None:

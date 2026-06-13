@@ -30,7 +30,7 @@ import gc
 from collections import defaultdict
 from collections.abc import Callable
 from functools import cache
-from typing import Optional, Union
+from typing import Optional
 from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -305,17 +305,15 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
 @cache
 def split_hex_to_tets(order: int) -> list[tuple]:
-    """
-    Given the indices of a single hexahedral element, return a list of new tetra element connectivity tuples
+    """ Given the indices of a single hexahedral element, return a list of new tetra element connectivity tuples
 
-    The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
-          7-------6
-         /|      /|
-        4-------5 |
-        | 3-----|-2
-        |/      |/
-        0-------1
-
+        The node numbering convention assumed here (c0, c1, c2, c3, c4, c5, c6, c7) is the usual:
+              7-------6
+             /|      /|
+            4-------5 |
+            | 3-----|-2
+            |/      |/
+            0-------1
     """
     # Perform the 6-tet split of the cube-like cell
     match order:
@@ -377,8 +375,7 @@ def split_hex_to_tets(order: int) -> list[tuple]:
 
 @cache
 def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
-    """
-    Given the tetrahedral indices, return the 4 triangular faces as tuples
+    """ Given the tetrahedral indices, return the 4 triangular faces as tuples
     """
     match order:
         case 1:
@@ -403,8 +400,7 @@ def tetra_faces(order: int) -> tuple[npt.NDArray, ...]:
 
 @cache
 def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
-    """
-    Given the indices of a single hexahedral element, return a list of new pyramid element connectivity tuples
+    """ Given the indices of a single hexahedral element, return a list of new pyramid element connectivity tuples
     """
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -473,8 +469,7 @@ def split_hex_to_pyram(order: int) -> list[tuple[int, ...]]:
 
 @cache
 def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
-    """
-    Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
+    """ Given the pyramid corner indices, return a tuple with the 4 triangular faces and 1 quadrilateral face as arrays
     """
     match order:
         case 1:
@@ -508,30 +503,28 @@ def pyram_faces(order: int) -> tuple[npt.NDArray, ...]:
 
 @cache
 def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
-    """
-    Given the indices of a single hexahedral element, return a list of new prism element connectivity tuples
+    """ Given the indices of a single hexahedral element, return a list of new prism element connectivity tuples
     """
     match order:
         case 1:
-            #  return [( 0,  1,  3,  4,  5,  7),
-            #          ( 1,  2,  3,  5,  6,  7)]
-            return [( 0,  1,  2,  4,  5,  6),
-                    ( 0,  2,  3,  4,  6,  7)]
+            return [( 0,  1,  3,  4,  5,  7),
+                    ( 1,  2,  3,  5,  6,  7)]
+            # return [( 0,  1,  2,  4,  5,  6),
+            #         ( 0,  2,  3,  4,  6,  7)]
         case 2:
-            #  HEXA: [ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 24 22 21 23 20 25 26]
-            #  return [(  0,  1,  3,  4,  5,  7,  8, 24, 11, 12, 25, 15, 16, 17, 19, 22, 26, 20),
-            #          (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
-            return [(  0,  1,  2,  4,  5,  6,  8,  9, 24, 12, 13, 25, 16, 17, 18, 22, 21, 26),
-                    (  0,  2,  3,  4,  6,  7, 24, 10, 11, 25, 14, 15, 16, 18, 19, 26, 23, 20)]
+            return [(  0,  1,  3,  4,  5,  7,  8, 24, 11, 12, 25, 15, 16, 17, 19, 22, 26, 20),
+                    (  1,  2,  3,  5,  6,  7,  9, 10, 24, 13, 14, 25, 17, 18, 19, 21, 23, 26)]
+            # return [(  0,  1,  2,  4,  5,  6,  8,  9, 24, 12, 13, 25, 16, 17, 18, 22, 21, 26),
+            #         (  0,  2,  3,  4,  6,  7, 24, 10, 11, 25, 14, 15, 16, 18, 19, 26, 23, 20)]
         case 3:
-            return [(  0,  1,  3,  4,  5,  7,                                                 # 6 vertices
-                       8,  9, 51, 49, 15, 14, 16, 17, 53, 55, 23, 22, 24, 25, 26, 27, 30, 31, # Edges 6:24
-                      40, 41, 42, 43, 57, 59, 63, 61, 35, 32, 33, 34, 52, 48,                 # Faces
-                      56, 60),                                                                # Volume
-                    (  1,  2,  3,  5,  6,  7,                                                 # 6 vertices
-                      10, 11, 12, 13, 49, 51, 18, 19, 20, 21, 55, 53, 26, 27, 28, 29, 30, 31, # Edges
-                      36, 37, 38, 39, 44, 45, 46, 47, 59, 57, 61, 63, 54, 50,                 # Faces
-                      58, 62)]                                                                # Volume
+            return [(  0,  1,  3,  4,  5,  7,                                                  # 6 vertices
+                       8,  9, 51, 49, 15, 14, 16, 17, 53, 55, 23, 22, 24, 25, 26, 27, 30, 31,  # Edges 6:24
+                      40, 41, 42, 43, 57, 59, 63, 61, 35, 32, 33, 34, 52, 48,                  # Faces
+                      56, 60),                                                                 # Volume
+                    (  1,  2,  3,  5,  6,  7,                                                  # 6 vertices
+                      10, 11, 12, 13, 49, 51, 18, 19, 20, 21, 55, 53, 26, 27, 28, 29, 30, 31,  # Edges
+                      36, 37, 38, 39, 44, 45, 46, 47, 59, 57, 61, 63, 54, 50,                  # Faces
+                      58, 62)]                                                                 # Volume
         case 4:
             # prism1 = (   0,   1,   3,   4,   5,   7,
             #              8,   9,  10,  83,  88,  81,  19,  18,  17,            # 6 vertices
@@ -579,8 +572,7 @@ def split_hex_to_prism(order: int) -> list[tuple[int, ...]]:
 
 @cache
 def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
-    """
-    Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
+    """ Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
     match order:
         case 1:
@@ -601,12 +593,12 @@ def prism_faces(order: int) -> tuple[npt.NDArray, ...]:
                     np.array((  2,  0,  3,  5,  8, 12, 11, 14, 17), dtype=int))
         case 3:
             return (# Triangular faces  # noqa: E261
-                    np.array((  0,  1,  2,  *range(6 ,12), 37   ), dtype=int),
-                    np.array((  3,  4,  5,  *range(12,18), 36   ), dtype=int),
+                    np.array((  0,  1,  2,  *range(6 , 12), 37   ), dtype=int),
+                    np.array((  3,  4,  5,  *range(12, 18), 36   ), dtype=int),
                     # Quadrilateral faces
-                    np.array((  0,  1,  4,  3,  6,  7, 20, 21, 12, 13, 19, 18, *range(24,28)), dtype=int),
-                    np.array((  1,  2,  5,  4,  8,  9, 22, 23, 15, 14, 21, 20, *range(28,32)), dtype=int),
-                    np.array((  2,  0,  3,  5, 10, 11, 18, 19, 17, 16, 23, 22, *range(32,36)), dtype=int))
+                    np.array((  0,  1,  4,  3,  6,  7, 20, 21, 12, 13, 19, 18, *range(24, 28)), dtype=int),
+                    np.array((  1,  2,  5,  4,  8,  9, 22, 23, 15, 14, 21, 20, *range(28, 32)), dtype=int),
+                    np.array((  2,  0,  3,  5, 10, 11, 18, 19, 17, 16, 23, 22, *range(32, 36)), dtype=int))
         case 4:
             return (# Triangular faces  # noqa: E261
                     np.array((  0, 1, 2, *range( 6, 15), *range(63, 66)), dtype=int),  # z-
@@ -680,16 +672,20 @@ def appendBCSet(subFace:      np.ndarray,
                 bcFaces:      Optional[list] = None,
                 bcFaceIdx:    Optional[int]  = None,
                 bcSide:       Optional[str]  = None,
+                # Optional zone element
+                elemType:     Optional[str]  = None,
                 # Optional checks
-                requireDim:   Optional[Union[Callable[[int], bool], int]] = None,
+                requireDim:   Optional[Callable[[int], bool] | int] = None,
                 requireMatch: bool = False,
                 allowMulti  : bool = True,
-               ):
+               ) -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     # ------------------------------------------------------
 
-    faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
+    # We need to distinguish between BC (2D) and ZONE (3D) elements. The actual size might not match because we are getting the
+    # pre-extrusion types. Manually add +2 if we want to create a zone
+    faceVal = (faceMap(0) if len(subFace) == nFace else faceMap(1)) if elemType is None else faceType.index(elemType)
     faceSet = frozenset(subFace)
 
     # Get candidate cset keys using the nodes in the face
@@ -725,17 +721,21 @@ def appendBCSet(subFace:      np.ndarray,
 
             # Update csets_lst for each name in the list.
             for name in names:
-                csets_lst.setdefault(name.strip(), [[], []])
+                csets_lst.setdefault(name.strip(), [[] for _ in range(len(faceType))])
                 csets_lst[name][faceVal].append(nFaces[faceVal])
+                nFaces[faceVal] += 1
 
-                # Store the 1D faces
+                # Store the (original) 1D/2D faces
                 if bcFaces is not None and bcFaceIdx is not None and bcSide is not None:
                     bcFaces[bcFaceIdx] = {'name': name.strip(),
                                           'side': bcSide.strip(),
                                          }
 
-                nFaces[faceVal] += 1
-                elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
+                match faceType[faceVal][:4]:
+                    # Append the 2D (newly created) faces
+                    # > For zones, the elements are already created in the calling function
+                    case 'tria' | 'quad':
+                        elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
 
     if requireMatch and not common_match:
         raise ValueError('Unable to identify BC for face')

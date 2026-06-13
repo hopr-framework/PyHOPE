@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-04-16
+### Added
+- Add the original Hilbert(Z)/Morton(Z) space-filling curve from HOPR [c14fe07]
+- Add support for high-order extrusion [9718c3d][212b316]
+- Add support for volume zones during extrusion [a96ca55]
+- Add ruff linter, vulture and ty as pre-commit githook [877cdb7][131be03]
+
+### Changed
+- Abort if postDeform transformation is illegally combined with meshScale [20961bc]
+- Output the BC index when running into the error of finding multiple BCs on the same internal face [1f34550][67027bf]
+- Try/except import gmsh errors [fe19d71]
+- Update rules for ty v0.30 [ab5238a]
+- Update ty, reduce Git LFS bandwidth pressure during CI/CD [c0af215]
+- Enforce annotations using ruff linter [19d340c]
+
+### Fixed
+- Fix FEM edge ordering and orientation [d56c052]
+- Fix flipped elements during splitToPrism [cc8ce94][1386a37]
+- Fix static code analysis issues [a4734fe][62d2ba9]
+- Fix NaN in Jacobi polynomials [2fb6846]
+
+### Dependencies
+- Dependencies: Enable Dependabot [597ef91]
+- Bump actions/configure-pages from 5 to 6 [166c11e]
+- Bump actions/deploy-pages from 4 to 5 [87c6be7]
+- Bump actions/upload-pages-artifact from 3 to 4 [4f34bf4]
+- Bump actions/download-artifact from 4 to 8 [037279b]
+- Bump actions/cache from 4 to 5 [6aae174]
+- Bump actions/checkout from 4 to 6 [b860a24]
+- Bump actions/upload-artifact from 4 to 7 [938ed62]
+
 ## [0.10.0] - 2026-03-09
 ### Added
 - Add extrusion of 2D meshes [3b26e70][6993cb0][9a7cf94]

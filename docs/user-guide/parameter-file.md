@@ -23,6 +23,7 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     !------------------------------------------------------------------------------
     ProjectName                      =                      ! Name of output files
     OutputFormat                     =                 HDF5 ! Mesh output format [HDF5, VTK, GMSH]
+    OutputBytes                      =                int32 ! Mesh output bytes [int32, int64]
     DebugMesh                        =                    F ! Output debug mesh in XDMF format
     DebugVisu                        =                    F ! Launch the GMSH GUI to visualize the mesh
     !------------------------------------------------------------------------------
@@ -44,8 +45,9 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     MeshSorting                      =                  SFC ! Mesh sorting mode [SFC, IJK, LEX, Snake, None]
     doSortIJK                        =                    F ! Sort the mesh elements along the I,J,K directions (legacy)
     doSplitToHex                     =                    F ! Split simplex elements into hexahedral elements
-    doSplitToHexZ                    =                    F ! Split hexahedral elements into h-refined elements
+    doSplitToHexZ                    =                    T ! Split hexahedral elements into h-refined elements
     doMortars                        =                    T ! Enables mortars
+    doMortarRebuild                  =                    1 ! Enables mortar rebuilding [never, auto, always]
     !------------------------------------------------------------------------------
     ! Boundaries
     !------------------------------------------------------------------------------
@@ -59,6 +61,7 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     CheckConnectivity                =                    T ! Check if the side connectivity, including correct flip
     CheckWatertightness              =                    T ! Check if the mesh is watertight
     CheckSurfaceNormals              =                    T ! Check if the surface normals point outwards
+    CheckInternalBoundaries          =                    T ! Check if internal faces have multiple BCs attached
     !------------------------------------------------------------------------------
     ! Transformation
     !------------------------------------------------------------------------------
@@ -81,8 +84,10 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
     MeshExtrude                      =                    T ! Enables mesh extrusion
     MeshExtrudeTemplate              =               linear ! Mesh extrusion template
     MeshExtrudeLength                =                  1.0 ! Mesh extrusion length
+    MeshExtrudeDir                   =         (/0.,0.,1./) ! Mesh extrusion direction
     MeshExtrudeElems                 =                    1 ! Mesh extrusion number of element
-    MeshExtrudeBCIndex               =                      ! Mesh extrusion boundary index
+    MeshExtrudeBCIndexBot            =                      ! Mesh extrusion boundary index
+    MeshExtrudeBCIndexTop            =                      ! Mesh extrusion boundary index
     !------------------------------------------------------------------------------
     ! Finite Element Method (FEM) Connectivity
     !------------------------------------------------------------------------------
@@ -105,6 +110,7 @@ Output parameter controlling the output file name and format.
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
 | `ProjectName`                            | string                             | —                                     | string                                 | Base name for output files. If omitted, a tool- or input-derived name may be used. |
 | `OutputFormat`                           | int &#124; string                  | `HDF5`                                | `HDF5`, `VTK`, `GMSH` (experimental)   | Mesh output format for the generated mesh. `HDF5` is the native PyHOPE format. `VTK` and `GMSH` are provided as output formats for interoperability with other tools. |
+| `OutputBytes`                            | int &#124; string                  | `int32`                               | `int32`, `int64` (experimental)        | Byte size of the mesh output format for the generated mesh. `int32` is the native PyHOPE format. `int64` is provided as output format for large meshes. |
 | `DebugMesh`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Emit an auxiliary XDMF mesh for low-order visualization and troubleshooting.         |
 | `DebugVisu`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Launch the Gmsh GUI after mesh generation for interactive validation and spot checks. |
 
@@ -114,10 +120,11 @@ Mesh parameters controlling the respective mesh generation mode.
 
 | <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
 | ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `Mode`                                   | int &#124; string                  | —                                    | `1` (internal) &#124; `3` (external)    | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators. |
+| `Mode`                                   | int &#124; string                  | —                                     | `1` (internal) &#124; `3` (external)    | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators. |
 | `NGeo`                                   | int                                | `1`                                   | ≥ 1                                    | Polynomial order used for representation of curved elements. Higher orders improve geometric fidelity. |
 | `BoundaryOrder`                          | int                                | `2`                                   | ≥ 2                                    | Legacy parameter for polynomial order used for representation of curved elements. Prefer `NGeo` where applicable; kept for backward compatibility. |
-| `MeshSorting`                            | sting                              | `SFC`                                 | `SFC`, `IJK`, `LEX`, `Snake`, `None`   | Mesh sorting mode to reorder the elements. |
+| `MeshSorting`                            | string                             | `SFC`                                 | `SFC`, `IJK`, `LEX`, `Snake`, `None`   | Mesh sorting mode to reorder the elements. |
+| `MeshSortingSFC`                         | string                             | `default`                             | `default` (PYPI hilbertcurve), `hilbert` (HOPR), `hilbertZ` (HOPR), `morton` (HOPR), `mortonZ` (HOPR)   | The "default" space-filling curve is from the Python PYPI package and the others are C-ported from HOPR. |
 | `doSortIJK`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Reorder elements primarily along I, then J, then K instead of the default space-filling Hilbert curve (legacy). |
 
 ### Internal Mesh Generator (Mode = `1` | `internal`)
@@ -175,8 +182,10 @@ Extrude a 2D mesh into a 3D mesh by applying a user-defined template.
 | `MeshExtrude`                            | bool                               | `T`                                   | `T` &#124; `F`                         | Enables mesh extrusion. |
 | `MeshExtrudeTemplate`                    | string                             | `linear`                              | template name                          | Mesh extrusion template defining the extrusion extent of each element. |
 | `MeshExtrudeLength`                      | float                              | `1.0`                                 | > 0                                    | Mesh extrusion length defining the total length of the extruded domain. |
+| `MeshExtrudeDir`                         | vector                             | `(/.../)`                             | `(/ x, y, z /)`                        | Mesh extrusion direction defining the extrusion vector. |
 | `MeshExtrudeElems`                       | int                                | `1`                                   | > 0                                    | Number of elements to be generated in extrusion direction. |
-| `MeshExtrudeBCIndex`                     | int                                | —                                     | > 0                                    | Boundary index of the far boundary condition after extrusion
+| `MeshExtrudeBCIndexBot            `      | int                                | —                                     | > 0                                    | Boundary index of the boundary condition used for extrusion. |
+| `MeshExtrudeBCIndexTop            `      | int                                | —                                     | > 0                                    | Boundary index of the far boundary condition after extrusion. |
 
 ## Post-Processing
 
@@ -197,6 +206,7 @@ Perform mesh quality checks and report statistics.
 | `CheckConnectivity`                      | bool                               | `T`                                   | `T` &#124; `F`                         | Verify side connectivity and correct face orientation/flip between adjacent elements to ensure topological consistency. |
 | `CheckWatertightness`                    | bool                               | `T`                                   | `T` &#124; `F`                         | Ensure there are no gaps/holes between connected elements. |
 | `CheckSurfaceNormals`                    | bool                               | `T`                                   | `T` &#124; `F`                         | Confirm surface normals point outward consistently. |
+| `CheckInternalBoundaries`                | bool                               | `T`                                   | `T` &#124; `F`                         | Ensure that internal faces do not have multiple BCs attached. |
 
 ## FEM Connectivity
 

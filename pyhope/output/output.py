@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import sys
 from dataclasses import dataclass
-from typing import Final, Optional, NoReturn
+from typing import Final, Optional, NoReturn, TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -43,10 +43,10 @@ STD_LENGTH: Final[int] = 79  # Standard length for output to console
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
 class Symbols:
-    OK:      Final[str] = '✅ OK'
+    OK:      Final[str] = '✅ OK  '
     INFO:    Final[str] = 'ℹ️ INFO'
-    WARN:    Final[str] = '⚠️ WARNING'
-    ERR:     Final[str] = '❌ ERROR'
+    WARN:    Final[str] = '⚠️ WARN'
+    ERR:     Final[str] = '❌ ERR '
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)
@@ -141,7 +141,7 @@ def warn(string:   str,
     return '\n'.join(formatted_lines)
 
 
-def warning(string: str, file=sys.stdout) -> None:
+def warning(string: str, file: TextIO = sys.stdout) -> None:
     """ Print the input `string` as a warning with the corresponding color
 
         Args:
@@ -151,7 +151,7 @@ def warning(string: str, file=sys.stdout) -> None:
     print(Colors.WARN + '\n !! '+string+' !! \n' + Colors.END, flush=True, file=file)
 
 
-def error(string: str, traceback=False, file=sys.stderr) ->  NoReturn:
+def error(string: str, traceback: bool = False, file: TextIO = sys.stderr) ->  NoReturn:
     """ Print the input `string` as a error with the corresponding color
 
         Args:
@@ -220,3 +220,13 @@ def printoption(option: str, value: str, status: str, length: int = 31) -> None:
     except TypeError:
         pvalue = value
     print(f'│ {option:>{length}} │ {pvalue:<{length}} │ {status} │')
+
+
+def printtest(string: str, status: str, end: Optional[str] = None) -> None:
+    """ Print the input `string` as test output
+
+        Args:
+            string (str): String to be printed in banner
+            status (str): Status of the test result
+    """
+    print('│ '  + f'{status  :<5}  │ ' + string, end=end)

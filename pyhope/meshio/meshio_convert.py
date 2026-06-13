@@ -28,6 +28,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import importlib
+from types import ModuleType
 from typing import Final, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -49,9 +50,9 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def gmsh_to_meshio(gmsh) -> meshio.Mesh:
+def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
     """
-    Convert a Gmsh object to a meshio object.
+    Convert a Gmsh object to a meshio object
     """
     # Local imports ----------------------------------------
     from pyhope.meshio.meshio_ordering import NodeOrdering
@@ -108,7 +109,7 @@ def gmsh_to_meshio(gmsh) -> meshio.Mesh:
             for j, i in enumerate(idx):
                 cell_sets[name][i].append(elem_tags[j])
 
-        cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]
+        cell_sets[name] = [(None if len(idcs) == 0 else np.concatenate(idcs)) for idcs in cell_sets[name]]  # ty: ignore [no-matching-overload]
 
     return meshio.Mesh(points, cells, cell_sets=cell_sets)
 
@@ -308,6 +309,6 @@ def MeshioGmshOrderingPatch() -> None:
         try:
             mod = importlib.import_module(mod_name)
             mod._meshio_to_gmsh_order = NodeOrdering().ordering_meshio_to_gmsh
-        except Exception:
+        except Exception:  # noqa: PERF203
             # If assignment fails, pass
             pass

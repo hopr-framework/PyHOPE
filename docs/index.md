@@ -9,6 +9,7 @@ PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python fr
 <div class="text-center" style="margin-bottom: 2em;">
 <a href="getting-started/" class="btn btn-primary btn-spacing" role="button">Getting Started</a>
 <a href="user-guide/"      class="btn btn-primary btn-spacing" role="button">User Guide</a>
+<a href="developer-guide/" class="btn btn-primary btn-spacing" role="button">Developer Guide</a>
 <a href="mesh-format/"     class="btn btn-primary btn-spacing" role="button">Mesh Format</a>
 </div>
 

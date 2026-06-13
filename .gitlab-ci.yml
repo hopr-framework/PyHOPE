@@ -24,8 +24,8 @@
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags/
-# image: ${CI_REGISTRY_NAME}/nrg-python:3.14.3-trixie-x86_64
-image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.3-trixie-x86_64
+# image: ${CI_REGISTRY_NAME}/nrg-python:3.14.5-trixie-x86_64
+image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.14.5-trixie-x86_64
 
 # Change pip's cache directory to be inside the project directory since we can only cache local items.
 variables:
@@ -86,7 +86,7 @@ variables:
   - uv venv .venv
   - source .venv/bin/activate
   # Regression checks needs NRG Gmsh, pre-install it
-  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.1.post1-py3-none-linux_x86_64.whl
+  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-4.15.2.post1-py3-none-linux_x86_64.whl
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
   # Install coverage
@@ -124,7 +124,7 @@ ruff:
   script:
     - uv pip install ruff
     - ruff --version
-    - ruff check --target-version=py310 --extend-ignore=E201,E202,E203,E221,E222,E225,E231,E271,E272 --line-length=132 --preview pyhope
+    - ruff check --config pyproject.toml --preview
 
 ty:
   extends: .defaults
@@ -141,7 +141,31 @@ vulture:
   script:
     - uv pip install vulture
     - vulture --version
-    - vulture .gmsh pyhope
+    - vulture --config pyproject.toml .gmsh pyhope
+
+gitleaks:
+  extends: .defaults
+  stage: lint
+  before_script: *minimal-before-script
+  script:
+    - uv pip install pre-commit
+    - pre-commit --version
+    # detect hardcoded secrets
+    - pre-commit run gitleaks
+
+pre-commit:
+  extends: .defaults
+  stage: lint
+  before_script: *minimal-before-script
+  script:
+    - uv pip install pre-commit
+    - pre-commit --version
+    # check for merge conflicts
+    - pre-commit run check-merge-conflict
+    # check for broken symlinks
+    - pre-commit run check-symlinks
+    # trim trailing whitespace
+    - pre-commit run trailing-whitespace
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Compatibility
@@ -159,25 +183,25 @@ vulture:
 python:3.10:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.10.19-trixie-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.10.20-trixie-x86_64
   <<: *compatibility-script
 # Python 3.11 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.11:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.11.14-trixie-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.11.15-trixie-x86_64
   <<: *compatibility-script
 # Python 3.12 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.12:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.12.12-trixie-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.12.13-trixie-x86_64
   <<: *compatibility-script
 # Python 3.13 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.13:
   extends: .defaults
   stage: compatibility
-  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.12-trixie-x86_64
+  image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:3.13.13-trixie-x86_64
   <<: *compatibility-script
 # Python 3.14 ----------------------------------------------------------------------------------------------------------------------------------------
 python:3.14:
@@ -253,13 +277,17 @@ examples:
         popd > /dev/null
       done
 
-    # Combine coverage reports from all example directories
-    - echo "Combining coverage reports..."
-    - coverage combine --keep
+    - echo "Save coverage reports"
+    - mkdir -p .tmp/coverage
+    - cp .coverage.* .tmp/coverage
 
-    # Generate the coverage report in XML format
+    # Combine coverage reports from all example directories
+    # - echo "Combining coverage reports..."
+    # - coverage combine --keep --data-file=".coverage"
+
+    # Generate the coverage report
     - echo "Generating coverage report..."
-    - coverage xml
+    # > Coverage 7.14.0 changed to implicit combine which deletes the parallel files
     - coverage report --skip-empty --precision=2
 
     # Output the final sorted report as a UTF-8 box-drawing table
@@ -292,12 +320,22 @@ examples:
     # Repeat the coverage report for Gitlab CI/CD to pick up
     - coverage report --skip-empty --precision=2 | grep TOTAL
 
+    - echo "Restore coverage reports"
+    - cp .tmp/coverage/.coverage.* .
+
 healthcheck:
   extends: .defaults_coverage
   stage: verification
+  # Remove Git LFS on purpose to check the LFS downloader
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
   script:
     # Run the internal health check
     - coverage run --data-file=".coverage.verify" -m pyhope --verify
+    # Generate the coverage report
+    # - echo "Generating coverage report..."
+    # > Coverage 7.14.0 changed to implicit combine which deletes the parallel files
+    # - coverage report --skip-empty --precision=2 --data-file=".coverage.verify"
 
 coverage:
   extends: .defaults_coverage
@@ -322,6 +360,7 @@ coverage:
     # Generate the coverage report in XML format
     - echo "Generating coverage report..."
     - coverage xml
+    # > Coverage 7.14.0 changed to implicit combine which deletes the parallel files
     - coverage report --skip-empty --precision=2
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

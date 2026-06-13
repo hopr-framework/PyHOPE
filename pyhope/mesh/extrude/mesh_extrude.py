@@ -36,12 +36,7 @@ from typing import Final
 # ----------------------------------------------------------------------------------------------------------------------------------
 import meshio
 import numpy as np
-# ----------------------------------------------------------------------------------------------------------------------------------
-# Typing libraries
-# ----------------------------------------------------------------------------------------------------------------------------------
-import typing
-if typing.TYPE_CHECKING:
-    import numpy.typing as npt
+import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -82,15 +77,13 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     elif not [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]:
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
 
-    if nGeo > 2:
-        hopout.error(f'nGeo = {nGeo} not supported for mesh extrusion')
-
     hopout.info('Extruding surface to volume mesh')
 
     # Read in the mesh post-deformation flag
     hopout.sep()
-    extrTemplate = GetStr( 'MeshExtrudeTemplate')
-    extrBCIndex  = GetInt( 'MeshExtrudeBCIndex')
+    extrTemplate   = GetStr('MeshExtrudeTemplate')
+    extrBCIndexTop = GetInt('MeshExtrudeBCIndexTop') - 1
+    extrBCIndexBot = GetInt('MeshExtrudeBCIndexBot') - 1
 
     # Continue with extrusion
     hopout.sep()
@@ -108,11 +101,36 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # Get base key to distinguish between linear and high-order elements
     ho_key    = 100 if nGeo == 1 else 200
     nPoints   = len(pointl)
-    nFaces    = np.zeros(2, dtype=int)
 
     # Expected number of nodes
     faceNum   = [ int((nGeo+1)*(nGeo+2)/2), int((nGeo+1)**2) ]
     faceType  = [f'triangle{"" if nGeo == 1 else faceNum[0]}', f'quad{"" if nGeo == 1 else faceNum[1]}']
+
+    # For zones, we need to append the expected extruded elements
+    for cblock in cell_sets.values():
+        # Each set_blocks is a list of arrays, one entry per cell block
+        for blockID in range(len(cblock)):
+            etype = elems_old[blockID].type
+            if etype[:4] not in ('tria', 'quad'):
+                continue
+
+            elemNum = ho_key + (8 if etype.startswith('quad') else 6)
+            # Obtain the element type
+            elemType = elemTypeClass.inam[elemNum]
+            if len(elemType) > 1:
+                elemType  = elemType[0].rstrip(digits)
+                elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+                elemType += str(elemDOFs)
+            else:
+                elemType  = elemType[0]
+                elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+
+            if elemType not in faceType:
+                faceType.append(elemType)
+                faceNum .append(elemDOFs)
+
+    # nFaces contains the existing number of [Triangle, Quad, Wedge, Hexahedron]
+    nFaces    = np.zeros(len(faceType), dtype=int)
 
     # Prepare new cell blocks and new cell_sets
     elems_lst = {ftype: [] for ftype in faceType}
@@ -127,10 +145,26 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # INFO: We reduce the new faces to first-order. Yes, this breaks direkt meshio output. But we are not using this anyways.
     #       If you want to use mesh.write() for debug purposes, comment out the BC face creation.
     # nFace = (nGeo+1)*(nGeo+2)/2
-    nFace = 3
+    nFace: Final[int] = 3
+
+    # Create the element sets
+    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
+                                                                     or any(key.startswith('quad') for key in v))
+
+    # Take the correct BC index for the bottom BC
+    meshcells = tuple(s for s in meshcells if s[0].lower() == mesh_vars.bcs[extrBCIndexBot].name)
+
+    match len(meshcells):
+        case 0:
+            hopout.error('Could not find boundary condition for extrusion, exiting...')
+        case 1:
+            pass
+        case _:
+            hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
     # Convert the (1D, 2D) boundary cell set into a dictionary
     csets_old = {}
+    zsets_old = {}
     for cname, cblock in cell_sets.items():
         # Each set_blocks is a list of arrays, one entry per cell block
         for blockID, block in enumerate(cblock):
@@ -145,23 +179,22 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Determine how many corner nodes to keep
             nCorners = 2 if 'line' in etype else (3 if 'tria' in etype else 4)
 
+            # Filter the zone 2D faces
+            if nCorners > 2 and cname.lower() != mesh_vars.bcs[extrBCIndexBot].name:
+                # Sort them as a set for membership checks
+                for face in block:
+                    # Slice to only include corners for the search dictionary
+                    nodes = mesh.cells[blockID].data[face][:nCorners]
+                    zsets_old.setdefault(frozenset(nodes), []).append(cname)
+
+                # Do not add them to the boundary conditions
+                continue
+
             # Sort them as a set for membership checks
             for face in block:
                 # Slice to only include corners for the search dictionary
                 nodes = mesh.cells[blockID].data[face][:nCorners]
                 csets_old.setdefault(frozenset(nodes), []).append(cname)
-
-    # Create the element sets
-    meshcells = tuple((k, v) for k, v in mesh.cell_sets_dict.items() if any(key.startswith('tria') for key in v)
-                                                                     or any(key.startswith('quad') for key in v))
-
-    match len(meshcells):
-        case 0:
-            hopout.error('Could not found boundary condition for extrusion, exiting...')
-        case 1:
-            pass
-        case _:
-            hopout.error('Found more than one boundary condition for extrusion, exiting...')
 
     nTotalElems = sum(cdata.shape[0] for _, zdata in meshcells for cdata in cast(dict, zdata).values())
     bar = ProgressBar(value=nTotalElems, title='│             Processing Elements', length=33, threshold=1000)
@@ -171,6 +204,12 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     for subFace in csets_old:
         for node in subFace:
             nodeToFace[node].add(subFace)
+
+    # Build an inverted index to map each node to all zone keys (from zsets_old) that contain it
+    nodeToZone = defaultdict(set)
+    for subFace in zsets_old:
+        for node in subFace:
+            nodeToZone[node].add(subFace)
 
     # We need to unwrap meshcells for each zone, i.e. each 2D boundary condition
     for meshcell in meshcells:
@@ -195,12 +234,11 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             # Obtain the element type
             elemType = elemTypeClass.inam[elemNum]
             if len(elemType) > 1:
-                elemType  = elemType[0].rstrip(digits)
+                elemType  = str(elemType[0]).rstrip(digits)
                 elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
                 elemType += str(elemDOFs)
             else:
-                elemType  = elemType[0]
-                elemDOFs  = NDOFperElemType(elemType, mesh_vars.nGeo)
+                elemType  = str(elemType[0])
 
             # Face block: Iterate over each element
             for elem in cdata:
@@ -220,13 +258,13 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
                 # Create the new faces
                 subFaces   = tuple(np.array(extElem, dtype=np.int64)[face] for face in faces(nGeo))
-                bcFaces    = [{} for s in range(len(subFaces))]
+                bcFaces    = [{} for _ in range(len(subFaces))]
 
                 # BC: First, identify the 2D (bottom) faces
                 # > We know this is the first face and 1/5 face
                 botIdx , botFace = 0, subFaces[0]
                 topIdx           = 1 if mtype.startswith('tria') else 5
-                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndex-1].name
+                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndexTop].name  # noqa: E501
 
                 # BC: Set the BC for the bottom face
                 appendBCSet(botFace, faceMap, nFace, nFaces, nodeToFace, faceType,
@@ -234,12 +272,19 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                             bcFaces    = bcFaces        , bcFaceIdx    = botIdx   , bcSide     = 'bottom',   # noqa: E251, E271
                             requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
 
+                # ZONE: Set the ZONE for the bottom element
+                appendBCSet(botFace, faceMap, nFace, nFaces, nodeToZone, faceType,
+                            csets_old  = zsets_old      , csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
+                            bcFaces    = bcFaces        , bcFaceIdx    = botIdx   , bcSide     = 'zone',     # noqa: E251, E271
+                            elemType   = elemType,                                                           # noqa: E251, E271
+                            requireDim = lambda n: n > 2, requireMatch = False    , allowMulti = False)      # noqa: E251, E271
+
                 # BC: Next, iterate over the 1D (side faces)
                 for iFace, subFace in enumerate(subFaces[1::]):
                     appendBCSet(subFace, faceMap, nFace, nFaces, nodeToFace, faceType,
-                                csets_old  = csets_old, csets_lst    = csets_lst, elems_lst  = elems_lst,  # noqa: E251, E271
-                                bcFaces    = bcFaces  , bcFaceIdx    = iFace+1  , bcSide     = 'side',     # noqa: E251, E271
-                                requireDim = 2        , requireMatch = False    , allowMulti = False)      # noqa: E251, E271
+                                csets_old  = csets_old, csets_lst    = csets_lst, elems_lst  = elems_lst,    # noqa: E251, E271
+                                bcFaces    = bcFaces  , bcFaceIdx    = iFace+1  , bcSide     = 'side',       # noqa: E251, E271
+                                requireDim = 2        , requireMatch = False    , allowMulti = False)        # noqa: E251, E271
 
                 for extElem in extElems[1:]:
                     # Overwrite the element with the new indices
@@ -249,22 +294,31 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                     # Create the new faces
                     subFaces = tuple(np.array(extElem)[face] for face in faces(nGeo))
                     sidFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s and s['side'] == 'side'))
+                    zonFaces = tuple((i, s) for i, s in enumerate(bcFaces) if ('side' in s and s['side'] == 'zone'))
 
                     for iFace, sidFace in sidFaces:
                         subFace = subFaces[iFace]
                         faceVal = faceMap(0) if len(subFace) == nFace else faceMap(1)
 
                         name = sidFace['name']
-                        csets_lst.setdefault(name.strip(), [[], []])
+                        csets_lst.setdefault(name.strip(), [[] for _ in range(len(faceType))])
                         csets_lst[name][faceVal].append(nFaces[faceVal])
 
                         nFaces[faceVal] += 1
                         elems_lst[faceType[faceVal]].append(np.array(subFace, dtype=int))
 
+                    # Assign the new elements to the zone
+                    if zonFaces:
+                        faceVal = faceType.index(elemType)
+                        name    = zonFaces[0][1]['name']
+                        # Append the volume zones and increment
+                        csets_lst[name][faceVal].append(nFaces[faceVal])
+                        nFaces[faceVal] += 1
+
                 # BC: We should have one face left, assign the bottom BC
                 # > We need to hardcode this since we might have internal faces
-                faceVal    = faceMap(0) if len(topFace) == nFace else faceMap(1)
-                csets_lst.setdefault(topName, [[], []])
+                faceVal = faceMap(0) if len(topFace) == nFace else faceMap(1)
+                csets_lst.setdefault(topName, [[] for _ in range(len(faceType))])
                 csets_lst[topName][faceVal].append(nFaces[faceVal])
 
                 nFaces[faceVal] += 1
@@ -320,129 +374,200 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     return mesh
 
 
-def extrude_pris(nodes:   np.ndarray,
-                 points:  np.ndarray,
-                 shifts:  np.ndarray,
+@cache
+def quad_meshio_to_ij(order: int) -> npt.NDArray[np.int64]:
+    """Return meshio quad-node ordering mapped to tensor indices (i,j).
+
+    The ordering is generated ring-by-ring:
+    corners, edge nodes, then inner rings, matching meshio high-order quad ordering.
+    """
+    if order < 1:
+        raise ValueError(f'Quad ordering requires order >= 1, got {order}')
+
+    ij: list[tuple[int, int]] = []
+
+    # Fill rings from outside to inside
+    for ring in range(order // 2 + 1):
+        start = ring
+        end   = order - ring
+
+        if start > end:
+            break
+
+        # Odd order: final center point
+        if start == end:
+            ij.append((start, start))
+            break
+
+        # Ring corners
+        ij.extend(((start, start), (end, start), (end, end), (start, end)))
+        # Bottom edge (left -> right), excluding corners
+        ij.extend((i, start) for i in range(start + 1, end))
+        # Right edge (bottom -> top), excluding corners
+        ij.extend((end, j) for j in range(start + 1, end))
+        # Top edge (right -> left), excluding corners
+        ij.extend((i, end) for i in range(end - 1, start, -1))
+        # Left edge (top -> bottom), excluding corners
+        ij.extend((start, j) for j in range(end - 1, start, -1))
+
+    expected = (order + 1) ** 2
+    if len(ij) != expected:
+        raise RuntimeError(f'Invalid quad ordering length for order {order}: got {len(ij)}, expected {expected}')
+
+    return np.asarray(ij, dtype=np.int64)
+
+
+@cache
+def tri_meshio_to_ij(order: int) -> npt.NDArray[np.int64]:
+    """Return meshio triangle-node ordering mapped to simplex indices (i,j)."""
+    if order < 1:
+        raise ValueError(f'Triangle ordering requires order >= 1, got {order}')
+
+    ij: list[tuple[int, int]] = []
+
+    # Fill triangular rings from outside to inside.
+    # After one ring is emitted, the inner triangle has order reduced by 3.
+    def _fill_ring(n: int, i0: int, j0: int) -> None:
+        if n < 0:
+            return
+        if n == 0:
+            ij.append((i0, j0))
+            return
+
+        # Ring corners
+        ij.extend(((i0, j0), (i0+n, j0), (i0, j0+n)))
+        # Edge 0->1 (excluding corners)
+        ij.extend((i0+i, j0) for i in range(1, n))
+        # Edge 1->2 (excluding corners)
+        ij.extend((i0+n-t, j0+t) for t in range(1, n))
+        # Edge 2->0 (excluding corners)
+        ij.extend((i0, j0+j) for j in range(n-1, 0, -1))
+
+        _fill_ring(n-3, i0+1, j0+1)
+
+    _fill_ring(order, 0, 0)
+
+    expected = round((order + 1) * (order + 2) / 2)
+    if len(ij) != expected:
+        raise RuntimeError(f'Invalid triangle ordering length for order {order}: got {len(ij)}, expected {expected}')
+
+    return np.asarray(ij, dtype=np.int64)
+
+
+def extrude_pris(nodes:   npt.NDArray,
+                 points:  npt.NDArray,
+                 shifts:  npt.NDArray,
                  nPoints: int,
-                 order:   int) -> tuple[list, ...]:
+                 order:   int) -> tuple[list[npt.NDArray], npt.NDArray]:
 
     nDOFsElem = round((order+1)**(3-1)*(order+2)/2.)
-    newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
+    newNodes  = [np.empty((nDOFsElem, )) for _ in range(len(shifts)-1)]
 
-    match order:
-        case 1:
-            newPoints = np.empty((3*(shifts.shape[0]-1), 3))
+    if order == 0:
+        raise ValueError(f'Extrusion not implemented for NGeo={order}')
 
-            # Append the bottom layer of the first element, then stack all the other elements
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr =  i   *3
-                shiftCurr  = shifts[i+1, :]
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_common import LINMAP
+    # ------------------------------------------------------
 
-                newNodes[i][  : 3] = nodes[ :3] if i == 0 else newNodes[i-1][ 3: 6]
-                newNodes[i][ 3: 6] = np.add(np.arange(3, dtype=np.int64), nPoints+offsetCurr)
-                newPoints[offsetCurr:offsetCurr+3, :] = points[:3] + shiftCurr
+    nFaceDOFs = round((order+1)*(order+2)/2.)
+    nNewDOFs  = order*nFaceDOFs
+    newPoints = np.empty((nNewDOFs*(shifts.shape[0]-1), 3))
 
-        case 2:
-            newPoints = np.empty((12*(shifts.shape[0]-1), 3))
+    # Generic meshio(triaN) -> meshio(wedgeM) layer mapping for any supported NGeo>=1.
+    linmap = LINMAP(206, order)
+    q_to_ij  = tri_meshio_to_ij(order)
+    layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
+    for q, (ii, jj) in enumerate(q_to_ij):
+        for k in range(order+1):
+            layerPos[k, q] = int(linmap[ii, jj, k])
 
-            # Append the bottom layer of the first element, then stack all the other elements
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr =  i   *12
-                shiftCurr  = shifts[i+1, :]
-                shiftPrev  = shifts[i  , :]
+    # Append the bottom layer of the first element, then stack all the other elements
+    for i in range(shifts.shape[0]-1):
+        offsetCurr = i*nNewDOFs
+        shiftCurr  = shifts[i+1, :]
+        shiftPrev  = shifts[i  , :]
 
-                # Bottom/top corners
-                newNodes[i][  : 3] = nodes[ :3] if i == 0 else newNodes[i-1][ 3: 6]
-                newNodes[i][ 3: 6] = np.add(np.arange( 0,  3), nPoints+offsetCurr)
-                newPoints[offsetCurr   :offsetCurr+ 3, :] = points[ :3] +      shiftCurr
-                # Edges bottom/top
-                newNodes[i][ 6: 9] = nodes[3:6] if i == 0 else newNodes[i-1][ 9:12]
-                newNodes[i][ 9:12] = np.add(np.arange( 3,  6), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 3:offsetCurr+ 6, :] = points[3:6] +      shiftCurr
-                # Edges upright
-                newNodes[i][12:15]  = np.add(np.arange( 6, 9), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 6:offsetCurr+ 9, :] = points[ :3] + 0.5*(shiftCurr+shiftPrev)
-                # Face centers
-                newNodes[i][15:18]  = np.add(np.arange( 9, 12), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 9:offsetCurr+10, :] = points[  3] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+10:offsetCurr+11, :] = points[  4] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+11:offsetCurr+12, :] = points[  5] + 0.5*(shiftCurr+shiftPrev)
+        # Bottom layer
+        for q in range(nFaceDOFs):
+            idxBot = int(layerPos[0    , q])
+            idxTop = int(layerPos[order, q])
+            newNodes[i][idxBot] = nodes[q] if i == 0 else newNodes[i-1][idxTop]
 
-        # FIXME: Implement the other orders
-        case _:
-            raise ValueError(f'Extrusion not implemented for NGeo={order}')
+        # New points for layers k=1..order
+        p = 0
+        for k in range(1, order+1):
+            alpha  = k/order
+            shiftK = (1.0-alpha)*shiftPrev + alpha*shiftCurr
+            for q in range(nFaceDOFs):
+                idx = nPoints + offsetCurr + p
+                pos = int(layerPos[k, q])
+
+                newNodes[i][pos] = idx
+                newPoints[offsetCurr + p, :] = points[q] + shiftK
+                p += 1
 
     return newNodes, newPoints
 
 
-def extrude_hexa(nodes:   np.ndarray,
-                 points:  np.ndarray,
-                 shifts:  np.ndarray,
+def extrude_hexa(nodes:   npt.NDArray,
+                 points:  npt.NDArray,
+                 shifts:  npt.NDArray,
                  nPoints: int,
-                 order:   int) -> tuple[list, ...]:
+                 order:   int) -> tuple[list[npt.NDArray], npt.NDArray]:
 
     nDOFsElem = (order+1)**3
-    newNodes  = [np.empty((nDOFsElem, )) for s in range(len(shifts)-1)]
+    newNodes  = [np.empty((nDOFsElem, )) for _ in range(len(shifts)-1)]
 
-    match order:
-        case 1:
-            newPoints = np.empty((4*(shifts.shape[0]-1), 3))
+    if order == 0:
+        raise ValueError(f'Extrusion not implemented for NGeo={order}')
 
-            # Append the bottom layer of the first element, then stack all the other elements
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr =  i   *4
-                shiftCurr  = shifts[i+1, :]
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_common import LINMAP
+    # ------------------------------------------------------
 
-                newNodes[i][  : 4] = nodes[ :4] if i == 0 else newNodes[i-1][ 4: 8]
-                newNodes[i][ 4: 8] = np.add(np.arange(4, dtype=np.int64), nPoints+offsetCurr)
-                newPoints[offsetCurr:offsetCurr+4, :] = points[:4] + shiftCurr
+    nFaceDOFs = (order+1)**2
+    nNewDOFs  = order*nFaceDOFs
+    newPoints = np.empty((nNewDOFs*(shifts.shape[0]-1), 3))
 
-        case 2:
-            newPoints = np.empty((18*(shifts.shape[0]-1), 3))
+    # Generic meshio(quadN) -> meshio(hexaM) layer mapping for any NGeo>=1.
+    linmap   = LINMAP(208, order)
+    q_to_ij  = quad_meshio_to_ij(order)
+    layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
+    for q, (ii, jj) in enumerate(q_to_ij):
+        for k in range(order+1):
+            layerPos[k, q] = int(linmap[ii, jj, k])
 
-            # Append the bottom layer of the first element, then stack all the other elements
+    # Append the bottom layer of the first element, then stack all the other elements
+    for i in range(shifts.shape[0]-1):
+        offsetCurr = i*nNewDOFs
+        shiftCurr  = shifts[i+1, :]
+        shiftPrev  = shifts[i  , :]
 
-            for i in range(shifts.shape[0]-1):
-                # Calculate offset for current layer indices
-                offsetCurr =  i   *18
-                shiftCurr  = shifts[i+1, :]
-                shiftPrev  = shifts[i  , :]
+        # Bottom layer
+        for q in range(nFaceDOFs):
+            idxBot = int(layerPos[0    , q])
+            idxTop = int(layerPos[order, q])
+            newNodes[i][idxBot] = nodes[q] if i == 0 else newNodes[i-1][idxTop]
 
-                # Bottom/top corners
-                newNodes[i][  : 4] = nodes[ :4] if i == 0 else newNodes[i-1][ 4: 8]
-                newNodes[i][ 4: 8] = np.add(np.arange( 0,  4), nPoints+offsetCurr)
-                newPoints[offsetCurr   :offsetCurr+ 4, :] = points[ :4] +      shiftCurr
-                # Edges bottom/top
-                newNodes[i][ 8:12] = nodes[4:8] if i == 0 else newNodes[i-1][12:16]
-                newNodes[i][12:16] = np.add(np.arange( 4,  8), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 4:offsetCurr+ 8, :] = points[4:8] +      shiftCurr
-                # Edges upright
-                newNodes[i][16:20]  = np.add(np.arange( 8, 12), nPoints+offsetCurr)
-                newPoints[offsetCurr+ 8:offsetCurr+12, :] = points[ :4] + 0.5*(shiftCurr+shiftPrev)
-                # Face centers
-                newNodes[i][20:24]  = np.add(np.arange(12, 16), nPoints+offsetCurr)
-                newNodes[i][24:26]  = np.array([int(nodes[8])if i == 0 else newNodes[i-1][25] , nPoints + 16 + offsetCurr])
-                newPoints[offsetCurr+12:offsetCurr+13, :] = points[  7] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+13:offsetCurr+14, :] = points[  5] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+14:offsetCurr+15, :] = points[  4] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+15:offsetCurr+16, :] = points[  6] + 0.5*(shiftCurr+shiftPrev)
-                newPoints[offsetCurr+16:offsetCurr+17, :] = points[  8] +      shiftCurr
-                # Volume center
-                newNodes[i][26:27]  = nPoints + 17 + offsetCurr
-                newPoints[offsetCurr+17:offsetCurr+18, :] = points[  8] + 0.5*(shiftCurr+shiftPrev)
+        # New points for layers k=1...order
+        p = 0
+        for k in range(1, order+1):
+            alpha  = k/order
+            shiftK = (1.0-alpha)*shiftPrev + alpha*shiftCurr
+            for q in range(nFaceDOFs):
+                idx = nPoints + offsetCurr + p
+                pos = int(layerPos[k, q])
 
-        # FIXME: Implement the other orders
-        case _:
-            raise ValueError(f'Extrusion not implemented for NGeo={order}')
+                newNodes[i][pos] = idx
+                newPoints[offsetCurr + p, :] = points[q] + shiftK
+                p += 1
 
     return newNodes, newPoints
 
 
 @cache
-def pris_faces(order: int) -> tuple[np.ndarray, ...]:
+def pris_faces(order: int) -> tuple[npt.NDArray, ...]:
     """
     Given the 6 prism corner indices, return a tuple with the 2 triangular and 3 quadrilateral faces as arrays
     """
@@ -468,7 +593,7 @@ def pris_faces(order: int) -> tuple[np.ndarray, ...]:
 
 
 @cache
-def hexa_faces(order: int) -> tuple[np.ndarray, ...]:
+def hexa_faces(order: int) -> tuple[npt.NDArray, ...]:
     """ Given the indices of a hexahedral element, return a tuple with the 6 faces as arrays
     """
     match order:

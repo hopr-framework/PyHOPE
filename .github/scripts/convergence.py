@@ -30,12 +30,12 @@ convfile = "convergence.log"
 
 
 # Set tolerance bounds: (N+1)+-0.35
-def compute_expected_range(N):
+def compute_expected_range(N: int) -> tuple[float, float]:
     return N + 0.65, N + 1.35
 
 
 # Process the results
-def process_results(degree, data):
+def process_results(degree: int, data: list) -> bool:
     min_eoc, max_eoc = compute_expected_range(degree)
     print(f"\n=== Checking EOCs for Polynomial Degree N={degree} (Expected: [{min_eoc}, {max_eoc}]) ===")
     results = []
@@ -47,7 +47,7 @@ def process_results(degree, data):
 
 
 # Draw the results as a table
-def draw_table(results):
+def draw_table(results: list) -> None:
     print("\n┌───────┬─────────┬─────────┬─────────┬────────┐")
     print("│ Mesh  │   min   │   max   │  result │ Passed │")
     print("├───────┼─────────┼─────────┼─────────┼────────┤")

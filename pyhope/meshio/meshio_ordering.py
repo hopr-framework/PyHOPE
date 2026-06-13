@@ -29,7 +29,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
-from typing import Union, Optional
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -220,8 +220,8 @@ class NodeOrdering:
                                        'tetra'       : [ 0, 1, 2, 3 ],
                                        'tetra10'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 9, 8 ],
                                        'tetra20'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10, 15, 14, 13, 12, 17, 19, 18, 16 ],
-                                       'tetra35'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 14, 13, 21, 20, 19, 18, 17, 16,
-                                                         25, 26, 27, 32, 33, 31, 28, 30, 29, 22, 24, 23, 34],
+                                       'tetra35'     : [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 14, 13, 21, 20, 19, 18, 17, 16,  # noqa: E501
+                                                         25, 26, 27, 32, 33, 31, 28, 30, 29, 22, 24, 23, 34 ],
                                        # > Wedge
                                        'wedge'       : [ 0, 1, 2, 3, 4, 5],
                                        'wedge15'     : [ 0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11 ],
@@ -249,7 +249,7 @@ class NodeOrdering:
     # Dictionary for translation of  gambit types to gmsh codes
     _gambit_typing: dict[int, str] = field(
             default_factory=lambda: { 1  : 'line'          , 2  : 'quad'          , 3  : 'triangle'      , 4  : 'hexahedron'    ,
-                                      5  : 'wedge'         , 6  : 'tetrahedron'   , 7  : 'pyramid'                              ,
+                                      5  : 'wedge'         , 6  : 'tetra'         , 7  : 'pyramid'                              ,
                                     }
     )
 
@@ -259,12 +259,16 @@ class NodeOrdering:
                                        # 1D elements
                                        # 2D elements
                                        # 3D elements
+                                       # > Tetrahedron
+                                       'tetra'     : [ 0, 1, 2, 3 ],
+                                       # > Pyramid
+                                       # > Wedge / Prism
                                        # > Hexahedron
-                                       'hexahedron':   [0, 1, 3, 2, 4, 5, 7, 6],
+                                       'hexahedron': [ 0, 1, 3, 2, 4, 5, 7, 6 ],
                                     }
     )
 
-    def ordering_gmsh_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+    def ordering_gmsh_to_meshio(self, elemType: int | str | np.uint, idx: npt.NDArray) -> npt.NDArray:
         """ Return the meshIO node ordering for a given element type
         """
 
@@ -296,7 +300,7 @@ class NodeOrdering:
         ordering = HEXREORDER(nGeo, incomplete=incomplete)
         return idx[:, ordering]
 
-    def ordering_meshio_to_gmsh(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
+    def ordering_meshio_to_gmsh(self, elemType: int | str | np.uint, idx: npt.NDArray) -> npt.NDArray:
         """ Return the Gmsh node ordering for a given element type
             > Inverse of ordering_gmsh_to_meshio
         """
@@ -402,18 +406,16 @@ class NodeOrdering:
     #
     #     return mapping
 
-    def typing_gambit_to_meshio(self, elemType: Union[int, str, np.uint]) -> str:
-        """
-        Return the meshIO element type for a given Gambit element type
+    def typing_gambit_to_meshio(self, elemType: int | str | np.uint) -> str:
+        """ Return the meshIO element type for a given Gambit element type
         """
         if isinstance(elemType, (int, np.integer)):
             return self._gambit_typing[int(elemType)]
 
         raise ValueError(f'Unknown element type {elemType}')
 
-    def ordering_gambit_to_meshio(self, elemType: Union[int, str, np.uint], idx: npt.NDArray) -> npt.NDArray:
-        """
-        Return the meshIO node ordering for a given element type
+    def ordering_gambit_to_meshio(self, elemType: int | str | np.uint, idx: npt.NDArray) -> npt.NDArray:
+        """ Return the meshIO node ordering for a given element type
         """
         if isinstance(elemType, (int, np.integer)):
             elemType = self._gambit_typing[int(elemType)]

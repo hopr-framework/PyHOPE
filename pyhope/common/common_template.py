@@ -47,7 +47,7 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 def LoadTemplate(template: str,
                  origin:   str,
-                 reason:   str):
+                 reason:   str) -> ModuleType:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.config.config import prmfile
@@ -83,6 +83,6 @@ def LoadTemplate(template: str,
     if templateModule is None:
         hopout.warning(f'{reason} template "{template}" not found!')
         # Print all available default templates for post-deformation
-        templist = [f'  {file[:-3]}' for file in os.listdir(os.path.join(os.path.dirname(origin), 'templates')) if file.endswith('.py')]
+        templist = [f'  {file[:-3]}' for file in os.listdir(os.path.join(os.path.dirname(origin), 'templates')) if file.endswith('.py')]  # noqa: E501
         hopout.error('Available default extrusion templates:' + ','.join(templist))
     return templateModule

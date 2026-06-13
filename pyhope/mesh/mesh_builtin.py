@@ -80,7 +80,13 @@ def MeshCartesian() -> meshio.Mesh:
     gmsh.option.setNumber('Mesh.RandomFactor'          , 0)                       # No perturbation
     gmsh.option.setNumber('Mesh.SubdivisionAlgorithm'  , 0)                       # No subdivision/refinement
     gmsh.option.setNumber('Mesh.Algorithm'             , 3)                       # Initial mesh only
+    # gmsh.option.setNumber('Mesh.Algorithm3D'           , 10)                      # HXT algorithm
     gmsh.option.setNumber('Geometry.AutoCoherence'     , 2)                       # Remove duplicate entities
+
+    # Avoid mesh size interpolation
+    gmsh.option.setNumber('Mesh.MeshSizeFromPoints'        , 0)
+    gmsh.option.setNumber('Mesh.MeshSizeFromCurvature'     , 0)
+    gmsh.option.setNumber('Mesh.MeshSizeExtendFromBoundary', 0)
 
     # To connect the generated cells, we can simply set
     gmsh.option.setNumber('Mesh.RecombineAll'          , 1)
@@ -348,7 +354,7 @@ def MeshCartesian() -> meshio.Mesh:
 
             # If the number of sides do not match, we cannot impose periodicity
             # > Leave it out here and assume we can sort it out in ConnectMesh
-            except Exception as e:
+            except Exception:
                 print(hopout.warn(' No GMSH periodicity with vector {}'.format(
                     vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
                 continue
@@ -380,14 +386,14 @@ def MeshCartesian() -> meshio.Mesh:
     #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
     gmshTypes = gmsh.model.mesh.getElementTypes()
     gmshElems = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+                                              for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
                               if dim == 3])
     if not np.any(gmshElems):
         hopout.error('Generated mesh does not contain volume elements, exiting...')
 
     # Consistency check if the mesh elements have the correct order
-    gmshIssue  = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                               for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+    gmshIssue = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
+                                              for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
                               if dim == 3 and order != mesh_vars.nGeo])
 
     if gmshIssue.size > 0:

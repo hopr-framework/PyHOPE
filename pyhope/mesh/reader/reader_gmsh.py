@@ -343,66 +343,61 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     # Now set the missing CGNS boundaries
     for fname in fnames:
-
         # Create a temporary directory and keep it existing until manually cleaned
-        tfile = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
-        tname = tfile.name
-        # Try to convert the file automatically
-        if not h5py.is_hdf5(fname):
-            hopout.sep()
-            hopout.info(f'File {os.path.basename(fname)} is not in HDF5 CGNS format, converting ...')
-            tStart = time.time()
-            _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
-            tEnd   = time.time()
-            hopout.info(f'File {os.path.basename(fname)} converted HDF5 CGNS format [{tEnd - tStart:.2f} sec]')
+        with tempfile.NamedTemporaryFile() as tfile:
+            tname = tfile.name
+            # Try to convert the file automatically
+            if not h5py.is_hdf5(fname):
+                hopout.sep()
+                hopout.info(f'File {os.path.basename(fname)} is not in HDF5 CGNS format, converting ...')
+                tStart = time.time()
+                _ = subprocess.run([f'adf2hdf {fname} {tname}'], check=True, shell=True, stdout=subprocess.DEVNULL)
+                tEnd   = time.time()
+                hopout.info(f'File {os.path.basename(fname)} converted HDF5 CGNS format [{tEnd - tStart:.2f} sec]')
 
-            # Rest of this code operates on the converted file
-            fname = tname
-        else:
-            # Alternatively, load the file directly into tmpfs for faster access
-            shutil.copyfile(fname, tname)
+                # Rest of this code operates on the converted file
+                fname = tname
+            else:
+                # Alternatively, load the file directly into tmpfs for faster access
+                shutil.copyfile(fname, tname)
 
-        with h5py.File(fname, mode='r') as f:
-            if 'CGNSLibraryVersion' not in f:
-                hopout.error('CGNS file does not contain library version header')
+            with h5py.File(fname, mode='r') as f:
+                if 'CGNSLibraryVersion' not in f:
+                    hopout.error('CGNS file does not contain library version header')
 
-            key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
-            match len(key):
-                case 0:
-                    hopout.error('Object [Base] does not exist in CGNS file')
-                case 1:
-                    if not isinstance(f[key[0]], h5py.Group):
-                        hopout.error('Object [Base] is not a group in CGNS file')
-                    base = cast(h5py.Group, f[key[0]])
-                case _:
-                    hopout.error('More than one object [Base] exists in CGNS file')
+                key = [s for s in f if s.strip() not in ('format', 'hdf5version', 'CGNSLibraryVersion')]
+                match len(key):
+                    case 0:
+                        hopout.error('Object [Base] does not exist in CGNS file')
+                    case 1:
+                        if not isinstance(f[key[0]], h5py.Group):
+                            hopout.error('Object [Base] is not a group in CGNS file')
+                        base = cast(h5py.Group, f[key[0]])
+                    case _:
+                        hopout.error('More than one object [Base] exists in CGNS file')
 
-            for baseZone in base:
-                # Ignore the base dataset
-                if baseZone.strip() == 'data':
-                    continue
+                for baseZone in base:
+                    # Ignore the base dataset
+                    if baseZone.strip() == 'data':
+                        continue
 
-                zone = cast(h5py.Group, base[baseZone])
-                # Check if the zone contains BCs
-                if 'ZoneBC' not in zone:
-                    continue
+                    zone = cast(h5py.Group, base[baseZone])
+                    # Check if the zone contains BCs
+                    if 'ZoneBC' not in zone:
+                        continue
 
-                zonedata = cast(h5py.Dataset, zone[' data'])
-                match len(zonedata[0]):
-                    case 1:  # Unstructured mesh, 1D arrays
-                        mesh = BCCGNS_Unstructured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen,  # noqa: E501
-                                                   # Support for triangular elements
-                                                   ttree, tConnNum, tConnLen)
-                    case 3:  # Structured 3D mesh, 3D arrays
-                        # Structured grid can only contain tensor-product elements
-                        mesh = BCCGNS_Structured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen)
-                    case _:  # Unsupported number of dimensions
-                        # raise ValueError('Unsupported number of dimensions')
-                        hopout.error('Unsupported number of dimensions')
-
-        # Cleanup temporary file
-        if tfile is not None:
-            os.unlink(tfile.name)
+                    zonedata = cast(h5py.Dataset, zone[' data'])
+                    match len(zonedata[0]):
+                        case 1:  # Unstructured mesh, 1D arrays
+                            mesh = BCCGNS_Unstructured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen,  # noqa: E501
+                                                       # Support for triangular elements
+                                                       ttree, tConnNum, tConnLen)
+                        case 3:  # Structured 3D mesh, 3D arrays
+                            # Structured grid can only contain tensor-product elements
+                            mesh = BCCGNS_Structured(mesh, points, cells, stree, zone, tol, nConnNum, nConnLen)
+                        case _:  # Unsupported number of dimensions
+                            # raise ValueError('Unsupported number of dimensions')
+                            hopout.error('Unsupported number of dimensions')
 
     # Run garbage collector to release memory
     gc.collect()
@@ -415,7 +410,7 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
                           points:   npt.NDArray,
                           cells:    list,
                           stree:    Optional[KDTree],
-                          zone,     # CGNS zone
+                          zone:     h5py.Group,     # CGNS zone
                           tol:      float,
                           nConnNum: int,
                           nConnLen: int,
@@ -468,16 +463,27 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
         elif f'{zoneBC}/PointList' in zone['ZoneBC']:
             cgnsBC = sorted(int(s.squeeze()) for s in zone['ZoneBC'][zoneBC]['PointList'][' data'])
 
-            # Identify how surface elements are stored
-            surface_key = 'GridShells' if 'GridShells' in zone else 'SurfaceElements' if 'SurfaceElements' in zone else None
-            if not surface_key:
+            # Identify how surface elements are stored and get the location of the BC faces
+            if   'GridShells'      in zone:  # noqa: E271, E272
+                surface_key = 'GridShells'
+                cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
+            elif 'SurfaceElements' in zone:
+                surface_key = 'SurfaceElements'
+                cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
+            elif 'FamilyName'      in zone['ZoneBC'][zoneBC]:  # noqa: E272
+                surface_key = bytes(zone['ZoneBC'][zoneBC]['FamilyName'][' data']).decode('ascii')
+                cgnsGridLoc = 'FamilyName'
+                # ICEM uses the FamilyName as BC name
+                zoneBC      = surface_key
+                # FIXME: How can we find out the elemType for ICEM CGNS meshes?
+                if zone[surface_key]['ElementConnectivity'][' data'].shape[0] % \
+                    (int(zone[surface_key]['ElementRange'][' data'][1])-int(zone[surface_key]['ElementRange'][' data'][0])+1) != 0:
+                    hopout.error('PyHOPE currently only supports fully hexahedral ICEM CGNS meshes, exiting...')
+            else:
                 hopout.error('Format of BC implementation for FaceCenters not recognized, exiting...')
 
             cgnsShells  =     zone[surface_key]['ElementConnectivity'][' data']
             nShells     = int(zone[surface_key]['ElementRange'       ][' data'][0])
-
-            # Get the location of the BC faces
-            cgnsGridLoc = bytes(zone['ZoneBC'][zoneBC]['GridLocation'][' data']).decode('ascii')
             cgns_set    = set(cgnsBC)
 
             # Read the surface elements, one at a time
@@ -485,34 +491,49 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
             # Loop over all elements and collect centroids
             while count < cgnsShells.shape[0]:
-                elemType = ElemTypes(cgnsShells[count])
-                nNodes   = int(elemType['Nodes'])
+                match cgnsGridLoc:
+                    case 'Vertex':
+                        elemType = ElemTypes(cgnsShells[count])
+                        nNodes   = int(elemType['Nodes'])
 
-                corners  = cgnsShells[count+1:count+nNodes+1]
+                        # Check if corners can form a subset of cgnsBC
+                        corners     = cgnsShells[count+1:count+nNodes+1]
+                        corners_set = {int(s) for s in corners}
+                        if corners_set.issubset(cgns_set):
+                            BCpoints = bpoints[[s-1 for s in corners]]
+                            # print(BCpoints, BCpoints.shape)
+                            quadCenters.append(np.mean(BCpoints, axis=0))
+                        count += nNodes + 1
 
-                if cgnsGridLoc == 'Vertex':
-                    # Check if corners can form a subset of cgnsBC
-                    corners_set = {int(s) for s in corners}
-                    if corners_set.issubset(cgns_set):
+                    case 'FaceCenter':
+                        elemType = ElemTypes(cgnsShells[count])
+                        nNodes   = int(elemType['Nodes'])
+
+                        # Check if corners can form a subset of cgnsBC
+                        corners  = cgnsShells[count+1:count+nNodes+1]
+                        if nShells in cgns_set:
+                            BCpoints = bpoints[[s-1 for s in corners]]
+
+                            # For high-order elements, we only consider the 3/4 corner nodes for the centroid
+                            match len(BCpoints):
+                                case 3 | 6:       # triangle, triangle6
+                                    triaCenters.append(np.mean(BCpoints[:3], axis=0))
+                                case 4 | 8 | 9:   # quad, quad8, quad9
+                                    quadCenters.append(np.mean(BCpoints[:4], axis=0))
+                                case _:
+                                    hopout.error('Unsupported number of corners for shell elements, exiting...')
+
+                        nShells += 1
+                        count   += nNodes + 1
+
+                    case 'FamilyName':
+                        # FIXME: How can we find out the elemType for ICEM CGNS meshes?
+                        nNodes   = 4
+                        # Check if corners can form a subset of cgnsBC
+                        corners  = cgnsShells[count  :count+nNodes  ]
                         BCpoints = bpoints[[s-1 for s in corners]]
                         quadCenters.append(np.mean(BCpoints, axis=0))
-                    count += nNodes + 1
-
-                elif cgnsGridLoc == 'FaceCenter':
-                    if nShells in cgns_set:
-                        BCpoints = bpoints[[s-1 for s in corners]]
-
-                        # For high-order elements, we only consider the 3/4 corner nodes for the centroid
-                        match len(BCpoints):
-                            case 3 | 6:       # triangle, triangle6
-                                triaCenters.append(np.mean(BCpoints[:3], axis=0))
-                            case 4 | 8 | 9:   # quad, quad8, quad9
-                                quadCenters.append(np.mean(BCpoints[:4], axis=0))
-                            case _:
-                                hopout.error('Unsupported number of corners for shell elements, exiting...')
-
-                    nShells += 1
-                    count   += nNodes + 1
+                        count += nNodes
 
         # Data attached to the zoneBC node
         elif f'{zoneBC}/ElementList' in zone['ZoneBC']:
@@ -623,7 +644,7 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
                       points:   npt.NDArray,
                       cells:    list,
                       stree:    Optional[KDTree],
-                      zone,     # CGNS zone
+                      zone:     h5py.Group,     # CGNS zone
                       tol:      float,
                       nConnNum: int,
                       nConnLen: int) -> meshio.Mesh:

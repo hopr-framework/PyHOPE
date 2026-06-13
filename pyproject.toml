@@ -1,13 +1,17 @@
-# pyproject.toml compatible with Poetry (version 2.0.0.dev0)
+# pyproject.toml compatible with Poetry (version 2.0+)
 [project]
 name = "PyHOPE"
-version = "0.10.0"
+version = "0.11.0"
 description = "Python High-Order Preprocessing Environment"
 license = "GPL-3.0-only"
 requires-python = ">=3.10"
 readme = "README.md"
 authors = [
     {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},
+    ]
+maintainers = [
+    {name = "Patrick Kopper", email = "kopper@iag.uni-stuttgart.de"},
+    {name = "StephenCopplestone", email = "copplestone@boltzplatz.eu"}
     ]
 dependencies = [
     'alive-progress',
@@ -19,7 +23,6 @@ dependencies = [
     'plotext',
     'scipy',
     'gmsh',
-    # 'sortedcontainers',
     'typing-extensions',
     # 'threadpoolctl'
     ]
@@ -41,8 +44,11 @@ numba = [ 'numba'
 
 [project.urls]
 homepage = "https://numericsresearchgroup.org"
-repository = "https://github.com/hopr-framework/pyhope"
 documentation = "https://hopr-framework.github.io/PyHOPE"
+repository = "https://github.com/hopr-framework/PyHOPE"
+# PyPI is case-sensitive on the following entries
+Issues = "https://github.com/hopr-framework/PyHOPE/issues"
+Changelog = "https://github.com/hopr-framework/PyHOPE/blob/main/CHANGELOG.md"
 
 [project.scripts]
 pyhope = "pyhope.script.pyhope_cli:main"
@@ -61,6 +67,8 @@ include = ["pyhope*"]
 omit = [
     # Multiprocessing is disabled for code coverage
     '*/pyhope/common/common_parallel.py',
+    # Git LFS is always available for code coverage
+    '*/pyhope/common/common_git.py',
     # Gmsh does not get re-installed when running non-interactively
     '*/pyhope/gmsh/gmsh_install.py',
     ]
@@ -145,6 +153,9 @@ enableExperimentalFeatures      = false
 python-preference          = 'system'
 
 [tool.ruff]
+line-length = 132
+indent-width = 4
+force-exclude = true
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".git",
@@ -156,12 +167,15 @@ exclude = [
     "site-packages",
     "venv"
     ]
+# Required Ruff version
+required-version = ">=0.7.1"
+show-fixes = true
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
 
 [tool.ruff.lint]
 extend-select = [
-  # "ANN",      # flake8-annotations
+  "ANN",      # flake8-annotations
   "B",        # flake8-bugbear
   "C4",       # flake8-comprehensions
   "FA",       # flake8-future-annotations
@@ -169,6 +183,7 @@ extend-select = [
   "SIM",      # flake8-simplify
   "SLOT",     # flake8-slots
   "TID",      # flake8-tidy-imports
+  "PERF",     # Perflint
   "FURB",     # refurb
   "I",        # isort
   "NPY",      # NumPy-specific rules
@@ -181,13 +196,12 @@ ignore = [
   "RUF001",   # ambiguous-unicode-character-string - we want to use all characters
   "RUF100",   # unused-noqa                        - we want to have multiple linters, thus sometimes more exceptions are necessary
   "UP009",    # utf8-encoding-declaration          - we want to be explicit about our encoding
-  "UP007",    # non-pep604-annotation-union        - we want explicit typing.Union annotations
+  # "UP007",    # non-pep604-annotation-union        - we want explicit typing.Union annotations
   "UP045",    # non-pep604-annotation-optional     - we want explicit typing.Optional annotations
   "PLR0402",  # manual-from-import                 - we want every import specify the module name
   # INFO: False positives
   "RET503",   # implicit-return                    - ruff does not detect hopout.error[NoReturn]
   # TODO: These should be fixed eventually
-  "ANN002",   # missing-type-args                  - determine non-trivial types
   "BLE001",   # blind-except                       - narrow errors and exceptions
   "S110",     # try-except-pass                    - implement feature.logger branch
   "S112",     # try-except-continue                - implement feature.logger branch
@@ -213,6 +227,12 @@ unused-ignore-comment      = 'ignore'
 
 # Dead code
 [tool.vulture]
+paths = [
+    "pyhope",
+    "tools",
+    ".github",
+    ".gmsh"
+]
 ignore_names = [
     # Exclude context manager
     "Basis",

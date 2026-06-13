@@ -27,7 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from functools import cache
-from typing import Any, Final, Optional, Union
+from typing import Any, Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ elemTypeClass = mesh_vars.ELEMTYPE()
 
 
 @cache
-def faces(elemType: Union[int, str]) -> tuple[str, ...]:
+def faces(elemType: int | str) -> tuple[str, ...]:
     """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron
@@ -75,7 +75,7 @@ def faces(elemType: Union[int, str]) -> tuple[str, ...]:
 
 
 @cache
-def edges(elemType: Union[int, str]) -> tuple[int, ...]:
+def edges(elemType: int | str) -> tuple[int, ...]:
     """ Return a list of all edges of an element
     """
     edges_map = {  # Tetrahedron
@@ -98,7 +98,7 @@ def edges(elemType: Union[int, str]) -> tuple[int, ...]:
 
 
 @cache
-def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
+def edge_to_dir(edge: int, elemType: int | str) -> int:
     """ GMSH: Create edges from points in the given direction
     """
     eps = np.finfo(np.float64).eps
@@ -126,11 +126,11 @@ def edge_to_dir(edge: int, elemType: Union[int, str]) -> int:
 
 
 @cache
-def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.NDArray:
+def edge_to_corner(edge: int, elemType: int | str, dtype: type = np.int32) -> npt.NDArray:
     """ GMSH: Get points on edges
     """
     edge_map = {  # Tetrahedron
-                  4: ( (0, 1), (1, 2), (2, 1), (0, 3),
+                  4: ( (0, 1), (1, 2), (2, 0), (0, 3),
                        (1, 3), (2, 3)                 ),
                   # Pyramid
                   5: ( (0, 1), (1, 2), (2, 3), (3, 0),
@@ -140,8 +140,8 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.
                        (2, 3), (3, 4), (4, 5), (5, 4) ),
                   # Hexahedron
                   8: ( (0, 1), (1, 2), (2, 3), (3, 0),    # Bottom  edges
-                       (4, 5), (5, 6), (6, 7), (7, 4),    # Top     edges
-                       (0, 4), (1, 5), (2, 6), (3, 7) ),  # Upright edges
+                       (0, 4), (1, 5), (2, 6), (3, 7),    # Upright edges
+                       (4, 5), (5, 6), (6, 7), (7, 4) ),  # Top     edges
                }
 
     if isinstance(elemType, str):
@@ -159,7 +159,7 @@ def edge_to_corner(edge: int, elemType: Union[int, str], dtype=np.int32) -> npt.
 
 
 @cache
-def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.NDArray:
+def edge_to_sign(edge: int, elemType: int | str, dtype: type = np.float64) -> npt.NDArray:
     """ GMSH: Get signs on edges
     """
     edge_map = {  # Tetrahedron
@@ -185,7 +185,7 @@ def edge_to_sign(edge: int, elemType: Union[int, str], dtype=np.float64) -> npt.
 
 
 @cache
-def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def face_to_edge(face: str, elemType: str | int, dtype: type = np.int32) -> npt.NDArray:
     """ GMSH: Create faces from edges in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -213,7 +213,7 @@ def face_to_edge(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
 
 
 @cache
-def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def face_to_corner(face: str, elemType: str | int, dtype: type = np.int32) -> npt.NDArray:
     """ GMSH: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -241,7 +241,7 @@ def face_to_corner(face, elemType: Union[str, int], dtype=np.int32) -> npt.NDArr
 
 
 @cache
-def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def face_to_cgns(face: str, elemType: str | int, dtype: type = np.int32) -> npt.NDArray:
     """ CGNS: Get points on faces in the given direction
     """
     faces_map = {  # Tetrahedron
@@ -293,7 +293,7 @@ def face_to_cgns(face: str, elemType: Union[str, int], dtype=np.int32) -> npt.ND
 #
 #     def compute_ordering(self) -> npt.NDArray:
 @cache
-def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
+def FaceOrdering(side_type: str, order: int, dtype: type = np.int32) -> npt.NDArray:
     """ Compute the permutation ordering to convert from tensor-product ordering
         to meshio ordering for a face of a given type ('quad' or 'triangle')
         and polynomial order nGeo
@@ -366,7 +366,7 @@ def FaceOrdering(side_type: str, order: int, dtype=np.int32) -> npt.NDArray:
 
 
 @cache
-def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def flip_s2m(N: int, p: int, q: int, flip: int, elemType: str | int, dtype: type = np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of slave to RHS of master
     """
     flip_map = {  # Tetrahedron
@@ -393,7 +393,7 @@ def flip_s2m(N: int, p: int, q: int, flip: int, elemType: Union[str, int], dtype
 
 
 @cache
-def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: str | int, dtype: type = np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     faces_map = {  # Tetrahedron
@@ -421,7 +421,7 @@ def cgns_sidetovol(N: int, r: int, p: int, q: int, face: str, elemType: Union[st
 
 
 @cache
-def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np.int32) -> npt.NDArray:
+def sidetovol2(N: int, flip: int, face: str, elemType: str | int, dtype: type = np.int32) -> npt.NDArray:
     """ Transform coordinates from RHS of side into volume
     """
     if isinstance(elemType, str):
@@ -448,7 +448,7 @@ def sidetovol2(N: int, flip: int, face: str, elemType: Union[str, int], dtype=np
 
 
 @cache
-def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
+def type_to_mortar_flip(elemType: int | str) -> dict[int, dict[int, int]]:
     """ Returns the flip map for a given element type
     """
 
@@ -487,7 +487,7 @@ def type_to_mortar_flip(elemType: Union[int, str]) -> dict[int, dict[int, int]]:
 
 
 @cache
-def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.NDArray:
+def face_to_nodes(face: str, elemType: int, nGeo: int, dtype: type = np.int32) -> npt.NDArray:
     """ Returns the tensor-product nodes associated with a face
 
         CAVE: If the oriented side is required, use sidetovol2 instead!
@@ -584,7 +584,7 @@ def face_to_nodes(face: str, elemType: int, nGeo: int, dtype=np.int32) -> npt.ND
 
 
 @cache
-def dir_to_nodes(dir: str, elemType: Union[str, int], nGeo: int) -> tuple[Any, bool]:
+def dir_to_nodes(dir: str, elemType: str | int, nGeo: int) -> tuple[Any, bool]:
     """ Returns the tensor-product nodes associated with a face
     """
     if isinstance(elemType, str):
@@ -640,7 +640,7 @@ def count_elems(mesh: meshio.Mesh) -> int:
 
 
 # > Not cacheable, we pass mesh[meshio.Mesh]
-def calc_elem_bary(elems: Union[list, tuple]) -> npt.NDArray[np.float64]:
+def calc_elem_bary(elems: list | tuple) -> npt.NDArray[np.float64]:
     """
     Compute barycenters of all three-dimensional elements in the mesh.
 
@@ -715,11 +715,11 @@ def LINTEN(elemType: int,
             PRISMAP = PRISMAPMESHIO
             HEXAMAP = HEXAMAPMESHIO
         case 'vtk':
-            TETRMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+            TETRMAP = lambda _, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
                          ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
-            PYRAMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+            PYRAMAP = lambda _, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
                          ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
-            PRISMAP = lambda order, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
+            PRISMAP = lambda _, et=elemType: (_ for _ in ()).throw(  # noqa: E731, F841
                          ValueError(f'TETRMAP forbidden for VTK format (elemType: {et})'))
             HEXAMAP = HEXAMAPVTK
         case _:
@@ -775,7 +775,7 @@ def LINTEN(elemType: int,
 
 
 @cache
-def LINMAP(elemType: int, order: int = 1, dtype=np.int32) -> npt.NDArray:
+def LINMAP(elemType: int, order: int = 1, dtype: type = np.int32) -> npt.NDArray:
     """ MESHIO -> IJK ordering for element corner nodes
     """
     # Local imports ----------------------------------------

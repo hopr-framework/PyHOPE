@@ -44,7 +44,7 @@ from typing import Optional, cast
 # ==================================================================================================================================
 
 
-def PkgsMetaData(pkgs, classifier) -> Optional[bool]:
+def PkgsMetaData(pkgs: str, classifier: str) -> Optional[bool]:
     """ Check if the package contains a given classifier
     """
     try:
@@ -56,7 +56,7 @@ def PkgsMetaData(pkgs, classifier) -> Optional[bool]:
         return classifier in classifiers
 
 
-def PkgsMetaVersion(pkgs) -> Optional[str]:
+def PkgsMetaVersion(pkgs: str) -> Optional[str]:
     """ Check the package version
     """
     try:

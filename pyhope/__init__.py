@@ -26,6 +26,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from __future__ import annotations
 from collections import namedtuple
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -35,6 +36,12 @@ from typing import ParamSpec, TypeVar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Typing libraries
+# ----------------------------------------------------------------------------------------------------------------------------------
+import typing
+if typing.TYPE_CHECKING:
+    from types import GeneratorType
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -101,7 +108,7 @@ class Mapping:
 
 
 # Define a named tuple to hold the mesh data
-MeshContainer = namedtuple('Mesh',
+MeshContainer = namedtuple('Mesh',   # ty: ignore [mismatched-type-name]
                           ['mesh',   # The generated mesh object
                            'nGeo',   # Polynomial order
                            'bcs',    # Boundary conditions
@@ -112,7 +119,7 @@ MeshContainer = namedtuple('Mesh',
 
 
 @contextmanager
-def Mesh(*args: str, stdout: bool = False, stderr: bool = True):
+def Mesh(*args: str, stdout: bool = False, stderr: bool = True) -> GeneratorType:
     """ Mesh context manager to generate a mesh from a given file
 
         Args:

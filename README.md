@@ -25,7 +25,7 @@ PyHOPE is built using standard Python packages. You can install PyHOPE by follow
 > For new shell sessions, the virtual environment must be re-sourced using `source venv/bin/activate` before using `pyhope` commands.
 
 2.  **Install PyHOPE**  
-    PyHOPE is installed using `pip`, the Python package installer. This command fetches the PyHOPE package and its dependencies from PyPI (Python Package Index) and installs them.
+    PyHOPE is installed using `pip`, the Python package installer. This command fetches the PyHOPE package and its dependencies from [PyPI](https://pypi.org/project/PyHOPE) (Python Package Index) and installs them.
     ```bash
     python -m pip install pyhope
     ```
@@ -199,7 +199,7 @@ with Mesh('1-01-cartbox_mesh.h5') as m:
 ```
 
 # Cite
-This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the following article.
+This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the [following article](https://joss.theoj.org/papers/10.21105/joss.08769).
 ```bibtex
 @article{kopper2025pyhope:joss,
   title        = {{PyHOPE}: A Python Toolkit for Three-Dimensional Unstructured High-Order Meshes},

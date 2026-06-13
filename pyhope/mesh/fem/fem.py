@@ -60,6 +60,7 @@ def FEMConnect() -> None:
     """ Generate connectivity information for edges and vertices
     """
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetLogical
@@ -114,10 +115,10 @@ def FEMConnect() -> None:
 
     # Build mapping of each node -> set of element indices that include that node
     nodesPerElem = [cast(np.ndarray, elem.nodes)[:cast(int, elem.type) % 10] for elem in elems]
-    elemSizes    = np.array([len(ns) for ns in nodesPerElem], dtype=np.int32)
+    elemSizes    = np.array([len(ns) for ns in nodesPerElem], dtype=io_vars.outputbytes)
 
-    elemIDs      = np.repeat(np.arange(len(elems), dtype=np.int32), elemSizes)
-    allNodes     = np.concatenate(nodesPerElem).astype(np.int32)
+    elemIDs      = np.repeat(np.arange(len(elems), dtype=io_vars.outputbytes), elemSizes)
+    allNodes     = np.concatenate(nodesPerElem).astype(io_vars.outputbytes)
 
     # > Sort by node to form Compressed Sparse Row (CSR) matrix
     sortOrder    = np.argsort(allNodes, kind='stable')
@@ -125,7 +126,7 @@ def FEMConnect() -> None:
 
     # > Build CSR offsets
     uniqueNodes, nCSR = np.unique(allNodes[sortOrder], return_counts=True)
-    offsetsCSR        = np.empty(len(uniqueNodes) + 1, dtype=np.int32)
+    offsetsCSR        = np.empty(len(uniqueNodes) + 1, dtype=io_vars.outputbytes)
     offsetsCSR[0]     = 0
     np.cumsum(nCSR, out=offsetsCSR[1:])
 
@@ -153,7 +154,7 @@ def FEMConnect() -> None:
 
     # > nodeFirstArr[n] = canonical representative of node n (identity for non-periodic nodes)
     maxNode      = int(allNodes.max())
-    nodeFirstArr = np.arange(maxNode + 1, dtype=np.int32)
+    nodeFirstArr = np.arange(maxNode + 1, dtype=io_vars.outputbytes)
     for v, rep in nodeFirst.items():
         nodeFirstArr[v] = rep
 
@@ -188,7 +189,7 @@ def FEMConnect() -> None:
     edgesRaw  = []
     for elemID, elem in enumerate(elems):
         elemType  = elem.type
-        elemNodes = cast(np.ndarray, elem.nodes)
+        elemNodes = cast(np.ndarray, elem.nodes)[:cast(int, elemType) % 10]
         for edge in edges(elemType):
             # Get the local corner indices for the current edge
             corners = edge_to_corner(edge, elemType)
@@ -256,14 +257,14 @@ def FEMConnect() -> None:
             edgeCanonical[node] = canonical_rep
 
     # Build nodeFEMVertex
-    nodeFEMVertexArr = np.empty(maxNode + 1, dtype=np.int32)
+    nodeFEMVertexArr = np.empty(maxNode + 1, dtype=io_vars.outputbytes)
     for node in uniqueNodes:
         iNode = int(node)
         nodeFEMVertexArr[iNode] = FEMNodeMapping[int(nodeFirstArr[iNode])]
 
     # > 5. Generate final edge keys for all raw edges
     nEdgesRaw  = len(edgesRaw)
-    edgeKeys   = [_] * nEdgesRaw
+    edgeKeys   = [()] * nEdgesRaw
     edgeKeySet = set()
     for i, (elemID, locEdge, (n0, n1)) in enumerate(edgesRaw):
         # Get the initial representation of the edge
@@ -306,14 +307,14 @@ def FEMConnect() -> None:
         elems[elemID].edgeInfo[locEdge] = (locEdge, FEMEdgeMapping[edgeKey], edgePair, edgeNodes)
 
 
-def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
-                                               int,          # nVertices
-                                               npt.NDArray,  # VertexInfo
-                                               npt.NDArray,  # VertexConnectInfo
-                                               int,          # nEdges
-                                               npt.NDArray,  # EdgeInfo
-                                               npt.NDArray   # EdgeConnectInfo
-                                              ]:
+def getFEMInfo() -> tuple[npt.NDArray,  # FEMElemInfo
+                          int,          # nVertices
+                          npt.NDArray,  # VertexInfo
+                          npt.NDArray,  # VertexConnectInfo
+                          int,          # nEdges
+                          npt.NDArray,  # EdgeInfo
+                          npt.NDArray   # EdgeConnectInfo
+                         ]:
     """ Extract the FEM connectivity information and return five arrays
 
      - FEMElemInfo      : [offsetIndEdge, lastIndEdge, offsetIndVertex, lastIndVertex]
@@ -323,6 +324,7 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
      - EdgeConnectInfo  : [nbElemID, nbLocEdgeID]
     """
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     # ------------------------------------------------------
 
@@ -336,9 +338,9 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     # > Build flat arrays of all vertex occurrences
     # > > Same order as the elements
     nOccVertex = sum(len(cast(dict, elem.vertexInfo)) for elem in elems)
-    occVertID  = np.empty(nOccVertex, dtype=np.int32)   # FEMVertexID      per occurrence
-    occElemID  = np.empty(nOccVertex, dtype=np.int32)   # Element index    per occurrence
-    occLocNode = np.empty(nOccVertex, dtype=np.int32)   # Local node index per occurrence
+    occVertID  = np.empty(nOccVertex, dtype=io_vars.outputbytes)   # FEMVertexID      per occurrence
+    occElemID  = np.empty(nOccVertex, dtype=io_vars.outputbytes)   # Element index    per occurrence
+    occLocNode = np.empty(nOccVertex, dtype=io_vars.outputbytes)   # Local node index per occurrence
 
     idx = 0
     for elemID, elem in enumerate(elems):
@@ -356,11 +358,11 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # > Pre-allocate output arrays
     nVertConnTotal = sum(len(idxs) * (len(idxs) - 1) for idxs in groups.values())
-    vertexInfoArr  = np.empty((nOccVertex,     3), dtype=np.int32)  # [FEMVertexID, offset, last]
-    vertexConnArr  = np.empty((nVertConnTotal, 2), dtype=np.int32)  # [nbElemID, nbLocVertexID]
+    vertexInfoArr  = np.empty((nOccVertex,     3), dtype=io_vars.outputbytes)  # [FEMVertexID, offset, last]
+    vertexConnArr  = np.empty((nVertConnTotal, 2), dtype=io_vars.outputbytes)  # [nbElemID, nbLocVertexID]
 
     # Initialize FEM element information
-    FEMElemInfo  = np.zeros((len(elems), 4), dtype=np.int32)
+    FEMElemInfo  = np.zeros((len(elems), 4), dtype=io_vars.outputbytes)
 
     connOffset   = 0
     vertexOffset = 0  # cumulative vertex count for FEMElemInfo
@@ -410,19 +412,21 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
     # Edge   connectivity info ---------------------------------------------------
     # > Build flat arrays of all raw edge occurrences
     # > > Same order as the elements
-    nOccEdge   = sum(len(cast(dict, elem.edgeInfo)) for elem in elems)
-    occEdgeID  = np.empty(nOccEdge, dtype=np.int32)   # FEMEdgeID        per occurrence
-    occElemID  = np.empty(nOccEdge, dtype=np.int32)   # Element index    per occurrence
-    occLocEdge = np.empty(nOccEdge, dtype=np.int32)   # Local edge index per occurrence
-    occNodes   = [_] * nOccEdge                       # Edge node pair   per occurrence
+    nOccEdge      = sum(len(cast(dict, elem.edgeInfo)) for elem in elems)
+    occEdgeID     = np.empty(nOccEdge, dtype=io_vars.outputbytes)   # FEMEdgeID        per occurrence
+    occElemID     = np.empty(nOccEdge, dtype=io_vars.outputbytes)   # Element index    per occurrence
+    occLocEdge    = np.empty(nOccEdge, dtype=io_vars.outputbytes)   # Local edge index per occurrence
+    occVertexPair = [(0, 0)]  * nOccEdge                            # FEM vertex pair  per occurrence (canonical)
+    occNodes      = [(0, 0)]  * nOccEdge                            # Edge node pair   per occurrence
 
     idx = 0
     for elemID, elem in enumerate(elems):
-        for locEdge, (_, edgeIdx, _, edgeNodes) in cast(dict, elem.edgeInfo).items():
-            occEdgeID[ idx] = edgeIdx
-            occElemID[ idx] = elemID
-            occLocEdge[idx] = locEdge
-            occNodes[  idx] = edgeNodes
+        for locEdge, (_, edgeIdx, edgePair, edgeNodes) in cast(dict, elem.edgeInfo).items():
+            occEdgeID[    idx] = edgeIdx
+            occElemID[    idx] = elemID
+            occLocEdge[   idx] = locEdge
+            occVertexPair[idx] = edgePair
+            occNodes[     idx] = edgeNodes
             idx += 1
 
     # > EdgeID starts at zero, so add 1
@@ -435,15 +439,8 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # > Pre-allocate output arrays
     nEdgeConnTotal = sum(len(idxs) * (len(idxs) - 1) for idxs in groups_e.values())
-    edgeInfoArr    = np.empty((nOccEdge,        3), dtype=np.int32)  # [FEMEdgeID, offset, last]
-    edgeConn_arr   = np.empty((nEdgeConnTotal,  2), dtype=np.int32)  # [nbElemID, nbLocEdgeID]
-
-    # > Precompute master orientation per edge group
-    #   orientation = 1 if nodeInfo[masterNodes[0]] < nodeInfo[masterNodes[1]] else -1
-    masterOrientation: dict[int, int] = {}
-    for vertexID, idxs in groups_e.items():
-        mNodes = occNodes[idxs[0]]
-        masterOrientation[vertexID] = 1 if nodeInfo[mNodes[0]] < nodeInfo[mNodes[1]] else -1
+    edgeInfoArr    = np.empty((nOccEdge,        3), dtype=io_vars.outputbytes)  # [FEMEdgeID, offset, last]
+    edgeConn_arr   = np.empty((nEdgeConnTotal,  2), dtype=io_vars.outputbytes)  # [nbElemID, nbLocEdgeID]
 
     connOffset   = 0
     edgeOffset   = 0  # Cumulative edge count for FEMElemInfo
@@ -460,7 +457,6 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
             masterOccIdx  = groupOcc[0]
             masterElem    = int(occElemID[ masterOccIdx])
             masterLoc     = int(occLocEdge[masterOccIdx])
-            masterOrient  = masterOrientation[eid]
             offset        = connOffset
 
             for sibIdx in groupOcc:
@@ -469,21 +465,20 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
                 sibElem = int(occElemID[ sibIdx])
                 sibLoc  = int(occLocEdge[sibIdx])
 
-                if sibElem == masterElem and sibLoc == masterLoc:
-                    # Sibling is the master   — current is slave pointing to master
-                    edgeConn_arr[connOffset, 0] = -(sibElem + 1)
-                    edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * masterOrient)
-                else:
-                    # Sibling is also a slave - check relative orientation
-                    sibNodes    = occNodes[sibIdx]
-                    masterNodes = occNodes[masterOccIdx]
-                    orient      = masterOrient if nodeInfo[sibNodes[0]] == nodeInfo[masterNodes[0]] else -1
-                    edgeConn_arr[connOffset, 0] =  sibElem + 1
-                    edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * orient)
+                sibVertices    = occVertexPair[sibIdx]
+                orient         = 1 if sibVertices[0] < sibVertices[1] else -1
+                signEdgeID     = 1 if sibElem == masterElem and sibLoc == masterLoc else -1
+                edgeConn_arr[connOffset, 0] = int((sibElem + 1) * signEdgeID)
+                edgeConn_arr[connOffset, 1] = int((sibLoc + 1) * orient)
 
                 connOffset += 1
 
-            edgeInfoArr[occGlobalIdx, 0] = eid
+            # Compute current edge's orientation relative to global edge direction
+            # Global edge direction: smaller node ID -> larger node ID
+            curVertex = occVertexPair[occGlobalIdx]
+            curOrient = 1 if curVertex[0] < curVertex[1] else -1
+
+            edgeInfoArr[occGlobalIdx, 0] = (eid + 1) * curOrient
             edgeInfoArr[occGlobalIdx, 1] = offset
             edgeInfoArr[occGlobalIdx, 2] = connOffset
             occGlobalIdx += 1
@@ -497,9 +492,9 @@ def getFEMInfo(nodeInfo: npt.NDArray) -> tuple[npt.NDArray,  # FEMElemInfo
 
     # Trim connectivity arrays to actual written size
     vertexInfo = vertexInfoArr
-    vertexConn = vertexConnArr[:vertConnOffset] if vertConnOffset > 0 else np.empty((0, 2), dtype=np.int32)
+    vertexConn = vertexConnArr[:vertConnOffset] if vertConnOffset > 0 else np.empty((0, 2), dtype=io_vars.outputbytes)
 
     edgeInfo   = edgeInfoArr
-    edgeConn   = edgeConn_arr[:edgeConnOffset]  if edgeConnOffset > 0 else np.empty((0, 2), dtype=np.int32)  # noqa: E272
+    edgeConn   = edgeConn_arr[:edgeConnOffset]  if edgeConnOffset > 0 else np.empty((0, 2), dtype=io_vars.outputbytes)  # noqa: E272
 
     return FEMElemInfo, nFEMVertices, vertexInfo, vertexConn, nFEMEdges, edgeInfo, edgeConn

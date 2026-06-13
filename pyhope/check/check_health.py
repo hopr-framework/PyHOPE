@@ -27,9 +27,11 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import json
 import urllib.request
+from dataclasses import dataclass
 from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.version import Version
-from typing import Optional, Union
+from typing import Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -40,6 +42,12 @@ from typing import Optional, Union
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class PackageReason:
+    name: str
+    spec: SpecifierSet
 
 
 def PyPIVersion(package: str, timeout: int = 10) -> Optional[Version]:
@@ -94,7 +102,7 @@ def _ParseVersion(text: str) -> Optional[Version]:
     return None
 
 
-def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
+def GmshVersion() -> tuple[Version | bool | None, str | None]:
     """ Query the local system for the Gmsh version
 
         Returns:
@@ -106,17 +114,17 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     import subprocess
     # ------------------------------------------------------
     path = shutil.which('gmsh')
-    ver: Union[Version, bool, None] = None
-    pac: Union[str,           None] = None  # noqa: E272
+    # ver: Version | bool | None = None
+    pac: str | None = None
 
     if path:
         try:
             p   = subprocess.run([path, '--info'], capture_output=True, text=True, timeout=5, check=True)
             raw = (p.stdout or '') + "\n" + (p.stderr or '')
             # Parse version from the Version line if present
-            v   = _ParseVersion(raw)
-            if v:
-                ver = v
+            # v   = _ParseVersion(raw)
+            # if v:
+            #     ver = v
             # Parse Packaged by: <who>
             m   = re.search(r'Packaged by\s*:\s*(.+)', raw, flags=re.IGNORECASE)
             if m:
@@ -135,7 +143,7 @@ def GmshVersion() -> tuple[Union[Version, bool, None], Union[str, None]]:
     return ver, pac
 
 
-def ParaViewVersion() -> Optional[Union[Version, bool]]:
+def ParaViewVersion() -> Optional[Version | bool]:
     """ Query the local system for the ParaView version
 
         Returns:
@@ -187,7 +195,7 @@ def DependencyVersion(program: str) -> Optional[Version | bool]:
 
 
 def DependencyHealth(program: str,
-                     version: Union[Version, bool, None],
+                     version: Version | bool | None,
                      status:  Optional[str] = None,
                      info:    Optional[str] = None) -> None:
     """ Print the dependency health
@@ -199,13 +207,13 @@ def DependencyHealth(program: str,
     if version:
         if isinstance(version, Version):
             status = status if status is not None else hopout.Symbols.OK
-            hopout.info(f'{status} {program} found [v{version}]'      + ('' if info is None else info))
+            hopout.printtest(f'{program} found [v{version}]'      + ('' if info is None else info), status)
         else:  # pragma: no cover
             status = status if status is not None else hopout.Symbols.WARN
-            hopout.info(f'{status} {program} found [unknown version]' + ('' if info is None else info))
+            hopout.printtest(f'{program} found [unknown version]' + ('' if info is None else info), status)
     else:
         status = status if status is not None else hopout.Symbols.WARN
-        hopout.info(f'{status} {program} not installed' + ('' if info is None else info))
+        hopout.printtest(f'{program} not installed' + ('' if info is None else info), status)
 
 
 def _PackageInstalledVersion(package: str) -> Optional[Version]:
@@ -264,10 +272,10 @@ def _PackageExtractRequirement(p_str: str) -> tuple[str, Optional[str]]:
 
 
 def PackageHealth(   pkg:      str,
-                     version:  Union[Version, None],
-                     pypiver:  Union[Version, None],  # noqa: E272
+                     version:  Version | None,
+                     pypiver:  Version | None,  # noqa: E272
                      optional: Optional[bool] = False,
-                     reason:   Optional[str]  = None,
+                     reason:   Optional['PackageReason'] = None,
                  ) -> None:
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -275,18 +283,18 @@ def PackageHealth(   pkg:      str,
     if pypiver and version:
         try:
             if version >= pypiver:
-                hopout.info(f'{hopout.Symbols.OK  } {pkg} [v{version}] is up-to-date')
+                hopout.printtest(f'{pkg} [v{version}] is up-to-date',                  hopout.Symbols.OK)
             else:
-                hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is outdated (PyPI: v{pypiver})')
-                if reason:
-                    hopout.routine(f' {hopout.Symbols.INFO} constrained by {reason}')
+                hopout.printtest(f'{pkg} [v{version}] is outdated (PyPI: v{pypiver})', hopout.Symbols.WARN)
+                if reason and (version in reason.spec) and (pypiver not in reason.spec):
+                    hopout.routine(f' {hopout.Symbols.INFO} constrained by {reason.name} ({reason.spec})')
         except Exception:  # pragma: no cover
-            hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI: v{pypiver}) -- unable to compare reliably')
+            hopout.printtest(f'{pkg} [v{version}] is installed (PyPI: v{pypiver}) -- unable to compare reliably', hopout.Symbols.WARN)  # noqa: E501
     elif version:  # pragma: no cover
-        hopout.info(f'{hopout.Symbols.WARN} {pkg} [v{version}] is installed (PyPI info unavailable)')
+        hopout.printtest(f'{pkg} [v{version}] is installed (PyPI info unavailable)', hopout.Symbols.WARN)  # noqa: E501
     else:  # pragma: no cover
         symbol = hopout.Symbols.ERR if optional is False else hopout.Symbols.INFO
-        hopout.info(f'{symbol} {pkg} (PyPI: v{pypiver}) is not installed')
+        hopout.printtest(f'{pkg} (PyPI: v{pypiver}) is not installed', symbol)
 
 
 def CheckHealth() -> None:
@@ -321,7 +329,7 @@ def CheckHealth() -> None:
     for p in pkgs:
         name, spec = _PackageExtractRequirement(p)
         if spec:
-            pkg_reasons[name] = program
+            pkg_reasons[name] = PackageReason(name=program, spec=SpecifierSet(str(spec)))
 
         # Also check requirements of installed dependencies to find downstream constraints
         dep_name = _PackageExtractName(p)
@@ -330,7 +338,7 @@ def CheckHealth() -> None:
                 for dep in (importlib_metadata.requires(dep_name) or []):
                     sub_name, sub_spec = _PackageExtractRequirement(dep)
                     if sub_spec:
-                        pkg_reasons[sub_name] = f'{dep_name}{sub_spec}'
+                        pkg_reasons[sub_name] = PackageReason(name=dep_name, spec=SpecifierSet(str(sub_spec)))
             except Exception:
                 pass
 

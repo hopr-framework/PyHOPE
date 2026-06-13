@@ -25,7 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import Union, cast
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ def GenerateSides() -> None:
 
         # Map volume cell sets to elements
         iocsets  = mesh.cell_sets_dict
-        elemSet: list[Union[None, int]]  = [None for _ in range(nIOElems)]
+        elemSet: list[None | int]  = [None for _ in range(nIOElems)]
 
         for key, val in iocsets.items():
             if elemType not in val:

@@ -40,6 +40,7 @@ from functools import cache
 # ==================================================================================================================================
 projectname  : str                               # Name of output files
 outputformat : int                               # Mesh output format
+outputbytes  : type                              # Mesh output bytes
 
 debugmesh    : bool                              # Mesh output debug mesh
 debugvisu    : bool                              # Enable and show debug output / visualization
@@ -50,6 +51,12 @@ class MeshFormat(Enum):
     HDF5 = 0
     VTK  = 1
     GMSH = 2
+
+
+@unique
+class OutputBytes(Enum):
+    int32 = 0
+    int64 = 1
 
 
 @dataclass(init=False, repr=False, eq=False, slots=False, frozen=True)

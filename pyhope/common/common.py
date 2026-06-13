@@ -27,7 +27,8 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
-from typing import Union, cast
+from collections.abc import Iterable
+from typing import cast
 from typing import TextIO
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -165,7 +166,7 @@ def IsDisplay() -> bool:
 # def find_key(dict: dict[int, str], item) -> int | None:
 #     """ Find the first occurrence of a key in dictionary
 #     """
-#     if type(item) is np.ndarray:
+#     if isinstance(item, np.ndarray):
 #         for key, val in dict.items():
 #             if np.all(val == item):
 #                 return key
@@ -179,7 +180,7 @@ def IsDisplay() -> bool:
 # def find_keys(dict: dict[int, str], item) -> tuple[int, ...] | None:
 #     """ Find all occurrence of a key in dictionary
 #     """
-#     if type(item) is np.ndarray:
+#     if isinstance(item, np.ndarray):
 #         keys = tuple(key for key, val in dict.items() if np.all(val == item))
 #         if len(keys) > 0:
 #             return keys
@@ -196,13 +197,13 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq: Union[list, npt.NDArray], item) -> int:
+def find_index(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> int:
     """ Find the first occurrences of a key in a list
     """
-    # if type(seq) is np.ndarray:
+    # if isinstance(seq, np.ndarray):
     #     seq = seq.tolist()
 
-    if type(item) is np.ndarray:
+    if isinstance(item, np.ndarray):
         for index, val in enumerate(seq):
             if np.all(val == item):
                 return index
@@ -213,18 +214,18 @@ def find_index(seq: Union[list, npt.NDArray], item) -> int:
     return -1
 
 
-def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
+def find_indices(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
-    if type(seq) is np.ndarray:
-        seq = seq.tolist()
+    if isinstance(seq, np.ndarray):
+        seq = cast(np.ndarray, seq).tolist()
 
     start_at = -1
     locs = []
     while True:
         try:
             loc = cast(list, seq).index(item, start_at+1)
-        except ValueError:
+        except ValueError:  # noqa: PERF203
             break
         else:
             locs.append(loc)
@@ -238,7 +239,7 @@ def find_indices(seq: Union[list, npt.NDArray], item) -> tuple[int, ...]:
 #     return [num for num, line in enumerate(fp[start_idx:]) if line.strip() == string]
 
 
-def lines_that_contain(   string: str, fp: list, start_idx=0) -> list[int]:
+def lines_that_contain(   string: str, fp: list, start_idx: int = 0) -> list[int]:
     """ Find all occurrences of a string in a file-like object
     """
     return [num for num, line in enumerate(fp[start_idx:], start=start_idx) if string in line]
