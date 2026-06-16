@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-06-18
+### Added
+- CGNS Reader: Read fully-hexahedral unstructured ICEM CGNS meshes [5a016c8]
+- CI/CD: Add verification / documentation step [dcd448c]
+- Checks: Re-download mesh file if encountering an LFS pointer [70d6816]
+- Gambit reader: Implemented tetrahedrons [92fffcd]
+- GitHub: Add check for authentification error [8dcb343]
+- Mesh: Optionally allow 8-bytes integer (KIND8/int64_t) [247df43]
+- Readintools: Evaluate expression [6d44e76]
+
+### Fixes
+- CI/CD: Update rules for ty v0.46 [517b886]
+- CI/CD: Update rules for ty v0.40 [522d3fb]
+- CI/CD: Update rules for ty v0.39 [6de4138]
+- CI/CD: gitleaks/pre-commit hooks [d478a99]
+- Fixes for FEM output [678d2de]
+
+### Dependencies
+- Gmsh: Update to v4.15.1 [d88a463]
+- Bump orgoro/coverage from 3.2 to 3.3 [fa75152]
+- Bump actions/upload-pages-artifact from 4 to 5 [eddfca0]
+
 ## [0.11.0] - 2026-04-16
 ### Added
 - Add the original Hilbert(Z)/Morton(Z) space-filling curve from HOPR [c14fe07]
