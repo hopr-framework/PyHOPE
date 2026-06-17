@@ -138,9 +138,13 @@ class Common:
 @final
 class Gitlab:
     # Gitlab "python-gmsh" access
-    LIB_GITLAB:  str = 'gitlab.iag.uni-stuttgart.de'
+    LIB_GITLAB:  tuple[str] = ('gitlab.iag.uni-stuttgart.de',
+                               'piclas.boltzplatz.eu'       ,
+                              )
     # LIB_PROJECT  = 'libs/python-gmsh'
-    LIB_PROJECT: str = '797'
+    LIB_PROJECT: tuple[int] = (797,
+                               26 ,
+                              )
     LIB_VERSION: dict[str, dict[str, str]] = {  # noqa: RUF012
         'linux': {
             'x86_64' : '4.15.2.post1',

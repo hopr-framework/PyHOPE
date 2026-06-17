@@ -15,14 +15,15 @@ maintainers = [
     ]
 dependencies = [
     'alive-progress',
+    'gmsh',
     'h5py',
     'hilbertcurve',
     'meshio',
     'numpy>=2.0.0',
     'packaging',
     'plotext',
+    'requests',
     'scipy',
-    'gmsh',
     'typing-extensions',
     # 'threadpoolctl'
     ]
