@@ -60,7 +60,7 @@ jobs:
     container:
       image: python:3.14.5-slim-trixie
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # with:
         #   fetch-depth: 0
         #   fetch-tags: true
@@ -87,7 +87,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
       # This does not strictly require LFS but we want the checkout before the compatibility matrix
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
         # with:
         #   minimal: 'false'
@@ -104,7 +104,7 @@ jobs:
     container:
       image: python:3.14.5-slim-trixie
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # with:
         #   fetch-depth: 0
         #   fetch-tags: true
@@ -122,7 +122,7 @@ jobs:
     name: Lint / gitleaks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pre-commit/action@v3.0.1
         with:
           extra_args: gitleaks
@@ -131,7 +131,7 @@ jobs:
     name: Lint / pre-commit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pre-commit/action@v3.0.1
         with:
           extra_args: check-merge-conflict
@@ -168,7 +168,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
         #   fetch-depth: 0
@@ -198,7 +198,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # - uses: nschloe/action-cached-lfs-checkout@v1
         with:
         #   fetch-depth: 0
@@ -272,7 +272,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git git-lfs
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
         # # Remove Git LFS on purpose to check the LFS downloader
           lfs: false
@@ -304,7 +304,7 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # with:  Reduce Git LFS bandwidth
         #   fetch-depth: 0
         #   fetch-tags: true
@@ -326,7 +326,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [examples, healthcheck]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: 3.x
@@ -353,7 +353,7 @@ jobs:
     container:
       image: python:3.14.5-slim-trixie
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # with:
         #   fetch-depth: 0
         #   fetch-tags: true
