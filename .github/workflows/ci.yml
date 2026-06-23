@@ -125,7 +125,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pre-commit/action@v3.0.1
         with:
-          extra_args: gitleaks
+          extra_args: --all-files gitleaks
 
   pre-commit:
     name: Lint / pre-commit
@@ -134,13 +134,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pre-commit/action@v3.0.1
         with:
-          extra_args: check-merge-conflict
+          extra_args: --all-files check-merge-conflict
       - uses: pre-commit/action@v3.0.1
         with:
-          extra_args: check-symlinks
+          extra_args: --all-files check-symlinks
       - uses: pre-commit/action@v3.0.1
         with:
-          extra_args: trailing-whitespace
+          extra_args: --all-files trailing-whitespace
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
