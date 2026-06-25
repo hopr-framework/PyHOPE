@@ -151,7 +151,7 @@ gitleaks:
     - uv pip install pre-commit
     - pre-commit --version
     # detect hardcoded secrets
-    - pre-commit run gitleaks
+    - pre-commit run --all-files gitleaks
 
 pre-commit:
   extends: .defaults
@@ -161,11 +161,11 @@ pre-commit:
     - uv pip install pre-commit
     - pre-commit --version
     # check for merge conflicts
-    - pre-commit run check-merge-conflict
+    - pre-commit run --all-files check-merge-conflict
     # check for broken symlinks
-    - pre-commit run check-symlinks
+    - pre-commit run --all-files check-symlinks
     # trim trailing whitespace
-    - pre-commit run trailing-whitespace
+    - pre-commit run --all-files trailing-whitespace
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Compatibility
