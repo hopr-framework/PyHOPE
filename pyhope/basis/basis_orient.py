@@ -30,7 +30,6 @@ import gc
 import re
 import sys
 from typing import Final, Optional
-from collections.abc import Callable
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -45,62 +44,13 @@ if typing.TYPE_CHECKING:
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
 import pyhope.mesh.mesh_vars as mesh_vars
-from pyhope.common.common_numba import jit, types
+from pyhope.basis.basis_watertight import eval_nsurf
 from pyhope.mesh.mesh_common import LINMAP
 from pyhope.mesh.mesh_common import dir_to_nodes, faces
-from pyhope.basis.basis_basis import change_basis_2D
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
-
-
-def init_worker(function : Callable,
-                VdmEqToGP: npt.NDArray[np.float64],
-                DGP      : npt.NDArray[np.float64],
-                weights  : npt.NDArray[np.float64]) -> None:
-    """Initializer to set process-local attributes on the worker function
-    """
-    function.VdmEqToGP = VdmEqToGP
-    function.DGP       = DGP
-    function.weights   = weights
-
-
-@jit(types.Tuple((types.float64, types.float64, types.float64))(
-    types.float64[:, :, ::1],
-    types.float64[:, :, ::1],
-    types.float64[:,    ::1]
-), nopython=True, cache=True, nogil=True)
-def eval_dotprod(dXdetaGP: npt.NDArray[np.float64],
-                 dXdxiGP:  npt.NDArray[np.float64],
-                 weights:  npt.NDArray[np.float64]) -> tuple[npt.NDArray[np.float64], ...]:
-    NSurf0 = -np.sum(weights * (dXdxiGP[1] * dXdetaGP[2] - dXdxiGP[2] * dXdetaGP[1]))
-    NSurf1 = -np.sum(weights * (dXdxiGP[2] * dXdetaGP[0] - dXdxiGP[0] * dXdetaGP[2]))
-    NSurf2 = -np.sum(weights * (dXdxiGP[0] * dXdetaGP[1] - dXdxiGP[1] * dXdetaGP[0]))
-    return NSurf0, NSurf1, NSurf2
-
-
-def eval_nsurf(XGeo:    npt.NDArray[np.float64],
-               Vdm:     npt.NDArray[np.float64],
-               DGP:     npt.NDArray[np.float64],
-               weights: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """ Evaluate the surface integral for normals over a side of an element
-    """
-    # Change basis to Gauss points
-    xGP      = change_basis_2D(Vdm, XGeo)
-
-    # Compute derivatives at all Gauss points
-    dXdxiGP  = np.empty_like(xGP)
-    dXdetaGP = np.empty_like(xGP)
-    DT       = DGP.T
-    for k in range(3):
-        dXdxiGP[ k] = DGP @ xGP[k]
-        dXdetaGP[k] = xGP[k] @ DT
-
-    # Compute the weighted cross product integral
-    NSurf0, NSurf1, NSurf2 = eval_dotprod(dXdetaGP, dXdxiGP, weights)
-
-    return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
 
 
 def check_orientation(ionodes  : npt.NDArray,
@@ -163,12 +113,14 @@ def CheckOrient() -> None:
     import pyhope.output.output as hopout
     from pyhope.basis.basis_basis import barycentric_weights, legendre_gauss_nodes
     from pyhope.basis.basis_basis import calc_vandermonde, polynomial_derivative_matrix
+    from pyhope.basis.basis_watertight import init_worker
     from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
-    hopout.routine('Ensuring normals point outward')
+    hopout.separator()
+    hopout.info('CHECK NORMALS POINTING OUTWARDS...')
     hopout.sep()
 
     checkSurfaceNormals = GetLogical('CheckSurfaceNormals')
