@@ -53,12 +53,14 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     # Local imports ----------------------------------------
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
+    from pyhope.basis.basis_basis import barycentric_weights, legendre_gauss_nodes
+    from pyhope.basis.basis_basis import calc_vandermonde, polynomial_derivative_matrix
+    from pyhope.basis.basis_orient import check_orientation
     from pyhope.common.common_progress import ProgressBar
     from pyhope.common.common_template import LoadTemplate
     from pyhope.common.common_tools import temporary_assign
     from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.mesh.mesh_common import NDOFperElemType
-    from pyhope.mesh.mesh_orient import check_orientation
     from pyhope.mesh.mesh_vars import nGeo
     from pyhope.mesh.topology.mesh_topology import appendBCSet
     from pyhope.readintools.readintools import GetInt, GetStr
@@ -354,6 +356,17 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Temporarily assign mesh_vars.mesh
     with temporary_assign(mesh_vars, 'mesh', mesh):
+        # Compute the equidistant point set used by meshIO
+        xEq:       Final[npt.NDArray[np.float64]] = np.linspace(-1., 1., nGeo+1)
+        wBaryEq:   Final[npt.NDArray[np.float64]] = barycentric_weights(nGeo+1, xEq)
+
+        xGP, wGP  = legendre_gauss_nodes(nGeo+1)
+        DGP:       Final[npt.NDArray[np.float64]] = polynomial_derivative_matrix(nGeo+1, xGP)
+        VdmEqToGP: Final[npt.NDArray[np.float64]] = calc_vandermonde(nGeo+1, nGeo+1, wBaryEq, xEq, xGP)
+
+        # Compute the weights
+        weights:   Final[npt.NDArray[np.float64]] = np.outer(wGP, wGP)  # Shape: (N_GP+1, N_GP+1)
+
         # Check if the surface normal of the first cell points outwards
         for elemType in tuple(s for s in mesh.cells_dict if 'hexahedron' in s):
             # Only check the first element, other elements get covered in OrientMesh
@@ -364,7 +377,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             if isinstance(elemType, str):
                 elemType = elemNames[elemType]
 
-            if not check_orientation(ionodes, elemType)[0]:
+            if not check_orientation(ionodes, elemType, VdmEqToGP, DGP, weights)[0]:
                 hopout.error('Extruded element has inward pointing normal vector. Wrong extrusion direction?')
 
     # Run garbage collector to release memory

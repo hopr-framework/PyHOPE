@@ -64,6 +64,8 @@ meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportA
 #
 #     tree = ET.ElementTree(vtkfile)
 #     tree.write(filename, encoding='utf-8', xml_declaration=True)
+
+
 @cache
 def isValidInt(s: Any) -> bool:  # noqa: ANN401
     try:
