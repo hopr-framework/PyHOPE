@@ -136,7 +136,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │ CHECK NORMALS POINTING OUTWARDS...
 ├────
 │             CheckSurfaceNormals │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.1s (2559.71/s) 
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
 ├─────────────────────────────────────────────
 │ CONNECT MESH...
 ├────
@@ -210,8 +210,8 @@ This is a scientific project. If you use PyHOPE for publications or presentation
   author       = {Kopper, Patrick and Blind, Marcel P. and Schwarz, Anna and Kurz, Marius and Rodach, Felix and Copplestone, Stephen M. and Beck, Andrea D.},
   journal      = {Journal of Open Source Software},
   year         = {2025},
-  volume       = {10}, 
-  number       = {115}, 
+  volume       = {10},
+  number       = {115},
   pages        = {8769},
   publisher    = {The Open Journal},
   doi          = {10.21105/joss.08769}
