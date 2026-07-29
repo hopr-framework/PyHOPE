@@ -28,10 +28,9 @@
 import os
 import platform
 import shutil
-import subprocess
 from importlib import metadata
 from packaging.version import Version
-from typing import Optional, cast
+from typing import Final, Optional, cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -135,10 +134,13 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     # Standard libraries -----------------------------------
     import sys
     import hashlib
+    import subprocess
     import tempfile
+    import requests
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Gitlab
+    from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
     # Get our package manager
     # > Check if 'uv' is available
@@ -163,6 +165,9 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
         lfs = 'yes'
         lib = f'gmsh-{Gitlab.LIB_VERSION[system][arch]}-py3-none-{system}_{arch}.whl'
 
+        noPing: Final[int] = 1  # Number  of pings
+        toPing: Final[int] = 5  # Timeout of pings
+
         # Create a temporary directory
         with tempfile.TemporaryDirectory() as path:
             # On macOS add major version string to filename an rename darwin to macosx in whl filename
@@ -173,20 +178,50 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             else:
                 pkgs = os.path.join(path, lib)
 
-            curl = [f'curl https://{Gitlab.LIB_GITLAB}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs} --output {pkgs}']  # noqa: E501
-            _ = subprocess.run(curl, check=True, shell=True)
+            # Try the hosts in order, we generally expect the first host to be up and up-to-date
+            for idGit, (gitURL, gitID) in enumerate(zip(Gitlab.LIB_GITLAB, Gitlab.LIB_PROJECT, strict=True)):
+                try:
+                    subprocess.check_call(('ping', f'-c{noPing}', f'-w{toPing}', gitURL),
+                                          stdout  = subprocess.DEVNULL,  # noqa: E251
+                                          stderr  = subprocess.DEVNULL,  # noqa: E251
+                                          timeout = toPing)              # noqa: E251
+                except subprocess.CalledProcessError:  # noqa: PERF203
+                    continue
 
-            # Compare the hash
-            # > Initialize a new sha256 hash
-            sha256 = hashlib.sha256()
-            with open(pkgs, 'rb') as f:
-                # Read and update hash string value in blocks of 4K
-                for chunk in iter(lambda: f.read(4096), b""):
-                    sha256.update(chunk)
+                # Host is responding, attempt to get the file
+                # urllib.request.urlretrieve(url      = f'https://{gitURL}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs}',  # noqa: E251
+                #                            filename = pkgs                                                                                            # noqa: E251
+                #                           )
+                request = requests.get(f'https://{gitURL}/api/v4/projects/{gitID}/repository/files/{lib}/raw?lfs={lfs}',
+                                 stream=True)
+                size    = int(request.headers['content-length'])
+                bar     = ProgressBar(title     = f'│ Downloading Gmsh [v{Gitlab.LIB_VERSION[system][arch]}] from {gitURL}',  # noqa: E251
+                                      value     = int(size/1024),                                                             # noqa: E251
+                                      threshold = 0)                                                                          # noqa: E251
 
-            if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
-                hopout.info('Hash matches, installing Gmsh wheel...')
-            else:
+                with open(pkgs, 'wb') as f:
+                    for chunk in request.iter_content(chunk_size=1024*50):
+                        if chunk:  # filter out keep-alive new chunks
+                            bar.step(int(len(chunk)/1024))
+                            f.write(chunk)
+
+                bar.close()
+
+                # Compare the hash
+                # > Initialize a new sha256 hash
+                sha256 = hashlib.sha256()
+                with open(pkgs, 'rb') as f:
+                    # Read and update hash string value in blocks of 4K
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        sha256.update(chunk)
+
+                if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
+                    hopout.info('Hash matches, installing Gmsh wheel...')
+                    break
+
+                if idGit < len(Gitlab.LIB_GITLAB) - 1:
+                    hopout.info('Hash mismatch, trying next mirror...')
+
                 hopout.error('Hash mismatch, exiting...')
 
             # Remove the old version
