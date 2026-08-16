@@ -81,6 +81,7 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 │ INIT OUTPUT...
 │                     ProjectName │ 1-01-cartbox                    │ *CUSTOM │
 │                    OutputFormat │ 0 [HDF5]                        │ *CUSTOM │
+│                     OutputBytes │ 0 [int32]                       │ DEFAULT │
 │                       DebugMesh │ T                               │ *CUSTOM │
 │                       DebugVisu │ F                               │ *CUSTOM │
 ├─────────────────────────────────────────────
@@ -122,23 +123,26 @@ $ pyhope tutorials/1-01-cartbox/parameter.ini
 ├── BUILD DATA STRUCTURE...
 ├────
 ├── Removing duplicate points
-├── Ensuring normals point outward
-├────
-│             CheckSurfaceNormals │ True                            │ DEFAULT │
-│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
 ├────
 ├── Generating sides
 ├─────────────────────────────────────────────
 │ SORT MESH...
 ├────
 │                     MeshSorting │ 1 [SFC]                         │ DEFAULT │
+│                  MeshSortingSFC │ 0 [default]                     │ DEFAULT │
 ├────
 ├── Sorting elements along space-filling curve
+├─────────────────────────────────────────────
+│ CHECK NORMALS POINTING OUTWARDS...
+├────
+│             CheckSurfaceNormals │ True                            │ DEFAULT │
+│             Processing Elements |█████████████████████████████████| 512/512 [100%] in 0.0s (24000.00/s)
 ├─────────────────────────────────────────────
 │ CONNECT MESH...
 ├────
 │               doPeriodicCorrect │ False                           │ DEFAULT │
 │                       doMortars │ True                            │ DEFAULT │
+│                 doMortarRebuild │ 1 [auto]                        │ DEFAULT │
 │                Processing Sides |█████████████████████████████████| 3072/3072 [100%] in 0.0s (24000.00/s)
 ├────
 │  Number of sides                :         3072
@@ -206,8 +210,8 @@ This is a scientific project. If you use PyHOPE for publications or presentation
   author       = {Kopper, Patrick and Blind, Marcel P. and Schwarz, Anna and Kurz, Marius and Rodach, Felix and Copplestone, Stephen M. and Beck, Andrea D.},
   journal      = {Journal of Open Source Software},
   year         = {2025},
-  volume       = {10}, 
-  number       = {115}, 
+  volume       = {10},
+  number       = {115},
   pages        = {8769},
   publisher    = {The Open Journal},
   doi          = {10.21105/joss.08769}

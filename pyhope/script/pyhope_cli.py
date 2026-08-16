@@ -45,6 +45,7 @@ def main() -> None:
     import pyhope.output.output as hopout
     from pyhope.basis.basis_connect import CheckConnect
     from pyhope.basis.basis_jacobian import CheckJacobians
+    from pyhope.basis.basis_orient import CheckOrient
     from pyhope.basis.basis_watertight import CheckWatertight
     from pyhope.check.check import Check
     from pyhope.common.common import DefineCommon, InitCommon
@@ -54,7 +55,6 @@ def main() -> None:
     from pyhope.mesh.fem.fem import FEMConnect
     from pyhope.mesh.mesh import DefineMesh, InitMesh, GenerateMesh
     from pyhope.mesh.mesh_duplicates import EliminateDuplicates
-    from pyhope.mesh.mesh_orient import OrientMesh
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
     from pyhope.mesh.mesh_mortar import RebuildMortarGeometry
@@ -123,12 +123,15 @@ def main() -> None:
     hopout.sep()
 
     EliminateDuplicates()
-    if not args.skip_checks:
-        OrientMesh()
 
     # Build our data structures
     GenerateSides()
     SortMesh()
+
+    # Perform the mesh checks not depending on connectivity
+    if not args.skip_checks:
+        CheckOrient()
+
     ConnectMesh()
     TransformMesh()
 

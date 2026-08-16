@@ -96,7 +96,7 @@ def eval_nsurf(XGeo:    npt.NDArray[np.float64],
     # # dXdetaGP = np.moveaxis(dXdetaGP, 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
     # dXdetaGP = dXdetaGP.reshape(3, -1)                                 # Flatten for cross computation
 
-    # Compute derivatives at all Gauss points using matrix multiplications to avoid extra copies
+    # Compute derivatives at all Gauss points
     dXdxiGP  = np.empty_like(xGP)
     dXdetaGP = np.empty_like(xGP)
     DT       = DGP.T
@@ -120,7 +120,7 @@ def eval_nsurf(XGeo:    npt.NDArray[np.float64],
     # Integrate over the Gauss points
     # return -np.sum(nVecW, axis=(1, 2))              # Sum over the last two axes
 
-    # Compute the weighted cross product integral directly
+    # Compute the weighted cross product integral
     NSurf0, NSurf1, NSurf2 = eval_dotprod(dXdetaGP, dXdxiGP, weights)
 
     return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
@@ -243,9 +243,9 @@ def process_chunk(chunk: tuple) -> list:
     chunk_results = []
     for elem in chunk:
         elem_result = check_sides(elem,
-                                   process_chunk.VdmEqToGP,  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
-                                   process_chunk.DGP,        # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
-                                   process_chunk.weights,    # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                   process_chunk.VdmEqToGP,  # ty: ignore[unresolved-attribute]
+                                   process_chunk.DGP,        # ty: ignore[unresolved-attribute]
+                                   process_chunk.weights,    # ty: ignore[unresolved-attribute]
                                    failed_only=True)
         # Append a lightweight sentinel (None) for successes, actual failure list otherwise
         chunk_results.append(elem_result)
