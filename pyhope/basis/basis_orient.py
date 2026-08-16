@@ -30,6 +30,7 @@ import gc
 import re
 from typing import Final, Optional, cast
 from collections.abc import Iterable
+from operator import itemgetter
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -123,6 +124,7 @@ def CheckOrient() -> None:
     """ Check if element surface normals point outwards
     """
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.basis.basis_basis import barycentric_weights, legendre_gauss_nodes
@@ -130,6 +132,7 @@ def CheckOrient() -> None:
     from pyhope.basis.basis_watertight import init_worker
     from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
+    from pyhope.io.io_debug import DebugIO
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
@@ -171,11 +174,15 @@ def CheckOrient() -> None:
     results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
                            for result       in elem_results)  # noqa: E272
 
-    if len(results) > 0:
+    if len(results):
         for result in cast(tuple[tuple], results):
             _, elemID, face, sideID = result
             hopout.info('')
             print(hopout.warn(f'Side is oriented inwards! Element {elemID + 1}, Face {face}, Side {sideID + 1}'))
+
+        if io_vars.debugmesh:
+            hopout.info('')
+            DebugIO(errSides=list(map(itemgetter(3), results)))
 
         hopout.error(f'Surface normals check failed for {len(results)} / {len(elems)} elements!')
 

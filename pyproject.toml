@@ -243,7 +243,9 @@ ignore_names = [
     "__init__", "data_counter", "h5_file", "_meshio_to_gmsh_order",
     # Exclude library functions
     "Basis", "Mapping", "Mesh",
-    "mesh_format_to_tensor_product"
+    "mesh_format_to_tensor_product",
+    # Exclude lookup functions
+    "dir_to_nodes",
     ]
 # Exclude unit tests
 exclude = ["check_unittest.py"]
