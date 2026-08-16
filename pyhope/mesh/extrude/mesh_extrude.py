@@ -377,7 +377,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             if isinstance(elemType, str):
                 elemType = elemNames[elemType]
 
-            if not check_orientation(ionodes, elemType, VdmEqToGP, DGP, weights)[0]:
+            result = check_orientation(ionodes, elemType, VdmEqToGP, DGP, weights)
+            if result is not None and not result[0]:
                 hopout.error('Extruded element has inward pointing normal vector. Wrong extrusion direction?')
 
     # Run garbage collector to release memory
