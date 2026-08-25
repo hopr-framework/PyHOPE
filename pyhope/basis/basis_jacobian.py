@@ -94,8 +94,34 @@ def plot_histogram(data: npt.NDArray[np.float64]) -> None:
     hopout.sep()
     hopout.info('Scaled Jacobians')
     hopout.separator(18)
-    plt.simple_bar(ticks, count, width=STD_LENGTH)
-    plt.show()
+
+    # Horizontal bars are stacked from the bottom up, thus reverse the data to keep the first bin on top
+    labels = ticks[::-1]
+    counts = count[::-1]
+
+    # Reserve space at the end of the longest bar for its count label
+    barMax     = max(int(count.max()), 1)
+    barWidth   = STD_LENGTH - len(ticks[0])
+    labelWidth = len(str(barMax)) + 1
+
+    # Assemble the frame-less bar plot from the regular [bar], see https://plotext.readthedocs.io/en/latest/bar.html#simple-bar-style
+    fig = plt.figure
+    fig.clear()
+    fig.theme('simple')
+    fig.plot_size(STD_LENGTH, len(labels))
+    fig.draw(fig.bar(labels, counts, orientation='horizontal', marker='brick', width=0, lines=True))
+
+    # Print the number of elements at the end of each bar
+    for row, c in enumerate(counts, start=1):
+        fig.draw(fig.text(c, row, plt.colorize(f' {c}', pixel=('gray+', None, 'bold')), alignment='left'))
+
+    # Remove the frame and the axis ticks, keeping only the bin labels
+    fig.axes(False)
+    fig.ruler('x').lim(0, barMax * barWidth / max(barWidth - labelWidth, 1))
+    fig.ruler('x').ticks([])
+    fig.ruler('y').alignment(tick='left')
+    fig.show(flush=True)
+
     hopout.separator(18)
 
 

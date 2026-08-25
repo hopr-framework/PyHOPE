@@ -21,7 +21,7 @@ dependencies = [
     'meshio',
     'numpy>=2.0.0',
     'packaging',
-    'plotext==5.3.2',
+    'plotext>=6.0.0',
     'requests',
     'scipy',
     'typing-extensions',
