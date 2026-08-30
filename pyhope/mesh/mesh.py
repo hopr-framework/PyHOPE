@@ -231,7 +231,7 @@ def GenerateMesh() -> None:
 
     # Final number of nodes
     nNodes = 0
-    for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
+    for cell in (cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D):
         cellType  = ''.join([s for s in cell.type if not s.isdigit()])
         nNodes += len(cell)*numNodes[cellType]
 

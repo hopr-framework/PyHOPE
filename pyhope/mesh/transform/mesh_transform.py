@@ -214,7 +214,7 @@ def TransformMesh() -> None:
         meshRot   = np.array(meshRot).reshape(3, 3)
 
     # Scale mesh
-    if meshScale != 1.0:
+    if meshScale != 1.0:  # ruff: ignore[float-equality-comparison]
         mesh.points *= meshScale
         for vv in mesh_vars.vvs:
             vv['Dir'] *= meshScale

@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from dataclasses import dataclass
+from typing import ClassVar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -44,25 +45,25 @@ class GMSHCELLTYPES:
 
         Reference: http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
     '''
-    cellTypes3D = [ 'tetra'   , 'hexahedron'    ,                                 'wedge'  ,            'pyramid',                 # NGeo =  1  # noqa: E501, RUF012
-                    'tetra10' , 'hexahedron20'  , 'hexahedron24', 'hexahedron27', 'wedge15', 'wedge18', 'pyramid13', 'pyramid14',  # NGeo =  2 # noqa: E501
-                    'tetra20' , 'hexahedron64'  ,                                 'wedge40',                                       # NGeo =  3 # noqa: E501
-                    'tetra35' , 'hexahedron125' ,                                 'wedge75',                                       # NGeo =  4 # noqa: E501
-                    'tetra56' , 'hexahedron216' ,                                 'wedge126',                                      # NGeo =  5 # noqa: E501
-                    'tetra84' , 'hexahedron343' ,                                 'wedge196',                                      # NGeo =  6 # noqa: E501
-                    'tetra120', 'hexahedron512' ,                                 'wedge288',                                      # NGeo =  7 # noqa: E501
-                    'tetra165', 'hexahedron729' ,                                 'wedge405',                                      # NGeo =  8 # noqa: E501
-                    'tetra220', 'hexahedron1000',                                 'wedge550',                                      # NGeo =  9 # noqa: E501
-                    'tetra286', 'hexahedron1331'                                                                                   # NGeo = 10 # noqa: E501
-                  ]
-    cellTypes2D = [ 'triangle'  , 'quad'   ,                                                                                       # NGeo =  1  # noqa: E501, RUF012
-                    'triangle6' , 'quad8'  , 'quad9',                                                                              # NGeo =  2 # noqa: E501
-                    'triangle10', 'quad16' ,                                                                                       # NGeo =  3 # noqa: E501
-                    'triangle15', 'quad25' ,                                                                                       # NGeo =  4 # noqa: E501
-                    'triangle21', 'quad36' ,                                                                                       # NGeo =  5 # noqa: E501
-                    'triangle28', 'quad49' ,                                                                                       # NGeo =  6 # noqa: E501
-                    'triangle36', 'quad64' ,                                                                                       # NGeo =  7 # noqa: E501
-                    'triangle45', 'quad81' ,                                                                                       # NGeo =  8 # noqa: E501
-                    'triangle55', 'quad100',                                                                                       # NGeo =  9 # noqa: E501
-                    'triangle66', 'quad121'                                                                                        # NGeo = 10 # noqa: E501
-                   ]
+    cellTypes3D: ClassVar[tuple[str]] = ( 'tetra'   , 'hexahedron'    ,                                 'wedge'  ,            'pyramid',                 # NGeo =  1  # noqa: E501, RUF012
+                                          'tetra10' , 'hexahedron20'  , 'hexahedron24', 'hexahedron27', 'wedge15', 'wedge18', 'pyramid13', 'pyramid14',  # NGeo =  2 # noqa: E501
+                                          'tetra20' , 'hexahedron64'  ,                                 'wedge40',                                       # NGeo =  3 # noqa: E501
+                                          'tetra35' , 'hexahedron125' ,                                 'wedge75',                                       # NGeo =  4 # noqa: E501
+                                          'tetra56' , 'hexahedron216' ,                                 'wedge126',                                      # NGeo =  5 # noqa: E501
+                                          'tetra84' , 'hexahedron343' ,                                 'wedge196',                                      # NGeo =  6 # noqa: E501
+                                          'tetra120', 'hexahedron512' ,                                 'wedge288',                                      # NGeo =  7 # noqa: E501
+                                          'tetra165', 'hexahedron729' ,                                 'wedge405',                                      # NGeo =  8 # noqa: E501
+                                          'tetra220', 'hexahedron1000',                                 'wedge550',                                      # NGeo =  9 # noqa: E501
+                                          'tetra286', 'hexahedron1331'                                                                                   # NGeo = 10 # noqa: E501
+                                        )
+    cellTypes2D: ClassVar[tuple[str]] = ( 'triangle'  , 'quad'   ,                                                                                       # NGeo =  1  # noqa: E501, RUF012
+                                          'triangle6' , 'quad8'  , 'quad9',                                                                              # NGeo =  2 # noqa: E501
+                                          'triangle10', 'quad16' ,                                                                                       # NGeo =  3 # noqa: E501
+                                          'triangle15', 'quad25' ,                                                                                       # NGeo =  4 # noqa: E501
+                                          'triangle21', 'quad36' ,                                                                                       # NGeo =  5 # noqa: E501
+                                          'triangle28', 'quad49' ,                                                                                       # NGeo =  6 # noqa: E501
+                                          'triangle36', 'quad64' ,                                                                                       # NGeo =  7 # noqa: E501
+                                          'triangle45', 'quad81' ,                                                                                       # NGeo =  8 # noqa: E501
+                                          'triangle55', 'quad100',                                                                                       # NGeo =  9 # noqa: E501
+                                          'triangle66', 'quad121'                                                                                        # NGeo = 10 # noqa: E501
+                                         )

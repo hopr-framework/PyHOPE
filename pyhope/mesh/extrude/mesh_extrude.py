@@ -70,13 +70,13 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     gmshCellTypes = GMSHCELLTYPES()
 
     # Check if the mesh is already 3D
-    if [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
+    if tuple(cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D):
         return mesh
 
     # Check if the mesh contains 2D elements to extrude
-    if       [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D] and not mesh_vars.doExtrude:  # noqa: E271
+    if       tuple(cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D) and not mesh_vars.doExtrude:  # noqa: E271  # ruff: ignore[line-too-long]
         hopout.error('Mesh contains suitable surface cells for extrusion but MeshExtrude=F, exiting...')
-    elif not [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]:
+    elif not tuple(cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D):
         hopout.error('Mesh contains no suitable surface cells for extrusion, exiting...')
 
     hopout.info('Extruding surface to volume mesh')
