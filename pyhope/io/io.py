@@ -220,7 +220,7 @@ def IO() -> None:
 
             # Print the final output
             hopout.sep()
-            for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
+            for cell in (cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D):
                 cellType  = ''.join([s for s in cell.type if not s.isdigit()])
                 cellNodes = numNodes[cellType]
                 elemOrder = 100 if not any(s.isdigit() for s in cell.type) else 200

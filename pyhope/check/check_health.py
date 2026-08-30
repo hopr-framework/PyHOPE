@@ -257,7 +257,7 @@ def _PackageExtractName(package: str) -> str:
         return Requirement(package).name
     except Exception:  # pragma: no cover
         # If parsing fails, fall back to a simple split at first space or semicolon
-        return package.split()[0].split(';')[0].split('(')[0].strip()
+        return package.split(maxsplit=1)[0].split(';', maxsplit=1)[0].split('(', maxsplit=1)[0].strip()
 
 
 def _PackageExtractRequirement(p_str: str) -> tuple[str, Optional[str]]:
@@ -267,7 +267,7 @@ def _PackageExtractRequirement(p_str: str) -> tuple[str, Optional[str]]:
         req = Requirement(p_str)
         return req.name, str(req.specifier) if req.specifier else None
     except Exception:  # pragma: no cover
-        name = p_str.split()[0].split(';')[0].split('(')[0].strip()
+        name = p_str.split(maxsplit=1)[0].split(';', maxsplit=1)[0].split('(', maxsplit=1)[0].strip()
         return name, None
 
 

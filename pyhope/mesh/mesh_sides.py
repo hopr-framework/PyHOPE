@@ -89,7 +89,7 @@ def GenerateSides() -> None:
 
         # Map volume cell sets to elements
         iocsets  = mesh.cell_sets_dict
-        elemSet: list[None | int]  = [None for _ in range(nIOElems)]
+        elemSet: list[int | None]  = [None for _ in range(nIOElems)]
 
         for key, val in iocsets.items():
             if elemType not in val:
