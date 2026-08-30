@@ -75,6 +75,7 @@ class Common:
         self._program: Final[str] = self.__program__
         self._version: Final      = self.__version__
         self._commit:  Final      = self.__commit__
+        self._url:     Final      = self.__url__
 
     @property
     def __version__(self) -> Version:
@@ -119,6 +120,32 @@ class Common:
         return commit
 
     @property
+    def __url__(self) -> Optional[str]:
+        # Retrieve repository URL from package metadata
+        try:
+            package = pathlib.Path(__file__).parent.parent.name
+            meta    = importlib.metadata.metadata(package)
+            urls    = meta.get_all('Project-URL', [])
+            for entry in urls:
+                if ',' in entry:
+                    key, url = entry.split(',', 1)
+                    if key.strip().lower() == 'repository':
+                        return url.strip().rstrip('/')
+        # Fallback to pyproject.toml
+        except importlib.metadata.PackageNotFoundError as e:
+            pyproject = pathlib.Path(__file__).parent.parent.parent / 'pyproject.toml'
+            if not pyproject.exists():
+                raise FileNotFoundError(f'pyproject.toml not found at {pyproject}') from e
+
+            with pyproject.open('r') as p:
+                match = re.search(r'repository\s*=\s*["\'](.+?)["\']', p.read())
+            if not match:
+                raise ValueError('Version not found in pyproject.toml')             from e  # noqa: E272
+            return match.group(1).rstrip('/')
+
+        return None
+
+    @property
     def __program__(self) -> str:
         return 'PyHOPE'
 
@@ -134,13 +161,17 @@ class Common:
     def commit(self) -> str:
         return str(self._commit)
 
+    @property
+    def url(self) -> str:
+        return str(self._url)
+
 
 @final
 class Gitlab:
     # Gitlab "python-gmsh" access
-    LIB_GITLAB:  tuple[str] = ('gitlab.iag.uni-stuttgart.de',
-                               'piclas.boltzplatz.eu'       ,
-                              )
+    LIB_HOST:  tuple[str] = ('gitlab.iag.uni-stuttgart.de',
+                              'piclas.boltzplatz.eu'       ,
+                            )
     # LIB_PROJECT  = 'libs/python-gmsh'
     LIB_PROJECT: tuple[int] = (797,
                                26 ,
