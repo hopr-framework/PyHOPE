@@ -138,6 +138,7 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
     import tempfile
     import requests
     # Local imports ----------------------------------------
+    from pyhope.common.common_vars import Common
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Gitlab
     from pyhope.common.common_progress import ProgressBar
@@ -178,51 +179,90 @@ def PkgsInstallGmsh(system: str, arch: str, version: str) -> None:
             else:
                 pkgs = os.path.join(path, lib)
 
-            # Try the hosts in order, we generally expect the first host to be up and up-to-date
-            for idGit, (gitURL, gitID) in enumerate(zip(Gitlab.LIB_GITLAB, Gitlab.LIB_PROJECT, strict=True)):
-                try:
-                    subprocess.check_call(('ping', f'-c{noPing}', f'-w{toPing}', gitURL),
-                                          stdout  = subprocess.DEVNULL,  # noqa: E251
-                                          stderr  = subprocess.DEVNULL,  # noqa: E251
-                                          timeout = toPing)              # noqa: E251
-                except subprocess.CalledProcessError:  # noqa: PERF203
-                    continue
+            download_success = False
 
-                # Host is responding, attempt to get the file
-                # urllib.request.urlretrieve(url      = f'https://{gitURL}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs}',  # noqa: E251
-                #                            filename = pkgs                                                                                            # noqa: E251
-                #                           )
-                request = requests.get(f'https://{gitURL}/api/v4/projects/{gitID}/repository/files/{lib}/raw?lfs={lfs}',
-                                 stream=True)
-                size    = int(request.headers['content-length'])
-                bar     = ProgressBar(title     = f'│ Downloading Gmsh [v{Gitlab.LIB_VERSION[system][arch]}] from {gitURL}',  # noqa: E251
-                                      value     = int(size/1024),                                                             # noqa: E251
-                                      threshold = 0)                                                                          # noqa: E251
+            # Try primary download from GitHub release assets first
+            common = Common()
+            github_url = f'{common.url}/releases/download/v{common.version}/{lib}'
+            try:
+                request = requests.get(github_url, stream=True, timeout=toPing)
+                if request.status_code == 200:
+                    size = int(request.headers.get('content-length', 0))
+                    bar  = ProgressBar(title     = f'│ Downloading Gmsh [v{Gitlab.LIB_VERSION[system][arch]}] from GitHub',  # noqa: E251
+                                       value     = int(size/1024),                                                           # noqa: E251
+                                       threshold = 0)                                                                        # noqa: E251
 
-                with open(pkgs, 'wb') as f:
-                    for chunk in request.iter_content(chunk_size=1024*50):
-                        if chunk:  # filter out keep-alive new chunks
-                            bar.step(int(len(chunk)/1024))
-                            f.write(chunk)
+                    with open(pkgs, 'wb') as f:
+                        for chunk in request.iter_content(chunk_size=1024*50):
+                            if chunk:
+                                bar.step(int(len(chunk)/1024))
+                                f.write(chunk)
 
-                bar.close()
+                    bar.close()
 
-                # Compare the hash
-                # > Initialize a new sha256 hash
-                sha256 = hashlib.sha256()
-                with open(pkgs, 'rb') as f:
-                    # Read and update hash string value in blocks of 4K
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        sha256.update(chunk)
+                    sha256 = hashlib.sha256()
+                    with open(pkgs, 'rb') as f:
+                        for chunk in iter(lambda: f.read(4096), b""):
+                            sha256.update(chunk)
 
-                if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
-                    hopout.info('Hash matches, installing Gmsh wheel...')
-                    break
+                    if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
+                        hopout.info('Hash matches, installing Gmsh wheel...')
+                        download_success = True
+                    else:
+                        hopout.info('GitHub asset hash mismatch, falling back to GitLab...')
+            except Exception:
+                hopout.info('GitHub asset download failed, falling back to GitLab...')
 
-                if idGit < len(Gitlab.LIB_GITLAB) - 1:
-                    hopout.info('Hash mismatch, trying next mirror...')
+            if not download_success:
+                # Try the fallback hosts in order, we generally expect the first host to be up and up-to-date
+                for idGit, (gitURL, gitID) in enumerate(zip(Gitlab.LIB_HOST, Gitlab.LIB_PROJECT, strict=True)):
+                    try:
+                        subprocess.check_call(('ping', f'-c{noPing}', f'-w{toPing}', gitURL),
+                                              stdout  = subprocess.DEVNULL,  # noqa: E251
+                                              stderr  = subprocess.DEVNULL,  # noqa: E251
+                                              timeout = toPing)              # noqa: E251
+                    except subprocess.CalledProcessError:  # noqa: PERF203
+                        continue
 
-                hopout.error('Hash mismatch, exiting...')
+                    # Host is responding, attempt to get the file
+                    # urllib.request.urlretrieve(url      = f'https://{gitURL}/api/v4/projects/{Gitlab.LIB_PROJECT}/repository/files/{lib}/raw?lfs={lfs}',  # noqa: E251
+                    #                            filename = pkgs                                                                                            # noqa: E251
+                    #                           )
+                    request = requests.get(f'https://{gitURL}/api/v4/projects/{gitID}/repository/files/{lib}/raw?lfs={lfs}',
+                                     stream=True)
+                    size    = int(request.headers['content-length'])
+                    bar     = ProgressBar(title     = f'│ Downloading Gmsh [v{Gitlab.LIB_VERSION[system][arch]}] from {gitURL}',  # noqa: E251
+                                          value     = int(size/1024),                                                             # noqa: E251
+                                          threshold = 0)                                                                          # noqa: E251
+
+                    with open(pkgs, 'wb') as f:
+                        for chunk in request.iter_content(chunk_size=1024*50):
+                            if chunk:  # filter out keep-alive new chunks
+                                bar.step(int(len(chunk)/1024))
+                                f.write(chunk)
+
+                    bar.close()
+
+                    # Compare the hash
+                    # > Initialize a new sha256 hash
+                    sha256 = hashlib.sha256()
+                    with open(pkgs, 'rb') as f:
+                        # Read and update hash string value in blocks of 4K
+                        for chunk in iter(lambda: f.read(4096), b""):
+                            sha256.update(chunk)
+
+                    if sha256.hexdigest() == Gitlab.LIB_SUPPORT[system][arch]:
+                        hopout.info('Hash matches, installing Gmsh wheel...')
+                        download_success = True
+                        break
+
+                    if idGit < len(Gitlab.LIB_HOST) - 1:
+                        hopout.info('Gitlab asset hash mismatch, trying next mirror...')
+
+                    hopout.warning('Gitlab asset hash mismatch, not updating Gmsh...')
+
+                if not download_success:
+                    return None
 
             # Remove the old version
             try:
