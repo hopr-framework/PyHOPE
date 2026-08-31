@@ -516,10 +516,11 @@ def BCCGNS_Unstructured(  mesh:     meshio.Mesh,
 
                             # For high-order elements, we only consider the 3/4 corner nodes for the centroid
                             match len(BCpoints):
-                                case 3 | 6:       # triangle, triangle6
+                                case 3 | 6 | 10 | 15:       # triangle (NGeo=1), triangle6 (NGeo=2), triangle10 (NGeo=3), triangle15 (NGeo=4)
                                     triaCenters.append(np.mean(BCpoints[:3], axis=0))
-                                case 4 | 8 | 9:   # quad, quad8, quad9
+                                case 4 | 8 | 9 | 16 | 25:   # quad (NGeo=1), quad8 (NGeo=2), quad9 (NGeo=2), quad16 (NGeo=3), quad25 (NGeo=4)
                                     quadCenters.append(np.mean(BCpoints[:4], axis=0))
+                                # Higher orders
                                 case _:
                                     hopout.error('Unsupported number of corners for shell elements, exiting...')
 
