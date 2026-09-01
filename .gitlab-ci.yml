@@ -94,8 +94,10 @@ image: registry.iag.uni-stuttgart.de/flexi/codes/pyhope/nrg-python:${PYTHON314_V
   # Setup Python virtual environment
   - uv venv .venv
   - source .venv/bin/activate
-  # Regression checks needs NRG Gmsh, pre-install it (try two different mirrors for downloading the .whl file)
-  - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || uv pip install https://piclas.boltzplatz.eu/public-libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl
+  # Regression checks needs NRG Gmsh, pre-install it (try GitHub latest release asset first, then GitLab mirrors)
+  - uv pip install --no-cache-dir https://github.com/hopr-framework/PyHOPE/releases/latest/download/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
+    uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
+    uv pip install --no-cache-dir https://piclas.boltzplatz.eu/public-libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl
   # Install all pre-requisites
   - uv pip install --no-cache-dir -e .
   # Install coverage

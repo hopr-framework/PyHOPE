@@ -98,7 +98,10 @@ runs:
         source .venv/bin/activate
 
         if [[ "${{ inputs.minimal }}" != "true" ]]; then
-        - uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || uv pip install https://piclas.boltzplatz.eu/public-libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl
+          # Regression checks needs NRG Gmsh, pre-install it (try GitHub latest release asset first, then GitLab mirrors)
+          uv pip install --no-cache-dir https://github.com/hopr-framework/PyHOPE/releases/latest/download/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
+          uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
+          uv pip install --no-cache-dir https://piclas.boltzplatz.eu/public-libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl
           uv pip install --no-cache-dir -e .
         fi
 
