@@ -113,7 +113,7 @@ def FillElemData(melems: list,
         elemdata['ElemID'  ][tidx].append(melem.elemID + 1)
         elemdata['ElemType'][tidx].append(melem.type)
         elemdata['ElemZone'][tidx].append(elemZone)
-        if 'ElemJacobian' in elemdata:
+        if melem.jacobian:
             elemdata['ElemJacobian'][tidx].append(melem.jacobian)
         if hasIJK:
             elemdata['Elem_I'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[0])
