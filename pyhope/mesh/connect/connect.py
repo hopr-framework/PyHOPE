@@ -242,6 +242,7 @@ def ConnectMesh() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common_progress import ProgressBar
     # from pyhope.common.common_vars import np_mtp
+    from pyhope.io.io_debug import DebugIO
     from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
     from pyhope.readintools.readintools import CountOption, GetLogical, GetIntFromStr
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
@@ -499,9 +500,12 @@ def ConnectMesh() -> None:
         # Connect the mortar sides
         elems, sides = ConnectMortar(nConnSide, nConnCenter, elems, sides, bar)
 
+    # Close the progress bar
+    bar.close()
+
     nConnSide, _ = get_nonconnected_sides(sides, mesh)
     if len(nConnSide) > 0:
-        print()  # Empty line for spacing
+        hopout.info('')  # Empty line for spacing
         for side in nConnSide:
             print(hopout.warn(f'> Element {side.elemID+1}, Side {side.face}, Side {side.sideID+1}'))  # noqa: E501
             elem  = elems[side.elemID]
@@ -514,17 +518,20 @@ def ConnectMesh() -> None:
                 print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in nodes[:, -1,  0]) + ']'))
                 print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in nodes[:, -1, -1]) + ']'))
                 if side is not nConnSide[-1]:
-                    print()  # Empty line for spacing
+                    hopout.info('')  # Empty line for spacing
             else:
                 nodes = points[nodes]
                 for node in nodes:
                     print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:13.8f}' for s in node) + ']'))
                 if side is not nConnSide[-1]:
-                    print()  # Empty line for spacing
-        hopout.error('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
+                    hopout.info('')  # Empty line for spacing
 
-    # Close the progress bar
-    bar.close()
+        # Write a low-order debug mesh if requested
+        if io_vars.debugmesh:
+            hopout.info('')
+            DebugIO(errSides=[s.sideID for s in nConnSide])
+
+        hopout.error('Could not connect {} / {} side{}'.format(len(nConnSide), len(sides), '' if len(sides) == 1 else 's'))
 
     # Count the sides
     nsides             = len(sides)

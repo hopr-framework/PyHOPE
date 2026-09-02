@@ -61,7 +61,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     from pyhope.common.common_tools import temporary_assign
     from pyhope.io.io_gmsh import GMSHCELLTYPES
     from pyhope.mesh.mesh_common import NDOFperElemType
-    from pyhope.mesh.mesh_vars import nGeo
+    from pyhope.mesh.mesh_vars import ELEM, nGeo
     from pyhope.mesh.topology.mesh_topology import appendBCSet
     from pyhope.readintools.readintools import GetInt, GetStr
     # ------------------------------------------------------
@@ -377,8 +377,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             if isinstance(elemType, str):
                 elemType = elemNames[elemType]
 
-            result = check_orientation(ionodes, elemType, VdmEqToGP, DGP, weights)
-            if result is not None and not result[0]:
+            elem = ELEM(type=elemType, nodes=ionodes, elemID=0, sides=None)
+            results = check_orientation(elem, VdmEqToGP, DGP, weights)
+            if results and any(not res[0] for res in results):
                 hopout.error('Extruded element has inward pointing normal vector. Wrong extrusion direction?')
 
     # Run garbage collector to release memory
