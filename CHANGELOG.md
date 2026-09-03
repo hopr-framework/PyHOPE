@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-06
+### Added
+Gmsh: Use GitHub release assets [8e5ae7f]
+Gmsh: Implement fallback mirror for Gmsh download [ec42be2]
+Gmsh: Added support for elements of higher order with GMSH [970b0c0] 
+Checks: Add failed mesh elements/sides to debug mesh [bc3117f]
+
+### Changes
+Perf: Implement performance improvements [8529be4]
+Checks: Perform normal calculation using full integration [7befb35]
+
+### Fixes
+CI/CD: Run pre-commit with --all-files [5ae7920]
+CI/CD: Fixes for ruff 0.16.3 [b30ddcf]
+CI/CD: Fixes for ruff 0.16 [94cb8cb]
+CI/CD: Update rules for ty v0.72 [ff3993a]
+
+### Dependencies
+plotext: Require version >= 6.0.0 [f963733]
+Bump actions/cache from 5 to 6 [4a62ef2]
+Bump actions/checkout from 6 to 7 [242f3c0]%
+Bump actions/setup-python from 6 to 7 [d2f8e9c]
+
 ## [1.0.0] - 2026-06-18
 ### Added
 - CGNS Reader: Read fully-hexahedral unstructured ICEM CGNS meshes [5a016c8]
