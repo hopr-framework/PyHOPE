@@ -34,17 +34,20 @@ from functools import lru_cache
 from itertools import combinations
 from typing import Optional, Final
 from typing import cast
+
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 # import meshio
 import numpy as np
 from numpy.linalg import norm
+
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Typing libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 from pyhope.common.common_numba import NUMBA_AVAILABLE
+
 if typing.TYPE_CHECKING or NUMBA_AVAILABLE:
     import numpy.typing as npt
     from pyhope.mesh.mesh_vars import BC
@@ -55,28 +58,34 @@ import pyhope.output.output as hopout
 import pyhope.mesh.mesh_vars as mesh_vars
 from pyhope.common.common_numba import jit, types
 from pyhope.mesh.connect.connect_rbtree import LinkOffsetManager, RedBlackTree
+
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
 mortarToCorners = {
-                     3: {1: [0, 1, 3, 2],  # 4-1 mortar
-                         2: [1, 3],        # 2-1 mortar, split in eta
-                         3: [0, 2]      }, # 2-1 mortar, split in xi
-                     4: {1: [0, 1, 3, 2],  # 4-1 mortar
-                         2: [0, 3],        # 2-1 mortar, split in eta
-                         3: [0, 2]      }  # 2-1 mortar, split in xi
-                  }
+    3: {
+        1: [0, 1, 3, 2],  # 4-1 mortar
+        2: [1, 3],  # 2-1 mortar, split in eta
+        3: [0, 2],
+    },  # 2-1 mortar, split in xi
+    4: {
+        1: [0, 1, 3, 2],  # 4-1 mortar
+        2: [0, 3],  # 2-1 mortar, split in eta
+        3: [0, 2],
+    },  # 2-1 mortar, split in xi
+}
 # ==================================================================================================================================
 
 
-def ConnectMortar( nConnSide  : list
-                 , nConnCenter: list
-                 # , mesh       : meshio.Mesh
-                 , elems      : list
-                 , sides      : list
-                 , bar        : type) -> tuple[list, list]:
-    """ Function to connect mortar sides
-    """
+def ConnectMortar(
+    nConnSide: list,
+    nConnCenter: list,
+    # , mesh       : meshio.Mesh
+    elems: list,
+    sides: list,
+    bar: type,
+) -> tuple[list, list]:
+    """Function to connect mortar sides"""
     # Local imports ----------------------------------------
     from scipy.spatial import KDTree
     from pyhope.common.common_tools import IndexedLists
@@ -94,15 +103,15 @@ def ConnectMortar( nConnSide  : list
     bar.title('│               Preparing Mortars')
 
     # Cache mesh points for performance
-    points:    Final[npt.NDArray] = mesh_vars.mesh.points
-    periNodes: Final[dict]        = mesh_vars.periNodes
+    points: Final[npt.NDArray] = mesh_vars.mesh.points
+    periNodes: Final[dict] = mesh_vars.periNodes
 
     # Set BC and periodic sides
     bcs: Final[list[BC | None]] = mesh_vars.bcs
-    vvs: Final[list           ] = mesh_vars.vvs
+    vvs: Final[list] = mesh_vars.vvs
 
     # Build a k-dimensional tree of all points on the opposing side
-    ctree:     Final[KDTree      ] = KDTree(np.array(nConnCenter), balanced_tree=False, compact_nodes=False)
+    ctree: Final[KDTree] = KDTree(np.array(nConnCenter), balanced_tree=False, compact_nodes=False)
     indexList: Final[IndexedLists] = IndexedLists()
 
     # INFO: Serial version
@@ -131,16 +140,16 @@ def ConnectMortar( nConnSide  : list
 
     # INFO: Parallel version, using np_mtp workers
     # Build arrays for parallel query
-    nConn:   Final[int] = len(nConnSide)
+    nConn: Final[int] = len(nConnSide)
     nCorner: Final[int] = len(nConnSide[0].corners)
-    targetCenters = np.empty((nConn,       3), dtype=np.float64)
+    targetCenters = np.empty((nConn, 3), dtype=np.float64)
     targetCorners = np.empty((nConn, nCorner), dtype=np.int64)
-    targetRadius  = np.empty((nConn         ), dtype=np.float64)
-    targetArea    = np.empty((nConn         ), dtype=np.float64)
+    targetRadius = np.empty((nConn), dtype=np.float64)
+    targetArea = np.empty((nConn), dtype=np.float64)
 
     for nConnID, (side, center) in enumerate(zip(nConnSide, nConnCenter, strict=True)):
-        targetArea   [nConnID   ] = calculate_area(points[side.corners])  # noqa: E211
-        targetCenters[nConnID   ] = copy.copy(center)
+        targetArea[nConnID] = calculate_area(points[side.corners])  # noqa: E211
+        targetCenters[nConnID] = copy.copy(center)
         targetCorners[nConnID, :] = side.corners
 
         # Get the opposite side
@@ -148,34 +157,37 @@ def ConnectMortar( nConnSide  : list
         if bcID is not None and bcs[bcID].type[0] == 1:
             bcName = bcs[bcID].name
             iVV = bcs[bcID].type[3]
-            VV  = vvs[np.abs(iVV)-1]['Dir'] * np.sign(iVV)
+            VV = vvs[np.abs(iVV) - 1]['Dir'] * np.sign(iVV)
 
             # Shift the center in periodic direction
-            targetCenters[nConnID]   += VV
+            targetCenters[nConnID] += VV
             targetCorners[nConnID, :] = np.array([periNodes.get((s, bcName), s) for s in side.corners])
 
         # Calculate the radius of the convex hull
-        targetRadius[nConnID] = norm(np.ptp(points[side.corners], axis=0)) / 2.
+        targetRadius[nConnID] = norm(np.ptp(points[side.corners], axis=0)) / 2.0
 
     # Get all potential mortar neighbors within the radius
     workers = 1 if np_mtp <= 0 else np_mtp
     results = ctree.query_ball_point(targetCenters, r=targetRadius[:], workers=workers)
     for nConnID, (side, neighbors) in enumerate(zip(nConnSide, results, strict=True)):
-        targetNeighbors = tuple(s for s in neighbors
-                                   # Potential mortar sides must not belong to the same element
-                                   if nConnSide[s].elemID != side.elemID  # noqa: E271, E501
-                                   # Potential mortar sides must have at least one corner in common with the target side
-                                   and set(targetCorners[s, :]).intersection(targetCorners[nConnID, :])
-                                   # Potential mortar sides must have a smaller area than the target side
-                                   and targetArea[s      ] < targetArea[nConnID])
+        targetNeighbors = tuple(
+            s
+            for s in neighbors
+            # Potential mortar sides must not belong to the same element
+            if nConnSide[s].elemID != side.elemID  # noqa: E271, E501
+            # Potential mortar sides must have at least one corner in common with the target side
+            and set(targetCorners[s, :]).intersection(targetCorners[nConnID, :])
+            # Potential mortar sides must have a smaller area than the target side
+            and targetArea[s] < targetArea[nConnID]
+        )
         indexList.add(nConnID, targetNeighbors)
 
     # Obtain the target side IDs
-    targetSides:   Final[list[int]] = [s for s in indexList.data if len(indexList.data[s]) > 0]
+    targetSides: Final[list[int]] = [s for s in indexList.data if len(indexList.data[s]) > 0]
     # Create a global offset manager.
     offsetManager: Final[LinkOffsetManager] = LinkOffsetManager()
     # Convert the sides to a red-black tree
-    rbtsides:      Final[RedBlackTree     ] = RedBlackTree.from_list(sides, offsetManager)
+    rbtsides: Final[RedBlackTree] = RedBlackTree.from_list(sides, offsetManager)
 
     # Change the title of the progress bar
     bar.title('│              Processing Mortars')
@@ -194,14 +206,16 @@ def ConnectMortar( nConnSide  : list
             continue
 
         # Get the opposite side
-        targetSide = nConnSide[  targetID]
-        bcID       = targetSide.bcid if targetSide.bcid is not None and bcs[targetSide.bcid].type[0] == 1 else None
+        targetSide = nConnSide[targetID]
+        bcID = targetSide.bcid if targetSide.bcid is not None and bcs[targetSide.bcid].type[0] == 1 else None
 
         # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
         matchFound = False
 
         # Attempt to match the target side with 2-candidate combinations
-        targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) >= 2)  # noqa: E501
+        targetTest = tuple(
+            s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) >= 2
+        )  # noqa: E501
         for comboIDs in itertools.combinations(targetTest, 2):
             # Get the candidate sides
             comboSides = tuple(nConnSide[iSide] for iSide in comboIDs)
@@ -211,11 +225,11 @@ def ConnectMortar( nConnSide  : list
                 continue
 
             # Get our and neighbor corner quad nodes
-            sideID   = targetSide.sideID
+            sideID = targetSide.sideID
             nbSideID = tuple(side.sideID for side in comboSides)
 
             # Build the connection, including flip
-            sideIDs  = (sideID, nbSideID)
+            sideIDs = (sideID, nbSideID)
 
             # Connect mortar sides and update the list
             # connect_mortar_sides(sideIDs, elems, sides, rbtsides, offsetManager, bcID)
@@ -233,21 +247,23 @@ def ConnectMortar( nConnSide  : list
 
         # Attempt to match the target side with 4-candidate combinations
         if not matchFound and len(targetNeighbors) >= 4:
-            targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 1)  # noqa: E501
+            targetTest = tuple(
+                s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 1
+            )  # noqa: E501
             for comboIDs in itertools.combinations(targetTest, 4):
                 # Get the candidate sides
-                comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
+                comboSides = tuple(nConnSide[iSide] for iSide in comboIDs)
 
                 # Check if we found a valid match
                 if not find_mortar_match(targetSide.corners, comboSides, bcID):
                     continue
 
                 # Get our and neighbor corner quad nodes
-                sideID   = targetSide.sideID
+                sideID = targetSide.sideID
                 nbSideID = tuple(side.sideID for side in comboSides)
 
                 # Build the connection, including flip
-                sideIDs  = (sideID, nbSideID)
+                sideIDs = (sideID, nbSideID)
 
                 # Connect mortar sides and update the list
                 connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
@@ -287,13 +303,11 @@ def ConnectMortar( nConnSide  : list
     return elems, sides
 
 
-def connect_mortar_sides( sideIDs    : tuple
-                        , elems      : list
-                        , rbtsides   : RedBlackTree
-                        , offsetManager: LinkOffsetManager
-                        , bcID         : Optional[int] = None) -> None:
-    """ Connect the master (big mortar) and the slave (small mortar) sides
-        > Create the virtual sides as needed
+def connect_mortar_sides(
+    sideIDs: tuple, elems: list, rbtsides: RedBlackTree, offsetManager: LinkOffsetManager, bcID: Optional[int] = None
+) -> None:
+    """Connect the master (big mortar) and the slave (small mortar) sides
+    > Create the virtual sides as needed
     """
     # Local imports ----------------------------------------
     from pyhope.mesh.connect.connect_rbtree import SideNode
@@ -302,33 +316,33 @@ def connect_mortar_sides( sideIDs    : tuple
     # ------------------------------------------------------
 
     # Get the master and slave sides
-    masterSide    = rbtsides[sideIDs[0] + offsetManager.get_offset(sideIDs[0])].value
-    masterElem    = elems[masterSide.elemID]
+    masterSide = rbtsides[sideIDs[0] + offsetManager.get_offset(sideIDs[0])].value
+    masterElem = elems[masterSide.elemID]
     masterCorners = masterSide.corners
 
     if bcID is not None:
-        bcName        = mesh_vars.bcs[bcID].name
+        bcName = mesh_vars.bcs[bcID].name
         masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in cast(np.ndarray, masterCorners)), dtype=int)
 
     # Convert to hashable tuple
     masterCorners = tuple(masterCorners)
 
     # Build mortar type and orientation
-    nMortars      = len(sideIDs[1])
-    slaveSides    = tuple(rbtsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1])
+    nMortars = len(sideIDs[1])
+    slaveSides = tuple(rbtsides[s + offsetManager.get_offset(s)].value for s in sideIDs[1])
     slaveSideType = 104
 
     match nMortars:
         case 2:
             # Check which edges of big and small side are identical to determine the mortar type
-            slaveSide    = slaveSides[0]
+            slaveSide = slaveSides[0]
             slaveCorners = tuple(slaveSide.corners)
 
             # Check which edges match
             # INFO: Uncached version
             if mesh_vars.elems[slaveSide.elemID].type % 100 != 8:
                 slaveSideType = 103
-                if   points_exist_in_target((masterCorners[1], masterCorners[3]), slaveCorners):
+                if points_exist_in_target((masterCorners[1], masterCorners[3]), slaveCorners):
                     mortarType = 2
                 elif points_exist_in_target((masterCorners[0], masterCorners[2]), slaveCorners):
                     mortarType = 3
@@ -341,19 +355,22 @@ def connect_mortar_sides( sideIDs    : tuple
                 del slaveCorners
 
                 # Sort the small sides
-                slaveSides = tuple(s for i in [0, 2]
-                                     for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
+                slaveSides = tuple(
+                    s for i in [0, 2] for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners))
+                )
 
                 # Sort out duplicates
                 slaveSides = np.unique(slaveSides)
 
             else:
                 slaveSideType = 104
-                if   points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or \
-                     points_exist_in_target((masterCorners[2], masterCorners[3]), slaveCorners):  # noqa: E271
+                if points_exist_in_target((masterCorners[0], masterCorners[1]), slaveCorners) or points_exist_in_target(
+                    (masterCorners[2], masterCorners[3]), slaveCorners
+                ):  # noqa: E271
                     mortarType = 2
-                elif points_exist_in_target((masterCorners[1], masterCorners[2]), slaveCorners) or \
-                     points_exist_in_target((masterCorners[0], masterCorners[3]), slaveCorners):
+                elif points_exist_in_target((masterCorners[1], masterCorners[2]), slaveCorners) or points_exist_in_target(
+                    (masterCorners[0], masterCorners[3]), slaveCorners
+                ):
                     mortarType = 3
                 else:
                     hopout.warning('Could not determine mortar type, exiting...')
@@ -364,15 +381,17 @@ def connect_mortar_sides( sideIDs    : tuple
                 del slaveCorners
 
                 # Sort the small sides
-                slaveSides = tuple(s for i in [0, 2]
-                                     for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
+                slaveSides = tuple(
+                    s for i in [0, 2] for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners))
+                )
 
         case 4:
             mortarType = 1
             slaveSideType = 104
             # Sort the small sides
-            slaveSides = tuple(s for i in (0, 1, 3, 2)
-                                 for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners)))
+            slaveSides = tuple(
+                s for i in (0, 1, 3, 2) for s in slaveSides if points_exist_in_target((masterCorners[i],), tuple(s.corners))
+            )
 
         case _:
             hopout.error('Found invalid number of sides for mortar side, exiting...', traceback=True)
@@ -382,55 +401,55 @@ def connect_mortar_sides( sideIDs    : tuple
         hopout.error('Could not determine mortar type, exiting...', traceback=True)
 
     # Update the master side
-    masterSide.MS          = 1            # noqa: E251
-    masterSide.connection  = -mortarType  # noqa: E251
-    masterSide.flip        = 0            # noqa: E251
+    masterSide.MS = 1  # noqa: E251
+    masterSide.connection = -mortarType  # noqa: E251
+    masterSide.flip = 0  # noqa: E251
     # masterSide.nbLocSide   = 0            # noqa: E251
 
     flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
 
     # Map mortar types to their corresponding corner lists.
-    mortarCorners = mortarToCorners[slaveSideType%100][mortarType]
+    mortarCorners = mortarToCorners[slaveSideType % 100][mortarType]
 
     # Precompute mappings and indices.
-    masterElemID  = masterElem.elemID
-    masterSideID  = masterSide.sideID + offsetManager.get_offset(masterSide.sideID)
+    masterElemID = masterElem.elemID
+    masterSideID = masterSide.sideID + offsetManager.get_offset(masterSide.sideID)
 
     # Build lists of new SIDE objects and their sideIDs.
-    new_sides    = []
-    new_sideIDs  = []
+    new_sides = []
+    new_sideIDs = []
 
     SIDE = mesh_vars.SIDE
 
     for i, slave in enumerate(slaveSides):
-        corner   = mortarCorners[i]
+        corner = mortarCorners[i]
         sCorners = slave.corners
         sideType = 100 + len(sCorners)
-        flipID   = flip_analytic(masterCorners[corner], sCorners) + 1
-        flipID   = flipMap.get(corner, {}).get(flipID, flipID)
+        flipID = flip_analytic(masterCorners[corner], sCorners) + 1
+        flipID = flipMap.get(corner, {}).get(flipID, flipID)
         slave.flip = flipID  # update slave side's flip
 
         newID = masterSideID + i + 1
         # if masterSideID == 708:
-        side  = SIDE(
-                  sideType   = sideType,            # noqa: E251
-                  elemID     = masterElemID,        # noqa: E251
-                  sideID     = newID,               # noqa: E251
-                  locSide    = masterSide.locSide,  # noqa: E251
-                  locMortar  = i + 1,               # noqa: E251
-                  MS         = 1,                   # noqa: E251
-                  flip       = flipID,              # noqa: E251
-                  connection = slave.sideID,        # noqa: E251
-                  # nbLocSide  = slave.locSide        # noqa: E251
-                )
-        new_sides  .append(side)
+        side = SIDE(
+            sideType=sideType,  # noqa: E251
+            elemID=masterElemID,  # noqa: E251
+            sideID=newID,  # noqa: E251
+            locSide=masterSide.locSide,  # noqa: E251
+            locMortar=i + 1,  # noqa: E251
+            MS=1,  # noqa: E251
+            flip=flipID,  # noqa: E251
+            connection=slave.sideID,  # noqa: E251
+            # nbLocSide  = slave.locSide        # noqa: E251
+        )
+        new_sides.append(side)
         new_sideIDs.append(newID)
 
         # Update the slave side: connect to the master
         slave.connection = masterSideID
-        slave.sideType   = -sideType
-        slave.MS         = 0
-        slave.flip       = flipID
+        slave.sideType = -sideType
+        slave.MS = 0
+        slave.flip = flipID
         # Update the link in the red-black tree
         rbtsides[slave.sideID + offsetManager.get_offset(slave.sideID)].link = masterSide.sideID
 
@@ -445,18 +464,19 @@ def connect_mortar_sides( sideIDs    : tuple
         bisect.insort(elems[masterElemID].sides, insertion_index)
 
 
-def find_mortar_match( targetCorners: npt.NDArray
-                     , comboSides   : tuple
-                     # , mesh         : meshio.Mesh
-                     , bcID         : Optional[int] = None) -> bool:
-    """ Check if the combined points of candidate sides match the target side within tolerance
-    """
+def find_mortar_match(
+    targetCorners: npt.NDArray,
+    comboSides: tuple,
+    # , mesh         : meshio.Mesh
+    bcID: Optional[int] = None,
+) -> bool:
+    """Check if the combined points of candidate sides match the target side within tolerance"""
 
     points: Final[npt.NDArray] = mesh_vars.mesh.points
 
     # Passing a bcID means we are dealing with periodic boundaries
     if bcID is not None:
-        bcName        = mesh_vars.bcs[bcID].name
+        bcName = mesh_vars.bcs[bcID].name
         targetCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in targetCorners), dtype=int)
 
     # Check if exactly one combo point matches each target point
@@ -501,7 +521,7 @@ def find_mortar_match( targetCorners: npt.NDArray
     if len(comboSides) == 2:
         # Look for 2-1 matches, we need exactly one common edge
         # INFO: Uncached version
-        comboEdges  = tuple(e for s in comboSides for e in build_edges(s.corners, points[s.corners]))
+        comboEdges = tuple(e for s in comboSides for e in build_edges(s.corners, points[s.corners]))
         # INFO: Cached version
         # comboEdges = (e for s in comboSides
         #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
@@ -509,7 +529,7 @@ def find_mortar_match( targetCorners: npt.NDArray
         comboEdges, checkTria = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
-        matches     = []  # List to store matching edges
+        matches = []  # List to store matching edges
 
         # Iterate over each target edge
         # > Start and end points (iX, jX), distance between points
@@ -551,14 +571,14 @@ def find_mortar_match( targetCorners: npt.NDArray
             return False
 
         # INFO: Uncached version
-        comboEdges  = (e for s in comboSides for e in build_edges(s.corners, points[s.corners]))
+        comboEdges = (e for s in comboSides for e in build_edges(s.corners, points[s.corners]))
         # INFO: Cached version
         # comboEdges = (e for s in comboSides
         #                 for e in build_edges(arrayToTuple(s.corners), tuple(map(tuple, points[s.corners]))))
         comboEdges, _ = find_edge_combinations(comboEdges)
 
         # Attempt to match the target edges with the candidate edges
-        matches     = []  # List to store matching edges
+        matches = []  # List to store matching edges
 
         # Iterate over each target edge
         # > Start and end points (iX, jX), distance between points
@@ -566,8 +586,9 @@ def find_mortar_match( targetCorners: npt.NDArray
             # Convert the star-unpacked targetEdge [list] into a tuple
             targetEdge = tuple(targetEdge)
             # Find the matching combo edges for the current target edge
-            matchEdges = [e for e in comboEdges if (targetEdge[:2] == e[:2] or targetEdge[:2] == e[1::-1]) and
-                                                   np.isclose(targetDist, e[2])]
+            matchEdges = [
+                e for e in comboEdges if (targetEdge[:2] == e[:2] or targetEdge[:2] == e[1::-1]) and np.isclose(targetDist, e[2])
+            ]
 
             # This should result in exactly 1 match
             if len(matchEdges) > 1:
@@ -593,29 +614,28 @@ def find_mortar_match( targetCorners: npt.NDArray
 # INFO: Cached version
 @lru_cache(maxsize=65536)
 def points_exist_in_target(pts: tuple, slavePts: tuple) -> bool:
-    """ Check if the combined points of candidate sides match the target side
-    """
+    """Check if the combined points of candidate sides match the target side"""
     # return np.all(np.isin(pts, slavePts))
     return set(pts).issubset(set(slavePts))
 
 
 if not NUMBA_AVAILABLE:
+
     def calculate_area(corners: npt.NDArray[np.float64]) -> float:
-        """ Calculate the area of a flat surface using the cross product method
-        """
+        """Calculate the area of a flat surface using the cross product method"""
         p: Final[npt.NDArray] = corners
 
         match len(corners):
             case 3:  # Triangle
-                return  0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+                return 0.5 * norm(np.cross(p[1] - p[0], p[2] - p[0]))  # noqa: E271
             case 4:  # Quadrilateral
                 # Diagonal split 1: (0,1,2) + (0,2,3)
-                area1  = 0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
-                area1 += 0.5 * norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
+                area1 = 0.5 * norm(np.cross(p[1] - p[0], p[2] - p[0]))  # noqa: E271
+                area1 += 0.5 * norm(np.cross(p[2] - p[0], p[3] - p[0]))  # noqa: E271
 
                 # Diagonal split 2: (0,1,3) + (1,2,3)
-                area2  = 0.5 * norm(np.cross(p[1]-p[0], p[3]-p[0]))  # noqa: E271
-                area2 += 0.5 * norm(np.cross(p[2]-p[1], p[3]-p[1]))  # noqa: E271
+                area2 = 0.5 * norm(np.cross(p[1] - p[0], p[3] - p[0]))  # noqa: E271
+                area2 += 0.5 * norm(np.cross(p[2] - p[1], p[3] - p[1]))  # noqa: E271
 
                 # For bilinear quads, average both diagonal triangulations
                 return (area1 + area2) / 2
@@ -623,23 +643,23 @@ if not NUMBA_AVAILABLE:
                 raise IndexError('Invalid number of side corners')
 
 else:
+
     @jit(types.float64(types.float64[:, ::1]), nopython=True, cache=True, nogil=True)
     def calculate_area(corners: npt.NDArray[np.float64]) -> float:
-        """ Calculate the area of a flat surface using the cross product method
-        """
+        """Calculate the area of a flat surface using the cross product method"""
         p: Final[npt.NDArray] = corners
-        n: tuple[int        ] = p.shape[0]
+        n: tuple[int] = p.shape[0]
 
-        if   n == 3:  # Triangle  # noqa: E271
-            return   0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
+        if n == 3:  # Triangle  # noqa: E271
+            return 0.5 * norm(np.cross(p[1] - p[0], p[2] - p[0]))  # noqa: E271
         if n == 4:  # Quadrilateral
             # Diagonal split 1: (0,1,2) + (0,2,3)
-            area1  = 0.5 * norm(np.cross(p[1]-p[0], p[2]-p[0]))  # noqa: E271
-            area1 += 0.5 * norm(np.cross(p[2]-p[0], p[3]-p[0]))  # noqa: E271
+            area1 = 0.5 * norm(np.cross(p[1] - p[0], p[2] - p[0]))  # noqa: E271
+            area1 += 0.5 * norm(np.cross(p[2] - p[0], p[3] - p[0]))  # noqa: E271
 
             # Diagonal split 2: (0,1,3) + (1,2,3)
-            area2  = 0.5 * norm(np.cross(p[1]-p[0], p[3]-p[0]))  # noqa: E271
-            area2 += 0.5 * norm(np.cross(p[2]-p[1], p[3]-p[1]))  # noqa: E271
+            area2 = 0.5 * norm(np.cross(p[1] - p[0], p[3] - p[0]))  # noqa: E271
+            area2 += 0.5 * norm(np.cross(p[2] - p[1], p[3] - p[1]))  # noqa: E271
 
             # For bilinear quads, average both diagonal triangulations
             return (area1 + area2) / 2
@@ -648,8 +668,7 @@ else:
 
 # INFO: Uncached version
 def build_edges(corners: npt.NDArray, points: npt.NDArray) -> tuple:
-    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering
-    """
+    """Build edges from the 4 corners of a quadrilateral, considering CGNS ordering"""
     if len(corners) == 4:
         edges = [
             (corners[0], corners[1], np.linalg.norm(np.array(points[0]) - np.array(points[1]))),  # Edge between points 0 and 1
@@ -688,8 +707,7 @@ def build_edges(corners: npt.NDArray, points: npt.NDArray) -> tuple:
 # @cache
 @lru_cache(maxsize=65536)
 def find_edge_combinations(comboEdges: tuple) -> tuple:
-    """Build combinations of edges that share exactly one point and form a line
-    """
+    """Build combinations of edges that share exactly one point and form a line"""
     points = mesh_vars.mesh.points
 
     # Create a dictionary to store edges by their shared points
@@ -759,6 +777,5 @@ def find_edge_combinations(comboEdges: tuple) -> tuple:
                 # validCombo.append((point1, point2, lineDist))
                 if (point1, point2, lineDist) not in validCombo and (point2, point1, lineDist) not in validCombo:
                     validCombo.append((point1, point2, lineDist))
-
 
     return tuple(validCombo), checkTriaFace
