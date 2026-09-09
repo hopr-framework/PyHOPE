@@ -59,7 +59,7 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
 
     # Handle the case that the variable was already used
     config.prms['meshScale']['counter'] = max(config.prms['meshScale']['counter'] - 1, 0)
-    if CountOption('meshScale') and GetReal('meshScale') != 1.:
+    if CountOption('meshScale') and GetReal('meshScale') != 1.0:  # ruff: ignore[float-equality-comparison]
         hopout.error('"meshScale" cannot be combined with template "cylinder"')
 
     # Readin parameters

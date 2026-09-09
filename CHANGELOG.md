@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-06
+### Added
+- Gmsh: Use GitHub release assets [8e5ae7f]
+- Gmsh: Implement fallback mirror for Gmsh download [ec42be2]
+- Gmsh: Added support for elements of higher order with GMSH [970b0c0] 
+- Checks: Add failed mesh elements/sides to debug mesh [bc3117f]
+
+### Changed
+- Perf: Implement performance improvements [8529be4]
+- Checks: Perform normal calculation using full integration [7befb35]
+
+### Fixed
+- CI/CD: Run pre-commit with --all-files [5ae7920]
+- CI/CD: Fixes for ruff 0.16.3 [b30ddcf]
+- CI/CD: Fixes for ruff 0.16 [94cb8cb]
+- CI/CD: Update rules for ty v0.72 [ff3993a]
+
+### Dependencies
+- plotext: Require version >= 6.0.0 [f963733]
+- Bump actions/cache from 5 to 6 [4a62ef2]
+- Bump actions/checkout from 6 to 7 [242f3c0]%
+- Bump actions/setup-python from 6 to 7 [d2f8e9c]
+
+## [1.0.0] - 2026-06-18
+### Added
+- CGNS Reader: Read fully-hexahedral unstructured ICEM CGNS meshes [5a016c8]
+- CI/CD: Add verification / documentation step [dcd448c]
+- Checks: Re-download mesh file if encountering an LFS pointer [70d6816]
+- Gambit reader: Implemented tetrahedrons [92fffcd]
+- GitHub: Add check for authentification error [8dcb343]
+- Mesh: Optionally allow 8-bytes integer (KIND8/int64_t) [247df43]
+- Readintools: Evaluate expression [6d44e76]
+
+### Fixes
+- CI/CD: Update rules for ty v0.46 [517b886]
+- CI/CD: Update rules for ty v0.40 [522d3fb]
+- CI/CD: Update rules for ty v0.39 [6de4138]
+- CI/CD: gitleaks/pre-commit hooks [d478a99]
+- Fixes for FEM output [678d2de]
+
+### Dependencies
+- Gmsh: Update to v4.15.1 [d88a463]
+- Bump orgoro/coverage from 3.2 to 3.3 [fa75152]
+- Bump actions/upload-pages-artifact from 4 to 5 [eddfca0]
+
 ## [0.11.0] - 2026-04-16
 ### Added
 - Add the original Hilbert(Z)/Morton(Z) space-filling curve from HOPR [c14fe07]

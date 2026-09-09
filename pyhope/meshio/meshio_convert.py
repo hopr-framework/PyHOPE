@@ -125,8 +125,8 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     gmshCellTypes = GMSHCELLTYPES()
 
     # Combine volume and surface cells as separate cell blocks
-    volume_cells  = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]
-    surface_cells = [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D]
+    volume_cells  = tuple(cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D)
+    surface_cells = tuple(cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes2D)
 
     # Build new arrays
     celll:      list[meshio.CellBlock] = []

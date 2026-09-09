@@ -25,8 +25,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+from collections import defaultdict
 from functools import cache
-from typing import Any, Final, cast
+from typing import Any, Final, Optional
+from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -64,6 +66,8 @@ meshio.xdmf.main.XdmfWriter.__init__ = XdmfWriterInit  # pyright: ignore[reportA
 #
 #     tree = ET.ElementTree(vtkfile)
 #     tree.write(filename, encoding='utf-8', xml_declaration=True)
+
+
 @cache
 def isValidInt(s: Any) -> bool:  # noqa: ANN401
     try:
@@ -74,20 +78,172 @@ def isValidInt(s: Any) -> bool:  # noqa: ANN401
         return True
 
 
-def DebugIO() -> None:
+def FillElemData(melems: list,
+                 elems : dict,
+                 hasIJK: bool,
+                 # hasFEM: bool,
+                 types : list,
+                 tInv  : dict[str, int],
+                 pMap  : npt.NDArray,
+                ) -> tuple[dict, dict[str, list]]:
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_vars import ELEMTYPE
+    # ------------------------------------------------------
+
+    # Instantiate ELEMTYPE
+    elemTypeClass = ELEMTYPE()
+
+    # Create a defaultdict since we have optional members
+    elemdata = defaultdict(lambda: [[] for _ in range(len(types))])
+
+    # Populate connectivity and data
+    for melem in melems:
+        # Correct ElemType for NGeo = 1
+        elemNum  = melem.type % 10
+        elemType = elemTypeClass.inam[elemNum + 100]
+        elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
+        elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
+        tidx     = tInv[elemType]
+
+        # pMap is already sorted
+        elemNodes = np.searchsorted(pMap, cast(np.ndarray, melem.nodes)[:elemNum])
+        elems[elemType].append(elemNodes)
+
+        # Add the elemData
+        elemdata['ElemID'  ][tidx].append(melem.elemID + 1)
+        elemdata['ElemType'][tidx].append(melem.type)
+        elemdata['ElemZone'][tidx].append(elemZone)
+        if melem.jacobian:
+            elemdata['ElemJacobian'][tidx].append(melem.jacobian)
+        if hasIJK:
+            elemdata['Elem_I'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[0])
+            elemdata['Elem_J'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[1])
+            elemdata['Elem_K'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[2])
+
+    return elems, dict(elemdata)
+
+
+def FillSideData(msides: list,
+                 sides : dict,
+                 sypes : list,
+                 sInv  : dict[str, int],
+                 pMap  : npt.NDArray,
+                 bcs   : list,
+                 errOut: bool = False,
+                ) -> tuple[dict, dict[str, list]]:
+
+    # Create a defaultdict since we have optional members
+    sidedata = defaultdict(lambda: [[] for _ in range(len(sypes))])
+
+    # Populate connectivity and data
+    for side in tuple(s for s in msides if s.bcid is not None or errOut):
+        sideType = 'triangle' if side.sideType == 3 else 'quad'
+        sidx     = sInv[sideType]
+
+        # Add the side
+        sideNodes = np.searchsorted(pMap, np.asarray(side.corners))
+        sides[sideType].append(sideNodes)
+
+        # Add the sideData
+        sidedata['ElemID'  ][sidx].append(side.elemID + 1)
+
+        # Add the boundary dataa
+        if side.bcid is not None:
+            bcID = side.bcid
+            bc   = bcs[bcID]
+            sidedata['BCID'    ][sidx].append(bcID       + 1)
+            sidedata['BCType'  ][sidx].append(bc.type[0]    )
+            sidedata['BCState' ][sidx].append(bc.type[2]    )
+            sidedata['BCAlpha' ][sidx].append(bc.type[3]    )
+
+    return sides, dict(sidedata)
+
+
+def FillEdgeData(melems: list,
+                 edges : dict,
+                 hasFEM: bool,
+                 pMap  : npt.NDArray,
+                ) -> tuple[Optional[dict], Optional[dict[str, list]]]:
+    # Local imports ----------------------------------------
+    from pyhope.mesh.mesh_common import edges as ELEMEDGES
+    from pyhope.mesh.mesh_vars import ELEMTYPE
+    # ------------------------------------------------------
+
+    if not hasFEM:
+        return edges, None
+
+    # Instantiate ELEMTYPE
+    elemTypeClass = ELEMTYPE()
+
+    # Create a defaultdict since we have optional members
+    edgedata = defaultdict(list)
+
+    # Populate connectivity and data
+    for melem in melems:
+        # Correct ElemType for NGeo = 1
+        elemNum  = melem.type % 10
+        elemType = elemTypeClass.inam[elemNum + 100]
+        elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
+
+        # Create the FEM edges
+        elemEdges = ELEMEDGES(elemType)
+        for edge in elemEdges:
+            # Add the edge
+            edgeInfo  = cast(dict, melem.edgeInfo)[edge]
+            edgeNodes = np.searchsorted(pMap, np.asarray(edgeInfo[3]))
+            edges['line'].append(edgeNodes)
+
+            edgedata['FEMEdgeID'  ].append(edgeInfo[1])
+            edgedata['LocEdge'    ].append(edgeInfo[0])
+
+    return edges, dict(edgedata)
+
+
+def FillNodeData(melems: list,
+                 nodes : dict,
+                 hasFEM: bool,
+                 pMap  : npt.NDArray,
+                ) -> tuple[Optional[dict], Optional[dict[str, list]]]:
+
+    if not hasFEM:
+        return nodes, None
+
+    # Fully create the nodes here
+    nodes = cast(dict[str, npt.ArrayLike], {'vertex': [np.asarray([s])  for s in range(len(pMap))]})  # noqa: E272
+    # Create a defaultdict since we have optional members
+    nodedata = defaultdict(lambda: [1 for _ in range(len(pMap))])
+
+    # Populate connectivity and data
+    for melem in melems:
+        # Correct ElemType for NGeo = 1
+        elemNum  = melem.type % 10
+        # pMap is already sorted
+        elemNodes = np.searchsorted(pMap, cast(np.ndarray, melem.nodes)[:elemNum])
+
+        # Create the FEM vertices
+        for locNode, node in enumerate(elemNodes):
+            # Add the nodeData
+            nodedata['FEMVertexID'][node] = cast(dict, melem.vertexInfo)[locNode][0]
+
+    return nodes, dict(nodedata)
+
+
+def DebugIO(errElems: Optional[list] = None,
+            errSides: Optional[list] = None) -> None:
     """ Routine to output the debug mesh. Downcast the existing
         PyHOPE format to first order, enrich with debug information
-        and output
+        and output in XDMF format
     """
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
-    from pyhope.mesh.mesh_common import edges as ELEMEDGES
     from pyhope.mesh.mesh_vars import ELEMTYPE
     # ------------------------------------------------------
 
-    # hopout.sep()
+    # Write a low-order debug mesh if requested
+    if not io_vars.debugmesh:
+        return None
 
     mesh   : Final             = mesh_vars.mesh
     mpoints: Final[np.ndarray] = mesh.points
@@ -95,6 +251,10 @@ def DebugIO() -> None:
     msides : Final[list]       = mesh_vars.sides
     bcs    : Final[list]       = mesh_vars.bcs
     pname  : Final[str]        = io_vars.projectname
+
+    # Convert error lists to sets
+    errElems = set(errElems) if errElems is not None else ()
+    errSides = set(errSides) if errSides is not None else ()
 
     # Create empty meshio objects
     elems     = {}
@@ -122,18 +282,16 @@ def DebugIO() -> None:
             elemtypes.add(elemType)
 
         # Add the first-order sides to the sides set
-        for sideID in melem.sides:  # ty: ignore [not-iterable]
-            # Only consider boundary sides
-            if msides[sideID].bcid is not None:
-                sideType = 'triangle' if msides[sideID].sideType == 3 else 'quad'
-                if sideType not in sInv:
-                    sInv[sideType] = len(sidetypes)
-                    sidetypes.add(sideType)
+        for sideID in (s for s in melem.sides if msides[s].bcid is not None or s in (errSides if errSides is not None else ())):  # ty: ignore [not-iterable]
+            # Only consider boundary/error sides
+            sideType = 'triangle' if msides[sideID].sideType == 3 else 'quad'
+            if sideType not in sInv:
+                sInv[sideType] = len(sidetypes)
+                sidetypes.add(sideType)
 
     # Create ordered mapping from first-order points to high-order points
     points = np.concatenate([np.asarray(melem.nodes)[:melem.type % 10] for melem in melems])
     pMap   = np.unique(points)
-    # pInv   = dict(zip(pMap, range(len(pMap))))
 
     hasIJK = bool(hasattr(mesh_vars, 'nElemsIJK')  and mesh_vars.nElemsIJK  is not None)  # noqa: E272
     hasFEM = bool(hasattr(melems[0], 'vertexInfo') and melems[0].vertexInfo is not None)
@@ -144,7 +302,6 @@ def DebugIO() -> None:
     for st in sidetypes:
         sides.setdefault(st, [])
     if hasFEM:
-        nodes.setdefault('vertex', [])
         edges.setdefault('line'  , [])
 
     # Create ordered mapping from first-order elems to high-order elems
@@ -152,98 +309,17 @@ def DebugIO() -> None:
     # Create ordered mapping from first-order sides to high-order sides
     sypes  = list(sidetypes)
 
-    elemdata: dict[str, list] = {'ElemID'  : [[] for _ in range(len(types))],
-                                 'ElemType': [[] for _ in range(len(types))],
-                                 'ElemZone': [[] for _ in range(len(types))],
-                                }
-    # (Optional:) Add Jacobians
-    if melems and (getattr(melems[0], 'jacobian', None) is not None):
-        elemdata.update({'ElemJacobian': [[] for _ in range(len(types))]})
-    # (Optional:) Add IJK sorting
-    if hasIJK:
-        elemdata.update({'Elem_I'      : [[] for _ in range(len(types))]})
-        elemdata.update({'Elem_J'      : [[] for _ in range(len(types))]})
-        elemdata.update({'Elem_K'      : [[] for _ in range(len(types))]})
+    # Fill elem data
+    elems, elemdata = FillElemData(melems, elems, hasIJK, types, tInv, pMap)
+    # Fill the side data (optional)
+    sides, sidedata = FillSideData(msides, sides,         sypes, sInv, pMap, bcs, bool(errSides) and not any(s.bcid is not None for s in msides))  # ruff: ignore[line-too-long]
+    # Fill the edge data (optional)
+    edges, edgedata = FillEdgeData(melems, edges, hasFEM,              pMap)
+    # Fill the node data (optional)
+    nodes, nodedata = FillNodeData(melems, nodes, hasFEM,              pMap)
 
-    sidedata: dict[str, list] = {'ElemID'  : [[] for _ in range(len(sypes))],
-                                 'BCID'    : [[] for _ in range(len(sypes))],
-                                 'BCType'  : [[] for _ in range(len(sypes))],
-                                 'BCState' : [[] for _ in range(len(sypes))],
-                                 'BCAlpha' : [[] for _ in range(len(sypes))],
-                                }
-
-    nodedata: dict[str, list] = {}
-    edgedata: dict[str, list] = {}
-    if hasFEM:
-        edgedata.update(                       {'FEMEdgeID'  : [],
-                                                'LocEdge'    : [],
-                                               })
-        # Fully create the nodes here
-        nodes = cast(dict[str, npt.ArrayLike], {'vertex':      [np.asarray([s])  for s in range(len(pMap))]})  # noqa: E272
-        nodedata.update(                       {'FEMVertexID': [-1 for _ in range(len(pMap))],
-                                               })
-
-    # Populate connectivity and data
-    for melem in melems:
-        # Correct ElemType for NGeo = 1
-        elemNum  = melem.type % 10
-        elemType = elemTypeClass.inam[elemNum + 100]
-        elemType = ''.join(elemType) if isinstance(elemType, list) else elemType
-        elemZone = int(melem.zone) if (melem.zone is not None and isValidInt(melem.zone)) else 1
-        tidx     = tInv[elemType]
-
-        # pMap is already sorted
-        elemNodes = np.searchsorted(pMap, cast(np.ndarray, melem.nodes)[:elemNum])
-        elems[elemType].append(elemNodes)
-
-        # Add the elemData
-        elemdata['ElemID'  ][tidx].append(melem.elemID + 1)
-        elemdata['ElemType'][tidx].append(melem.type)
-        elemdata['ElemZone'][tidx].append(elemZone)
-        if 'ElemJacobian' in elemdata:
-            elemdata['ElemJacobian'][tidx].append(melem.jacobian)
-        if hasIJK:
-            elemdata['Elem_I'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[0])
-            elemdata['Elem_J'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[1])
-            elemdata['Elem_K'      ][tidx].append(cast(np.ndarray, melem.elemIJK)[2])
-
-        # Add the side[Data]
-        for sideID in melem.sides:  # ty: ignore [not-iterable]
-            # Only consider boundary sides
-            side = msides[sideID]
-            if side.bcid is not None:
-                sideType = 'triangle' if side.sideType == 3 else 'quad'
-                sidx     = sInv[sideType]
-
-                # Add the side
-                sideNodes = np.searchsorted(pMap, np.asarray(side.corners))
-                sides[sideType].append(sideNodes)
-
-                # Add the sideData
-                bcID = side.bcid
-                bc   = bcs[bcID]
-                sidedata['ElemID'  ][sidx].append(melem.elemID + 1)
-                sidedata['BCID'    ][sidx].append(bcID         + 1)
-                sidedata['BCType'  ][sidx].append(bc.type[0]      )
-                sidedata['BCState' ][sidx].append(bc.type[2]      )
-                sidedata['BCAlpha' ][sidx].append(bc.type[3]      )
-
-        if hasFEM:
-            # Create the FEM vertices
-            for locNode, node in enumerate(elemNodes):
-                # Add the nodeData
-                nodedata['FEMVertexID'][node] = cast(dict, melem.vertexInfo)[locNode][0]  # pyright: ignore[reportPossiblyUnboundVariable]
-
-            # Create the FEM edges
-            elemEdges = ELEMEDGES(elemType)
-            for edge in elemEdges:
-                # Add the edge
-                edgeInfo  = cast(dict, melem.edgeInfo)[edge]
-                edgeNodes = np.searchsorted(pMap, np.asarray(edgeInfo[3]))
-                edges['line'].append(edgeNodes)
-
-                edgedata['FEMEdgeID'  ].append(edgeInfo[1])
-                edgedata['LocEdge'    ].append(edgeInfo[0])
+    # Create the output list
+    debugOut   = []
 
     # Update points to unique first-order coords
     coords = mpoints[pMap]
@@ -253,11 +329,6 @@ def DebugIO() -> None:
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     elemdata = {k: [np.asarray(v[idx]) for idx in elemOrder] for k, v in elemdata.items()}
     eleminfo = {'name': 'Volume'}
-    # Clean-up for memory safety
-    del elemOrder
-
-    # Create the output list
-    debugOut   = []
 
     # Create the final debugElem with first-order elements
     debugElem  = meshio.Mesh(points    = coords,     # noqa: E251
@@ -266,11 +337,32 @@ def DebugIO() -> None:
                              info      = eleminfo,   # noqa: E251
                             )
     debugOut.append(debugElem)
-    # fname = f'{pname}_Debug.xdmf'
-    # hopout.routine(f'Writing volume  debug mesh to "{fname}"')
-    # debugElem.write(fname)
-    # # Clean-up for memory safety
-    # del debugElem
+
+    if len(errElems):  # pragma: no cover
+        # Create empty meshio objects
+        errorElems = {}
+
+        # Prepare element and side containers
+        for t in elemtypes:
+            errorElems.setdefault(t, [])
+
+        # Fill error elem data
+        errorElems, errorElemdata = FillElemData((e for e in melems if e.elemID in errElems), errorElems, hasIJK, types, tInv, pMap)  # ruff: ignore[line-too-long]
+
+        # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
+        errorElemdata = {k: [np.asarray(v[idx]) for idx in elemOrder] for k, v in errorElemdata.items()}
+        errorEleminfo = {'name': 'Volume [Error]'}
+
+        # Create the final debugElem with first-order elements
+        debugElem  = meshio.Mesh(points    = coords,          # noqa: E251
+                                 cells     = errorElems,      # noqa: E251
+                                 cell_data = errorElemdata,   # noqa: E251
+                                 info      = errorEleminfo,   # noqa: E251
+                                )
+        debugOut.append(debugElem)
+
+    # Clean-up for memory safety
+    del elemOrder
 
     # Find the mapping from the side keys to the elemtypes
     sideOrder = [sInv[cb] for cb in sides]
@@ -278,8 +370,6 @@ def DebugIO() -> None:
     # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
     sidedata = {k: [np.asarray(v[idx]) for idx in sideOrder] for k, v in sidedata.items()}
     sideinfo = {'name': 'Surface'}
-    # Clean-up for memory safety
-    del sideOrder
 
     # Create the final debugSide with first-order elements
     debugSide  = meshio.Mesh(points    = coords,     # noqa: E251
@@ -288,14 +378,34 @@ def DebugIO() -> None:
                              info      = sideinfo,   # noqa: E251
                             )
     debugOut.append(debugSide)
-    # fname = f'{pname}_Debug.xdmf'
-    # hopout.routine(f'Writing surface debug mesh to "{fname}"')
-    # debugSide.write(fname)
-    # # Clean-up for memory safety
-    # del debugSide
-    # del fname
 
-    if hasFEM:
+    if len(errSides):  # pragma: no cover
+        # Create empty meshio objects
+        errorSides = {}
+
+        # Prepare element and side containers
+        for st in sidetypes:
+            errorSides.setdefault(st, [])
+
+        # Fill the error side data
+        errorSides, errorSidedata = FillSideData((s for s in msides if s.sideID in errSides), errorSides,         sypes, sInv, pMap, bcs, True)  # ruff: ignore[line-too-long]
+
+        # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
+        errorSidedata = {k: [np.asarray(v[idx]) for idx in sideOrder] for k, v in errorSidedata.items()}
+        errorSideinfo = {'name': 'Surface [Error]'}
+
+        # Create the final debugSide with first-order elements
+        debugSide  = meshio.Mesh(points    = coords,          # noqa: E251
+                                 cells     = errorSides,      # noqa: E251
+                                 cell_data = errorSidedata,   # noqa: E251
+                                 info      = errorSideinfo,   # noqa: E251
+                                )
+        debugOut.append(debugSide)
+
+    # Clean-up for memory safety
+    del sideOrder
+
+    if edgedata is not None:
         # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
         edgedata = {k: [np.asarray(v)] for k, v in edgedata.items()}
         edgeinfo = {'name': 'FEMEdges'}
@@ -306,13 +416,8 @@ def DebugIO() -> None:
                                  info      = edgeinfo,   # noqa: E251
                                 )
         debugOut.append(debugEdge)
-        # fname = f'{pname}_DebugEdge.vtu'
-        # hopout.routine(f'Writing edge    debug mesh to "{fname}"')
-        # debugNode.write(fname)
-        # # Clean-up for memory safety
-        # del debugEdge
-        # del fname
 
+    if nodedata is not None:
         # Ensure cell_data lists are aligned to the actual cell block order used by meshio.Mesh
         nodedata = {k: [np.asarray(v)] for k, v in nodedata.items()}
         nodeinfo = {'name': 'FEMVertices'}
@@ -323,20 +428,14 @@ def DebugIO() -> None:
                                  info      = nodeinfo,   # noqa: E251
                                 )
         debugOut.append(debugNode)
-        # fname = f'{pname}_DebugNode.vtu'
-        # hopout.routine(f'Writing vertex  debug mesh to "{fname}"')
-        # debugNode.write(fname)
-        # # Clean-up for memory safety
-        # del debugNode
-        # del fname
 
     fname = f'{pname}_DebugMesh.xdmf'
     hopout.routine(f'Writing XDMF mesh to "{fname}"')
     meshio.xdmf.main.XdmfWriter(fname, debugOut)
 
-    # (Optional:) Write wrapper for multiblock file
-    # blocks = [(0, 'VolumeMesh' , f'{pname}_DebugElem.vtu'),
-    #           (1, 'SurfaceMesh', f'{pname}_DebugSide.vtu')]
-    #
-    # writeVTM(f'{pname}_DebugMesh.vtm',
-    #          blocks)
+    if len(errElems):  # pragma: no cover
+        print('│' + hopout.Symbols.INFO[:3] +
+              f'Reason: Detected {len(errElems)} / {len(melems)} erroneous elements, written to "Volume [Error]"')
+    if len(errSides):  # pragma: no cover
+        print('│' + hopout.Symbols.INFO[:3] +
+              f'Reason: Detected {len(errSides)} / {len(msides)} erroneous sides, written to "Surface [Error]"')

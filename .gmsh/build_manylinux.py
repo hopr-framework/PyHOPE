@@ -716,7 +716,7 @@ def build_fontconfig() -> None:
         './configure',
         f'--prefix={FONTCONFIG_DIR}',
         '--enable-static',
-        '--enable-shared'  # We want shared fontconfig for pretty text rendering
+        '--enable-shared',  # We want shared fontconfig for pretty text rendering
         # '--disable-shared',
         '--disable-docs',
         # '--disable-nls',

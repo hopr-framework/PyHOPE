@@ -1,7 +1,7 @@
 # pyproject.toml compatible with Poetry (version 2.0+)
 [project]
 name = "PyHOPE"
-version = "0.11.0"
+version = "1.1.0"
 description = "Python High-Order Preprocessing Environment"
 license = "GPL-3.0-only"
 requires-python = ">=3.10"
@@ -15,14 +15,15 @@ maintainers = [
     ]
 dependencies = [
     'alive-progress',
+    'gmsh',
     'h5py',
     'hilbertcurve',
     'meshio',
     'numpy>=2.0.0',
     'packaging',
-    'plotext',
+    'plotext>=6.0.0',
+    'requests',
     'scipy',
-    'gmsh',
     'typing-extensions',
     # 'threadpoolctl'
     ]
@@ -242,7 +243,9 @@ ignore_names = [
     "__init__", "data_counter", "h5_file", "_meshio_to_gmsh_order",
     # Exclude library functions
     "Basis", "Mapping", "Mesh",
-    "mesh_format_to_tensor_product"
+    "mesh_format_to_tensor_product",
+    # Exclude lookup functions
+    "dir_to_nodes",
     ]
 # Exclude unit tests
 exclude = ["check_unittest.py"]

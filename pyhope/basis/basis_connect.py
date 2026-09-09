@@ -27,9 +27,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import re
-import sys
 from typing import Final, Optional, cast
 from collections.abc import Iterable
+from operator import itemgetter
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -142,10 +142,12 @@ def CheckConnect() -> None:
     """ Check if the mesh is correctly connected
     """
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
+    from pyhope.io.io_debug import DebugIO
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
@@ -178,13 +180,13 @@ def CheckConnect() -> None:
                                   ordering    = False,                                                     # noqa: E251
                                  )
     else:
-        res     = [elem for elem in elems if check_sides(elem, failed_only=True)]
+        res     = [check_sides(elem, failed_only=True) for elem in elems]
 
-    if len(res) > 0:  # pragma: no cover
-        # Flatten per-element results (skip None placeholders)
-        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
-                               for result       in elem_results)  # noqa: E272
+    # Flatten per-element results (skip None placeholders)
+    results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
+                           for result       in elem_results)  # noqa: E272
 
+    if len(results):  # pragma: no cover
         nGeo:      Final[int]        = mesh_vars.nGeo
         sides:     Final[list]       = mesh_vars.sides
         points:    Final[np.ndarray] = mesh_vars.mesh.points
@@ -216,7 +218,7 @@ def CheckConnect() -> None:
             nodes   =   elem.nodes[face_to_nodes(  side.face,   elem.type, nGeo)]
             nbnodes = nbelem.nodes[face_to_nodes(nbside.face, nbelem.type, nGeo)]
 
-            print()
+            hopout.info('')
             # Check if side is oriented inwards
             errStr = 'Side connectivity does not match the calculated neighbour side'
             print(hopout.warn(errStr, length=len(errStr)+16))
@@ -235,5 +237,9 @@ def CheckConnect() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
             print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
 
-        hopout.warning(f'Connectivity check failed for {len(results)} / {nconn} connections!')
-        sys.exit(1)
+        # Write a low-order debug mesh if requested
+        if io_vars.debugmesh:
+            hopout.info('')
+            DebugIO(errSides=list(map(itemgetter(1), results)))
+
+        hopout.error(f'Connectivity check failed for {len(results)} / {nconn} connections!')

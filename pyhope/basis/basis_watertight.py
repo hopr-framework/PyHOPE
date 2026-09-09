@@ -30,6 +30,7 @@ import gc
 import re
 from typing import Final, Optional, cast
 from collections.abc import Callable, Iterable
+from operator import itemgetter
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -96,7 +97,7 @@ def eval_nsurf(XGeo:    npt.NDArray[np.float64],
     # # dXdetaGP = np.moveaxis(dXdetaGP, 0, 1).reshape(3, -1)              # Flatten for cross computation (slower)
     # dXdetaGP = dXdetaGP.reshape(3, -1)                                 # Flatten for cross computation
 
-    # Compute derivatives at all Gauss points using matrix multiplications to avoid extra copies
+    # Compute derivatives at all Gauss points
     dXdxiGP  = np.empty_like(xGP)
     dXdetaGP = np.empty_like(xGP)
     DT       = DGP.T
@@ -120,7 +121,7 @@ def eval_nsurf(XGeo:    npt.NDArray[np.float64],
     # Integrate over the Gauss points
     # return -np.sum(nVecW, axis=(1, 2))              # Sum over the last two axes
 
-    # Compute the weighted cross product integral directly
+    # Compute the weighted cross product integral
     NSurf0, NSurf1, NSurf2 = eval_dotprod(dXdetaGP, dXdxiGP, weights)
 
     return np.array((NSurf0, NSurf1, NSurf2), dtype=xGP.dtype)
@@ -243,9 +244,9 @@ def process_chunk(chunk: tuple) -> list:
     chunk_results = []
     for elem in chunk:
         elem_result = check_sides(elem,
-                                   process_chunk.VdmEqToGP,  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
-                                   process_chunk.DGP,        # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
-                                   process_chunk.weights,    # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                   process_chunk.VdmEqToGP,  # ty: ignore[unresolved-attribute]
+                                   process_chunk.DGP,        # ty: ignore[unresolved-attribute]
+                                   process_chunk.weights,    # ty: ignore[unresolved-attribute]
                                    failed_only=True)
         # Append a lightweight sentinel (None) for successes, actual failure list otherwise
         chunk_results.append(elem_result)
@@ -256,12 +257,14 @@ def CheckWatertight() -> None:
     """ Check if the mesh is watertight
     """
     # Local imports ----------------------------------------
+    import pyhope.io.io_vars as io_vars
     import pyhope.output.output as hopout
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.basis.basis_basis import barycentric_weights, legendre_gauss_nodes
     from pyhope.basis.basis_basis import calc_vandermonde, polynomial_derivative_matrix
     from pyhope.common.common_parallel import run_in_parallel
     from pyhope.common.common_vars import np_mtp
+    from pyhope.io.io_debug import DebugIO
     from pyhope.readintools.readintools import GetLogical
     # ------------------------------------------------------
 
@@ -314,15 +317,13 @@ def CheckWatertight() -> None:
                                   ordering    = False,                                                     # noqa: E251
                                  )
     else:
-        res     = [elem for elem in elems if check_sides(elem,
-                                                         VdmEqToGP, DGP, weights,
-                                                         failed_only=True)]
+        res     = [check_sides(elem, VdmEqToGP, DGP, weights, failed_only=True) for elem in elems]
 
-    if len(res) > 0:  # pragma: no cover
-        # Flatten per-element results (skip None placeholders)
-        results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
-                               for result       in elem_results)  # noqa: E272
+    # Flatten per-element results (skip None placeholders)
+    results = tuple(result for elem_results in res if isinstance(elem_results, Iterable) and elem_results is not None
+                           for result       in elem_results)  # noqa: E272
 
+    if len(results):  # pragma: no cover
         # Compute total number of checked connections without materializing all results
         nconn = 0
         for SideID, side in enumerate(sides):
@@ -352,7 +353,7 @@ def CheckWatertight() -> None:
             nodes   =   elem.nodes[face_to_nodes(  side.face,   elem.type, nGeo)]
             nbnodes = nbelem.nodes[face_to_nodes(nbside.face, nbelem.type, nGeo)]
 
-            print()
+            hopout.info('')
             # Check if side is oriented inwards
             errStr  =      'Side is oriented inwards!' if nSurfErr < 0 \
                   else f'Surface normals are not within tolerance {nSurfErr:9.6e} > {tol:9.6e}'
@@ -373,6 +374,11 @@ def CheckWatertight() -> None:
             print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[ 0, -1]]) + ']'))    # noqa: E271
             print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1,  0]]) + ']'))    # noqa: E271
             print(hopout.warn('- Coordinates  : [' + ' '.join(f'{s:12.3f}' for s in points[nbnodes[-1, -1]]) + ']'))    # noqa: E271
+
+        # Write a low-order debug mesh if requested
+        if io_vars.debugmesh:
+            hopout.info('')
+            DebugIO(errSides=list(map(itemgetter(1), results)))
 
         hopout.error(f'Watertightness check failed for {len(results)} / {nconn} connections!')
 
