@@ -38,8 +38,7 @@
 
 
 def DefineMesh() -> None:
-    """ Define general options for mesh generation / readin
-    """
+    """Define general options for mesh generation / readin"""
     # Local imports ----------------------------------------
     from pyhope.common.common_vars import Policy
     from pyhope.mesh.mesh_vars import ELEMTYPE, MeshMode, MeshSort
@@ -49,18 +48,20 @@ def DefineMesh() -> None:
     # ------------------------------------------------------
 
     CreateSection('Mesh')
-    CreateIntFromString('Mode',                            help=f'Mesh generation mode [{", ".join(s.name for s in MeshMode)}]')
-    CreateIntOption(    'Mode', number=MeshMode.Internal.value,  name=MeshMode.Internal.name)
-    CreateIntOption(    'Mode', number=MeshMode.External.value,  name=MeshMode.External.name)
+    CreateIntFromString('Mode', help=f'Mesh generation mode [{", ".join(s.name for s in MeshMode)}]')
+    CreateIntOption('Mode', number=MeshMode.Internal.value, name=MeshMode.Internal.name)
+    CreateIntOption('Mode', number=MeshMode.External.value, name=MeshMode.External.name)
     # Internal mesh generator
-    CreateInt(      'nZones',                              help='Number of mesh zones')
-    CreateRealArray('Corner',         24,   multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' +
-                                                                                         '... ,, x_8,y_8,z_8/)')
-    CreateRealArray('X0',              3,   multiple=True, help='Origin of a zone. Equivalent to a corner node.')
-    CreateRealArray('DX',              3,   multiple=True, help='Extension of the zone in each spatial direction ' +
-                                                                 'starting from the origin X0 corner node')
-    CreateIntArray( 'nElems',          3,   multiple=True, help='Number of elements in each direction')
-    CreateIntFromString('ElemType'      ,   multiple=True, default='hexahedron', help='Element type')
+    CreateInt('nZones', help='Number of mesh zones')
+    CreateRealArray(
+        'Corner', 24, multiple=True, help='Corner node positions: (/ x_1,y_1,z_1,, x_2,y_2,z_2,, ' + '... ,, x_8,y_8,z_8/)'
+    )
+    CreateRealArray('X0', 3, multiple=True, help='Origin of a zone. Equivalent to a corner node.')
+    CreateRealArray(
+        'DX', 3, multiple=True, help='Extension of the zone in each spatial direction ' + 'starting from the origin X0 corner node'
+    )
+    CreateIntArray('nElems', 3, multiple=True, help='Number of elements in each direction')
+    CreateIntFromString('ElemType', multiple=True, default='hexahedron', help='Element type')
     for key, val in ELEMTYPE.name.items():
         # Only consider uncurved element types
         if val > 200:
@@ -68,80 +69,100 @@ def DefineMesh() -> None:
         CreateIntOption('ElemType', number=val, name=key)
     # Gmsh
     # External mesh readin through GMSH
-    CreateStr(      'Filename',             multiple=True, help='Name of external mesh file')
-    CreateLogical(  'MeshIsAlreadyCurved',  default=False, help='Enables mesh agglomeration')
+    CreateStr('Filename', multiple=True, help='Name of external mesh file')
+    CreateLogical('MeshIsAlreadyCurved', default=False, help='Enables mesh agglomeration')
     # Common settings
-    CreateInt(      'NGeo'         ,        default=1,     help='Order of spline-reconstruction for curved surfaces')
-    CreateInt(      'BoundaryOrder',        default=2,     help='Order of spline-reconstruction for curved surfaces (legacy)')
+    CreateInt('NGeo', default=1, help='Order of spline-reconstruction for curved surfaces')
+    CreateInt('BoundaryOrder', default=2, help='Order of spline-reconstruction for curved surfaces (legacy)')
     # Periodicity
-    CreateRealArray('vv',              3,   multiple=True, help='Vector for periodic BC')
-    CreateLogical(  'doPeriodicCorrect',    default=False, help='Enables periodic correction')
+    CreateRealArray('vv', 3, multiple=True, help='Vector for periodic BC')
+    CreateLogical('doPeriodicCorrect', default=False, help='Enables periodic correction')
     # Connections
-    CreateIntFromString('MeshSorting',      default=MeshSort.SFC.name,
-                                            help=f'Mesh sorting mode [{", ".join([s.name for s in MeshSort if s.value != 0] + ["None"])}]')  # noqa: E501
-    CreateIntOption(    'MeshSorting', number=MeshSort.NONE.value , name=MeshSort.NONE.name)
-    CreateIntOption(    'MeshSorting', number=MeshSort.SFC.value  , name=MeshSort.SFC.name)
-    CreateIntOption(    'MeshSorting', number=MeshSort.IJK.value  , name=MeshSort.IJK.name)
-    CreateIntOption(    'MeshSorting', number=MeshSort.LEX.value  , name=MeshSort.LEX.name)
-    CreateIntOption(    'MeshSorting', number=MeshSort.Snake.value, name=MeshSort.Snake.name)
-    CreateLogical(  'doSortIJK',            default=False, help='Sort the mesh elements along the I,J,K directions (legacy)')
-    CreateLogical(  'doSplitToHex',         default=False, help='Split simplex elements into hexahedral elements')
-    CreateLogical(  'doSplitToHexZ',        default=True , help='Split hexahedral elements into h-refined elements')
+    CreateIntFromString(
+        'MeshSorting',
+        default=MeshSort.SFC.name,
+        help=f'Mesh sorting mode [{", ".join([s.name for s in MeshSort if s.value != 0] + ["None"])}]',
+    )  # noqa: E501
+    CreateIntOption('MeshSorting', number=MeshSort.NONE.value, name=MeshSort.NONE.name)
+    CreateIntOption('MeshSorting', number=MeshSort.SFC.value, name=MeshSort.SFC.name)
+    CreateIntOption('MeshSorting', number=MeshSort.IJK.value, name=MeshSort.IJK.name)
+    CreateIntOption('MeshSorting', number=MeshSort.LEX.value, name=MeshSort.LEX.name)
+    CreateIntOption('MeshSorting', number=MeshSort.Snake.value, name=MeshSort.Snake.name)
+    CreateLogical('doSortIJK', default=False, help='Sort the mesh elements along the I,J,K directions (legacy)')
+    CreateLogical('doSplitToHex', default=False, help='Split simplex elements into hexahedral elements')
+    CreateLogical('doSplitToHexZ', default=True, help='Split hexahedral elements into h-refined elements')
     # Mortars
-    CreateLogical(      'doMortars',        default=True,  help='Enables mortars')
-    CreateIntFromString('doMortarRebuild',  default=Policy.auto.value,
-                                            help=f'Enables mortar rebuilding [{", ".join(s.name for s in Policy)}]')
-    CreateIntOption(    'doMortarRebuild', number=Policy.never .value,  name=Policy.never .name)
-    CreateIntOption(    'doMortarRebuild', number=Policy.auto  .value,  name=Policy.auto  .name)
-    CreateIntOption(    'doMortarRebuild', number=Policy.always.value,  name=Policy.always.name)
-    CreateLogical(  'doSplitToTet',         default=False, help='Split pyramid elements into tetrahedral elements')
+    CreateLogical('doMortars', default=True, help='Enables mortars')
+    CreateIntFromString(
+        'doMortarRebuild', default=Policy.auto.value, help=f'Enables mortar rebuilding [{", ".join(s.name for s in Policy)}]'
+    )
+    CreateIntOption('doMortarRebuild', number=Policy.never.value, name=Policy.never.name)
+    CreateIntOption('doMortarRebuild', number=Policy.auto.value, name=Policy.auto.name)
+    CreateIntOption('doMortarRebuild', number=Policy.always.value, name=Policy.always.name)
+    CreateLogical('doSplitToTet', default=False, help='Split pyramid elements into tetrahedral elements')
     # Boundaries
     CreateSection('Boundaries')
-    CreateStr(      'BoundaryName',         multiple=True, help='Name of domain boundary')
-    CreateIntArray( 'BoundaryType',    4,   multiple=True, help='(/ Type, curveIndex, State, alpha /)')
-    CreateIntArray( 'BCIndex',         6,   multiple=True, help='Index of BC for each boundary face')
+    CreateStr('BoundaryName', multiple=True, help='Name of domain boundary')
+    CreateIntArray('BoundaryType', 4, multiple=True, help='(/ Type, curveIndex, State, alpha /)')
+    CreateIntArray('BCIndex', 6, multiple=True, help='Index of BC for each boundary face')
+    # Sliding Mesh
+    CreateSection('SlidingMesh')
+    CreateLogical('doSlidingMesh', default=False, help='Enable sliding mesh interfaces')
+    CreateIntArray('SlidingMeshBCID', 2, default='(/0,0/)', help='')
+    CreateInt('SlidingMeshType', multiple=True, default=1, help='Type of sliding mesh')
+    CreateRealArray('SlidingMeshCenter', multiple=True, nReals=3, default='(/0.,0.,0./)', help='Type of sliding mesh')
+    CreateReal('SlidingMeshRadius', multiple=True, default=1.0, help='')
+    CreateInt('SlidingMeshAxis', multiple=True, default=3, help='')
+    CreateRealArray('SlidingMeshInterval', multiple=True, nReals=2, default='(/0.,0./)', help='')
+    CreateInt('SlidingMeshNormal', multiple=True, default=2, help='')
+    CreateInt('SlidingMeshDirection', multiple=True, default=1, help='')
     # Checking
     CreateSection('Mesh Checks')
-    CreateLogical(  'CheckElemJacobians',      default=True,  help='Check the Jacobian and scaled Jacobian for each element')
-    CreateLogical(  'CheckConnectivity'  ,     default=True,  help='Check if the side connectivity, including correct flip')
-    CreateLogical(  'CheckWatertightness',     default=True,  help='Check if the mesh is watertight')
-    CreateLogical(  'CheckSurfaceNormals',     default=True,  help='Check if the surface normals point outwards')
-    CreateLogical(  'CheckInternalBoundaries', default=True,  help='Check if internal faces have multiple BCs attached')
+    CreateLogical('CheckElemJacobians', default=True, help='Check the Jacobian and scaled Jacobian for each element')
+    CreateLogical('CheckConnectivity', default=True, help='Check if the side connectivity, including correct flip')
+    CreateLogical('CheckWatertightness', default=True, help='Check if the mesh is watertight')
+    CreateLogical('CheckSurfaceNormals', default=True, help='Check if the surface normals point outwards')
+    CreateLogical('CheckInternalBoundaries', default=True, help='Check if internal faces have multiple BCs attached')
     # Transformation
     CreateSection('Transformation')
-    CreateReal(      'meshScale',           default=1.0,                              help='Scale the mesh')
-    CreateRealArray( 'meshTrans', nReals=3, default='(/0.,0.,0./)',                   help='Translate the mesh')
-    CreateRealArray( 'meshRot',   nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
-    CreateRealArray( 'meshRot3D',   nReals=3, default='(/0.,0.,0./)'                , help='Rotate the mesh around rotation center and coordiante axis, defined angle in degrees')  # noqa: E501
-    CreateRealArray( 'meshRotCenter', nReals=3, default='(/0.,0.,0./)',               help='Rotate the mesh around rotation center')
-    CreateStr(       'MeshPostDeform',   default='none',                              help='Mesh post-transformation template')
+    CreateReal('meshScale', default=1.0, help='Scale the mesh')
+    CreateRealArray('meshTrans', nReals=3, default='(/0.,0.,0./)', help='Translate the mesh')
+    CreateRealArray('meshRot', nReals=9, default='(/1.,0.,0.,0.,1.,0.,0.,0.,1./)', help='Rotate the mesh around rotation center')
+    CreateRealArray(
+        'meshRot3D',
+        nReals=3,
+        default='(/0.,0.,0./)',
+        help='Rotate the mesh around rotation center and coordiante axis, defined angle in degrees',
+    )  # noqa: E501
+    CreateRealArray('meshRotCenter', nReals=3, default='(/0.,0.,0./)', help='Rotate the mesh around rotation center')
+    CreateStr('MeshPostDeform', default='none', help='Mesh post-transformation template')
     # Stretching
     CreateSection('Stretching')
-    CreateIntArray( 'StretchType',      3,   default='(/0,0,0/)', multiple=True,      help='Stretching type for individual '
-                                                                                            'zone per spatial direction.')
-    CreateRealArray( 'Factor',          3,   multiple=True,          help='Stretching factor of zone for geometric stretching for '
-                                                                          'each spatial direction.')
-    CreateRealArray( 'l0',              3,   multiple=True,          help='Smallest desired element in zone per spatial direction.')
-    CreateRealArray( 'DXmaxToDXmin',    3,   multiple=True,          help='Ratio between the smallest and largest element per '
-                                                                          'spatial direction')
+    CreateIntArray(
+        'StretchType', 3, default='(/0,0,0/)', multiple=True, help='Stretching type for individual zone per spatial direction.'
+    )
+    CreateRealArray(
+        'Factor', 3, multiple=True, help='Stretching factor of zone for geometric stretching for each spatial direction.'
+    )
+    CreateRealArray('l0', 3, multiple=True, help='Smallest desired element in zone per spatial direction.')
+    CreateRealArray('DXmaxToDXmin', 3, multiple=True, help='Ratio between the smallest and largest element per spatial direction')
     # Extrusion
     CreateSection('Extrusion')
-    CreateLogical(   'MeshExtrude',          default=True,           help='Enables mesh extrusion')
-    CreateStr(       'MeshExtrudeTemplate',  default='linear',       help='Mesh extrusion template')
-    CreateReal(      'MeshExtrudeLength',    default=1.0,            help='Mesh extrusion length')
-    CreateRealArray( 'MeshExtrudeDir',  3,   default='(/0.,0.,1./)', help='Mesh extrusion direction')
-    CreateInt(       'MeshExtrudeElems',     default=1  ,            help='Mesh extrusion number of element')
-    CreateInt(       'MeshExtrudeBCIndexBot',                        help='Mesh extrusion boundary index')
-    CreateInt(       'MeshExtrudeBCIndexTop',                        help='Mesh extrusion boundary index')
+    CreateLogical('MeshExtrude', default=True, help='Enables mesh extrusion')
+    CreateStr('MeshExtrudeTemplate', default='linear', help='Mesh extrusion template')
+    CreateReal('MeshExtrudeLength', default=1.0, help='Mesh extrusion length')
+    CreateRealArray('MeshExtrudeDir', 3, default='(/0.,0.,1./)', help='Mesh extrusion direction')
+    CreateInt('MeshExtrudeElems', default=1, help='Mesh extrusion number of element')
+    CreateInt('MeshExtrudeBCIndexBot', help='Mesh extrusion boundary index')
+    CreateInt('MeshExtrudeBCIndexTop', help='Mesh extrusion boundary index')
 
     # Edge connectivity
     CreateSection('Finite Element Method (FEM) Connectivity')
-    CreateLogical(   'doFEMConnect',         default=False,          help='Generate finite element method (FEM) connectivity')
+    CreateLogical('doFEMConnect', default=False, help='Generate finite element method (FEM) connectivity')
 
 
 def InitMesh() -> None:
-    """ Readin general option for mesh generation / readin
-    """
+    """Readin general option for mesh generation / readin"""
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -154,8 +175,8 @@ def InitMesh() -> None:
 
     mesh_vars.mode = GetIntFromStr('Mode')
 
-    NGeo     = GetInt('NGeo')          if CountOption('NGeo')          else None  # noqa: E272
-    BCOrder  = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None  # noqa: E272
+    NGeo = GetInt('NGeo') if CountOption('NGeo') else None  # noqa: E272
+    BCOrder = GetInt('BoundaryOrder') if CountOption('BoundaryOrder') else None  # noqa: E272
 
     if not NGeo and not BCOrder:
         mesh_vars.nGeo = 1
@@ -180,13 +201,14 @@ def InitMesh() -> None:
 
 
 def GenerateMesh() -> None:
-    """ Generate the mesh
-        Mode 1 - Use internal mesh generator
-        Mode 2 - Readin external mesh through GMSH
+    """Generate the mesh
+    Mode 1 - Use internal mesh generator
+    Mode 2 - Readin external mesh through GMSH
     """
     # Standard libraries -----------------------------------
     import math
     import numpy as np
+
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -230,13 +252,13 @@ def GenerateMesh() -> None:
 
     # Instantiate the Gmsh cell type mapping
     gmshCellTypes = GMSHCELLTYPES()
-    numNodes      = NumNodesPerCell()
+    numNodes = NumNodesPerCell()
 
     # Final number of nodes
     nNodes = 0
     for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
-        cellType  = ''.join([s for s in cell.type if not s.isdigit()])
-        nNodes += len(cell)*numNodes[cellType]
+        cellType = ''.join([s for s in cell.type if not s.isdigit()])
+        nNodes += len(cell) * numNodes[cellType]
 
     # Check if nGlobalNodes fits in the mesh format
     if math.ceil(nNodes.bit_length() / 8.0) > np.dtype(io_vars.outputbytes).itemsize:

@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from collections import defaultdict
 from typing import Final, cast
+
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -49,15 +50,19 @@ def DefineIO() -> None:
 
     CreateSection('Output')
     CreateStr('ProjectName', help='Name of output files')
-    CreateIntFromString('OutputFormat'  , default=MeshFormat.HDF5.name  , help=f'Mesh output format [{", ".join(s.name for s in MeshFormat)}]')  # noqa: E501
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.HDF5.value  , name=MeshFormat.HDF5.name)
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.VTK.value   , name=MeshFormat.VTK.name)
-    CreateIntOption(    'OutputFormat'  , number=MeshFormat.GMSH.value  , name=MeshFormat.GMSH.name)
-    CreateIntFromString('OutputBytes'   , default=OutputBytes.int32.name, help=f'Mesh output bytes [{", ".join( s.name for s in OutputBytes)}]')  # noqa: E501
-    CreateIntOption(    'OutputBytes'   , number=OutputBytes.int32.value, name=OutputBytes.int32.name)
-    CreateIntOption(    'OutputBytes'   , number=OutputBytes.int64.value, name=OutputBytes.int64.name)
-    CreateLogical(      'DebugMesh'     , default=False , help='Output debug mesh in XDMF format')
-    CreateLogical(      'DebugVisu'     , default=False , help='Launch the GMSH GUI to visualize the mesh')
+    CreateIntFromString(
+        'OutputFormat', default=MeshFormat.HDF5.name, help=f'Mesh output format [{", ".join(s.name for s in MeshFormat)}]'
+    )  # noqa: E501
+    CreateIntOption('OutputFormat', number=MeshFormat.HDF5.value, name=MeshFormat.HDF5.name)
+    CreateIntOption('OutputFormat', number=MeshFormat.VTK.value, name=MeshFormat.VTK.name)
+    CreateIntOption('OutputFormat', number=MeshFormat.GMSH.value, name=MeshFormat.GMSH.name)
+    CreateIntFromString(
+        'OutputBytes', default=OutputBytes.int32.name, help=f'Mesh output bytes [{", ".join(s.name for s in OutputBytes)}]'
+    )  # noqa: E501
+    CreateIntOption('OutputBytes', number=OutputBytes.int32.value, name=OutputBytes.int32.name)
+    CreateIntOption('OutputBytes', number=OutputBytes.int64.value, name=OutputBytes.int64.name)
+    CreateLogical('DebugMesh', default=False, help='Output debug mesh in XDMF format')
+    CreateLogical('DebugVisu', default=False, help='Launch the GMSH GUI to visualize the mesh')
 
 
 def InitIO() -> None:
@@ -70,15 +75,17 @@ def InitIO() -> None:
     hopout.separator()
     hopout.info('INIT OUTPUT...')
 
-    io_vars.projectname  = GetStr('ProjectName')
+    io_vars.projectname = GetStr('ProjectName')
     io_vars.outputformat = GetIntFromStr('OutputFormat')
     # PyHOPE supports both 32 and 64-bit integer outputs
-    io_vars.outputbytes  = {io_vars.OutputBytes.int32: np.int32,
-                            io_vars.OutputBytes.int64: np.int64, }[io_vars.OutputBytes(GetIntFromStr('OutputBytes'))]
+    io_vars.outputbytes = {
+        io_vars.OutputBytes.int32: np.int32,
+        io_vars.OutputBytes.int64: np.int64,
+    }[io_vars.OutputBytes(GetIntFromStr('OutputBytes'))]
 
     # Debug output
-    io_vars.debugmesh    = GetLogical('DebugMesh')
-    io_vars.debugvisu    = GetLogical('DebugVisu')
+    io_vars.debugmesh = GetLogical('DebugMesh')
+    io_vars.debugvisu = GetLogical('DebugVisu')
 
     # hopout.info('INIT OUTPUT DONE!')
 
@@ -88,6 +95,7 @@ def IO() -> None:
     import pyhope.io.io_vars as io_vars
     from pyhope.mesh.mesh_common import edges
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_sliding import prepareSlidingMesh
     import pyhope.output.output as hopout
     from pyhope.common.common_vars import Common
     from pyhope.io.io_debug import DebugIO
@@ -100,27 +108,42 @@ def IO() -> None:
     hopout.separator()
     hopout.info('OUTPUT MESH...')
 
-    pname:  Final[str] = io_vars.projectname
+    pname: Final[str] = io_vars.projectname
 
     match io_vars.outputformat:
         case MeshFormat.HDF5.value:
             elems: Final[list] = cast(list, mesh_vars.elems)
             sides: Final[list] = cast(list, mesh_vars.sides)
-            bcs:   Final[list] = cast(list, mesh_vars.bcs)
+            bcs: Final[list] = cast(list, mesh_vars.bcs)
 
             nElems: Final[int] = len(elems)
             nSides: Final[int] = len(sides)
-            nBCs:   Final[int] = len(bcs)
+            nBCs: Final[int] = len(bcs)
             # Number of non-unique nodes, vertices, edges
-            nNodes:    Final[int] = np.array(tuple(elem.nodes.size       for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
-            nVertices: Final[int] = np.array(tuple(elem.type % 10        for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
-            nEdges:    Final[int] = np.array(tuple(len(edges(elem.type)) for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
+            nNodes: Final[int] = np.array(tuple(elem.nodes.size for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
+            nVertices: Final[int] = np.array(tuple(elem.type % 10 for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
+            nEdges: Final[int] = np.array(tuple(len(edges(elem.type)) for elem in elems), dtype=io_vars.outputbytes).sum(dtype=int)  # noqa: E272, E501
 
             fname = f'{pname}_mesh.h5'
 
-            elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
-            FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo, \
-            elemCounter = getMeshInfo()
+            (
+                elemInfo,
+                elemIJK,
+                sideInfo,
+                nodeInfo,
+                nodeCoords,
+                FEMElemInfo,
+                nFEMVertices,
+                vertexInfo,
+                vertexConnectInfo,
+                nFEMEdges,
+                edgeInfo,
+                edgeConnectInfo,
+                elemCounter,
+            ) = getMeshInfo()
+
+            if mesh_vars.doSlidingMesh:
+                prepareSlidingMesh()
 
             # Print the final output
             hopout.sep()
@@ -134,56 +157,114 @@ def IO() -> None:
             with h5py.File(fname, mode='w') as f:
                 # Store same basic information
                 common = Common()
-                f.attrs['HoprVersion'       ] = '1.5.0'  # legacy information
-                f.attrs['HoprVersionInt'    ] = 10500    # legacy information
-                f.attrs['PyHOPEVersion'     ] = common.version
+                f.attrs['HoprVersion'] = '1.5.0'  # legacy information
+                f.attrs['HoprVersionInt'] = 10500  # legacy information
+                f.attrs['PyHOPEVersion'] = common.version
                 f.attrs['PyHOPEVersionMajor'] = common.__version__.major
                 f.attrs['PyHOPEVersionMinor'] = common.__version__.minor
                 f.attrs['PyHOPEVersionPatch'] = common.__version__.micro
 
                 # Store mesh information
-                f.attrs['Ngeo'          ] = mesh_vars.nGeo
-                f.attrs['nElems'        ] = nElems
-                f.attrs['nSides'        ] = nSides
-                f.attrs['nNodes'        ] = nNodes
-                f.attrs['nVertices'     ] = nVertices
-                f.attrs['nEdges'        ] = nEdges
-                f.attrs['nUniqueSides'  ] = np.max(sideInfo[:, 1])
-                f.attrs['nUniqueNodes'  ] = np.max(nodeInfo)
+                f.attrs['Ngeo'] = mesh_vars.nGeo
+                f.attrs['nElems'] = nElems
+                f.attrs['nSides'] = nSides
+                f.attrs['nNodes'] = nNodes
+                f.attrs['nVertices'] = nVertices
+                f.attrs['nEdges'] = nEdges
+                f.attrs['nUniqueSides'] = np.max(sideInfo[:, 1])
+                f.attrs['nUniqueNodes'] = np.max(nodeInfo)
 
-                _ = f.create_dataset('ElemInfo'     , data=elemInfo)
-                _ = f.create_dataset('ElemCounter'  , data=np.array(list(elemCounter.items()), dtype=io_vars.outputbytes))
-                _ = f.create_dataset('SideInfo'     , data=sideInfo)
+                _ = f.create_dataset('ElemInfo', data=elemInfo)
+                _ = f.create_dataset('ElemCounter', data=np.array(list(elemCounter.items()), dtype=io_vars.outputbytes))
+                _ = f.create_dataset('SideInfo', data=sideInfo)
                 _ = f.create_dataset('GlobalNodeIDs', data=nodeInfo)
-                _ = f.create_dataset('NodeCoords'   , data=nodeCoords)
+                _ = f.create_dataset('NodeCoords', data=nodeCoords)
 
-                if elemIJK     is not None:  # noqa: E272
-                    _ = f.create_dataset('nElems_IJK'        , data=mesh_vars.nElemsIJK)
-                    _ = f.create_dataset('Elem_IJK'          , data=elemIJK)
+                if elemIJK is not None:  # noqa: E272
+                    _ = f.create_dataset('nElems_IJK', data=mesh_vars.nElemsIJK)
+                    _ = f.create_dataset('Elem_IJK', data=elemIJK)
+
+                if mesh_vars.doSlidingMesh:
+                    SMPartitions = mesh_vars.smPartitions
+
+                    # Arrays to accumulate interface data
+                    SM_InterfaceToPartition = []
+                    SM_MasterOrient = []
+                    SlidingMeshBCList = []
+
+                    # Arrays to accumulate partition data
+                    nRotElemsArray = [mesh_vars.nStatElems]
+                    SlidingMeshTypeArray = [0]
+                    SlidingMeshCenterArray = [[0.0, 0.0, 0.0]]
+                    SlidingMeshDirectionArray = [0]
+
+                    # Calculate total number of sliding mesh interfaces
+                    nSlidingMeshInterfaces = 0
+
+                    for iSM, SM in enumerate(SMPartitions):
+                        for iSMInt, SMInt in enumerate(SM.interfaces):
+                            # Cycle if interface has zero sides
+                            if (SMInt.n_azimuthal_sides_per_layer < 1) or (SMInt.n_layer < 1):
+                                continue
+
+                            nSlidingMeshInterfaces += 1
+
+                            dataset_name = f'SlidingMeshInfo{nSlidingMeshInterfaces}'
+
+                            # Write 3D sides array: shape (3, nAzimuthal, nLayer)
+                            f.create_dataset(dataset_name, data=SMInt.sides.transpose((2, 1, 0)), dtype=np.int32)
+
+                            # FIX 1: Append info to list instead of calling create_dataset repeatedly
+                            SM_InterfaceToPartition.append([1, iSM + 2])
+                            SlidingMeshBCList.append(SMInt.boundaries)
+                            SM_MasterOrient.append(SMInt.masterOrient)
+
+                        # Save partition-based data
+                        nRotElemsArray.append(SM.nrotelems)
+                        SlidingMeshTypeArray.append(SM.type)
+                        SlidingMeshCenterArray.append(SM.center)
+                        SlidingMeshDirectionArray.append(SM.dir)
+
+                    # Write attributes to HDF5
+                    f.attrs['nSlidingMeshInterfaces'] = nSlidingMeshInterfaces
+                    f.attrs['nSlidingMeshPartitions'] = len(SMPartitions) + 1
+                    f.attrs['nDomElems'] = nRotElemsArray
+                    f.attrs['MovementType'] = SlidingMeshTypeArray
+
+                    # WRITE DATASETS ONCE AFTER LOOPS
+                    _ = f.create_dataset('SM_InterfaceToPartition', data=SM_InterfaceToPartition)
+                    _ = f.create_dataset('SM_MasterOrient', data=SM_MasterOrient)
+                    _ = f.create_dataset('RotatingElem', data=mesh_vars.rotatingElem)
+                    _ = f.create_dataset('SlidingMeshDirection', data=SlidingMeshDirectionArray)
+                    _ = f.create_dataset('SlidingMeshCenter', data=SlidingMeshCenterArray)
+
+                    # FIX 2: Convert boundaries list directly to array (shape: 2 x nSlidingMeshInterfaces)
+                    # SlidingMeshBCArray = np.array(SlidingMeshBCList).T
+                    _ = f.create_dataset('SlidingMeshBoundaries', data=SlidingMeshBCList)
 
                 if FEMElemInfo is not None:
                     # Store FEM information
                     f.attrs['FEMconnect'] = 'ON'
-                    f.attrs['nFEMVertices'         ] = nFEMVertices
+                    f.attrs['nFEMVertices'] = nFEMVertices
                     f.attrs['nFEMVertexConnections'] = vertexConnectInfo.shape[0]
-                    f.attrs['nFEMEdges'            ] = nFEMEdges
-                    f.attrs['nFEMEdgeConnections'  ] = edgeConnectInfo  .shape[0]
+                    f.attrs['nFEMEdges'] = nFEMEdges
+                    f.attrs['nFEMEdgeConnections'] = edgeConnectInfo.shape[0]
                     # TODO: This seems to be just repeated information
-                    f.attrs['nUniqueEdges'         ] = nFEMEdges
+                    f.attrs['nUniqueEdges'] = nFEMEdges
 
-                    _ = f.create_dataset('FEMElemInfo'       , data=FEMElemInfo)
-                    _ = f.create_dataset('VertexInfo'        , data=vertexInfo)
-                    _ = f.create_dataset('VertexConnectInfo' , data=vertexConnectInfo)
-                    _ = f.create_dataset('EdgeInfo'          , data=edgeInfo)
-                    _ = f.create_dataset('EdgeConnectInfo'   , data=edgeConnectInfo)
+                    _ = f.create_dataset('FEMElemInfo', data=FEMElemInfo)
+                    _ = f.create_dataset('VertexInfo', data=vertexInfo)
+                    _ = f.create_dataset('VertexConnectInfo', data=vertexConnectInfo)
+                    _ = f.create_dataset('EdgeInfo', data=edgeInfo)
+                    _ = f.create_dataset('EdgeConnectInfo', data=edgeConnectInfo)
 
                 # Store boundary information
-                f.attrs['nBCs'          ] = nBCs
+                f.attrs['nBCs'] = nBCs
                 bcNames = [f'{bc.name:<255}' for bc in bcs]
-                bcTypes = np.array([bc.type  for bc in bcs], dtype=io_vars.outputbytes).reshape(-1, 4)  # noqa: E272
+                bcTypes = np.array([bc.type for bc in bcs], dtype=io_vars.outputbytes).reshape(-1, 4)  # noqa: E272
 
-                _ = f.create_dataset('BCNames'   , data=np.array(bcNames, dtype='S'))
-                _ = f.create_dataset('BCType'    , data=bcTypes)
+                _ = f.create_dataset('BCNames', data=np.array(bcNames, dtype='S'))
+                _ = f.create_dataset('BCType', data=bcTypes)
 
                 # Check if there is a periodic vector and write it to mesh file
                 nVV = len(mesh_vars.vvs)
@@ -196,7 +277,7 @@ def IO() -> None:
                     DebugIO()
 
         case MeshFormat.VTK.value:
-            mesh  = mesh_vars.mesh
+            mesh = mesh_vars.mesh
             fname = f'{pname}_mesh.vtk'
 
             hopout.sep()
@@ -207,24 +288,25 @@ def IO() -> None:
         case MeshFormat.GMSH.value:
             # Local imports ----------------------------------------
             from pyhope.meshio.meshio_convert import MeshioGmshOrderingPatch
+
             # ------------------------------------------------------
             # Monkey-patching MeshIO
             MeshioGmshOrderingPatch()
 
-            mesh  = mesh_vars.mesh
+            mesh = mesh_vars.mesh
             fname = f'{pname}_mesh.msh'
 
             # Instantiate the Gmsh cell type mapping
             gmshCellTypes = GMSHCELLTYPES()
-            numNodes      = NumNodesPerCell()
+            numNodes = NumNodesPerCell()
 
             # Print the final output
             hopout.sep()
             for cell in [cell_block for cell_block in mesh.cells if cell_block.type in gmshCellTypes.cellTypes3D]:
-                cellType  = ''.join([s for s in cell.type if not s.isdigit()])
+                cellType = ''.join([s for s in cell.type if not s.isdigit()])
                 cellNodes = numNodes[cellType]
                 elemOrder = 100 if not any(s.isdigit() for s in cell.type) else 200
-                elemType  = cellNodes + elemOrder
+                elemType = cellNodes + elemOrder
                 hopout.info(f'{ELEMTYPE(elemType)}: {len(cell):12d}')
 
             gmshMesh = meshio_to_gmsh(mesh)
@@ -237,20 +319,21 @@ def IO() -> None:
             hopout.error(f'Unknown output format {io_vars.outputformat}, exiting...')
 
 
-def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
-                           np.ndarray | None,  # ElemIJK
-                           np.ndarray,         # SideInfo
-                           np.ndarray,         # NodeInfo
-                           np.ndarray,         # NodeCoords
-                           np.ndarray | None,  # Optional[FEMElemInfo]
-                           int        | None,  # Optional[nVertices]
-                           np.ndarray | None,  # Optional[VertexInfo]
-                           np.ndarray | None,  # Optional[VertexConnectInfo]
-                           int        | None,  # Optional[nEdges]
-                           np.ndarray | None,  # Optional[EdgeInfo]
-                           np.ndarray | None,  # Optional[EdgeConnectInfo]
-                           dict[int, int]
-                          ]:
+def getMeshInfo() -> tuple[
+    np.ndarray,  # ElemInfo
+    np.ndarray | None,  # ElemIJK
+    np.ndarray,  # SideInfo
+    np.ndarray,  # NodeInfo
+    np.ndarray,  # NodeCoords
+    np.ndarray | None,  # Optional[FEMElemInfo]
+    int | None,  # Optional[nVertices]
+    np.ndarray | None,  # Optional[VertexInfo]
+    np.ndarray | None,  # Optional[VertexConnectInfo]
+    int | None,  # Optional[nEdges]
+    np.ndarray | None,  # Optional[EdgeInfo]
+    np.ndarray | None,  # Optional[EdgeConnectInfo]
+    dict[int, int],
+]:
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
@@ -259,9 +342,9 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     from pyhope.io.io_vars import ELEM, SIDE
     # ------------------------------------------------------
 
-    mesh:   Final             = mesh_vars.mesh
-    elems:  Final[list]       = mesh_vars.elems
-    sides:  Final[list]       = mesh_vars.sides
+    mesh: Final = mesh_vars.mesh
+    elems: Final[list] = mesh_vars.elems
+    sides: Final[list] = mesh_vars.sides
     points: Final[np.ndarray] = mesh.points
 
     nElems: Final[int] = len(elems)
@@ -273,15 +356,15 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         elemCounter[elemType] = 0
 
     # Pre-allocate arrays
-    elemInfo  = np.zeros((nElems, ELEM.INFOSIZE), dtype=io_vars.outputbytes)
+    elemInfo = np.zeros((nElems, ELEM.INFOSIZE), dtype=io_vars.outputbytes)
     # sideCount = 0  # elem['Sides'] might work as well
     # nodeCount = 0  # elem['Nodes'] contains the unique nodes
 
     # Calculate the ElemInfo
-    elem_types = np.array(tuple(elem.type                                 for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
+    elem_types = np.array(tuple(elem.type for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
     elem_zones = np.array(tuple(elem.zone if elem.zone is not None else 1 for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
-    elem_sides = np.array(tuple(len(elem.sides)                           for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
-    elem_nodes = np.array(tuple(elem.nodes.size                           for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
+    elem_sides = np.array(tuple(len(elem.sides) for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
+    elem_nodes = np.array(tuple(elem.nodes.size for elem in elems), dtype=io_vars.outputbytes)  # noqa: E272
 
     # Fill basic element info
     elemInfo[:, ELEM.TYPE] = elem_types
@@ -292,10 +375,10 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
     node_cumsum = np.concatenate([[0], np.cumsum(elem_nodes)])
 
     # Fill element side info
-    elemInfo[:, ELEM.FIRSTSIDE] = side_cumsum[ :-1]
-    elemInfo[:, ELEM.LASTSIDE ] = side_cumsum[1:]
-    elemInfo[:, ELEM.FIRSTNODE] = node_cumsum[ :-1]
-    elemInfo[:, ELEM.LASTNODE ] = node_cumsum[1:]
+    elemInfo[:, ELEM.FIRSTSIDE] = side_cumsum[:-1]
+    elemInfo[:, ELEM.LASTSIDE] = side_cumsum[1:]
+    elemInfo[:, ELEM.FIRSTNODE] = node_cumsum[:-1]
+    elemInfo[:, ELEM.LASTNODE] = node_cumsum[1:]
 
     # Update element counter
     uniq_types, uniq_counts = np.unique(elem_types, return_counts=True)
@@ -308,7 +391,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         elemIJK = np.vstack(tuple(cast(int, elem.elemIJK) for elem in elems)).astype(io_vars.outputbytes)
 
     # Set the global side ID
-    highestSideID    = 0
+    highestSideID = 0
 
     for side in sides:
         # Already counted the side
@@ -320,7 +403,7 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
 
         if side.connection is None or side.connection < 0:  # BC/big mortar side
             pass
-        elif side.MS == 1:                                  # Internal / periodic side (master side)
+        elif side.MS == 1:  # Internal / periodic side (master side)
             # Get the connected slave side
             nbSideID = side.connection
 
@@ -336,87 +419,99 @@ def getMeshInfo() -> tuple[np.ndarray,         # ElemInfo
         highestSideID = max(globalSideID, highestSideID)
 
     # Pre-allocate arrays
-    sideInfo   = np.zeros((nSides, SIDE.INFOSIZE), dtype=io_vars.outputbytes)
+    sideInfo = np.zeros((nSides, SIDE.INFOSIZE), dtype=io_vars.outputbytes)
 
     # Calculate the SideInfo
-    side_types = np.array(tuple(side.sideType     for side in sides), dtype=io_vars.outputbytes)  # noqa: E272
+    side_types = np.array(tuple(side.sideType for side in sides), dtype=io_vars.outputbytes)  # noqa: E272
     side_gloID = np.array(tuple(side.globalSideID for side in sides), dtype=io_vars.outputbytes)  # noqa: E272
 
     # Fill basic side info
     sideInfo[:, SIDE.TYPE] = side_types
-    sideInfo[:, SIDE.ID  ] = side_gloID
+    sideInfo[:, SIDE.ID] = side_gloID
 
     # Process side connections
     for iSide, side in enumerate(sides):
         # Connected sides
-        if side.connection is None:                                # BC side
+        if side.connection is None:  # BC side
             # Array is already zeroed
             # sideInfo[iSide, SIDE.NBELEMID      ] = 0
             # sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = 0
-            sideInfo[iSide, SIDE.BCID          ] = side.bcid + 1
-        elif side.locMortar is not None:                           # Small mortar side
+            sideInfo[iSide, SIDE.BCID] = side.bcid + 1
+        elif side.locMortar is not None:  # Small mortar side
             nbSideID = side.connection
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
-            sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
+            sideInfo[iSide, SIDE.NBELEMID] = nbElemID
         elif side.connection is not None and side.connection < 0:  # Big mortar side
             # WARNING: This is not a sideID, but the mortar type
-            sideInfo[iSide, SIDE.NBELEMID      ] = side.connection
+            sideInfo[iSide, SIDE.NBELEMID] = side.connection
             # Periodic mortar sisters have a BCID
             if side.bcid is not None:
-                sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
-        else:                                                      # Internal side
+                sideInfo[iSide, SIDE.BCID] = side.bcid + 1
+        else:  # Internal side
             nbSideID = side.connection
             nbElemID = sides[nbSideID].elemID + 1  # Python -> HOPR index
-            sideInfo[iSide, SIDE.NBELEMID      ] = nbElemID
-            if side.sideType < 0:    # Small mortar side
+            sideInfo[iSide, SIDE.NBELEMID] = nbElemID
+            if side.sideType < 0:  # Small mortar side
                 sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = side.flip
-            elif side.flip == 0:     # Master side
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10
+            elif side.flip == 0:  # Master side
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide * 10
             else:
-                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide*10 + side.flip
+                sideInfo[iSide, SIDE.NBLOCSIDE_FLIP] = sides[nbSideID].locSide * 10 + side.flip
 
             # Periodic/inner sides still have a BCID
             if side.bcid is not None:
-                sideInfo[iSide, SIDE.BCID      ] = side.bcid + 1
+                sideInfo[iSide, SIDE.BCID] = side.bcid + 1
             # Array is already zeroed
             # else:
             #     sideInfo[iSide, SIDE.BCID      ] = 0
 
     # Pre-allocate arrays
     nNodes: Final[int] = elem_nodes.sum(dtype=int)  # number of non-unique nodes
-    nodeInfo   = np.zeros((nNodes)   , dtype=io_vars.outputbytes)
+    nodeInfo = np.zeros((nNodes), dtype=io_vars.outputbytes)
     nodeCoords = np.zeros((nNodes, 3), dtype=np.float64)
 
     # Pre-compute LINTEN mappings for all element types
     elemTypes = np.unique(elemInfo[:, 0])
-    linCache  = {}
+    linCache = {}
     for elemType in elemTypes:
         _, mapLin = LINTEN(elemType, order=mesh_vars.nGeo)
-        mapLin    = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
+        mapLin = np.array(tuple(mapLin[np.int64(i)] for i in range(len(mapLin))))
         linCache[elemType] = mapLin
 
     # Calculate the NodeInfo
     for elemType in np.unique(elem_types):
         # Mesh coordinates are stored in meshIO sorting
-        mapLin     = linCache[elemType]
+        mapLin = linCache[elemType]
         # Stack all node arrays for this type
-        mask       = (elem_types == elemType)
-        maskNodes  = np.stack([elems[i].nodes for i in np.where(mask)[0]])
+        mask = elem_types == elemType
+        maskNodes = np.stack([elems[i].nodes for i in np.where(mask)[0]])
         nMaskNodes = maskNodes.shape[1]
         # Build destination indices using cumulative offsets
         # > Starting nodeCount for each elem
-        offsets    = node_cumsum[np.where(mask)[0]]
-        idx        = (offsets[:, None] + mapLin[:nMaskNodes][None, :]).ravel()
-        outNodes   = maskNodes.ravel()
-        nodeInfo[  idx] = outNodes + 1
+        offsets = node_cumsum[np.where(mask)[0]]
+        idx = (offsets[:, None] + mapLin[:nMaskNodes][None, :]).ravel()
+        outNodes = maskNodes.ravel()
+        nodeInfo[idx] = outNodes + 1
         nodeCoords[idx] = points[outNodes]
 
     if hasattr(elems[0], 'vertexInfo') and elems[0].vertexInfo is not None:
         FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo = getFEMInfo()
     else:
-        nFEMVertices = nFEMEdges  = 0
-        FEMElemInfo  = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
+        nFEMVertices = nFEMEdges = 0
+        FEMElemInfo = vertexInfo = vertexConnectInfo = edgeInfo = edgeConnectInfo = None
 
-    return elemInfo, elemIJK, sideInfo, nodeInfo, nodeCoords, \
-           FEMElemInfo, nFEMVertices, vertexInfo, vertexConnectInfo, nFEMEdges, edgeInfo, edgeConnectInfo, \
-           elemCounter
+    return (
+        elemInfo,
+        elemIJK,
+        sideInfo,
+        nodeInfo,
+        nodeCoords,
+        FEMElemInfo,
+        nFEMVertices,
+        vertexInfo,
+        vertexConnectInfo,
+        nFEMEdges,
+        edgeInfo,
+        edgeConnectInfo,
+        elemCounter,
+    )

@@ -46,26 +46,62 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
+def PostDeform(elems: np.ndarray, points: np.ndarray) -> np.ndarray:
     """ This is the default transformation function which has to be present in every Post-Deformation template.
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
 
-    eps: Final[float] = 1./16
+    #  eps = 1./32
+    #  list_pyram   = [points[elem.nodes] for elem in elems if elem.type % 100 == 5]
+    #  points_pyram = []
+    #  if len(list_pyram) > 0:
+    #      points_pyram = np.concatenate(list_pyram)
+    #  for iPoint, xPoint in enumerate(points):
+    #      if xPoint in points_pyram:
+    #          continue
+    #      #  if xPoint[1] <= 1.0 and xPoint[1] >= 0.5 and xPoint[2] <= 1.0 and xPoint[2] >= 0.5:
+    #      #      continue
+    #
+    #      points[iPoint, 0] = xPoint[0] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
+    #                                            np.sin(4*np.pi*(xPoint[1]-0.5))* \
+    #                                            np.cos(  np.pi*(xPoint[2]-0.5))
+    #      points[iPoint, 1] = xPoint[1] + eps * np.cos(3*np.pi*(xPoint[0]-0.5))* \
+    #                                            np.cos(  np.pi*(xPoint[1]-0.5))* \
+    #                                            np.cos(  np.pi*(xPoint[2]-0.5))
+    #      points[iPoint, 2] = xPoint[2] + eps * np.cos(  np.pi*(xPoint[0]-0.5))* \
+    #                                            np.cos(2*np.pi*(xPoint[1]-0.5))* \
+    #                                            np.cos(  np.pi*(xPoint[2]-0.5))
+    #
+    #                                            import numpy as np
 
-    nTotal = points.shape[0]
-    X_out  = np.zeros_like(points, dtype=np.float64)
+    eps = 1./32
 
-    for i in range(nTotal):
-        x = points[i, :]
-        X_out[i, 0] = x[0] + eps * np.cos(  np.pi*(x[0]-0.5))* \
-                                   np.sin(4*np.pi*(x[1]-0.5))* \
-                                   np.cos(  np.pi*(x[2]-0.5))
-        X_out[i, 1] = x[1] + eps * np.cos(3*np.pi*(x[0]-0.5))* \
-                                   np.cos(  np.pi*(x[1]-0.5))* \
-                                   np.cos(  np.pi*(x[2]-0.5))
-        X_out[i, 2] = x[2] + eps * np.cos(  np.pi*(x[0]-0.5))* \
-                                   np.cos(2*np.pi*(x[1]-0.5))* \
-                                   np.cos(  np.pi*(x[2]-0.5))
+    # 1. Identify indices of points belonging to pyramids using vectorized set logic
+    pyramid_node_indices = np.unique([elem.nodes for elem in elems if elem.type % 100 == 5])
+
+    # 2. Create a boolean mask: True for points we WANT to perturb
+    mask = np.ones(len(points), dtype=bool)
+    if len(pyramid_node_indices) > 0:
+        mask[pyramid_node_indices] = False
+
+    # 3. Extract only the points to be modified
+    # We work on a subset to avoid unnecessary trig calculations
+    target_points = points[mask]
+    x = target_points[:, 0] - 0.5
+    y = target_points[:, 1] - 0.5
+    z = target_points[:, 2] - 0.5
+
+    # 4. Vectorized trigonometric calculations
+    # Pre-computing common terms like np.pi*x saves time
+    pi_x, pi_y, pi_z = np.pi * x, np.pi * y, np.pi * z
+
+    new_x = target_points[:, 0] + eps * np.cos(pi_x) * np.sin(4 * pi_y) #* np.cos(pi_z)
+    new_y = target_points[:, 1] + eps * np.cos(3 * pi_x) * np.cos(pi_y) #* np.cos(pi_z)
+    new_z = target_points[:, 2] #+ eps * np.cos(pi_x) * np.cos(2 * pi_y) * np.cos(pi_z)
+
+    # 5. Update the original array using the mask
+    points[mask, 0] = new_x
+    points[mask, 1] = new_y
+    points[mask, 2] = new_z
 
     return points

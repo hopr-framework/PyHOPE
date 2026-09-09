@@ -27,6 +27,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 import gc
 from typing import Final, Optional, cast, final
+
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,32 +47,32 @@ import numpy.typing as npt
 
 
 # @jit((types.int64[:, ::1])(types.float64[:, ::1], types.float64[::1], types.float64[::1]), nopython=True, cache=True, parallel=True)  # noqa: E501
-def Coords2Int(coords : npt.NDArray[np.float64],
-               spacing: npt.NDArray[np.float64],
-               xmin   : npt.NDArray[np.float64]) -> npt.NDArray[np.int64]:
-    """ Compute the integer discretization in each direction
-    """
+def Coords2Int(
+    coords: npt.NDArray[np.float64], spacing: npt.NDArray[np.float64], xmin: npt.NDArray[np.float64]
+) -> npt.NDArray[np.int64]:
+    """Compute the integer discretization in each direction"""
     return np.round((coords - xmin) * spacing).astype(np.int64)
 
 
 def SFCResolution(kind: int, xmin: npt.NDArray, xmax: npt.NDArray) -> tuple[int, npt.NDArray]:
-    """ Compute the resolution of the SFC for the given bounding box
-        and the given integer kind
+    """Compute the resolution of the SFC for the given bounding box
+    and the given integer kind
     """
-    blen    = xmax - xmin
-    nbits   = (kind*8 - 1)  # / 3.
+    blen = xmax - xmin
+    nbits = kind * 8 - 1  # / 3.
     intfact = (1 << nbits) - 1
-    spacing = np.ceil(intfact/blen)
+    spacing = np.ceil(intfact / blen)
 
     return np.ceil(nbits).astype(int), spacing
 
 
-def UpdateElemID(elems         : list,
-                 sides         : list,
-                 sorted_indices: npt.NDArray,
-                 bar           : type,
-                 nElemsIJK     : Optional[npt.NDArray] = None,
-                 ) -> tuple[list, list]:
+def UpdateElemID(
+    elems: list,
+    sides: list,
+    sorted_indices: npt.NDArray,
+    bar: type,
+    nElemsIJK: Optional[npt.NDArray] = None,
+) -> tuple[list, list]:
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     # ------------------------------------------------------
@@ -87,35 +88,35 @@ def UpdateElemID(elems         : list,
 
     # Initialize the sideID and offset
     offsetSide = 0
-    sideID     = 0
+    sideID = 0
 
     # Overwrite the elem/side IDs
     for newElemID, oldElemID in enumerate(sorted_indices):
-        elem        = elems[oldElemID]
+        elem = elems[oldElemID]
         elem.elemID = newElemID
 
         # Calculate IJK position for this element
         if nElemsIJK is not None:
-            k =  newElemID                                       // (nElemsIJK[0] * nElemsIJK[1])
-            j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1])    //  nElemsIJK[0]
-            i =  newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j *   nElemsIJK[0]
-            elem.elemIJK = np.array([i+1, j+1, k+1], dtype=io_vars.outputbytes)
+            k = newElemID // (nElemsIJK[0] * nElemsIJK[1])
+            j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1]) // nElemsIJK[0]
+            i = newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j * nElemsIJK[0]
+            elem.elemIJK = np.array([i + 1, j + 1, k + 1], dtype=io_vars.outputbytes)
 
         sorted_elems[newElemID] = elem
 
         # Correct the sideID
         nSides = 0
         for key, val in enumerate(elem.sides):
-            side        = sides[val]
+            side = sides[val]
             side.sideID = offsetSide + key
             side.elemID = newElemID
             sorted_sides[sideID] = side
-            sideID     += 1
-            nSides     += 1
+            sideID += 1
+            nSides += 1
 
         # Correct the sideID
         # nSides      = len(elem.sides)
-        elem.sides  = list(range(offsetSide, offsetSide + nSides))
+        elem.sides = list(range(offsetSide, offsetSide + nSides))
         offsetSide += nSides
 
         bar.step()
@@ -136,48 +137,29 @@ class tBox:
     def _set_bounding_box(self, mini: float, maxi: float) -> None:
         blen = maxi - mini
         nbits = (np.iinfo(np.int64).bits - 1) // 3
-        self.intfact = 2 ** nbits - 1
+        self.intfact = 2**nbits - 1
         self.spacing = np.divide(self.intfact, blen, out=np.ones_like(blen, dtype=float) * self.intfact, where=blen > 0)
 
 
-def SortMeshBySFC() -> None:
+def compute_sfc_distances(
+    elem_bary: np.ndarray,
+    points: np.ndarray,
+    sfc_type: int,
+    np_mtp: int = 1,
+) -> np.ndarray:
+    """Helper function to compute Space Filling Curve (SFC) distances for a set of barycenters."""
+
     # Local imports ----------------------------------------
-    from hilbertcurve.hilbertcurve import HilbertCurve
-    from pyhope.common.common_progress import ProgressBar
-    from pyhope.common.common_vars import np_mtp
-    from pyhope.mesh.mesh_common import calc_elem_bary
     from pyhope.mesh.mesh_vars import MeshSortSFC
-    from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption, GetIntFromStr
-    import pyhope.mesh.mesh_vars as mesh_vars
-    import pyhope.output.output as hopout
-    from pyhope.mesh.sort.sort_hilbert import hilbert, morton
+
     # Monkey-patching HilbertCurve
     from pyhope.mesh.sort.sort_hilbert import HilbertCurveNumpy
+
     # INFO: Alternative Hilbert curve sorting (not on PyPI)
     # from hilsort import hilbert_sort
+    from hilbertcurve.hilbertcurve import HilbertCurve
+    from pyhope.mesh.sort.sort_hilbert import hilbert, morton
     # ------------------------------------------------------
-
-    CreateIntFromString('MeshSortingSFC', default=MeshSortSFC.default.name,
-                                          help=f'Mesh sorting mode for SFC [{", ".join([s.name for s in MeshSortSFC])}]')  # noqa: E501
-    CreateIntOption(    'MeshSortingSFC', number=MeshSortSFC.default .value, name=MeshSortSFC.default .name)
-    CreateIntOption(    'MeshSortingSFC', number=MeshSortSFC.hilbert .value, name=MeshSortSFC.hilbert .name)
-    CreateIntOption(    'MeshSortingSFC', number=MeshSortSFC.hilbertZ.value, name=MeshSortSFC.hilbertZ.name)
-    CreateIntOption(    'MeshSortingSFC', number=MeshSortSFC.morton  .value, name=MeshSortSFC.morton  .name)
-    CreateIntOption(    'MeshSortingSFC', number=MeshSortSFC.mortonZ .value, name=MeshSortSFC.mortonZ .name)
-
-    sfc_type: Final[int] = GetIntFromStr('MeshSortingSFC')
-
-    hopout.sep()
-    hopout.routine('Sorting elements along space-filling curve')
-
-    mesh   = mesh_vars.mesh
-    elems  = mesh_vars.elems
-    sides  = mesh_vars.sides
-    points = mesh.points
-
-    # Use a moderate chunk size to bound intermediate progress updates
-    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
-    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
 
     match sfc_type:
         case MeshSortSFC.default.value:
@@ -185,55 +167,95 @@ def SortMeshBySFC() -> None:
             HilbertCurveNumpy()
 
             # Global bounding box
-            xmin   = points.min(axis=0)
-            xmax   = points.max(axis=0)
-
-            # Calculate the element barycenters and associated element offsets
-            elem_bary = calc_elem_bary(elems)
+            xmin = points.min(axis=0)
+            xmax = points.max(axis=0)
 
             kind: Final[int] = 4
             nbits, spacing = SFCResolution(kind, xmin, xmax)
-            elem_disc      = Coords2Int(elem_bary, spacing, xmin)
+            elem_disc = Coords2Int(elem_bary, spacing, xmin)
 
-            hc        = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
-            distances = cast(npt.ArrayLike, hc.distances_from_points(elem_disc))
+            hc = HilbertCurve(p=nbits, n=3, n_procs=np_mtp)
+            return cast(npt.ArrayLike, hc.distances_from_points(elem_disc))
 
-        case MeshSortSFC.hilbert .value | \
-             MeshSortSFC.hilbertZ.value | \
-             MeshSortSFC.morton  .value | \
-             MeshSortSFC.mortonZ .value:
-
-            # Calculate the element barycenters and associated element offsets
-            elem_bary = calc_elem_bary(elems)
-
-            gmin    = elem_bary.min()          # scalar global min
-            gmax    = elem_bary.max()          # scalar global max
+        case MeshSortSFC.hilbert.value | MeshSortSFC.hilbertZ.value | MeshSortSFC.morton.value | MeshSortSFC.mortonZ.value:
+            gmin = elem_bary.min()  # scalar global min
+            gmax = elem_bary.max()  # scalar global max
 
             # nbits = (64-1)//3 = 21, matching HOPR setBoundingBox with INTEGER(KIND=8)
-            nbits   = (np.iinfo(np.int64).bits - 1) // 3
+            nbits = (np.iinfo(np.int64).bits - 1) // 3
             intfact = (1 << nbits) - 1
             spacing = np.float64(intfact) / (gmax - gmin)
             elem_disc = Coords2Int(elem_bary, spacing, gmin)
 
             match sfc_type:
                 case MeshSortSFC.hilbert.value:
-                    distances = hilbert(3, nbits, elem_disc)
+                    return hilbert(3, nbits, elem_disc)
 
                 case MeshSortSFC.hilbertZ.value:
                     # Hilbert on (x,y), linear stride along z
-                    distances = hilbert(2, nbits, elem_disc[:, :2]) + elem_disc[:, 2] * intfact * intfact
+                    return hilbert(2, nbits, elem_disc[:, :2]) + elem_disc[:, 2] * intfact * intfact
 
                 case MeshSortSFC.morton.value:
-                    distances = morton( 3, nbits, elem_disc)
+                    return morton(3, nbits, elem_disc)
 
                 case MeshSortSFC.mortonZ.value:
                     # Morton on (x,y), linear stride along z
-                    distances = morton( 2, nbits, elem_disc[:, :2]) + elem_disc[:, 2] * intfact * intfact
+                    return morton(2, nbits, elem_disc[:, :2]) + elem_disc[:, 2] * intfact * intfact
 
         case _:
             raise ValueError(f'Unknown sfc_type "{sfc_type}" (valid: [{", ".join([s.name for s in MeshSortSFC])}])')
 
-    sorted_indices = np.argsort(distances)
+
+def SortMeshBySFC() -> None:
+    # Local imports ----------------------------------------
+    from pyhope.common.common_progress import ProgressBar
+    from pyhope.common.common_vars import np_mtp
+    from pyhope.mesh.mesh_common import calc_elem_bary
+    from pyhope.mesh.mesh_sliding import prepareSMSFC
+    from pyhope.mesh.mesh_vars import MeshSortSFC
+    from pyhope.readintools.readintools import CreateIntFromString, CreateIntOption, GetIntFromStr
+    import pyhope.mesh.mesh_vars as mesh_vars
+    import pyhope.output.output as hopout
+    # ------------------------------------------------------
+
+    CreateIntFromString(
+        'MeshSortingSFC',
+        default=MeshSortSFC.default.name,
+        help=f'Mesh sorting mode for SFC [{", ".join([s.name for s in MeshSortSFC])}]',
+    )  # noqa: E501
+    CreateIntOption('MeshSortingSFC', number=MeshSortSFC.default.value, name=MeshSortSFC.default.name)
+    CreateIntOption('MeshSortingSFC', number=MeshSortSFC.hilbert.value, name=MeshSortSFC.hilbert.name)
+    CreateIntOption('MeshSortingSFC', number=MeshSortSFC.hilbertZ.value, name=MeshSortSFC.hilbertZ.name)
+    CreateIntOption('MeshSortingSFC', number=MeshSortSFC.morton.value, name=MeshSortSFC.morton.name)
+    CreateIntOption('MeshSortingSFC', number=MeshSortSFC.mortonZ.value, name=MeshSortSFC.mortonZ.name)
+
+    sfc_type: Final[int] = GetIntFromStr('MeshSortingSFC')
+
+    hopout.sep()
+    hopout.routine('Sorting elements along space-filling curve')
+
+    mesh = mesh_vars.mesh
+    elems = mesh_vars.elems
+    sides = mesh_vars.sides
+    points = mesh.points
+
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems) / (400)))))
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
+
+    if mesh_vars.doSlidingMesh:
+        # Execute double SFC sorting routine for sliding mesh configurations
+        sorted_indices, mesh_vars.rotatingElem, mesh_vars.nStatElems = prepareSMSFC(mesh_vars, sfc_type, np_mtp)
+    else:
+        # Standard single-domain SFC sorting without sliding mesh
+        elem_bary = calc_elem_bary(elems)
+        distances = compute_sfc_distances(elem_bary, points, sfc_type, np_mtp)
+
+        # Sort all elements along the SFC
+        sorted_indices = np.argsort(distances)
+        mesh_vars.rotatingElem = np.zeros(len(elems), dtype=int)
+
+    # Reorder element structures according to sorted IDList
     sorted_elems, sorted_sides = UpdateElemID(elems, sides, sorted_indices, bar)
 
     mesh_vars.elems = sorted_elems
@@ -254,7 +276,7 @@ def SortMeshByIJK() -> None:
     hopout.sep()
     hopout.routine('Sorting elements along I,J,K direction')
 
-    mesh  = mesh_vars.mesh
+    mesh = mesh_vars.mesh
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
@@ -263,26 +285,26 @@ def SortMeshByIJK() -> None:
 
     # Calculate bounding box and conversion factor
     ptp_elemBary = np.ptp(elemBary, axis=0)
-    lower        = elemBary.min(axis=0)
-    upper        = elemBary.max(axis=0)
+    lower = elemBary.min(axis=0)
+    upper = elemBary.max(axis=0)
 
     # Add padding to the bounding box
-    padding      = 0.1 * ptp_elemBary
-    lower        = lower - padding
-    upper        = upper + padding
+    padding = 0.1 * ptp_elemBary
+    lower = lower - padding
+    upper = upper + padding
 
     # Convert coordinates to integer space
-    box       = tBox(np.floor(lower), np.ceil(upper))
+    box = tBox(np.floor(lower), np.ceil(upper))
     intCoords = np.rint((elemBary - box.mini) * box.spacing).astype(np.int32)
 
     # Initialize lists
-    nElems    = count_elems(mesh)
+    nElems = count_elems(mesh)
     nElemsIJK = np.zeros(3, dtype=int)
     structDir = np.zeros(3, dtype=bool)
-    tol: Final[float] = 1.
+    tol: Final[float] = 1.0
 
     for dim in range(3):
-        coordValues   = intCoords[:, dim]
+        coordValues = intCoords[:, dim]
         sortedIndices = np.sort(coordValues)
 
         # Find transition points
@@ -339,8 +361,9 @@ def SortMeshByIJK() -> None:
     bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
 
     # Now sort the elements based on z, y, then x coordinates
-    intList        = (intCoords[:, 2].astype(np.int64) * 10000 + intCoords[:, 1].astype(np.int64)) * 10000 + \
-                      intCoords[:, 0].astype(np.int64)
+    intList = (intCoords[:, 2].astype(np.int64) * 10000 + intCoords[:, 1].astype(np.int64)) * 10000 + intCoords[:, 0].astype(
+        np.int64
+    )
     sorted_indices = np.argsort(intList)
 
     sorted_elems, sorted_sides = UpdateElemID(elems, sides, sorted_indices, bar, nElemsIJK)
@@ -360,7 +383,7 @@ def SortMeshBySnake() -> None:  # pragma: no cover
     from pyhope.common.common_progress import ProgressBar
     # ------------------------------------------------------
 
-    mesh  = mesh_vars.mesh
+    mesh = mesh_vars.mesh
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
@@ -376,7 +399,7 @@ def SortMeshBySnake() -> None:  # pragma: no cover
     elem_bary = calc_elem_bary(elems)
 
     # Discretize coordinates into integer space (like IJK routine)
-    box       = tBox(np.floor(xmin), np.ceil(xmax))
+    box = tBox(np.floor(xmin), np.ceil(xmax))
     intCoords = np.rint((elem_bary - box.mini) * box.spacing).astype(int)
 
     # Determine maximum dimension for safe flattening
@@ -384,9 +407,11 @@ def SortMeshBySnake() -> None:  # pragma: no cover
 
     # Snake-like flattening key
     # i alternates for each row of j
-    snake_key = (intCoords[:, 2] * max_dim**2 +
-                 intCoords[:, 1] * max_dim +
-                 np.where(intCoords[:, 1] % 2 == 0, intCoords[:, 0], max_dim - 1 - intCoords[:, 0]))
+    snake_key = (
+        intCoords[:, 2] * max_dim**2
+        + intCoords[:, 1] * max_dim
+        + np.where(intCoords[:, 1] % 2 == 0, intCoords[:, 0], max_dim - 1 - intCoords[:, 0])
+    )
 
     # Sorting elements according to snake-like key
     sorted_indices = np.argsort(snake_key)
@@ -405,8 +430,9 @@ def SortMeshByLEX() -> None:  # pragma: no cover
     import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import calc_elem_bary
     from pyhope.common.common_progress import ProgressBar
+
     # ------------------------------------------------------
-    mesh  = mesh_vars.mesh
+    mesh = mesh_vars.mesh
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
@@ -422,7 +448,7 @@ def SortMeshByLEX() -> None:  # pragma: no cover
     elem_bary = calc_elem_bary(elems)
 
     # Discretize coordinates into integer space (like IJK routine)
-    box       = tBox(np.floor(xmin), np.ceil(xmax))
+    box = tBox(np.floor(xmin), np.ceil(xmax))
     intCoords = np.rint((elem_bary - box.mini) * box.spacing).astype(int)
 
     # Determine maximum dimension for flattening
@@ -430,9 +456,7 @@ def SortMeshByLEX() -> None:  # pragma: no cover
 
     # --- Lexicographic flattening key ---
     # Sort by (z,y,x) like nested DO-loops
-    lex_key = (intCoords[:, 2] * max_dim**2 +
-               intCoords[:, 1] * max_dim +
-               intCoords[:, 0])
+    lex_key = intCoords[:, 2] * max_dim**2 + intCoords[:, 1] * max_dim + intCoords[:, 0]
 
     # Sorting elements according to lexicographic key
     sorted_indices = np.argsort(lex_key)
@@ -460,7 +484,7 @@ def SortMesh() -> None:
     # Check for legacy doSortIJK option
     default = None
     if CountOption('doSortIJK') > 0:
-        default  = MeshSort.IJK.name if GetLogical('doSortIJK') else MeshSort.SFC.name
+        default = MeshSort.IJK.name if GetLogical('doSortIJK') else MeshSort.SFC.name
 
     meshsort = GetIntFromStr('MeshSorting', default=default)
 

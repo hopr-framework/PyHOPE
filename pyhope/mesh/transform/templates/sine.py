@@ -46,7 +46,7 @@ if typing.TYPE_CHECKING:
 # ==================================================================================================================================
 
 
-def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
+def PostDeform(elems: np.ndarray, points: np.ndarray) -> npt.NDArray:  # pragma: no cover
     """ This is the default transformation function which has to be present in every Post-Deformation template.
         PyHOPE expects this function to return the deformed points as an np.ndarray. Thus, the function signature remain unchanged.
     """
@@ -86,9 +86,9 @@ def PostDeform(points: npt.NDArray) -> npt.NDArray:  # pragma: no cover
             points[:, :3] += delta[:, None]
         case 40:  # cos with coupling  [-1;1]^3 (from https://arxiv.org/pdf/1809.01178.pdf, page 20)
             x = points.copy()
-            points[:, 0] = x[:, 0] + eps * np.cos(0.5 * np.pi * x[:, 0]) * np.sin(2.0 * np.pi * x[:, 1]) * np.cos(0.5 * np.pi * x[:, 2])  # noqa: E501
-            points[:, 1] = x[:, 1] + eps * np.cos(1.5 * np.pi * x[:, 0]) * np.cos(0.5 * np.pi * x[:, 1]) * np.cos(0.5 * np.pi * x[:, 2])  # noqa: E501
-            points[:, 2] = x[:, 2] + eps * np.cos(0.5 * np.pi * x[:, 0]) * np.cos(      np.pi * x[:, 1]) * np.cos(0.5 * np.pi * x[:, 2])  # noqa: E501
+            points[:, 0] = x[:, 0] + eps * np.cos(0.5 * np.pi * 2.*(x[:, 0]-0.5)) * np.sin(2.0 * np.pi * 2.*   (x[:, 1]-0.5)) * np.cos(0.5 * np.pi * 2.*   (x[:, 2]-0.5))  # noqa: E501
+            points[:, 1] = x[:, 1] + eps * np.cos(1.5 * np.pi * 2.*(x[:, 0]-0.5)) * np.cos(0.5 * np.pi * 2.*   (x[:, 1]-0.5)) * np.cos(0.5 * np.pi * 2.*   (x[:, 2]-0.5))  # noqa: E501
+            points[:, 2] = x[:, 2] + eps * np.cos(0.5 * np.pi * 2.*(x[:, 0]-0.5)) * np.cos(      np.pi * 2.*   (x[:, 1]-0.5)) * np.cos(0.5 * np.pi * 2.*   (x[:, 2]-0.5))  # noqa: E501
         case 41:  # cos in xy with coupling  [-1;1]^2 (from https://arxiv.org/pdf/1809.01178.pdf, page 18)
             x = points.copy()
             points[:, 0] = x[:, 0] + eps * np.cos(0.5 * np.pi * x[:, 0]) * np.cos(1.5 * np.pi * x[:, 1])

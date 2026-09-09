@@ -27,7 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 from typing import Final
-from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -93,9 +92,6 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
     progFac, l0, dx = handler() if handler else (np.array(()), np.array(()), np.array(()))
 
     if stretchingType == 'combination':
-        if progFac is None or l0 is None or dx is None:
-            hopout.error(f'Missing parameter {[n for (s, n) in zip((progFac, l0, dx), ("factor", "l0", "dx"), strict=True) if s is None]}, exiting...')  # noqa: E501
-
         for iDim in range(3):
             if np.isclose(progFac[iDim], 0., atol=mesh_vars.tolInternal):
                 continue  # Skip if factor is zero, (nElem, l0) given, factor calculated later
@@ -111,9 +107,6 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
 
     # Calculate the required factor from ratio or combination input
     if stretchingType in {'ratio', 'combination'}:
-        if progFac is None or l0 is None or dx is None:
-            hopout.error(f'Missing parameter {[n for (s, n) in zip((progFac, l0, dx), ("factor", "l0", "dx"), strict=True) if s is None]}, exiting...')  # noqa: E501
-
         print(hopout.warn(hopout.Colors.WARN + '─'*(46-16) + hopout.Colors.END))
         for iDim in range(3):
             if nElems[iDim] == 1 or dx[iDim] == 0:
@@ -153,7 +146,7 @@ def CalcStretching(nZones: int, zone: int, nElems: npt.NDArray, lEdges: npt.NDAr
         hopout.error('Stretching factor = 0 is invalid, exiting...')
 
     # Return stretching factor
-    return cast(np.ndarray, progFac)
+    return progFac
 
 
 def TransformMesh() -> None:
@@ -161,7 +154,7 @@ def TransformMesh() -> None:
     import pyhope.mesh.mesh_vars as mesh_vars
     import pyhope.output.output as hopout
     from pyhope.common.common_template import LoadTemplate
-    from pyhope.mesh.mesh_vars import mesh
+    from pyhope.mesh.mesh_vars import mesh,elems
     from pyhope.readintools.readintools import CountOption
     from pyhope.readintools.readintools import GetReal, GetRealArray, GetStr
     # ------------------------------------------------------
@@ -242,10 +235,7 @@ def TransformMesh() -> None:
     transformModule = LoadTemplate(meshPostDeform.strip().lower(), __file__, 'Post transformation')
 
     # Perform actual post-deformation
-    mesh.points = transformModule.PostDeform(mesh.points)
-
-    # Flag mortar rebuild if performing advanced transformation
-    mesh_vars.hasMortarsInterzone = True
+    mesh.points = transformModule.PostDeform(elems,mesh.points)  # ty: ignore [unresolved-attribute]
 
     hopout.sep()
     hopout.info('TRANSFORM MESH DONE!')

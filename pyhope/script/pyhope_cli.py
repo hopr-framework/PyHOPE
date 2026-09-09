@@ -38,8 +38,7 @@ import time
 
 
 def main() -> None:
-    """ Main routine of PyHOPE
-    """
+    """Main routine of PyHOPE"""
     # Local imports ----------------------------------------
     import pyhope.config.config as config
     import pyhope.output.output as hopout
@@ -58,6 +57,7 @@ def main() -> None:
     from pyhope.mesh.mesh_sides import GenerateSides
     from pyhope.mesh.mesh_sort import SortMesh
     from pyhope.mesh.mesh_mortar import RebuildMortarGeometry
+    from pyhope.mesh.mesh_sliding import InitSM
     from pyhope.mesh.transform.mesh_transform import TransformMesh
     from pyhope.readintools.commandline import CommandLine
     from pyhope.readintools.readintools import DefineConfig, ReadConfig
@@ -71,12 +71,12 @@ def main() -> None:
         if 'context has already been set' not in str(e):
             raise
 
-    tStart  = time.time()
+    tStart = time.time()
 
-    common  = Common()
+    common = Common()
     program = common.program
     version = common.version
-    commit  = common.commit
+    commit = common.commit
 
     with DefineConfig() as dc:
         config.prms = dc
@@ -114,6 +114,7 @@ def main() -> None:
     InitCommon()
     InitIO()
     InitMesh()
+    InitSM()
 
     # Generate the actual mesh
     GenerateMesh()

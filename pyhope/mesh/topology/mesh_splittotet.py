@@ -161,11 +161,15 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
             continue
 
         # Only process pyramids for splitting
-        if ctype.startswith('pyramid'):
-            continue
+        #  if ctype.startswith('pyramid'):
+        #      continue
 
         # Iterate over element types
         for elem in cdata:
+
+            if ctype.startswith('pyramid') and np.all(np.array(points[elem])[:4, 1] == 0.5):
+                continue
+
             nodes = np.array(elem.tolist(), dtype=int)
             elems_lst.setdefault(ctype, []).append(elem)
 
@@ -217,6 +221,10 @@ def MeshSplitToTet(mesh: meshio.Mesh) -> meshio.Mesh:
 
         # Process each element in cell data
         for elem in cdata:
+            # Skip elements whose first 4 points do not meet the criteria
+            if not np.all(np.array(points[elem])[:4, 1] == 0.5):
+                continue
+
             # Split each element into sub-elements
             subElems = elem[subIdxs]
 
