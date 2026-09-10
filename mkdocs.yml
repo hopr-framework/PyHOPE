@@ -49,6 +49,7 @@ nav:
       - Internal: user-guide/mesh-generators/internal.md
       - External: user-guide/mesh-generators/external.md
     - Parameter File Format: user-guide/parameter-file.md
+    - Mesh Checks / Visualization: user-guide/visualization.md
   # - Issue Tracker: 'https://github.com/hopr-framework/PyHOPE/issues'
   - Developer Guide:
     - Introduction: developer-guide/index.md

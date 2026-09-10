@@ -19,6 +19,7 @@ At the current state, it features two modes for mesh generation:
 PyHOPE is controlled via a parameter file in INI format. The parameter file specifies the mesh generation mode, the geometry and mesh parameters, and the output file name.
 
 - [Parameter file format](parameter-file.md): Description of the parameter file format and available options
+- [Mesh Checks / Visualization](visualization.md): Overview of automated mesh validity checks and debugging output
 
 PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. 
 
