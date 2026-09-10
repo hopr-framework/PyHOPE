@@ -218,8 +218,8 @@ class RedBlackTree:
         y.left   = x
         x.parent = y
         # Update subtree sizes
-        x.size   = 1 + (x.left.size if x.left else 0) + (x.right.size if x.right else 0)
-        y.size   = 1 + (y.left.size if y.left else 0) + (y.right.size if y.right else 0)
+        x.size   = 1 + (x.left.size if x.left is not None else 0) + (x.right.size if x.right is not None else 0)
+        y.size   = 1 + (y.left.size if y.left is not None else 0) + (y.right.size if y.right is not None else 0)
 
     def _right_rotate(self,
                       x: _RBTreeNode) -> None:
@@ -246,8 +246,8 @@ class RedBlackTree:
         y.right  = x
         x.parent = y
         # Update subtree sizes
-        x.size   = 1 + (x.left.size if x.left else 0) + (x.right.size if x.right else 0)
-        y.size   = 1 + (y.left.size if y.left else 0) + (y.right.size if y.right else 0)
+        x.size   = 1 + (x.left.size if x.left is not None else 0) + (x.right.size if x.right is not None else 0)
+        y.size   = 1 + (y.left.size if y.left is not None else 0) + (y.right.size if y.right is not None else 0)
 
     def _insert_fixup(self, z: _RBTreeNode) -> None:
         """ Fixup the red-black tree after insertion

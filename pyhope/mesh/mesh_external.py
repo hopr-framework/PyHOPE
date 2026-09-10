@@ -193,7 +193,7 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
                     if (mesh.cell_sets[bc] and mesh.cell_sets[bc][iBlock] is not None)
                     for node in mesh.cells[iBlock].data[mesh.cell_sets[bc][iBlock]].flatten()
                 }))
-            ], axis=0) if bc else None
+            ], axis=0) if bc is not None else None
             for bc in (boundaries[1], boundaries[-1])
         )
 
