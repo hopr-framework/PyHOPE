@@ -159,24 +159,24 @@ gitleaks:
   stage: lint
   before_script: *minimal-before-script
   script:
-    - uv pip install pre-commit
-    - pre-commit --version
+    - uv pip install prek
+    - prek --version
     # detect hardcoded secrets
-    - pre-commit run --all-files gitleaks
+    - prek run --all-files gitleaks
 
 pre-commit:
   extends: .defaults
   stage: lint
   before_script: *minimal-before-script
   script:
-    - uv pip install pre-commit
-    - pre-commit --version
+    - uv pip install prek
+    - prek --version
     # check for merge conflicts
-    - pre-commit run --all-files check-merge-conflict
+    - prek run --all-files check-merge-conflict
     # check for broken symlinks
-    - pre-commit run --all-files check-symlinks
+    - prek run --all-files check-symlinks
     # trim trailing whitespace
-    - pre-commit run --all-files trailing-whitespace
+    - prek run --all-files trailing-whitespace
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
 # Compatibility

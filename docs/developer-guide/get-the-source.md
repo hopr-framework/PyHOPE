@@ -43,13 +43,13 @@ PyHOPE enforces code quality through three static analysis tools which are wired
 All three tools are configured as hooks in `.pre-commit-config.yaml`. Install them once after cloning.
 
 ```bash
-pip install pre-commit
-pre-commit install
+pip install prek
+prek install
 ```
 From that point on, every `git commit` runs ruff, vulture, and ty against the staged files automatically. To run all hooks explicitly against the full codebase.
 
 ```bash
-pre-commit run --all-files
+prek run --all-files
 ```
 To skip the hooks for a specific commit, pass `--no-verify` to `git commit`. Use this sparingly as the CI pipeline enforces the same rules and will catch anything skipped locally.
 

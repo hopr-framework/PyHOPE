@@ -131,24 +131,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pre-commit/action@v3.0.1
+      - uses: j178/prek-action@v3.0.0
         with:
-          extra_args: --all-files gitleaks
+          extra-args: --all-files gitleaks
 
   pre-commit:
     name: Lint / pre-commit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pre-commit/action@v3.0.1
+      - uses: j178/prek-action@v3.0.0
         with:
-          extra_args: --all-files check-merge-conflict
-      - uses: pre-commit/action@v3.0.1
+          extra-args: --all-files check-merge-conflict
+      - uses: j178/prek-action@v3.0.0
         with:
-          extra_args: --all-files check-symlinks
-      - uses: pre-commit/action@v3.0.1
+          extra-args: --all-files check-symlinks
+      - uses: j178/prek-action@v3.0.0
         with:
-          extra_args: --all-files trailing-whitespace
+          extra-args: --all-files trailing-whitespace
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
