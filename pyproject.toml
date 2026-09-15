@@ -169,7 +169,7 @@ exclude = [
     "venv"
     ]
 # Required Ruff version
-required-version = ">=0.7.1"
+required-version = ">=0.16.7"
 show-fixes = true
 # PyHOPE requires Python 3.10 or newer
 target-version = "py310"
