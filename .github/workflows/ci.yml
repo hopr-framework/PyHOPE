@@ -75,12 +75,11 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
-      - shell: bash
-        run: |
-          source .venv/bin/activate
-          uv pip install ruff
-          ruff --version
-          ruff check --config pyproject.toml --preview
+      - uses: astral-sh/ruff-action@v4.1.0
+        with:
+          version: 'latest'
+      - run: ruff --version
+      - run: ruff check --config pyproject.toml --preview
 
   ty:
     name: Lint / ty
