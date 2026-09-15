@@ -245,7 +245,7 @@ def SortMeshBySFC() -> None:
 
     if mesh_vars.doSlidingMesh:
         # Execute double SFC sorting routine for sliding mesh configurations
-        sorted_indices, mesh_vars.rotatingElem, mesh_vars.nStatElems = prepareSMSFC(mesh_vars, sfc_type, np_mtp)
+        sorted_indices, mesh_vars.rotatingElem, mesh_vars.nStatElems = prepareSMSFC(sfc_type, np_mtp)
     else:
         # Standard single-domain SFC sorting without sliding mesh
         elem_bary = calc_elem_bary(elems)

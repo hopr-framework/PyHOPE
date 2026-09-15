@@ -27,14 +27,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 
-# import copy
-import gc
-from os import abort
-import sys
-from collections import defaultdict
-from typing import Final, Optional, cast
-
-# from multiprocessing import Pool
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -45,11 +37,10 @@ import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 import typing
 
+if typing.TYPE_CHECKING:
+    import numpy.typing as npt
 from pyhope.readintools.readintools import CountOption, GetRealArray, GetInt, GetLogical, GetReal, GetIntArray
 
-if typing.TYPE_CHECKING:
-    import meshio
-    import numpy.typing as npt
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -61,7 +52,7 @@ import pyhope.output.output as hopout
 # ----------------------------------------------------------------------------------------------------------------------------------
 # ==================================================================================================================================
 def InitSM() -> None:
-    from pyhope.mesh.mesh_vars import SM
+    from pyhope.mesh.mesh_vars import SM as SMPart
     import pyhope.mesh.mesh_vars as mesh_vars
 
     # get sliding mesh interface and mark stat./rot. elements
@@ -76,7 +67,7 @@ def InitSM() -> None:
     if nSlidingMeshPartitions == 0:
         return None
 
-    mesh_vars.smPartitions = [SM() for _ in range(nSlidingMeshPartitions)]
+    mesh_vars.smPartitions = [SMPart() for _ in range(nSlidingMeshPartitions)]
     SMPartitions = mesh_vars.smPartitions
     for iSM, SM in enumerate(SMPartitions):
         SM.type = GetInt('SlidingMeshType')
@@ -103,7 +94,7 @@ def InitSM() -> None:
                 SM.n_interfaces = 1
                 # Initialize with SMInterface default objects
                 SM.interfaces = [mesh_vars.SMInterface() for _ in range(SM.n_interfaces)]
-                SM.interfaces[0].bcid = tmp
+                SM.interfaces[0].bcid = tmp[0]
             case 2:
                 SM.n_interfaces = 2
                 # Initialize with SMInterface default objects
@@ -118,19 +109,13 @@ def InitSM() -> None:
                 SM.interfaces[1].bcid = tmp[1]
 
 
-def compute_smcoords(x, SM):
+def compute_smcoords(x: npt.NDArray[np.float64], SM) -> list[float]:
     """Computes sliding mesh surface coordinates (smcoords) based on SM type.
 
     Parameters
     ----------
     x : array-like of shape (3,)
-        Centroid coordinates of the side/element [x0, x1, x2].
     SM : object
-        Sliding mesh configuration object with attributes:
-        - type (int): 1 (Annulus), 2 (Planar), or 3 (Axial)
-        - center (array-like, optional): Center point for Annulus type
-        - dir (int, optional): Sliding direction (1-indexed: 1, 2, or 3)
-        - norm (int, optional): Normal direction (1-indexed: 1, 2, or 3)
 
     Returns
     -------
@@ -138,54 +123,48 @@ def compute_smcoords(x, SM):
         [coord_0, coord_1] representing the local 2D sliding mesh surface
         coordinates.
     """
-    x = np.asarray(x, dtype=float)
+    x = np.asarray(x, dtype=np.float64)
 
     match SM.type:
         case 1:  # Annulus interface
-            x_rel = x - np.asarray(SM.center)
-            return [x_rel[2], np.atan2(-x_rel[1], -x_rel[0])]
+            x_rel = x - np.asarray(SM.center, dtype=np.float64)
+            return [float(x_rel[2]), float(np.atan2(-x_rel[1], -x_rel[0]))]
 
         case 2:  # Planar interface
-            # 1-indexed to 0-indexed direction calculation
-            # Layer direction is the remaining axis: 6 - SM.dir - SM.norm (1-based)
-            # converting to 0-based: (6 - SM.dir - SM.norm) - 1 = 5 - SM.dir - SM.norm
             layer_dir = 5 - SM.dir - SM.norm
             slide_dir = SM.dir - 1
-            return [x[layer_dir], x[slide_dir]]
+            return [float(x[layer_dir]), float(x[slide_dir])]
 
         case 3:  # Axial / Cylindrical interface
             r = np.sqrt(x[0] * x[0] + x[1] * x[1])
             theta = np.atan2(-x[1], -x[0])
-            return [r, theta]
+            return [float(r), float(theta)]
 
         case _:
             raise ValueError(f'Unsupported Sliding Mesh Type: {SM.type}. Expected 1, 2, or 3.')
 
 
 def prepareSlidingMesh() -> None:
-    from pyhope.mesh.mesh_vars import SM
     import pyhope.mesh.mesh_vars as mesh_vars
-    from pyhope.io.io_vars import SIDE
 
     hopout.sep()
     hopout.routine('Prepare sliding mesh')
 
     mesh = mesh_vars.mesh
     points = mesh.points
-    elems = mesh_vars.elems
     sides = mesh_vars.sides
 
     # Save all BC sides which are potential SM interfaces
     sides_sm_all = [s for s in sides if s.bcid is not None and mesh_vars.bcs[s.bcid].type[0] == -100]
 
     SMPartitions = mesh_vars.smPartitions
-    for iSM, SM in enumerate(SMPartitions):
-        for iSMInt, SMInt in enumerate(SM.interfaces):
-            SMInt.height = [1.0e13, -1.0e13]
-            SMInt.boundaries = [1.0e13, -1.0e13]
+    for iSM in SMPartitions:
+        for SMInt in iSM.interfaces:
+            SMInt.height = np.array([1.0e13, -1.0e13], dtype=np.float64)
+            SMInt.boundaries = np.array([1.0e13, -1.0e13], dtype=np.float64)
 
             # Extract sides matching the sliding mesh boundary condition
-            sides_sm_raw = [s for s in sides_sm_all if mesh_vars.bcs[s.bcid].type[3] == SMInt.bcid]
+            sides_sm_raw = [s for s in sides_sm_all if s.bcid is not None and mesh_vars.bcs[s.bcid].type[3] == SMInt.bcid]
 
             seen_side_ids = set()
             sides_sm = []
@@ -196,6 +175,10 @@ def prepareSlidingMesh() -> None:
                     seen_side_ids.add(corners_key)
                     sides_sm.append(s)
 
+            if len(sides_sm) == 0:
+                mesh_vars.doSlidingMesh = False
+                return
+
             for s in sides_sm:
                 # get SM coords
                 x = 0.0
@@ -203,20 +186,20 @@ def prepareSlidingMesh() -> None:
                     x += points[i]
                 x = x / s.corners.shape[0]
 
-                s.smcoords = compute_smcoords(x, SM)
+                s.smcoords = compute_smcoords(x, iSM)
 
-                if SM.type == 2:
+                if iSM.type == 2:
                     # Find begin and end of sm interface in moving direction for modified periodic BCs
                     # Also find begin and end of sm interface in z-direction
                     for i in s.corners:
                         point = points[i]
-                        SMInt.boundaries = [min(SMInt.boundaries[0], point[SM.dir]), max(SMInt.boundaries[1], point[SM.dir])]
-                        SMInt.height = [min(SMInt.height[0], point[2]), max(SMInt.height[1], point[2])]
+                        SMInt.boundaries[:] = [min(SMInt.boundaries[0], point[iSM.dir]), max(SMInt.boundaries[1], point[iSM.dir])]
+                        SMInt.height[:] = [min(SMInt.height[0], point[2]), max(SMInt.height[1], point[2])]
 
-            if SM.type in [1, 3]:
-                SMInt.boundaries = [0.0, 2 * np.pi]
+            if iSM.type in [1, 3]:
+                SMInt.boundaries[:] = [0.0, 2 * np.pi]
 
-            # 1. Bin discovery with tolerance matching Fortran loop
+            # Bin discovery with tolerance matching Fortran loop
             nLA = [0, 0]
             eps = 1.0e-12
             LAMaxBins = [[], []]
@@ -237,7 +220,7 @@ def prepareSlidingMesh() -> None:
             if np.prod(nLA) != nSMSides:
                 hopout.error('Error while sorting SM sides into bins')
 
-            # 2. Determine MasterOrient using 1/3 and 2/3 interior side points
+            # Determine MasterOrient using 1/3 and 2/3 interior side points
             first_side = sides_sm[0]
             p1 = points[first_side.corners[0]]
             p2 = points[first_side.corners[1]]
@@ -245,28 +228,24 @@ def prepareSlidingMesh() -> None:
             X1 = (2.0 / 3.0) * p1 + (1.0 / 3.0) * p2
             X2 = (1.0 / 3.0) * p1 + (2.0 / 3.0) * p2
 
-            Eta1 = compute_smcoords(X1, SM)
-            Eta2 = compute_smcoords(X2, SM)
+            Eta1 = compute_smcoords(X1, iSM)
+            Eta2 = compute_smcoords(X2, iSM)
 
             # Sign of azimuthal difference
             diff = Eta2[1] - Eta1[1]
             MasterOrient = 1 if diff >= 0 else -1
             SMInt.masterOrient = MasterOrient
 
-            # 3. Sort bin coordinates by layer and azimuth (orientation-aware)
+            # Sort bin coordinates by layer and azimuth (orientation-aware)
             unique_coords_0 = sorted(LAMaxBins[0])
-            unique_coords_1 = sorted(LAMaxBins[1], key=lambda val: MasterOrient * val)
+            unique_coords_1 = sorted(LAMaxBins[1], reverse=(MasterOrient < 0))
 
-            # Convert back if MasterOrient is negative to match Fortran orientation scaling
-            if MasterOrient < 0:
-                unique_coords_1 = [MasterOrient * val for val in sorted([MasterOrient * val for val in LAMaxBins[1]])]
-
-            # 4. Allocate 3D matrix (3, nAzimuthal, nLayer) and initialize with -1
+            # Allocate 3D matrix (3, nAzimuthal, nLayer) and initialize with -1
             SMInt.n_layer = nLA[0]
             SMInt.n_azimuthal_sides_per_layer = nLA[1]
             SMInt.sides = -np.ones((3, nLA[1], nLA[0]), dtype=int)
 
-            # 5. Map sides into 3D bins
+            # Map sides into 3D bins
             for s in sides_sm:
                 iLA_0 = next((i for i, val in enumerate(unique_coords_0) if abs(s.smcoords[0] - val) < 2 * eps), None)
                 iLA_1 = next((i for i, val in enumerate(unique_coords_1) if abs(s.smcoords[1] - val) < 2 * eps), None)
@@ -286,7 +265,7 @@ def prepareSlidingMesh() -> None:
                 hopout.error('not all entries found in SlidingMeshInfo')
 
 
-def prepareSMSFC(mesh_vars, sfc_type: int, np_mtp: int = 1) -> tuple[np.ndarray, np.ndarray]:
+def prepareSMSFC(sfc_type: int, np_mtp: int = 1) -> tuple[np.ndarray, np.ndarray]:
     """Sorts elements using Space Filling Curves (SFC) into stationary and rotating partitions.
 
     Returns:
@@ -295,6 +274,7 @@ def prepareSMSFC(mesh_vars, sfc_type: int, np_mtp: int = 1) -> tuple[np.ndarray,
                                    sliding partition ID (>0) for each reordered element.
     """
     # Local imports ----------------------------------------
+    import pyhope.mesh.mesh_vars as mesh_vars
     from pyhope.mesh.mesh_common import calc_elem_bary
     from pyhope.mesh.mesh_sort import compute_sfc_distances
 
@@ -306,7 +286,6 @@ def prepareSMSFC(mesh_vars, sfc_type: int, np_mtp: int = 1) -> tuple[np.ndarray,
     SMPartitions = mesh_vars.smPartitions
 
     nElems = len(elems)
-    nSMPartitions = len(SMPartitions)
 
     # 1. Vectorized Element Barycenter Calculation
     elem_bary = calc_elem_bary(elems)  # Shape: (nElems, 3)
@@ -330,6 +309,9 @@ def prepareSMSFC(mesh_vars, sfc_type: int, np_mtp: int = 1) -> tuple[np.ndarray,
             case 3:  # Axial
                 radius = SM.interval
                 radius_elem = elem_bary[:, SM.axis - 1]
+            case _:
+                radius = [0.0, 0.0]
+                radius_elem = 0
 
         # Condition matching: radius_elem > radius[0] AND radius_elem < radius[1]
         is_in_sm = (radius_elem > radius[0]) & (radius_elem < radius[1])

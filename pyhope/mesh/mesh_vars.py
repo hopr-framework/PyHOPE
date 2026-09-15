@@ -309,7 +309,7 @@ class SMInterface:
     bcid: int = -1
     boundaries: Optional[npt.NDArray] = None
     height: Optional[npt.NDArray] = None
-    masterOrient: Optional[npt.NDArray] = None
+    masterOrient: Optional[int] = None
 
 
 @dataclass(init=True, repr=False, eq=False, slots=True)
@@ -319,11 +319,11 @@ class SM:
     center: Optional[npt.NDArray] = None
     interval: Optional[npt.NDArray] = None
     type: Optional[int] = None
-    radius: Optional[float] = None
+    radius: float = 0.0
     dir: Optional[int] = None
-    norm: Optional[int] = None
-    axis: Optional[int] = None
-    nrotelems: Optional[int] = None
+    norm: int = 0
+    axis: int = 0
+    nrotelems: int = 0
 
 
 @final
