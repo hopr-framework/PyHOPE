@@ -493,7 +493,7 @@ def extrude_pris(nodes:   npt.NDArray,
     linmap = LINMAP(206, order)
     q_to_ij  = tri_meshio_to_ij(order)
     layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
-    for q, (ii, jj) in enumerate(q_to_ij):
+    for q, (ii, jj) in enumerate(q_to_ij):  # ty: ignore [not-iterable]
         for k in range(order+1):
             layerPos[k, q] = int(linmap[ii, jj, k])
 
@@ -549,7 +549,7 @@ def extrude_hexa(nodes:   npt.NDArray,
     linmap   = LINMAP(208, order)
     q_to_ij  = quad_meshio_to_ij(order)
     layerPos = np.empty((order+1, nFaceDOFs), dtype=np.int64)
-    for q, (ii, jj) in enumerate(q_to_ij):
+    for q, (ii, jj) in enumerate(q_to_ij):  # ty: ignore [not-iterable]
         for k in range(order+1):
             layerPos[k, q] = int(linmap[ii, jj, k])
 
