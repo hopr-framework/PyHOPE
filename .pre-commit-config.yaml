@@ -10,6 +10,7 @@ repos:
       # Run the linter
       - id: ruff
         name: ruff       [linter]
+        args: [--config=pyproject.toml, --preview]
       # Run the formatter
       # - id: ruff-format
       #   name: ruff formatter
@@ -24,16 +25,14 @@ repos:
       - id: vulture
         name: vulture    [dead code]
 
-  # ty has no official pre-commit hook yet (https://github.com/astral-sh/ty/issues/269).
-  # Run it as a local hook using the system-installed binary
-  - repo: local
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    # Ty version
+    rev: v0.0.83
     hooks:
+      # Run the type checker
       - id: ty
         name: ty         [type checker]
-        entry: ty check --color always --project pyhope pyhope
-        language: system
-        pass_filenames: false
-        types: [python]
+        args: [--color=always, --project=pyhope]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
