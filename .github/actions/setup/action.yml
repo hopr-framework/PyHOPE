@@ -42,9 +42,10 @@ runs:
       run: |
         # Container might not be Debian-based
         if ! command -v apt-get &> /dev/null; then exit 0; fi
-        apt-get update -y
-        apt-get install -y --no-install-recommends curl
-        rm -rf /var/lib/apt/lists/*
+        if ! command -v curl &> /dev/null; then
+          apt-get update -y
+          apt-get install -y --no-install-recommends curl
+        fi
 
     - name:  Install system dependencies
       if:    inputs.minimal == 'false'
@@ -52,7 +53,7 @@ runs:
       run: |
         # Container might not be Debian-based
         if ! command -v apt-get &> /dev/null; then exit 0; fi
-        apt-get update
+        [ -d /var/lib/apt/lists/partial ] || apt-get update
         apt-get install -y --no-install-recommends \
           libglu1-mesa   \
           libglut3.12    \
@@ -61,7 +62,6 @@ runs:
           libxcursor1    \
           libxft2        \
           libxinerama1
-        rm -rf /var/lib/apt/lists/*
 
     - name: Ensure NodeJS
       shell: bash
@@ -69,18 +69,19 @@ runs:
         if command -v node &> /dev/null; then exit 0; fi
         # Container is Debian-based (apt)
         if command -v apt-get &> /dev/null; then
-          apt-get update -y
+          [ -d /var/lib/apt/lists/partial ] || apt-get update -y
           apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
         fi
         # Container Fedora-based (dnf)
         if command -v dnf &> /dev/null; then
-          dnf makecache
-          dnf update -y
-          dnf install -y node
+          dnf install -y --nodocs nodejs
         fi
 
     # Slim images do not contain NodeJS
     - uses:  astral-sh/setup-uv@v10.1.0
+      with:
+        enable-cache: 'true'
 
     # - name:  Install uv
     #   shell: bash
@@ -99,13 +100,12 @@ runs:
 
         if [[ "${{ inputs.minimal }}" != "true" ]]; then
           # Regression checks needs NRG Gmsh, pre-install it (try GitHub latest release asset first, then GitLab mirrors)
-          uv pip install --no-cache-dir https://github.com/hopr-framework/PyHOPE/releases/latest/download/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
-          uv pip install --no-cache-dir https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
-          uv pip install --no-cache-dir https://piclas.boltzplatz.eu/public-libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl
-          uv pip install --no-cache-dir -e .
+          uv pip install https://github.com/hopr-framework/PyHOPE/releases/latest/download/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
+          uv pip install https://gitlab.iag.uni-stuttgart.de/libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl || \
+          uv pip install https://piclas.boltzplatz.eu/public-libs/python-gmsh/-/raw/master/gmsh-${GMSH_VERSION}-py3-none-linux_x86_64.whl
+          uv pip install -e .
         fi
 
         if [[ "${{ inputs.coverage }}" == "true" ]]; then
-          uv pip install --no-cache-dir coverage
-          rm -rf /var/lib/apt/lists/*
+          uv pip install coverage
         fi
