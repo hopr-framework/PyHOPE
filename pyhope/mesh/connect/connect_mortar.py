@@ -176,63 +176,32 @@ def ConnectMortar( nConnSide  : list
     # Change the title of the progress bar
     bar.title('│              Processing Mortars')
 
-    for targetID in targetSides:
-        # Skip already connected sides
-        # if indexList.data[targetID] == -1:
-        if targetID not in indexList.data:
-            continue
-
-        # Get the target neighbors
-        targetNeighbors = indexList.data[targetID]
-
-        # Skip elements with zero or one neighbors
-        if len(targetNeighbors) < 2:
-            continue
-
-        # Get the opposite side
-        targetSide = nConnSide[  targetID]
-        bcID       = targetSide.bcid if targetSide.bcid is not None and bcs[targetSide.bcid].type[0] == 1 else None
-
-        # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
-        matchFound = False
-
-        # Attempt to match the target side with 2-candidate combinations
-        targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) >= 2)  # noqa: E501
-        for comboIDs in itertools.combinations(targetTest, 2):
-            # Get the candidate sides
-            comboSides = tuple(nConnSide[iSide] for iSide in comboIDs)
-
-            # Check if we found a valid match
-            if not find_mortar_match(targetSide.corners, comboSides, bcID):
+    try:
+        for targetID in targetSides:
+            # Skip already connected sides
+            # if indexList.data[targetID] == -1:
+            if targetID not in indexList.data:
                 continue
 
-            # Get our and neighbor corner quad nodes
-            sideID   = targetSide.sideID
-            nbSideID = tuple(side.sideID for side in comboSides)
+            # Get the target neighbors
+            targetNeighbors = indexList.data[targetID]
 
-            # Build the connection, including flip
-            sideIDs  = (sideID, nbSideID)
+            # Skip elements with zero or one neighbors
+            if len(targetNeighbors) < 2:
+                continue
 
-            # Connect mortar sides and update the list
-            # connect_mortar_sides(sideIDs, elems, sides, rbtsides, offsetManager, bcID)
-            connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
+            # Get the opposite side
+            targetSide = nConnSide[  targetID]
+            bcID       = targetSide.bcid if targetSide.bcid is not None and bcs[targetSide.bcid].type[0] == 1 else None
 
-            # Remove the target side from the list
-            indexList.remove_index([targetID, *list(comboIDs)])
+            # Prepare combinations for 2-to-1 and 4-to-1 mortar matching
+            matchFound = False
 
-            # Update the progress bar
-            bar.step(len(nbSideID) + 1)
-
-            # Break out of the loop
-            matchFound = True
-            break
-
-        # Attempt to match the target side with 4-candidate combinations
-        if not matchFound and len(targetNeighbors) >= 4:
-            targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 1)  # noqa: E501
-            for comboIDs in itertools.combinations(targetTest, 4):
+            # Attempt to match the target side with 2-candidate combinations
+            targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) >= 2)  # noqa: E501
+            for comboIDs in itertools.combinations(targetTest, 2):
                 # Get the candidate sides
-                comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
+                comboSides = tuple(nConnSide[iSide] for iSide in comboIDs)
 
                 # Check if we found a valid match
                 if not find_mortar_match(targetSide.corners, comboSides, bcID):
@@ -246,6 +215,7 @@ def ConnectMortar( nConnSide  : list
                 sideIDs  = (sideID, nbSideID)
 
                 # Connect mortar sides and update the list
+                # connect_mortar_sides(sideIDs, elems, sides, rbtsides, offsetManager, bcID)
                 connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
 
                 # Remove the target side from the list
@@ -255,7 +225,45 @@ def ConnectMortar( nConnSide  : list
                 bar.step(len(nbSideID) + 1)
 
                 # Break out of the loop
+                matchFound = True
                 break
+
+            # Attempt to match the target side with 4-candidate combinations
+            if not matchFound and len(targetNeighbors) >= 4:
+                targetTest = tuple(s for s in targetNeighbors if len(set(nConnSide[s].corners).intersection(targetCorners[targetID, :])) == 1)  # noqa: E501
+                for comboIDs in itertools.combinations(targetTest, 4):
+                    # Get the candidate sides
+                    comboSides   = tuple(nConnSide[iSide] for iSide in comboIDs)
+
+                    # Check if we found a valid match
+                    if not find_mortar_match(targetSide.corners, comboSides, bcID):
+                        continue
+
+                    # Get our and neighbor corner quad nodes
+                    sideID   = targetSide.sideID
+                    nbSideID = tuple(side.sideID for side in comboSides)
+
+                    # Build the connection, including flip
+                    sideIDs  = (sideID, nbSideID)
+
+                    # Connect mortar sides and update the list
+                    connect_mortar_sides(sideIDs, elems, rbtsides, offsetManager, bcID)
+
+                    # Remove the target side from the list
+                    indexList.remove_index([targetID, *list(comboIDs)])
+
+                    # Update the progress bar
+                    bar.step(len(nbSideID) + 1)
+
+                    # Break out of the loop
+                    break
+
+    except KeyError as err:
+        if hasattr(bar, 'close'):
+            bar.close()  # ty: ignore[call-non-callable]
+        elif hasattr(bar, '__exit__'):
+            bar.__exit__(None, None, None)  # ty: ignore[call-non-callable]
+        hopout.error(str(err))
 
     # Change the title of the progress bar
     bar.title('│              Finalizing Mortars')
@@ -303,8 +311,12 @@ def connect_mortar_sides( sideIDs    : tuple
     masterCorners = masterSide.corners
 
     if bcID is not None:
-        bcName        = mesh_vars.bcs[bcID].name
-        masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in cast(np.ndarray, masterCorners)), dtype=int)
+        bcName = mesh_vars.bcs[bcID].name
+        try:
+            masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in cast(np.ndarray, masterCorners)), dtype=int)
+        except KeyError as err:
+            nodeID, nodeBC = err.args[0]
+            raise KeyError(f"Missing periodic node entry for node {nodeID} on boundary '{nodeBC}'. Available periodic boundaries: {sorted({k[1] for k in mesh_vars.periNodes})}") from None  # ruff: ignore[line-too-long]
 
     # Convert to hashable tuple
     masterCorners = tuple(masterCorners)
@@ -424,8 +436,12 @@ def find_mortar_match( targetCorners: npt.NDArray
 
     # Passing a bcID means we are dealing with periodic boundaries
     if bcID is not None:
-        bcName        = mesh_vars.bcs[bcID].name
-        targetCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in targetCorners), dtype=int)
+        bcName = mesh_vars.bcs[bcID].name
+        try:
+            targetCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in targetCorners), dtype=int)
+        except KeyError as err:
+            nodeID, nodeBC = err.args[0]
+            raise KeyError(f"Missing periodic node entry for node {nodeID} on boundary '{nodeBC}'. Available periodic boundaries: {sorted({k[1] for k in mesh_vars.periNodes})}") from None  # ruff: ignore[line-too-long]
 
     # Check if exactly one combo point matches each target point
     unmatchedCorners = set(targetCorners)
