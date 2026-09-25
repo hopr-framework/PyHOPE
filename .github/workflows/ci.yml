@@ -148,6 +148,9 @@ jobs:
       - uses: j178/prek-action@v3.0.0
         with:
           extra-args: --all-files trailing-whitespace
+      - uses: j178/prek-action@v3.0.0
+        with:
+          extra-args: --all-files shfmt
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
