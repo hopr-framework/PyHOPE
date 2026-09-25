@@ -50,25 +50,25 @@ for paramfile in "${paramfiles[@]}"; do
     max_dir_length=$paramlen
   fi
 done
-box_width=$((max_dir_length + 10))  # Add padding for aesthetics
-col_width=$((max_dir_length + 2))   # Add padding for the table
+box_width=$((max_dir_length + 10)) # Add padding for aesthetics
+col_width=$((max_dir_length + 2))  # Add padding for the table
 
 # Iterate over all directories, run tests, and collect results
 echo "Running PyHOPE with coverage for each parameter.ini file..."
 
 for paramfile in "${paramfiles[@]}"; do
-  paramdir=$(dirname  "$paramfile")
-  paramstr=$(basename "$paramdir" )
+  paramdir=$(dirname "$paramfile")
+  paramstr=$(basename "$paramdir")
   paramini=$(basename "$paramfile")
 
   # Print a message for the running task
   echo ""
   printf "┌─%s─┐\n" "$(printf '─%.0s' $(seq 1 $((box_width))))"
-  printf "│ Running %-$(($box_width-8))s │\n" "$paramdir"
+  printf "│ Running %-$(($box_width - 8))s │\n" "$paramdir"
   printf "└─%s─┘\n" "$(printf '─%.0s' $(seq 1 $((box_width))))"
 
   # Change directory to where the parameter.ini file is located, suppress output
-  pushd "$paramdir" > /dev/null
+  pushd "$paramdir" >/dev/null
 
   # Run the script under coverage and capture the result
   if coverage run --data-file="$basedir/.coverage.$paramstr" --source="$basedir" -m pyhope "$paramini"; then
@@ -80,5 +80,5 @@ for paramfile in "${paramfiles[@]}"; do
   fi
 
   # Return to the previous directory, suppress output
-  popd > /dev/null
+  popd >/dev/null
 done
