@@ -44,7 +44,7 @@ for dir in "${directories[@]}"; do
     # Create a temporary parameter file
     temp_file=$(mktemp)
     # Replace placeholders in the template and save to the temporary file
-    sed -e "s/<nElem>/$res/g" -e "s/<nElem2>/$nElem2/g" "$template_file" > "$temp_file"
+    sed -e "s/<nElem>/$res/g" -e "s/<nElem2>/$nElem2/g" "$template_file" >"$temp_file"
     # Build the mesh
     pyhope "$temp_file"
     # Clean up the temporary file
@@ -62,9 +62,9 @@ for dir in "${directories[@]}"; do
   done
   cd ..
   # Merge convergence.log for artifacts
-  echo "===== Processing Folder: $dir =====" >> "$artifact_file"
-  cat "convergence.log" >> "$artifact_file"
-  echo "" >> "$artifact_file"
+  echo "===== Processing Folder: $dir =====" >>"$artifact_file"
+  cat "convergence.log" >>"$artifact_file"
+  echo "" >>"$artifact_file"
   # Analyze convergence behavior using a simple python script
   python3 ./convergence.py
 

@@ -5,7 +5,7 @@
 #
 # This file is part of PyHOPE
 #
-# Copyright (c) 2024 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+# Copyright (c) 2024-2026 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
 # Copyright (c) 2022 Gabriel Altay (Original Version)
 #
 # Hilbert(Z) curve adapted from
