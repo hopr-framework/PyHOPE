@@ -101,7 +101,7 @@ jobs:
       - shell: bash
         run: |
           source .venv/bin/activate
-          uv pip --no-cache-dir install ty
+          uv pip install ty
           ty --version
           ty check --color always --project pyhope pyhope
 
