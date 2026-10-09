@@ -1,3 +1,4 @@
+#! /usr/bin/bash
 # -*- coding: utf-8 -*-
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -38,7 +39,7 @@ declare -a results
 
 # Store all directories with "parameter.ini" files in an array (bash-only)
 mapfile -d '' paramfiles < <(find tutorials -type f -name "parameter.ini" -print0 | sort -z)
-echo "Found "${#paramfiles[@]}" parameter.ini files..."
+echo "Found \"${#paramfiles[@]}\" parameter.ini files..."
 
 # Calculate max width
 max_dir_length=0
@@ -51,7 +52,6 @@ for paramfile in "${paramfiles[@]}"; do
   fi
 done
 box_width=$((max_dir_length + 10)) # Add padding for aesthetics
-col_width=$((max_dir_length + 2))  # Add padding for the table
 
 # Iterate over all directories, run tests, and collect results
 echo "Running PyHOPE with coverage for each parameter.ini file..."
@@ -64,7 +64,7 @@ for paramfile in "${paramfiles[@]}"; do
   # Print a message for the running task
   echo ""
   printf "┌─%s─┐\n" "$(printf '─%.0s' $(seq 1 $((box_width))))"
-  printf "│ Running %-$(($box_width - 8))s │\n" "$paramdir"
+  printf "│ Running %-$((box_width - 8))s │\n" "$paramdir"
   printf "└─%s─┘\n" "$(printf '─%.0s' $(seq 1 $((box_width))))"
 
   # Change directory to where the parameter.ini file is located, suppress output

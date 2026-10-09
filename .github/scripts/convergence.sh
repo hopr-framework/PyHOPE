@@ -1,3 +1,4 @@
+#! /usr/bin/bash
 # -*- coding: utf-8 -*-
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -32,7 +33,7 @@ for dir in "${directories[@]}"; do
   echo "=== Processing directory: $dir ==="
   rm -rf convergence_test || true
   mkdir convergence_test
-  cd convergence_test
+  cd convergence_test || exit
   cp "../tutorials/$dir/parameter_template_pyhope.ini" .
   cp "../tutorials/$dir/parameter_flexi.ini" .
   # Generate Meshes
@@ -58,13 +59,15 @@ for dir in "${directories[@]}"; do
     procs=4
     if [ "$N" -eq 1 ]; then procs=2; fi
     # Run FLEXI
-    python3 /flexi/tools/convergence_test/convergence_grid --N $N --dim 3 --procs "$procs" /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
+    python3 /flexi/tools/convergence_test/convergence_grid --N "$N" --dim 3 --procs "$procs" /flexi/bin/flexi parameter_flexi.ini | tee -a ../convergence.log
   done
   cd ..
   # Merge convergence.log for artifacts
-  echo "===== Processing Folder: $dir =====" >>"$artifact_file"
-  cat "convergence.log" >>"$artifact_file"
-  echo "" >>"$artifact_file"
+  {
+    echo "===== Processing Folder: $dir ====="
+    cat "convergence.log"
+    echo ""
+  } >>"$artifact_file"
   # Analyze convergence behavior using a simple python script
   python3 ./convergence.py
 

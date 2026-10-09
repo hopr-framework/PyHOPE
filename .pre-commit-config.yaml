@@ -41,11 +41,20 @@ repos:
       - id: gitleaks
         name: gitleaks   [detect hardcoded secrets]
 
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      # Run the shell checker
+      - id: shellcheck
+        name: shellcheck [shell checker]
+        # args: ["--severity=warning"]
+
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.14.1-1
     hooks:
       # Run the shell formatter
       - id: shfmt
+        name: shfmt      [shell formatter]
         args: ["-w", "-i=2"]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks

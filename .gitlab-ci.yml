@@ -164,6 +164,18 @@ gitleaks:
     # detect hardcoded secrets
     - prek run --all-files gitleaks
 
+shell:
+  extends: .defaults
+  stage: lint
+  before_script: *minimal-before-script
+  script:
+    - uv pip install prek
+    - prek --version
+    # shell checker
+    - prek run --all-files shellcheck
+    # shell formatter
+    - prek run --all-files shfmt
+
 pre-commit:
   extends: .defaults
   stage: lint
