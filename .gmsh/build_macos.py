@@ -210,7 +210,7 @@ FONTCONFIG_URL     = ('https://www.freedesktop.org/software/fontconfig/release/'
 # Gmsh
 GMSH_VERSION = '4.15.2'
 GMSH_PATCH   = '1'
-GMSH_FULLVER = f'{GMSH_VERSION}.post{GMSH_PATCH}' if GMSH_PATCH else GMSH_VERSION
+GMSH_FULLVER = f'{GMSH_VERSION}.post{GMSH_PATCH}' if GMSH_PATCH else GMSH_VERSION  # ty: ignore[redundant-condition]
 GMSH_STRING  = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 GMSH_DIR     = os.path.join(WORK_DIR, 'gmsh')
 GMSH_URL     = ('https://gmsh.info/src/', r'gmsh-(\d+\.\d+\.\d+)-source')
@@ -303,7 +303,7 @@ GPERF_VERSION         = get_latest_version(lambda: _scrape_latest     (*GPERF_UR
 FONTCONFIG_VERSION    = get_latest_version(lambda: _scrape_latest     (*FONTCONFIG_URL   )                  , 'FontConfig'   , FONTCONFIG_VERSION)     # noqa: E211, E501
 
 GMSH_VERSION          = get_latest_version(lambda: _scrape_latest     (*GMSH_URL         )                  , 'Gmsh'         , GMSH_VERSION)           # noqa: E211, E501
-GMSH_FULLVER          = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION
+GMSH_FULLVER          = f"{GMSH_VERSION}.post{GMSH_PATCH}" if GMSH_PATCH else GMSH_VERSION  # ty: ignore[redundant-condition]
 GMSH_STRING           = 'gmsh_{}'.format(GMSH_VERSION.replace('.', '_'))
 
 
