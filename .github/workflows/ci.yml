@@ -75,7 +75,8 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
-      - uses: astral-sh/ruff-action@v4.1.0
+      - name: Run ruff [linter]
+        uses: astral-sh/ruff-action@v4.1.0
         with:
           version: 'latest'
       - run: ruff --version
@@ -88,7 +89,7 @@ jobs:
       image: python:3.14.6-slim-trixie
     steps:
       # Git LFS requires git
-      - name: Install Git LFS
+      - name: Run Install Git LFS
         shell: bash
         run: |
           apt-get update
@@ -98,7 +99,8 @@ jobs:
       - uses: ./.github/actions/setup
         # with:
         #   minimal: 'false'
-      - shell: bash
+      - name: Run ty [type checker]
+        shell: bash
         run: |
           source .venv/bin/activate
           uv pip install ty
@@ -118,7 +120,8 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           minimal: 'true'
-      - shell: bash
+      - name: Run vulture [dead code]
+        shell: bash
         run: |
           source .venv/bin/activate
           uv pip install vulture
@@ -130,27 +133,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: j178/prek-action@v3.0.1
+      - name: Run gitleaks [detect hardcoded secrets]
+        uses: j178/prek-action@v3.0.1
         with:
           extra-args: --all-files gitleaks
+
+  shell:
+    name: Lint / shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run shellcheck [shell checker]
+        uses: j178/prek-action@v3.0.1
+        with:
+          extra-args: --all-files shellcheck
+      - name: shfmt [shell formatter]
+        uses: j178/prek-action@v3.0.1
+        with:
+          extra-args: --all-files shfmt
 
   pre-commit:
     name: Lint / pre-commit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: j178/prek-action@v3.0.1
+      - name: Run pre-commit [check for merge conflicts]
+        uses: j178/prek-action@v3.0.1
         with:
           extra-args: --all-files check-merge-conflict
-      - uses: j178/prek-action@v3.0.1
+      - name: Run pre-commit [check for broken symlinks]
+        uses: j178/prek-action@v3.0.1
         with:
           extra-args: --all-files check-symlinks
-      - uses: j178/prek-action@v3.0.1
+      - name: Run pre-commit [trim trailing whitespace]
+        uses: j178/prek-action@v3.0.1
         with:
           extra-args: --all-files trailing-whitespace
-      - uses: j178/prek-action@v3.0.1
-        with:
-          extra-args: --all-files shfmt
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -159,7 +177,7 @@ jobs:
   compatibility:
     name: Compatibility / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: [ruff, ty, vulture, gitleaks, pre-commit]
+    needs: [ruff, ty, vulture, gitleaks, shell, pre-commit]
     strategy:
       fail-fast: false
       matrix:
