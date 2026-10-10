@@ -41,8 +41,11 @@ repos:
       - id: gitleaks
         name: gitleaks   [detect hardcoded secrets]
 
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
+  # Official shellcheck-precommit requires docker
+  # - repo: https://github.com/koalaman/shellcheck-precommit
+  #   rev: v0.11.0
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
     hooks:
       # Run the shell checker
       - id: shellcheck
