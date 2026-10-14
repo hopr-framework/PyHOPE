@@ -1,5 +1,5 @@
 # Load the base image
-FROM fedora:43
+FROM fedora:44
 
 # Numerics research group
 LABEL maintainer="numerics@iag.uni-stuttgart.de"
@@ -62,7 +62,7 @@ RUN git clone --branch master --single-branch --depth 1 https://github.com/flexi
     cmake --install build          && \
     cp -r  /flexi.src/tools /flexi && \
     rm -rf /flexi.src              && \
-    echo '/flexi/lib' > /etc/ld.so.conf.d/flexi.conf && \
+    echo '/flexi/lib64' > /etc/ld.so.conf.d/flexi.conf && \
     ldconfig
 
 WORKDIR /flexi

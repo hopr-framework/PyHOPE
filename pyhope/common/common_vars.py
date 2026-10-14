@@ -33,7 +33,7 @@ import subprocess
 from collections.abc import Callable
 from enum import Enum, unique
 from typing import Final, Optional, final
-from typing_extensions import Self
+from typing import Self
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
