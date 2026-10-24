@@ -1,0 +1,74 @@
+# -*- coding: utf-8 -*-
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of PyHOPE
+#
+# Copyright (c) 2024 - 2026 Numerics Research Group, University of Stuttgart, Prof. Andrea Beck
+#
+# PyHOPE is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PyHOPE is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PyHOPE. If not, see <http://www.gnu.org/licenses/>.
+
+# ==================================================================================================================================
+# Continuous Integration/Continuous Deployment
+# ==================================================================================================================================
+
+# Workflow for continuous integration (CI)
+name: Python Versions
+
+on:
+  # Runs on weekly schedule
+  schedule:
+    - cron: '0 0 * * 1'
+  # Allows running this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Permissions
+permissions:
+  contents: write
+  pull-requests: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued
+concurrency:
+  group: update-python-versions
+  cancel-in-progress: true
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+# Update Python versions
+# ----------------------------------------------------------------------------------------------------------------------------------------------------
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Prepare the image
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      # Run the update script
+      - name: Update Python versions
+        run: python3 .github/scripts/python_versions.py
+
+      # Create pull request
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          add-paths: |
+            .github/workflows/ci.yml
+            .gitlab-ci.yml
+          commit-message: 'CI/CD: Update Python versions'
+          title: 'CI/CD: Update Python versions'
+          body: 'Automated update of the Python base images to the latest patch releases.'
+          branch: cicd.python.autoupdate
+          delete-branch: true

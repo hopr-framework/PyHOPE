@@ -32,9 +32,9 @@ variables:
   # Define the Python version
   PYTHON311_VERSION: 3.11.17-trixie
   PYTHON312_VERSION: 3.12.15-trixie
-  PYTHON313_VERSION: 3.13.16-trixie
-  PYTHON314_VERSION: 3.14.8-trixie
-  PYTHON315_VERSION: 3.15.0-trixie
+  PYTHON313_VERSION: 3.13.17-trixie
+  PYTHON314_VERSION: 3.14.9-trixie
+  PYTHON315_VERSION: 3.15.1-trixie
 
 # Official language image. Look for the different tagged releases at:
 # > https://hub.docker.com/r/library/python/tags
