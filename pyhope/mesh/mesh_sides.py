@@ -25,7 +25,6 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-from typing import cast
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -54,7 +53,6 @@ def GenerateSides() -> None:
     mesh   = mesh_vars.mesh
     nElems = 0
     nSides = 0
-    sCount = 0
     # INFO: Tuples should be faster than lists but cumbersome to add elements
     # mesh_vars.elems = ()
     # mesh_vars.sides = ()
@@ -72,7 +70,7 @@ def GenerateSides() -> None:
         totalElems += mesh.get_cells_type(elemType).shape[0]
 
     # Use a moderate chunk size to bound intermediate progress updates
-    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    chunk = max(1, min(1000, max(10, int(totalElems/(400)))))
     bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33, chunk=chunk)
 
     # Loop over all element types
@@ -82,13 +80,14 @@ def GenerateSides() -> None:
             continue
 
         # Get the elements
-        ioelems  = mesh.get_cells_type(elemType)
-        elemMap  = mesh_vars.ELEMMAP(elemType)
-        nIOElems = ioelems.shape[0]
-        nIOSides = len(faces(elemType))
+        ioelems   = mesh.get_cells_type(elemType)
+        elemMap   = mesh_vars.ELEMMAP(elemType)
+        nIOElems  = ioelems.shape[0]
+        elemFaces = faces(elemType)
+        nIOSides  = len(elemFaces)
 
         # Map volume cell sets to elements
-        iocsets  = mesh.cell_sets_dict
+        iocsets = mesh.cell_sets_dict
         elemSet: list[int | None]  = [None for _ in range(nIOElems)]
 
         for key, val in iocsets.items():
@@ -116,70 +115,51 @@ def GenerateSides() -> None:
         elems.extend([ELEM() for _ in range(nIOElems         )])  # pyright: ignore[reportArgumentType]
         sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])  # pyright: ignore[reportArgumentType]
 
+        sideIDs = nSides + np.arange(nIOElems*nIOSides).reshape(nIOElems, nIOSides)
+
         # Create the corner faces
-        corner_faces  = tuple(face_to_cgns(s, elemType) for s in faces(elemType))  # noqa: E272
+        corner_faces  = tuple(face_to_cgns(s, elemType) for s in elemFaces)        # noqa: E272
         corner_length = tuple(len(c)                    for c in corner_faces)     # noqa: E272
         corner_index  = tuple(np.array(c, dtype=int)    for c in corner_faces)     # noqa: E272
+        corner_coll   = tuple(ioelems[:, c]             for c in corner_index)     # noqa: E272
 
         # Create dictionaries
-        for iElem in range(nElems, nElems+nIOElems):
-            nodes = ioelems[iElem-nElems]
-            # elems[iElem].update(type   = elemMap,                      # noqa: E251
-            #                     elemID = iElem,                        # noqa: E251
-            #                     sides  = [],                           # noqa: E251
-            #                     nodes  = ioelems[iElem])               # noqa: E251
-            elems[iElem].type   = elemMap                       # noqa: E251
-            elems[iElem].elemID = iElem                         # noqa: E251
-            elems[iElem].sides  = []                            # noqa: E251
-            elems[iElem].nodes  = nodes                         # noqa: E251
+        for e in range(nIOElems):
+            iElem = nElems + e
+            elem  = elems[iElem]
+
+            # elem.update(type   = elemMap,                      # noqa: E251
+            #             elemID = iElem,                        # noqa: E251
+            #             sides  = [],                           # noqa: E251
+            #             nodes  = ioelems[iElem])               # noqa: E251
+            elem.type   = elemMap                       # noqa: E251
+            elem.elemID = iElem                         # noqa: E251
+            elem.sides  = sideIDs[e]                    # noqa: E251
+            elem.nodes  = ioelems[e]                    # noqa: E251
 
             # Create the zone
             # > Account for different elemTypes in the index
-            if elemSet[iElem-nElems] is not None:
-                elems[iElem].zone = elemSet[iElem-nElems]
+            zone = elemSet[e]
+            if zone is not None:
+                elem.zone = zone
 
-            # Create the sides
-            for key, val in enumerate(corner_length):
-                # sides[iSide].update(sideType=4)
-                sides[nSides + key].sideType = val
-
-            # Assign corners to sides, CGNS format
-            for index, face in enumerate(faces(elemType)):
-                # PERF: It is faster to use a list comprehension than numpy.fromiter
-                # corners = np.fromiter((nodes[s] for s in corner_faces[index]), dtype=int)
-                # corners = nodes[corner_index[index]]
-                # sides[sCount].update(face    = face,                   # noqa: E251
-                #                      elemID  = iElem,                  # noqa: E251
-                #                      sideID  = sCount,                 # noqa: E251
-                #                      locSide = index+1,                # noqa: E251
-                #                      corners = np.array(corners))      # noqa: E251
-                sides[sCount].face    = face                        # noqa: E251
-                sides[sCount].elemID  = iElem                       # noqa: E251
-                sides[sCount].sideID  = sCount                      # noqa: E251
-                sides[sCount].locSide = index+1                     # noqa: E251
-                # PERF: It is faster to use a list comprehension than numpy.fromiter
-                # sides[sCount].corners = corners                     # noqa: E251
-                sides[sCount].corners = nodes[corner_index[index]]  # noqa: E251
-                sCount += 1
-
-            # Add to nSides
-            nSides += nIOSides
+            # Create the sides and assign the corners to the sides, CGNS format
+            sCount = nSides + e*nIOSides
+            for index in range(nIOSides):
+                side          = sides[sCount + index]
+                side.sideType = corner_length[index]        # noqa: E251
+                side.face     = elemFaces[index]            # noqa: E251
+                side.elemID   = iElem                       # noqa: E251
+                side.sideID   = sCount + index              # noqa: E251
+                side.locSide  = index + 1                   # noqa: E251
+                side.corners  = corner_coll[index][e]        # noqa: E251
 
             # Update progress bar
             bar.step()
 
-        # Add to nElems
+        # Add to nSides and nElems
+        nSides += nIOElems*nIOSides
         nElems += nIOElems
 
     # Close the progress bar
     bar.close()
-
-    # Append sides to elem
-    for side in sides:
-        elemID = cast(int, side.elemID)
-        sideID = cast(int, side.sideID)
-        cast(list, elems[elemID].sides).append(sideID)
-
-    # Convert lists to numpy arrays
-    for elem in elems:
-        elem.sides = np.array(elem.sides)
