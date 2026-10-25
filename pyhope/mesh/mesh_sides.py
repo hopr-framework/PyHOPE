@@ -25,6 +25,7 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
+import gc
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -72,6 +73,9 @@ def GenerateSides() -> None:
     # Use a moderate chunk size to bound intermediate progress updates
     chunk = max(1, min(1000, max(10, int(totalElems/(400)))))
     bar = ProgressBar(value=totalElems, title='│             Processing Elements', length=33, chunk=chunk)
+
+    # Temporally disable the garbage collector
+    gc.disable()
 
     # Loop over all element types
     for elemType in mesh.cells_dict:
@@ -163,3 +167,7 @@ def GenerateSides() -> None:
 
     # Close the progress bar
     bar.close()
+
+    # Re-enable the garbace collector
+    gc.collect()
+    gc.enable()
