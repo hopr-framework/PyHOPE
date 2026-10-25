@@ -319,6 +319,9 @@ def ConnectMesh() -> None:
     doPeriodicCorrect = mesh_vars.doPeriodicCorrect
     doMortars         = mesh_vars.doMortars
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     mesh    = mesh_vars.mesh
     elems   = mesh_vars.elems
     sides   = mesh_vars.sides
@@ -617,6 +620,7 @@ def ConnectMesh() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     # hopout.sep()
     # hopout.info('CONNECT MESH DONE!')

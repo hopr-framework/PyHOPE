@@ -64,6 +64,9 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     hopout.sep()
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Create or re-use the meshio object
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
@@ -331,5 +334,6 @@ def ReadHOPR(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     return mesh
