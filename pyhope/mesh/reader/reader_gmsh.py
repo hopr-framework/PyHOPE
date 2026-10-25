@@ -111,6 +111,9 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
     # Setup stacksize
     resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     hopout.sep()
     gmsh.initialize()
 
@@ -269,6 +272,7 @@ def ReadGMSH(fnames: list) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     return mesh
 
@@ -287,6 +291,9 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     hopout.routine('Applying boundary conditions')
     # hopout.sep()
+
+    # Temporally disable the garbage collector
+    gc.disable()
 
     points  = mesh.points
     cells   = mesh.cells
@@ -401,6 +408,7 @@ def BCCGNS(mesh: meshio.Mesh, fnames: list) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
     hopout.sep()
 
     return mesh
