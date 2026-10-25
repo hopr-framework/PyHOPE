@@ -456,6 +456,9 @@ def SortMesh() -> None:
 
     meshsort = GetIntFromStr('MeshSorting', default=default)
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Sort the mesh
     match meshsort:
         case MeshSort.NONE.value:
@@ -472,3 +475,4 @@ def SortMesh() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()

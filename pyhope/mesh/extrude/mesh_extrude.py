@@ -91,6 +91,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
     hopout.sep()
     hopout.routine(f'  Template: {extrTemplate}')
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Setup the extrusion
     extrShifts = LoadTemplate(extrTemplate.strip().lower(), __file__, 'Extrusion').ExtrudeTemplate()
 
@@ -384,6 +387,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     hopout.sep()
     return mesh
