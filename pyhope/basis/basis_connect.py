@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+import gc
 import re
 from typing import Final, Optional, cast
 from collections.abc import Iterable
@@ -159,6 +160,9 @@ def CheckConnect() -> None:
     if not checkConnectivity:
         return None
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Check all sides
     elems:     Final[list] = mesh_vars.elems
 
@@ -243,3 +247,7 @@ def CheckConnect() -> None:
             DebugIO(errSides=list(map(itemgetter(1), results)))
 
         hopout.error(f'Connectivity check failed for {len(results)} / {nconn} connections!')
+
+    # Run garbage collector to release memory
+    gc.collect()
+    gc.enable()

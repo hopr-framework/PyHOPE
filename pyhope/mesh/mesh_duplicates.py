@@ -163,7 +163,11 @@ def EliminateDuplicates() -> None:
     from pyhope.common.common_unique import unique
     from pyhope.mesh.connect.connect import find_bc_index
     # ------------------------------------------------------
+
     hopout.routine('Removing duplicate points')
+
+    # Temporally disable the garbage collector
+    gc.disable()
 
     bcs:   Final[list]  = mesh_vars.bcs
     vvs:   Final[list]  = mesh_vars.vvs
@@ -316,3 +320,4 @@ def EliminateDuplicates() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()

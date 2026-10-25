@@ -144,6 +144,9 @@ def CheckOrient() -> None:
     if not checkSurfaceNormals:
         return None
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     nGeo:  Final[int]  = mesh_vars.nGeo
     elems: Final[list] = mesh_vars.elems
 
@@ -193,3 +196,4 @@ def CheckOrient() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()

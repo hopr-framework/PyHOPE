@@ -62,6 +62,9 @@ def MeshExternal() -> meshio.Mesh:
     hopout.routine('Setting boundary conditions')
     hopout.sep()
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Load the boundary conditions
     nBCs = CountOption('BoundaryName')
     mesh_vars.bcs = [BC() for _ in range(nBCs)]
@@ -162,6 +165,7 @@ def MeshExternal() -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     return mesh
 
