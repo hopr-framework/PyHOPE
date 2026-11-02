@@ -58,6 +58,9 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
 
     hopout.routine('Converting serendipity to full langrange mesh')
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Copy original points
     points    = mesh.points.copy()
 
@@ -250,5 +253,6 @@ def convertSerendipityToFullLagrange(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     return mesh

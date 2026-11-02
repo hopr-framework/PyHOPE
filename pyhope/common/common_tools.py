@@ -26,6 +26,7 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
+# import gc
 import time
 # from sortedcontainers import SortedDict
 from collections import defaultdict
@@ -116,6 +117,21 @@ def temporary_assign(obj: Any, attr: Any, value: Any) -> GeneratorType:  # noqa:
         # Restore the previous attribute
         else:
             setattr(obj, attr, orig)
+
+
+# @contextmanager
+# def pause_gc(collect: bool = False) -> GeneratorType:
+#     """ Temporally pause the cyclic garbace collector
+#     """
+#     wasEnabled = gc.isenabled()
+#     gc.disable()
+#     try:
+#         yield
+#     finally:
+#         if wasEnabled:
+#             if collect:
+#                 gc.collect()
+#             gc.enable()
 
 
 class IndexedLists:
