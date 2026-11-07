@@ -98,7 +98,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
 
     # Standard library since Python 3.11
     if Version(platform.python_version()) >= Version('3.11'):
-        import tomllib  # ty: ignore[unresolved-import]
+        import tomllib  # ty: ignore[import-not-found]
     else:
         tomllib = None
 
