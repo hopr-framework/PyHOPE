@@ -113,6 +113,9 @@ def MeshCartesian() -> meshio.Mesh:
     offsetp   = 0
     offsets   = 0
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # GMSH only supports mesh elements within a single model
     # > https://gitlab.onelab.info/gmsh/gmsh/-/issues/2836
     gmsh.model.add('Domain')
@@ -410,6 +413,7 @@ def MeshCartesian() -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     # Store the element types
     mesh_vars.nZones    = nZones

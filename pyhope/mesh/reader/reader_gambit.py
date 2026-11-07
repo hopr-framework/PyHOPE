@@ -80,6 +80,9 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     hopout.sep()
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Create an empty meshio object
     points   = mesh.points if len(mesh.points.shape)>1 else np.zeros((0, 3), dtype=np.float64)
     pointl   = cast(list, points.tolist())
@@ -200,7 +203,7 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
                     try:
                         _, zoneNum, _, zoneNElems, _, zoneMat, _, zoneFlags = tokens
-                        zoneNum, zoneNElems, zoneMat, zoneFlags = int(zoneNum), int(zoneNElems), int(zoneMat), int(zoneFlags)
+                        zoneNum, zoneNElems, _zoneMat, _zoneFlags = int(zoneNum), int(zoneNElems), int(zoneMat), int(zoneFlags)
                     except ValueError:
                         continue
 
@@ -355,5 +358,6 @@ def ReadGambit(fnames: list, mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     return mesh
