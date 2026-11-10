@@ -146,10 +146,10 @@ def downloadGitDir(user    : str,
 
     for item in contents:
         downloadGitFile(user, repo, target, item, branch, bar)
-        if progress:
+        if bar:
             bar.step()
 
-    if progress:
+    if bar:
         bar.close()
 
 

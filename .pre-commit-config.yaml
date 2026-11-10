@@ -27,7 +27,7 @@ repos:
 
   - repo: https://github.com/astral-sh/ty-pre-commit
     # Ty version
-    rev: v0.0.99
+    rev: v0.0.100
     hooks:
       # Run the type checker
       - id: ty

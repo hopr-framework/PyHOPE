@@ -154,7 +154,9 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                                                                      or any(key.startswith('quad') for key in v))
 
     # Take the correct BC index for the bottom BC
-    meshcells = tuple(s for s in meshcells if s[0].lower() == mesh_vars.bcs[extrBCIndexBot].name)
+    botBC     = mesh_vars.bcs[extrBCIndexBot]
+    botName   = botBC.name if botBC is not None else None
+    meshcells = tuple(s for s in meshcells if s[0].lower() == botName)
 
     match len(meshcells):
         case 0:
@@ -182,7 +184,7 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
             nCorners = 2 if 'line' in etype else (3 if 'tria' in etype else 4)
 
             # Filter the zone 2D faces
-            if nCorners > 2 and cname.lower() != mesh_vars.bcs[extrBCIndexBot].name:
+            if nCorners > 2 and cname.lower() != botName:
                 # Sort them as a set for membership checks
                 for face in block:
                     # Slice to only include corners for the search dictionary
@@ -266,7 +268,8 @@ def MeshExtrude(mesh: meshio.Mesh) -> meshio.Mesh:
                 # > We know this is the first face and 1/5 face
                 botIdx , botFace = 0, subFaces[0]
                 topIdx           = 1 if mtype.startswith('tria') else 5
-                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], mesh_vars.bcs[extrBCIndexTop].name  # noqa: E501
+                topBC            = mesh_vars.bcs[extrBCIndexTop]
+                topFace, topName = [np.array(extElems[-1])[face] for face in faces(nGeo)][topIdx], topBC.name if topBC is not None else None  # noqa: E501
 
                 # BC: Set the BC for the bottom face
                 appendBCSet(botFace, faceMap, nFace, nFaces, nodeToFace, faceType,

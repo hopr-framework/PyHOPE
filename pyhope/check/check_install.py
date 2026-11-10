@@ -87,6 +87,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
     import h5py
     import re
     import urllib.error
+    import tomllib  # Standard library since Python 3.11
     from contextlib import redirect_stdout
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -95,12 +96,6 @@ def CheckInstall(path: Optional[str] = None) -> None:
     from pyhope.common.common_git import isLFSFile
     from pyhope.readintools.readintools import ReadConfig
     # ------------------------------------------------------
-
-    # Standard library since Python 3.11
-    if Version(platform.python_version()) >= Version('3.11'):
-        import tomllib  # ty: ignore[import-not-found]
-    else:
-        tomllib = None
 
     testDir: Final[str]   = 'tutorials'
     testArr: Final[tuple] = ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo')

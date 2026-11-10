@@ -311,8 +311,9 @@ def connect_mortar_sides( sideIDs    : tuple
     masterCorners = masterSide.corners
 
     if bcID is not None:
-        bcName = mesh_vars.bcs[bcID].name
         try:
+            bcObj  = mesh_vars.bcs[bcID]
+            bcName = bcObj.name if bcObj is not None else None
             masterCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in cast(np.ndarray, masterCorners)), dtype=int)
         except KeyError as err:
             nodeID, nodeBC = err.args[0]
@@ -368,7 +369,7 @@ def connect_mortar_sides( sideIDs    : tuple
     masterSide.flip        = 0            # noqa: E251
     # masterSide.nbLocSide   = 0            # noqa: E251
 
-    flipMap = type_to_mortar_flip(mesh_vars.elems[masterSide.elemID].type)
+    flipMap = type_to_mortar_flip(masterElem.type)
 
     # Map mortar types to their corresponding corner lists.
     mortarCorners = mortarToCorners[mortarType]
@@ -436,8 +437,9 @@ def find_mortar_match( targetCorners: npt.NDArray
 
     # Passing a bcID means we are dealing with periodic boundaries
     if bcID is not None:
-        bcName = mesh_vars.bcs[bcID].name
         try:
+            bcObj  = mesh_vars.bcs[bcID]
+            bcName = bcObj.name if bcObj is not None else None
             targetCorners = np.fromiter((mesh_vars.periNodes[(s, bcName)] for s in targetCorners), dtype=int)
         except KeyError as err:
             nodeID, nodeBC = err.args[0]
