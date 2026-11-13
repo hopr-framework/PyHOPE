@@ -140,8 +140,8 @@ def process_chunk(chunk: tuple) -> list[npt.NDArray[np.float64]]:
     for elem in chunk:
         nodeCoords, elem_type = elem
         jac = evaluate_jacobian_dispatch(nodeCoords,
-                                         process_chunk.VdmGLtoAP[elem_type],  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
-                                         process_chunk.D_EqToGL[ elem_type],  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[unresolved-attribute]
+                                         process_chunk.VdmGLtoAP[elem_type],  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[missing-attribute]
+                                         process_chunk.D_EqToGL[ elem_type],  # pyright: ignore[reportFunctionMemberAccess] # ty: ignore[missing-attribute]
                                          elem_type)
         # INFO: ALTERNATIVE VERSION, CACHING VDM, D
         # nodeCoords, evaluate_jacobian = elem

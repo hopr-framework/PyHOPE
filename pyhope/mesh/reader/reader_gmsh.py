@@ -725,10 +725,11 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
         centers = np.mean(quads, axis=1)
 
         # Query the tree
-        distances, indices = cast(tuple[np.ndarray, np.ndarray], stree.query(centers))
-        if np.any(distances > tol):
-            hopout.error(f'Could not find all boundary sides within tolerance {tol} for BC "{cgnsName}", exiting...',
-                         traceback=True)
+        if stree:
+            distances, indices = cast(tuple[np.ndarray, np.ndarray], stree.query(centers))
+            if np.any(distances > tol):
+                hopout.error(f'Could not find all boundary sides within tolerance {tol} for BC "{cgnsName}", exiting...',
+                             traceback=True)
 
         # Update cellsets
         bcName = cgnsName.lower()
