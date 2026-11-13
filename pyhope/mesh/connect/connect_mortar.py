@@ -260,9 +260,9 @@ def ConnectMortar( nConnSide  : list
 
     except KeyError as err:
         if hasattr(bar, 'close'):
-            bar.close()  # ty: ignore[call-non-callable]
+            bar.close()  # ty: ignore[not-callable]
         elif hasattr(bar, '__exit__'):
-            bar.__exit__(None, None, None)  # ty: ignore[call-non-callable]
+            bar.__exit__(None, None, None)  # ty: ignore[not-callable]
         hopout.error(str(err))
 
     # Change the title of the progress bar
