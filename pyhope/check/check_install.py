@@ -27,12 +27,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
-import platform
 import subprocess
 import sys
 import tempfile
 from enum import Enum, unique
-from packaging.version import Version
 from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
