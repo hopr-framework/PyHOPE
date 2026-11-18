@@ -27,12 +27,10 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
-import platform
 import subprocess
 import sys
 import tempfile
 from enum import Enum, unique
-from packaging.version import Version
 from typing import Final, Optional
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
@@ -87,6 +85,7 @@ def CheckInstall(path: Optional[str] = None) -> None:
     import h5py
     import re
     import urllib.error
+    import tomllib  # Standard library since Python 3.11
     from contextlib import redirect_stdout
     # Local imports ----------------------------------------
     import pyhope.output.output as hopout
@@ -95,12 +94,6 @@ def CheckInstall(path: Optional[str] = None) -> None:
     from pyhope.common.common_git import isLFSFile
     from pyhope.readintools.readintools import ReadConfig
     # ------------------------------------------------------
-
-    # Standard library since Python 3.11
-    if Version(platform.python_version()) >= Version('3.11'):
-        import tomllib  # ty: ignore[import-not-found]
-    else:
-        tomllib = None
 
     testDir: Final[str]   = 'tutorials'
     testArr: Final[tuple] = ('ElemInfo', 'GlobalNodeIDs', 'NodeCoords', 'SideInfo')
@@ -307,10 +300,6 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     # Python 3.11+: Skip the tutorial
                     # Python 3.10-: Mark the tutorial as successful
                     bar.step()
-                    if Version(platform.python_version()) < Version('3.11'):
-                        hopout.printtest(f'Successfully completed test (w/o verification) "{tutorial}"', hopout.Symbols.OK)
-                        tsuccess[tNum] = True
-                    continue
 
             # Open the mesh file and compare against the reference
             with h5py.File(os.path.join(tutorialPath, f'{projectName}_mesh.h5'), mode='r') as h5:

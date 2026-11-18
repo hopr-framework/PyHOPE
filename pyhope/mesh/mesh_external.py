@@ -142,12 +142,12 @@ def MeshExternal() -> meshio.Mesh:
         hopout.error('No boundary conditions defined in the parameter file.')
 
     # Reconstruct periodicity vectors from mesh
-    hasPeriodic = np.any(tuple(cast(np.ndarray, bcs[s].type)[0] == 1 for s in range(nBCs)))
+    hasPeriodic = np.any(tuple(bc is not None and cast(np.ndarray, bc.type)[0] == 1 for bc in bcs))
     if len(mesh_vars.vvs) == 0 and hasPeriodic:
         print(hopout.warn('Periodicity vectors neither defined in parameter file nor '
                           'in the given mesh file. Reconstructing the vectors from BCs!'))
         # Get max number of periodic alphas
-        mesh_vars.vvs = [{} for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs])))]
+        mesh_vars.vvs = [{} for _ in range(int(np.max([np.abs(cast(np.ndarray, bc.type)[3]) for bc in bcs if bc is not None])))]
         vvs = recontruct_periodicity(mesh)
         hopout.routine('The following vectors were recovered:')
         for iVV, vv in enumerate(vvs):
@@ -179,7 +179,7 @@ def recontruct_periodicity(mesh: meshio.Mesh) -> list:
 
         # Identify positive and negative periodic boundaries
         boundaries: dict[int, Optional[str]] = {1: None, -1: None}
-        for bc in [s for s in bcs if abs(cast(np.ndarray, s.type)[3]) == iVV + 1]:
+        for bc in [s for s in bcs if s is not None and abs(cast(np.ndarray, s.type)[3]) == iVV + 1]:
             sign = np.sign(cast(np.ndarray, bc.type)[3])
             if boundaries[sign] is not None:
                 hopout.error("Multiple periodic boundaries found for the same direction. Exiting...")

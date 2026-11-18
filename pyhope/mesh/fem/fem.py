@@ -65,6 +65,7 @@ def FEMConnect() -> None:
     import pyhope.output.output as hopout
     from pyhope.readintools.readintools import CountOption, GetLogical
     from pyhope.mesh.mesh_common import edges, edge_to_corner
+    from pyhope.mesh.mesh_vars import ELEM
     # ------------------------------------------------------
 
     if CountOption('doFEMConnect') == 0:
@@ -78,7 +79,7 @@ def FEMConnect() -> None:
         hopout.separator()
         return None
 
-    elems     = mesh_vars.elems
+    elems     = cast(list[ELEM], mesh_vars.elems)
     periNodes = mesh_vars.periNodes
 
     # Build a graph of all periodic connections across all BCs
@@ -326,9 +327,10 @@ def getFEMInfo() -> tuple[npt.NDArray,  # FEMElemInfo
     # Local imports ----------------------------------------
     import pyhope.io.io_vars as io_vars
     import pyhope.mesh.mesh_vars as mesh_vars
+    from pyhope.mesh.mesh_vars import ELEM
     # ------------------------------------------------------
 
-    elems  = mesh_vars.elems
+    elems  = cast(list[ELEM], mesh_vars.elems)
 
     # Check if elements contain FEM connectivity
     if not hasattr(elems[0], 'vertexInfo') or elems[0].vertexInfo is None:

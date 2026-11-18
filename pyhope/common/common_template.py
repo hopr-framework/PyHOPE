@@ -66,7 +66,7 @@ def LoadTemplate(template: str,
         if os.path.exists(loc):
             spec = importlib.util.spec_from_file_location(template, loc)
             # Skip to the next location if spec is None
-            if spec is None:
+            if spec is None or spec.loader is None:
                 continue
 
             templateModule = importlib.util.module_from_spec(spec)

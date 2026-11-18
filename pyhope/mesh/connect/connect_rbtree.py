@@ -253,8 +253,8 @@ class RedBlackTree:
         """ Fixup the red-black tree after insertion
         """
         while z.parent is not None and z.parent.color == RED:
-            if z.parent == z.parent.parent.left:
-                y = z.parent.parent.right
+            if z.parent == z.parent.parent.left:                            # ty: ignore[missing-union-attribute]
+                y = z.parent.parent.right                                   # ty: ignore[missing-union-attribute]
 
                 if y is not None and y.color == RED:
                     z.parent.color = BLACK
@@ -266,11 +266,11 @@ class RedBlackTree:
                         z = z.parent
                         self._left_rotate(z)
                     z.parent.color = BLACK
-                    z.parent.parent.color = RED
-                    self._right_rotate(cast(_RBTreeNode, z.parent.parent))
+                    z.parent.parent.color = RED                             # ty: ignore[missing-union-attribute]
+                    self._right_rotate(cast(_RBTreeNode, z.parent.parent))  # ty: ignore[missing-union-attribute]
 
             else:
-                y = z.parent.parent.left
+                y = z.parent.parent.left                                    # ty: ignore[missing-union-attribute]
                 if y is not None and y.color == RED:
                     z.parent.color = BLACK
                     y.color        = BLACK
@@ -281,8 +281,8 @@ class RedBlackTree:
                         z = z.parent
                         self._right_rotate(z)
                     z.parent.color = BLACK
-                    z.parent.parent.color = RED
-                    self._left_rotate(cast(_RBTreeNode, z.parent.parent))
+                    z.parent.parent.color = RED                             # ty: ignore[missing-union-attribute]
+                    self._left_rotate(cast(_RBTreeNode, z.parent.parent))   # ty: ignore[missing-union-attribute]
         self._root.color = BLACK
 
     @lru_cache(maxsize=4096)  # noqa: B019

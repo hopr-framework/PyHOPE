@@ -244,9 +244,9 @@ def process_chunk(chunk: tuple) -> list:
     chunk_results = []
     for elem in chunk:
         elem_result = check_sides(elem,
-                                   process_chunk.VdmEqToGP,  # ty: ignore[unresolved-attribute]
-                                   process_chunk.DGP,        # ty: ignore[unresolved-attribute]
-                                   process_chunk.weights,    # ty: ignore[unresolved-attribute]
+                                   process_chunk.VdmEqToGP,  # ty: ignore[missing-attribute]
+                                   process_chunk.DGP,        # ty: ignore[missing-attribute]
+                                   process_chunk.weights,    # ty: ignore[missing-attribute]
                                    failed_only=True)
         # Append a lightweight sentinel (None) for successes, actual failure list otherwise
         chunk_results.append(elem_result)

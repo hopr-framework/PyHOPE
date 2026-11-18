@@ -55,6 +55,7 @@ def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
     Convert a Gmsh object to a meshio object
     """
     # Local imports ----------------------------------------
+    from meshio import CellBlock
     from pyhope.meshio.meshio_ordering import NodeOrdering
     # ------------------------------------------------------
 
@@ -83,7 +84,7 @@ def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
         node_tags_sorted   = node_tags_reshaped[np.argsort(elemTags)]
         cells.append(meshio.CellBlock(meshio.gmsh.gmsh_to_meshio_type[elemType], node_tags_sorted))
 
-    cell_sets = {}
+    cell_sets: dict[str, list[list[int]]] = {}
     for dim, tag in gmsh.model.getPhysicalGroups():
         # Get offset of the node tags (gmsh sorts elements of all dims in succeeding order of node tags, but order of dims might differ)  # noqa: E501
         elem_types, elem_tags, _ = gmsh.model.mesh.getElements(dim=dim)
@@ -100,7 +101,7 @@ def gmsh_to_meshio(gmsh: ModuleType) -> meshio.Mesh:
             # Make sure that the cell type appears only once in the cell list
             idx = []
             for k, cell_block in enumerate(cells):
-                if cell_block.type in meshio_cell_type:
+                if isinstance(cell_block, CellBlock) and cell_block.type in meshio_cell_type:
                     idx.append(k)
 
             offset = {meshio_cell_type[j]: np.where(elem_tags_group[meshio_cell_type[j]] == elem_tags[j][0])[0] for j in range(len(idx))}  # noqa: E501
@@ -180,7 +181,7 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
     all_cells:      Final[tuple] = tuple(cell_block for cell_block in mesh.cells)
     cellTypeToBC:   Final[dict]  = {s.type: {} for s in all_cells}
     cellTypeToName: Final[list]  = [s.type     for s in all_cells]  # noqa: E272
-    BCNameToBCID:   Final[dict]  = {bc.name: bc.bcid for bc in mesh_vars.bcs if bc.bcid is not None}
+    BCNameToBCID:   Final[dict]  = {bc.name: bc.bcid for bc in mesh_vars.bcs if bc is not None and bc.bcid is not None}
     del all_cells
 
     # Find the mapping from surface to BC for all cell sets
@@ -239,8 +240,8 @@ def meshio_to_gmsh(mesh: meshio.Mesh) -> meshio.Mesh:
                           cells  = cast(dict, celll))  # noqa: E251
 
     # Mixed elements require gmsh:physical and gmsh:geometrical
-    gmshMesh.cell_data.update({'gmsh:physical'   : cast(list, celldphys)})   # pyright: ignore[reportArgumentType, reportCallIssue]
-    gmshMesh.cell_data.update({'gmsh:geometrical': cast(list, celldgeom)})   # pyright: ignore[reportArgumentType, reportCallIssue]
+    gmshMesh.cell_data.update({'gmsh:physical'   : cast(list, celldphys)})
+    gmshMesh.cell_data.update({'gmsh:geometrical': cast(list, celldgeom)})
 
     # Provide entity information for nodes (gmsh:dim_tags)
     # Strategy:

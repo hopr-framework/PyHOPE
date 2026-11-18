@@ -309,54 +309,52 @@ def MeshCartesian() -> meshio.Mesh:
 
     bc = [None for _ in range(max(bcIndex))]
     for iBC in range(max(bcIndex)):
-        # if mesh_vars.bcs[iBC-1] is None:
-        # if 'Name' not in bcs[iBC]:
-        if bcs[iBC] is None:
+        bcObj = bcs[iBC]
+        if bcObj is None:
             continue
 
         # Format [dim of group, list, name)
         # > Here, we return ALL surfaces on the BC, irrespective of the zone
         surfID  = [s+1 for s in find_indices(bcIndex, iBC+1)]
-        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=cast(str, bcs[iBC].name))
+        bc[iBC] = gmsh.model.addPhysicalGroup(2, surfID, name=cast(str, bcObj.name))
 
         # For periodic sides, we need to impose the periodicity constraint
-        if cast(np.ndarray, bcs[iBC].type)[0] == 1:
+        if cast(np.ndarray, bcObj.type)[0] == 1:
             # > Periodicity transform is provided as a 4x4 affine transformation matrix, given by row
             # > Rotation matrix [columns 0-2], translation vector [column 3], bottom row [0, 0, 0, 1]
 
             # Only define the positive translation
-            if cast(np.ndarray, bcs[iBC].type)[3] > 0:
+            if cast(np.ndarray, bcObj.type)[3] > 0:
                 pass
-            elif cast(np.ndarray, bcs[iBC].type)[3] == 0:
+            elif cast(np.ndarray, bcObj.type)[3] == 0:
                 hopout.error(f'BC "{iBC + 1}" has no periodic vector given, exiting...', traceback=True)
             else:
                 continue
 
-            translation = [1., 0., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][0]),
-                           0., 1., 0., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][1]),
-                           0., 0., 1., float(vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'][2]),
+            translation = [1., 0., 0., float(vvs[int(cast(np.ndarray, bcObj.type)[3])-1]['Dir'][0]),
+                           0., 1., 0., float(vvs[int(cast(np.ndarray, bcObj.type)[3])-1]['Dir'][1]),
+                           0., 0., 1., float(vvs[int(cast(np.ndarray, bcObj.type)[3])-1]['Dir'][2]),
                            0., 0., 0., 1.]
 
             # Find the opposing side(s)
             # > copy, otherwise we modify bcs
-            nbType     = cast(list, copy.copy(bcs[iBC].type))
+            nbType     = cast(list, copy.copy(bcObj.type))
             nbType[3] *= -1
-            nbBCID     = find_index([s.type for s in bcs], nbType)
+            nbBCID     = find_index([s.type if s is not None else None for s in bcs], nbType)
             # nbSurfID can hold multiple surfaces, depending on the number of zones
-            # > find_indices returns all we need!
             nbSurfID   = [s+1 for s in find_indices(bcIndex, nbBCID+1)]
 
             # Connect positive to negative side
             try:
                 gmsh.model.mesh.setPeriodic(2, nbSurfID, surfID, translation)
                 hopout.routine('Generated periodicity constraint with vector {}'.format(
-                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir']))
+                    vvs[int(cast(np.ndarray, bcObj.type)[3])-1]['Dir']))
 
             # If the number of sides do not match, we cannot impose periodicity
             # > Leave it out here and assume we can sort it out in ConnectMesh
             except Exception:
                 print(hopout.warn(' No GMSH periodicity with vector {}'.format(
-                    vvs[int(cast(np.ndarray, bcs[iBC].type)[3])-1]['Dir'])))
+                    vvs[int(cast(np.ndarray, bcObj.type)[3])-1]['Dir'])))
                 continue
 
     if len(vvs) > 0:

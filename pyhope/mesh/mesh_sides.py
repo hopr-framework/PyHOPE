@@ -113,8 +113,8 @@ def GenerateSides() -> None:
         # mesh_vars.sides += tuple(SIDE() for _ in range(nIOElems*nIOSides))
         # elems = mesh_vars.elems
         # sides = mesh_vars.sides
-        elems.extend([ELEM() for _ in range(nIOElems         )])  # pyright: ignore[reportArgumentType]
-        sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])  # pyright: ignore[reportArgumentType]
+        elems.extend([ELEM() for _ in range(nIOElems         )])
+        sides.extend([SIDE() for _ in range(nIOElems*nIOSides)])
 
         # Create the corner faces
         corner_faces  = tuple(face_to_cgns(s, elemType) for s in faces(elemType))  # noqa: E272
@@ -176,10 +176,10 @@ def GenerateSides() -> None:
 
     # Append sides to elem
     for side in sides:
-        elemID = cast(int, side.elemID)
-        sideID = cast(int, side.sideID)
-        cast(list, elems[elemID].sides).append(sideID)
+        elemID = cast(int, cast(SIDE, side).elemID)
+        sideID = cast(int, cast(SIDE, side).sideID)
+        cast(list, cast(list[ELEM], elems)[elemID].sides).append(sideID)
 
     # Convert lists to numpy arrays
     for elem in elems:
-        elem.sides = np.array(elem.sides)
+        elem.sides = np.array(cast(ELEM, elem).sides)

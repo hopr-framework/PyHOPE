@@ -725,6 +725,9 @@ def BCCGNS_Structured(mesh:     meshio.Mesh,
         centers = np.mean(quads, axis=1)
 
         # Query the tree
+        if stree is None:
+            hopout.error(f'No quadrilateral sides available to match BC "{cgnsName}", exiting...', traceback=True)
+
         distances, indices = cast(tuple[np.ndarray, np.ndarray], stree.query(centers))
         if np.any(distances > tol):
             hopout.error(f'Could not find all boundary sides within tolerance {tol} for BC "{cgnsName}", exiting...',

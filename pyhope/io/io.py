@@ -161,7 +161,7 @@ def IO() -> None:
                     _ = f.create_dataset('nElems_IJK'        , data=mesh_vars.nElemsIJK)
                     _ = f.create_dataset('Elem_IJK'          , data=elemIJK)
 
-                if FEMElemInfo is not None:
+                if FEMElemInfo is not None and vertexConnectInfo is not None and edgeConnectInfo is not None:
                     # Store FEM information
                     f.attrs['FEMconnect'] = 'ON'
                     f.attrs['nFEMVertices'         ] = nFEMVertices

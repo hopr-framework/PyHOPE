@@ -243,7 +243,7 @@ def ConnectMesh() -> None:
     from pyhope.common.common_progress import ProgressBar
     # from pyhope.common.common_vars import np_mtp
     from pyhope.io.io_debug import DebugIO
-    from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE
+    from pyhope.io.io_vars import MeshFormat, ELEM, ELEMTYPE, SIDE
     from pyhope.readintools.readintools import CountOption, GetLogical, GetIntFromStr
     from pyhope.mesh.connect.connect_mortar import ConnectMortar
     # from pyhope.mesh.mesh_common import sidetovol2
@@ -310,7 +310,7 @@ def ConnectMesh() -> None:
     #     side_corners = {side: hash(np.sort(sides[side].corners).tobytes()) for elem in elems for side in elem.sides}
     # Build the reverse dictionary
     corner_side = defaultdict(list)
-    for elem in elems:
+    for elem in cast(list[ELEM], elems):
         for side in cast(list | np.ndarray, elem.sides):
             corner_side[hash(tuple(sorted(sides[side].corners)))].append(side)
 
@@ -541,7 +541,7 @@ def ConnectMesh() -> None:
     sides_mortar_big   = np.empty(nsides, dtype=bool)
     sides_mortar_small = np.empty(nsides, dtype=bool)
 
-    for i, s in enumerate(sides):
+    for i, s in enumerate(cast(list[SIDE], sides)):
         sides_conn[        i] = s.connection is not None
         sides_bc[          i] = s.bcid       is not None and bcs[s.bcid].type[0] != 100  # noqa: E272
         sides_periodic[    i] = s.bcid       is not None and bcs[s.bcid].type[0] == 1    # noqa: E272
