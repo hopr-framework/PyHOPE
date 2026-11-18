@@ -51,7 +51,7 @@ def gambit_faces(elemType: int | str) -> tuple[str, ...]:
     """ Return a list of all sides of an element
     """
     faces_map = {  # Tetrahedron
-                   4: ('y-', 'x+', 'y+', 'z-'            ),
+                   4: ('y-', 'x+', 'x-', 'z-'            ),
                    # Pyramid
                    # Wedge / Prism
                    # Hexahedron
