@@ -4,7 +4,7 @@ name = "PyHOPE"
 version = "1.1.0"
 description = "Python High-Order Preprocessing Environment"
 license = "GPL-3.0-only"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "README.md"
 authors = [
     {name = "Numerics Research Group (NRG)", email = "numerics@iag.uni-stuttgart.de"},

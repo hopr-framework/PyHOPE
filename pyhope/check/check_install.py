@@ -302,10 +302,6 @@ def CheckInstall(path: Optional[str] = None) -> None:
                     # Python 3.11+: Skip the tutorial
                     # Python 3.10-: Mark the tutorial as successful
                     bar.step()
-                    if Version(platform.python_version()) < Version('3.11'):
-                        hopout.printtest(f'Successfully completed test (w/o verification) "{tutorial}"', hopout.Symbols.OK)
-                        tsuccess[tNum] = True
-                    continue
 
             # Open the mesh file and compare against the reference
             with h5py.File(os.path.join(tutorialPath, f'{projectName}_mesh.h5'), mode='r') as h5:
