@@ -276,6 +276,9 @@ def CheckWatertight() -> None:
     if not checkWatertightness:
         return None
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     nGeo:      Final[int] = mesh_vars.nGeo
 
     # Compute the equidistant point set used by meshIO
@@ -384,3 +387,4 @@ def CheckWatertight() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()

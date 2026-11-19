@@ -85,6 +85,9 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     hopout.info('Converting hexahedral elements to simplex elements')
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Instantiate ELEMTYPE
     elemTypeInam = ELEMTYPE().inam
 
@@ -300,6 +303,7 @@ def MeshChangeElemType(mesh: meshio.Mesh) -> meshio.Mesh:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()
 
     hopout.sep()
     return mesh

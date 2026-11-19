@@ -76,47 +76,39 @@ def UpdateElemID(elems         : list,
     import pyhope.io.io_vars as io_vars
     # ------------------------------------------------------
 
-    totalElems = len(elems)
-    totalSides = len(sides)
+    sorted_elems = [elems[i] for i in sorted_indices.tolist()]   # Python ints, not np.int64
+    nElems       = len(elems)
+    nSides       = [len(e.sides) for e in sorted_elems]
 
-    # Initialize sorted cells
-    sorted_elems = [None] * totalElems
-    sorted_sides = [None] * totalSides
+    # Read ALL old side IDs before anything is overwritten
+    sorted_sides = [sides[s] for e in sorted_elems for s in e.sides]
+    offsetSides  = np.concatenate(([0], np.cumsum(nSides))).tolist()
+    offsetESide  = np.repeat(np.arange(nElems), nSides).tolist()
+
+    for sideID, (s, elemSide) in enumerate(zip(sorted_sides, offsetESide, strict=True)):
+        s.sideID = sideID
+        s.elemID = elemSide
+
+    # Calculate IJK position for this element
+    if nElemsIJK is not None:
+        nI, nJ = int(nElemsIJK[0]), int(nElemsIJK[1])
+        ids = np.arange(nElems, dtype=np.int64)
+        k   = ids // (nI*nJ)
+        rem = ids - k*nI*nJ
+        j   = rem // nI
+        i   = rem - j*nI
+        ijk = (np.stack((i, j, k), axis=1) + 1).astype(io_vars.outputbytes)
 
     bar.title('│             Processing Elements')
 
-    # Initialize the sideID and offset
-    offsetSide = 0
-    sideID     = 0
-
     # Overwrite the elem/side IDs
-    for newElemID, oldElemID in enumerate(sorted_indices):
-        elem        = elems[oldElemID]
-        elem.elemID = newElemID
+    for newElemID, oldElemID in enumerate(sorted_elems):
+        oldElemID.elemID = newElemID
 
-        # Calculate IJK position for this element
+        # Correct the sideID
+        oldElemID.sides  = list(range(offsetSides[newElemID], offsetSides[newElemID+1]))
         if nElemsIJK is not None:
-            k =  newElemID                                       // (nElemsIJK[0] * nElemsIJK[1])
-            j = (newElemID - k * nElemsIJK[0] * nElemsIJK[1])    //  nElemsIJK[0]
-            i =  newElemID - k * nElemsIJK[0] * nElemsIJK[1] - j *   nElemsIJK[0]
-            elem.elemIJK = np.array([i+1, j+1, k+1], dtype=io_vars.outputbytes)
-
-        sorted_elems[newElemID] = elem
-
-        # Correct the sideID
-        nSides = 0
-        for key, val in enumerate(elem.sides):
-            side        = sides[val]
-            side.sideID = offsetSide + key
-            side.elemID = newElemID
-            sorted_sides[sideID] = side
-            sideID     += 1
-            nSides     += 1
-
-        # Correct the sideID
-        # nSides      = len(elem.sides)
-        elem.sides  = list(range(offsetSide, offsetSide + nSides))
-        offsetSide += nSides
+            oldElemID.elemIJK = ijk[newElemID]
 
         bar.step()
 
@@ -464,6 +456,9 @@ def SortMesh() -> None:
 
     meshsort = GetIntFromStr('MeshSorting', default=default)
 
+    # Temporally disable the garbage collector
+    gc.disable()
+
     # Sort the mesh
     match meshsort:
         case MeshSort.NONE.value:
@@ -480,3 +475,4 @@ def SortMesh() -> None:
 
     # Run garbage collector to release memory
     gc.collect()
+    gc.enable()

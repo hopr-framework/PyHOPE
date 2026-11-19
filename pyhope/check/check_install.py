@@ -298,7 +298,6 @@ def CheckInstall(path: Optional[str] = None) -> None:
                 except Exception:
                     # If TOML is present but invalid,
                     # Python 3.11+: Skip the tutorial
-                    # Python 3.10-: Mark the tutorial as successful
                     bar.step()
 
             # Open the mesh file and compare against the reference
