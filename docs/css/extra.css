@@ -11,6 +11,11 @@ body.homepage>div.container>div.row>div.col-md-9 {
     max-width: 100%;
 }
 
+/* Full width */
+.md-grid {
+  max-width: 1440px;
+}
+
 /* h1 heading centered */
 /* body.homepage>div.container>div.row>div.col-md-9 h1:first-of-type { */
 /*     text-align: center; */
@@ -40,30 +45,91 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
     text-align: left;
 }
 
+.md-content__inner h1:first-of-type {
+  text-align: center;
+  font-size: 3.5rem;
+  font-weight: 300;
+  margin-bottom: 0.15em;
+}
+
+.md-content__inner h1:first-of-type + p {
+  text-align: center;
+  margin-top: 0.2rem;
+  margin-bottom: 0.65rem;
+}
+
+.md-content__inner .no-extra-css + h1:first-of-type,
+.md-content__inner .no-extra-css + h1:first-of-type + p {
+  text-align: left;
+}
+
+# .md-content__inner p {
+#   margin-top: 0.45rem;
+#   margin-bottom: 0.45rem;
+# }
+
+/* == UTILITIES == */
+.text-center {
+  text-align: center;
+}
+
 /* == BUTTONS == */
-.btn {
-  height: 2.3em;
+.md-typeset .btn {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  gap: 0.5rem;
+  min-height: 2.3em;
+  padding: 0.45rem 0.95rem;
+  border-radius: 0.25rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.md-typeset .btn-primary {
+  background: #2b7de9;
+  color: #ffffff;
+}
+
+.md-typeset .btn-primary:hover {
+  background: #1b66c9;
+  color: #ffffff;
+}
+
+.md-typeset .btn-hopr {
+  background: #c8c8c8;
+  border: 1px solid #ececec;
+  color: #111111;
+}
+
+.md-typeset .btn-hopr:hover {
+  background: #b8b8b8;
+  color: #111111;
+}
+
+.md-typeset .btn p {
+  margin: 0;
   display: inline-flex;
   align-items: center;
 }
 
-.btn img {
-  align-self: center;
-  position: relative;
-  top: 5px;
-  border:     none !important;
-  outline:    none !important;
+.md-typeset .hopr-logo {
+  display: inline-block;
+  height: 1.5em;
+  width: auto;
+  margin: 0 0.25rem 0 0;
+  border: none !important;
+  outline: none !important;
   box-shadow: none !important;
   background: none !important;
 }
 
 .btn-spacing {
-  margin-right: 15px;
+  margin: 0 7px 8px;
 }
 
-.btn-hopr {
-  background: #c8c8c8;
-  border-color: #ececec;
+.md-typeset .btn-spacing {
+  margin: 0 7px 6px;
 }
 
 /* == FOOTNOTES == */
@@ -75,7 +141,7 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 .aligned-list {
     display: grid;
     grid-template-columns: min-content 1fr;
-    gap: 0 1em;
+    gap: 0.1em 1em;
 }
 
 .aligned-list dt {
@@ -87,7 +153,7 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 }
 
 .aligned-list dt::before {
-    content: "•"; /* The character for a bullet point */
+    content: "\2022"; /* The character for a bullet point */
     position: absolute;
     left: 0;
     top: 0;
