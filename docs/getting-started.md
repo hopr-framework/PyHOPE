@@ -5,24 +5,40 @@ First steps using PyHOPE
 ---
 
 ## Installation
-PyHOPE is built using standard Python packages. You can install PyHOPE by following these steps. 
+PyHOPE is built using standard Python packages. You can install PyHOPE by following these steps.
 
 1.  **Optional: Create and activate a virtual environment**  
     Creating a virtual environment is a recommended practice to manage project dependencies. It isolates the packages required for PyHOPE and prevents potential conflicts between different package versions. To create and activate a virtual environment named `venv`, use the following commands.
-    ```bash
-    python -m venv venv
-    source venv/bin/activate
-    ```
+
+    === "pip"
+        ```bash
+        python -m venv venv
+        source venv/bin/activate
+        ```
+
+    === "uv"
+        ```bash
+        uv venv venv
+        source venv/bin/activate
+        ```
+
     If you choose not to use a virtual environment, skip this step and proceed directly to the installation of PyHOPE.
 
     !!! info
         For new shell sessions, the virtual environment must be re-sourced using `source venv/bin/activate` before using `pyhope` commands.
 
 2.  **Install PyHOPE**  
-    PyHOPE is installed using `pip`, the Python package installer. This command fetches the PyHOPE package and its dependencies from PyPI (Python Package Index) and installs them.
-    ```bash
-    python -m pip install pyhope
-    ```
+    PyHOPE can be installed with `pip`, the Python package installer, or with `uv`, a fast Python package manager. Both fetch the PyHOPE package and its dependencies from PyPI (Python Package Index).
+
+    === "pip"
+        ```bash
+        python -m pip install pyhope
+        ```
+
+    === "uv"
+        ```bash
+        uv pip install pyhope
+        ```
 
 ## Testing
 PyHOPE features internal health checks to verify that everything works as expected. The checks can be invoked directly from the terminal.
@@ -47,9 +63,15 @@ PyHOPE can either be invoked directly from the command line or used as a Python 
 
 ### Command Line Usage
 PyHOPE can be invoked from the command line. After installation, its functionalities can be accessed directly from the terminal by passing a valid configuration file.
-```bash
-pyhope [parameter.ini]
-```
+=== "pyhope"
+    ```bash
+    pyhope [parameter.ini]
+    ```
+
+=== "uvx"
+    ```bash
+    uvx pyhope [parameter.ini]
+    ```
 
 ??? example
     The following output is obtained when running the example configuration file `tutorials/1-01-cartbox/parameter.ini`.

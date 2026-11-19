@@ -129,6 +129,10 @@ markdown_extensions:
   - attr_list
   - md_in_html
 
+  # Tabs (content tabs with === "Label" syntax)
+  - pymdownx.tabbed:
+      alternate_style: true
+
   # Code
   - pymdownx.highlight:
       anchor_linenums: true
