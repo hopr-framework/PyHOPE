@@ -354,9 +354,9 @@ jobs:
     needs: [examples, healthcheck]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: 3.x
+          enable-cache: 'true'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
       - uses: actions/cache@v6.1.0
         with:
@@ -364,10 +364,8 @@ jobs:
           path: .cache
           restore-keys: |
             zensical-
-      # Install Zensical
-      - run: pip install zensical
       # Build documentation
-      - run: zensical build --clean
+      - run: uvx zensical build --clean
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

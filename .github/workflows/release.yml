@@ -66,15 +66,15 @@ jobs:
           fi
           echo "OK: Tag and version match (${VERSION})"
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: 3.x
+          enable-cache: 'true'
 
       - name: Install Poetry
         shell: bash
         run: |
-          pip install 'poetry @ git+https://github.com/python-poetry/poetry.git@main'
+          uv tool install 'poetry @ git+https://github.com/python-poetry/poetry.git@main'
           poetry --version
 
       - name: Check and build with Poetry
@@ -86,14 +86,12 @@ jobs:
       - name: Check distribution with Twine
         shell: bash
         run: |
-          pip install twine
-          twine check dist/pyhope-*
+          uvx twine check dist/pyhope-*
 
       - name: Test install
         shell: bash
         run: |
-          pip install dist/pyhope-*.whl
-          pyhope --version
+          uvx --from dist/pyhope-*.whl pyhope --version
 
       - name: Upload distribution artifact
         uses: actions/upload-artifact@v7
