@@ -182,6 +182,56 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
   }
 }
 
+/* == PARAMETER TABLE (Common) == */
+.param-table table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.param-table th:nth-child(1) { width: 18%; }  /* Parameter */
+.param-table th:nth-child(2) { width: 10%; }  /* Type */
+.param-table th:nth-child(3) { width: 12%; }  /* Default */
+.param-table th:nth-child(4) { width: 18%; }  /* Allowed */
+.param-table th:nth-child(5) { width: 42%; }  /* Explanation */
+
+/* == DATA TABLES (mesh format) == */
+.table-3,
+.table-4,
+.table-6 {
+  width: 100%;
+  max-width: 100%;
+}
+
+.table-3 table,
+.table-4 table,
+.table-6 table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Material wraps each table in an inline-block scroll container, which shrinks
+   the table to its content. Make that container full width. */
+.table-3 .md-typeset__table,
+.table-4 .md-typeset__table,
+.table-6 .md-typeset__table {
+  display: block;
+  width: 100%;
+}
+
+/* 3 columns: Attribute, Type, Description */
+.table-3 th:nth-child(1) { width: 25%; }
+.table-3 th:nth-child(2) { width: 20%; }
+.table-3 th:nth-child(3) { width: 55%; }
+
+/* 4 columns: Framework/Array, Language/Type, Equation System/Size, Reference/Description */
+.table-4 th:nth-child(1) { width: 18%; }
+.table-4 th:nth-child(2) { width: 14%; }
+.table-4 th:nth-child(3) { width: 22%; }
+.table-4 th:nth-child(4) { width: 46%; }
+
+/* 6 columns: three pairs of Element Type / Index */
+.table-6 th { width: 16.66%; }
+
 /* == FOOTER == */
 .md-footer-meta {
   background-color: var(--md-default-bg-color);

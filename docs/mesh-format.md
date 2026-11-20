@@ -8,15 +8,19 @@ The [HOPR](https://hopr.readthedocs.io/en/latest/userguide/meshformat.html) [HDF
 
 The following spectral element solvers have (optional) support for meshes generated in PyHOPE.
 
-| <div style="width:120px">Framework</div> | <div style="width:100px">Language</div> | <div style="width:200px">Equation System</div> | <div style="width:300px">Reference</div> |
-| ---------------------------------------- | --------------------------------------- | ---------------------------------------------- | ---------------------------------------- |
-| FLEXI                                    | Fortran                                 | NSE                                            | [Krais et al., 2021](https://doi.org/10.1016/j.camwa.2020.05.004)      |
-| ƎLEXI                                    | Fortran                                 | NSE/MRG                                        | [Kopper et al., 2023](https://doi.org/10.1016/j.cpc.2023.108762)       |
-| GALÆXI                                   | Fortran/C                               | NSE                                            | [Kurz et al., 2025](https://doi.org/10.1016/j.cpc.2024.109388)         |
-| FLUXO                                    | Fortran                                 | NSE/MHD/Maxwell                                | [Rueda-Ramirez et al., 2017](https://github.com/project-fluxo/fluxo)   |
-| HORSES3D                                 | Fortran                                 | NSE/Cahn-Hilliard                              | [Ferrer et al., 2023](https://doi.org/10.1016/j.cpc.2023.108700)       |
-| PICLas                                   | Fortran                                 | Maxwell/Poisson                                | [Fasoulas et al., 2019](https://doi.org/10.1063/1.5097638)             |
-| SELF                                     | Fortran                                 | Shallow Water/Euler                            | [github.com/FluidNumerics/SELF](https://github.com/FluidNumerics/SELF) |
+<div class="table-4" markdown>
+
+| Framework | Language  | Equation System     | Reference                                                              |
+| --------- | --------- | ------------------- | ---------------------------------------------------------------------- |
+| FLEXI     | Fortran   | NSE                 | [Krais et al., 2021](https://doi.org/10.1016/j.camwa.2020.05.004)      |
+| ƎLEXI     | Fortran   | NSE/MRG             | [Kopper et al., 2023](https://doi.org/10.1016/j.cpc.2023.108762)       |
+| GALÆXI    | Fortran/C | NSE                 | [Kurz et al., 2025](https://doi.org/10.1016/j.cpc.2024.109388)         |
+| FLUXO     | Fortran   | NSE/MHD/Maxwell     | [Rueda-Ramirez et al., 2017](https://github.com/project-fluxo/fluxo)   |
+| HORSES3D  | Fortran   | NSE/Cahn-Hilliard   | [Ferrer et al., 2023](https://doi.org/10.1016/j.cpc.2023.108700)       |
+| PICLas    | Fortran   | Maxwell/Poisson     | [Fasoulas et al., 2019](https://doi.org/10.1063/1.5097638)             |
+| SELF      | Fortran   | Shallow Water/Euler | [github.com/FluidNumerics/SELF](https://github.com/FluidNumerics/SELF) |
+
+</div>
 
 <style>.footnote {  font-size: 0.8em; }
 </style>
@@ -47,28 +51,36 @@ The following spectral element solvers have (optional) support for meshes genera
 
 ## Global Attributes
 
-| <div style="width:120px">Attribute</div> | <div style="width:240px">Type</div> | Description                                                 |
-| ---------------------------------------- | ----------------------------------- | ----------------------------------------------------------- |
-| `Version`                                | REAL                                | Mesh file format version                                    |
-| `Ngeo`                                   | INTEGER                             | Polynomial degree of the curved element mapping             |
-| `nElems`                                 | INTEGER                             | Total number of elements                                    |
-| `nSides`                                 | INTEGER                             | Total number of sides (element faces)                       |
-| `nNodes`                                 | INTEGER                             | Total number of nodes                                       |
-| `nUniqueSides`                           | INTEGER                             | Total number of geometrically unique sides                  |
-| `nUniqueNodes`                           | INTEGER                             | Total number of geometrically unique nodes                  |
-| `nBCs`                                   | INTEGER                             | Number of entries in the boundary-condition list            |
-| `FEMconnect`                             | `ON`/`OFF`                          | `ON` if FEM edge/vertex connectivity is present in the file |
+<div class="table-3" markdown>
+
+| Attribute      | Type       | Description                                                 |
+| -------------- | ---------- | ----------------------------------------------------------- |
+| `Version`      | REAL       | Mesh file format version                                    |
+| `Ngeo`         | INTEGER    | Polynomial degree of the curved element mapping             |
+| `nElems`       | INTEGER    | Total number of elements                                    |
+| `nSides`       | INTEGER    | Total number of sides (element faces)                       |
+| `nNodes`       | INTEGER    | Total number of nodes                                       |
+| `nUniqueSides` | INTEGER    | Total number of geometrically unique sides                  |
+| `nUniqueNodes` | INTEGER    | Total number of geometrically unique nodes                  |
+| `nBCs`         | INTEGER    | Number of entries in the boundary-condition list            |
+| `FEMconnect`   | `ON`/`OFF` | `ON` if FEM edge/vertex connectivity is present in the file |
+
+</div>
 
 ## Data Arrays
 
-| <div style="width:120px">Array</div> | <div style="width:80px">Type</div> | <div style="width:200px">Size</div>  | Description              |
-| ------------------------------------ | ----------------------------------- | ----------------------------------- | ------------------------ |
-| `ElemInfo`                           | INTEGER                             | (1:6, 1:nElems)                     | Per-element data containing element type, zone, and offsets into side and node arrays: `(ElemType, Zone, offsetIndSIDE, lastIndSIDE, offsetIndNODE, lastIndNODE)`. |
-| `SideInfo`                           | INTEGER                             | (1:6, 1:nSides)                     | Per-side data stored contiguously per element range from `ElemInfo`. Fields: `(SideType, GlobalSideID, nbElemID, 10*nbLocSide+Flip, BCID, [ElemID,locSideID])`. `Flip` encodes side orientation; `GlobalSideID<0` marks slave side. |
-| `NodeCoords`                         | REAL                                | (1:3, 1:nNodes)                     | Node coordinates, stored per element range from `ElemInfo`. High-order nodes included. |
-| `GlobalNodeIDs`                      | INTEGER                             | (1:nNodes)                          | Globally unique node IDs aligned with `NodeCoords` |
-| `BCNames`                            | STRING                              | (1:nBCs)                            | List of user-defined boundary-condition names |
-| `BCType`                             | INTEGER                             | (1:4, 1:nBCs)                       | Four-integer code per boundary condition; see [boundary conditions](#boundary-conditions) below |
+<div class="table-4" markdown>
+
+| Array           | Type    | Size            | Description                                                                                                                                                                                                                         |
+| --------------- | ------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ElemInfo`      | INTEGER | (1:6, 1:nElems) | Per-element data containing element type, zone, and offsets into side and node arrays: `(ElemType, Zone, offsetIndSIDE, lastIndSIDE, offsetIndNODE, lastIndNODE)`.                                                                  |
+| `SideInfo`      | INTEGER | (1:6, 1:nSides) | Per-side data stored contiguously per element range from `ElemInfo`. Fields: `(SideType, GlobalSideID, nbElemID, 10*nbLocSide+Flip, BCID, [ElemID,locSideID])`. `Flip` encodes side orientation; `GlobalSideID<0` marks slave side. |
+| `NodeCoords`    | REAL    | (1:3, 1:nNodes) | Node coordinates, stored per element range from `ElemInfo`. High-order nodes included.                                                                                                                                              |
+| `GlobalNodeIDs` | INTEGER | (1:nNodes)      | Globally unique node IDs aligned with `NodeCoords`                                                                                                                                                                                  |
+| `BCNames`       | STRING  | (1:nBCs)        | List of user-defined boundary-condition names                                                                                                                                                                                       |
+| `BCType`        | INTEGER | (1:4, 1:nBCs)   | Four-integer code per boundary condition; see [boundary conditions](#boundary-conditions) below                                                                                                                                     |
+
+</div>
 
 ## Element Definitions
 
@@ -78,12 +90,16 @@ Elements are defined using non-unique node IDs stored in `ElemInfo` and `NodeCoo
 
 The element encoding follows CGNS-inspired conventions. The last digit of the surface type corresponds to corner count; 3D element codes distinguish linear, bilinear, and non-linear variants.
 
-| Element Type               | Index | Element Type               | Index | Element Type               | Index |
-| -------------------------- | ----- | -------------------------- | ----- | -------------------------- | ----- |
-| Tetrahedron, linear        | 104   | Tetrahedron, bilinear      | 114   | Tetrahedron, curved        | 204   |
-| Pyramid, linear            | 105   | Pyramid, bilinear          | 115   | Pyramid, curved            | 205   |
-| Prism/wedge, linear        | 106   | Prism/wedge, bilinear      | 116   | Prism/wedge, curved        | 206   |
-| Hexahedron, linear         | 108   | Hexahedron, bilinear       | 118   | Hexahedron, curved         | 208   |
+<div class="table-6" markdown>
+
+| Element Type        | Index | Element Type          | Index | Element Type        | Index |
+| ------------------- | ----- | --------------------- | ----- | ------------------- | ----- |
+| Tetrahedron, linear | 104   | Tetrahedron, bilinear | 114   | Tetrahedron, curved | 204   |
+| Pyramid, linear     | 105   | Pyramid, bilinear     | 115   | Pyramid, curved     | 205   |
+| Prism/wedge, linear | 106   | Prism/wedge, bilinear | 116   | Prism/wedge, curved | 206   |
+| Hexahedron, linear  | 108   | Hexahedron, bilinear  | 118   | Hexahedron, curved  | 208   |
+
+</div>
 
 ### High-Order Nodes
 
@@ -148,23 +164,31 @@ PyHOPE can optionally store additional connectivity information required by Fini
 
 ### Global Attributes
 
-| <div style="width:120px">Attribute</div> | <div style="width:240px">Type</div> | Description                                                 |
-| ---------------------------------------- | ----------------------------------- | ----------------------------------------------------------- |
-| `nEdges`                                 | INTEGER                             | Total number of entries in `EdgeInfo`                       |
-| `nVertices`                              | INTEGER                             | Total number of entries in `VertexInfo`                     |
-| `nUniqueEdges`                           | INTEGER                             | Total number of geometrically unique edges                  |
-| `nFEMSides`                              | INTEGER                             | Number of topologically (incl. periodicity) unique sides    |
-| `nFEMEdges`                              | INTEGER                             | Number of topologically unique edges                        |
-| `nFEMEdgeConnections`                    | INTEGER                             | Size of `EdgeConnectInfo`                                   |
-| `nFEMVertices`                           | INTEGER                             | Number of topologically unique vertices                     |
-| `nFEMVertexConnections`                  | INTEGER                             | Size of `VertexConnectInfo`                                 |
+<div class="table-3" markdown>
+
+| Attribute               | Type    | Description                                              |
+| ----------------------- | ------- | -------------------------------------------------------- |
+| `nEdges`                | INTEGER | Total number of entries in `EdgeInfo`                    |
+| `nVertices`             | INTEGER | Total number of entries in `VertexInfo`                  |
+| `nUniqueEdges`          | INTEGER | Total number of geometrically unique edges               |
+| `nFEMSides`             | INTEGER | Number of topologically (incl. periodicity) unique sides |
+| `nFEMEdges`             | INTEGER | Number of topologically unique edges                     |
+| `nFEMEdgeConnections`   | INTEGER | Size of `EdgeConnectInfo`                                |
+| `nFEMVertices`          | INTEGER | Number of topologically unique vertices                  |
+| `nFEMVertexConnections` | INTEGER | Size of `VertexConnectInfo`                              |
+
+</div>
 
 ### Data Arrays
 
-| <div style="width:120px">Array</div> | <div style="width:80px">Type</div> | <div style="width:200px">Size</div>  | Description              |
-| ------------------------------------ | ----------------------------------- | ----------------------------------- | ------------------------ |
-| `FEMElemInfo`                        | INTEGER                             | (1:4, 1:nElems)                     | Per-element offsets into `EdgeInfo` and `VertexInfo`: `(offsetIndEDGE, lastIndEDGE, offsetIndVERTEX, lastIndVERTEX)`. |
-| `EdgeInfo`                           | INTEGER                             | (1:3, 1:nEdges)                     | For each local element edge (CGNS order): `(±FEMEdgeID, offsetIndEDGEConnect, lastIndEDGEConnect)`. Sign encodes local-to-global orientation. |
-| `EdgeConnectInfo`                    | INTEGER                             | (1:2, 1:nFEMEdgeConns)              | Edge connections: `(±nbElemID, ±nbLocEdgeID)`. Sign on `nbElemID` encodes primary/replica; sign on `nbLocEdgeID` encodes orientation. |
-| `VertexInfo`                         | INTEGER                             | (1:3, 1:nVertices)                  | For each local vertex (CGNS corner order): `(FEMVertexID, offsetIndVERTEXConnect, lastIndVERTEXConnect)`. |
-| `VertexConnectInfo`                  | INTEGER                             | (1:2, 1:nFEMVertexConns)            | Vertex connections: `(±nbElemID, nbLocVertexID)`. Sign encodes primary/replica. |
+<div class="table-4" markdown>
+
+| Array               | Type    | Size                     | Description                                                                                                                                   |
+| ------------------- | ------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FEMElemInfo`       | INTEGER | (1:4, 1:nElems)          | Per-element offsets into `EdgeInfo` and `VertexInfo`: `(offsetIndEDGE, lastIndEDGE, offsetIndVERTEX, lastIndVERTEX)`.                         |
+| `EdgeInfo`          | INTEGER | (1:3, 1:nEdges)          | For each local element edge (CGNS order): `(±FEMEdgeID, offsetIndEDGEConnect, lastIndEDGEConnect)`. Sign encodes local-to-global orientation. |
+| `EdgeConnectInfo`   | INTEGER | (1:2, 1:nFEMEdgeConns)   | Edge connections: `(±nbElemID, ±nbLocEdgeID)`. Sign on `nbElemID` encodes primary/replica; sign on `nbLocEdgeID` encodes orientation.         |
+| `VertexInfo`        | INTEGER | (1:3, 1:nVertices)       | For each local vertex (CGNS corner order): `(FEMVertexID, offsetIndVERTEXConnect, lastIndVERTEXConnect)`.                                     |
+| `VertexConnectInfo` | INTEGER | (1:2, 1:nFEMVertexConns) | Vertex connections: `(±nbElemID, nbLocVertexID)`. Sign encodes primary/replica.                                                               |
+
+</div>
