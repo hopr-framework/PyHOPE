@@ -79,16 +79,9 @@ runs:
         fi
 
     # Slim images do not contain NodeJS
-    - uses:  astral-sh/setup-uv@v10.1.0
+    - uses:  astral-sh/setup-uv@v10.3.3
       with:
         enable-cache: 'true'
-
-    # - name:  Install uv
-    #   shell: bash
-    #   run: |
-    #     curl -LsSf https://astral.sh/uv/install.sh | sh
-    #     ln -s $HOME/.local/bin/uv /usr/local/bin/uv
-    #     uv --version
 
     - name:  Setup PyHOPE
       shell: bash

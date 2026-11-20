@@ -11,17 +11,46 @@ body.homepage>div.container>div.row>div.col-md-9 {
     max-width: 100%;
 }
 
-/* h1 heading centered */
-/* body.homepage>div.container>div.row>div.col-md-9 h1:first-of-type { */
-/*     text-align: center; */
-/*     font-size: 60px; */
-/*     font-weight: 300; */
-/* } */
+/* Full width */
+.md-grid {
+  max-width: 1440px;
+}
 
-/* First text centered */
-/* body.homepage>div.container>div.row>div.col-md-9>p:first-of-type { */
-/*     text-align: center; */
-/* } */
+/* == LOGO == */
+/* The logo is an <img>, so currentColor can't inherit from the page. */
+.md-logo {
+  position: relative;
+}
+
+.md-logo img {
+  visibility: hidden;
+}
+
+.md-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  -webkit-mask: url("../assets/pyhope.svg") center / contain no-repeat;
+  mask: url("../assets/pyhope.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+/* Header logo size */
+.md-header .md-logo {
+  padding: 0;
+  margin-right: 0;
+}
+
+.md-header .md-logo img,
+.md-header .md-logo::after {
+  height: 1.75rem !important;
+  width: 1.75rem !important;
+}
+
+.md-header__title {
+  margin-left: 0.4rem;
+}
 
 /* == HEADERS == */
 /* h1 heading centered */
@@ -40,42 +69,90 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
     text-align: left;
 }
 
+.md-content__inner h1:first-of-type {
+  text-align: center;
+  font-size: 3.5rem;
+  font-weight: 300;
+  margin-bottom: 0.15em;
+}
+
+.md-content__inner h1:first-of-type + p {
+  text-align: center;
+  margin-top: 0.2rem;
+  margin-bottom: 0.65rem;
+}
+
+.md-content__inner .no-extra-css + h1:first-of-type,
+.md-content__inner .no-extra-css + h1:first-of-type + p {
+  text-align: left;
+}
+
+/* == UTILITIES == */
+.text-center {
+  text-align: center;
+}
+
 /* == BUTTONS == */
-.btn {
-  height: 2.3em;
+.md-typeset .btn {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  gap: 0.5rem;
+  min-height: 2.3em;
+  padding: 0.45rem 0.95rem;
+  border-radius: 0.25rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.md-typeset .btn-primary {
+  background: #2b7de9;
+  color: #ffffff;
+}
+
+.md-typeset .btn-primary:hover {
+  background: #1b66c9;
+  color: #ffffff;
+}
+
+.md-typeset .btn-hopr {
+  background: #c8c8c8;
+  border: 1px solid #ececec;
+  color: #111111;
+}
+
+.md-typeset .btn-hopr:hover {
+  background: #b8b8b8;
+  color: #111111;
+}
+
+.md-typeset .btn p {
+  margin: 0;
   display: inline-flex;
   align-items: center;
 }
 
-.btn img {
-  align-self: center;
-  position: relative;
-  top: 5px;
-  border:     none !important;
-  outline:    none !important;
+.md-typeset .hopr-logo {
+  display: inline-block;
+  height: 1.5em;
+  width: auto;
+  margin: 0 0.25rem 0 0;
+  border: none !important;
+  outline: none !important;
   box-shadow: none !important;
   background: none !important;
 }
 
-.btn-spacing {
-  margin-right: 15px;
+.btn-spacing,
+.md-typeset .btn-spacing {
+  margin: 0 7px 6px;
 }
-
-.btn-hopr {
-  background: #c8c8c8;
-  border-color: #ececec;
-}
-
-/* == FOOTNOTES == */
-/* .md-typeset .footnote { */
-/*   font-size: 12px; */
-/* } */
 
 /* == ALIGNED LIST == */
 .aligned-list {
     display: grid;
     grid-template-columns: min-content 1fr;
-    gap: 0 1em;
+    gap: 0.1em 1em;
 }
 
 .aligned-list dt {
@@ -87,7 +164,7 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 }
 
 .aligned-list dt::before {
-    content: "•"; /* The character for a bullet point */
+    content: "\2022"; /* The character for a bullet point */
     position: absolute;
     left: 0;
     top: 0;
@@ -103,4 +180,100 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
   .aligned-steps > li {
     column-gap: 0.5rem;
   }
+}
+
+/* == PARAMETER TABLE (Common) == */
+.param-table table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.param-table th:nth-child(1) { width: 18%; }  /* Parameter */
+.param-table th:nth-child(2) { width: 10%; }  /* Type */
+.param-table th:nth-child(3) { width: 12%; }  /* Default */
+.param-table th:nth-child(4) { width: 18%; }  /* Allowed */
+.param-table th:nth-child(5) { width: 42%; }  /* Explanation */
+
+/* == DATA TABLES (mesh format) == */
+.table-3,
+.table-4,
+.table-6 {
+  width: 100%;
+  max-width: 100%;
+}
+
+.table-3 table,
+.table-4 table,
+.table-6 table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Material wraps each table in an inline-block scroll container, which shrinks
+   the table to its content. Make that container full width. */
+.table-3 .md-typeset__table,
+.table-4 .md-typeset__table,
+.table-6 .md-typeset__table {
+  display: block;
+  width: 100%;
+}
+
+/* 3 columns: Attribute, Type, Description */
+.table-3 th:nth-child(1) { width: 25%; }
+.table-3 th:nth-child(2) { width: 20%; }
+.table-3 th:nth-child(3) { width: 55%; }
+
+/* 4 columns: Framework/Array, Language/Type, Equation System/Size, Reference/Description */
+.table-4 th:nth-child(1) { width: 18%; }
+.table-4 th:nth-child(2) { width: 14%; }
+.table-4 th:nth-child(3) { width: 22%; }
+.table-4 th:nth-child(4) { width: 46%; }
+
+/* 6 columns: three pairs of Element Type / Index */
+.table-6 th { width: 16.66%; }
+
+/* == FOOTER == */
+.md-footer-meta {
+  background-color: var(--md-default-bg-color);
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  font-size: 0.7rem;
+}
+
+.md-footer-meta__inner {
+  padding: 0.35rem 0;
+  min-height: 0;
+}
+
+/* Copyright and "Made with Zensical" on one line */
+.md-copyright {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  width: auto;
+  margin: 0;
+  color: var(--md-default-fg-color--light);
+  line-height: 1.4;
+}
+
+/* Lighter "Made with Zensical" credit */
+.md-copyright__highlight {
+  display: inline;
+  color: var(--md-default-fg-color--lighter);
+}
+
+/* Separator between the copyright and "Made with Zensical" */
+.md-copyright__highlight::after {
+  content: "\00B7";
+  margin: 0 0.35rem;
+}
+
+/* Footer links: no underline, underline on hover only */
+.md-copyright a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.md-copyright a:hover {
+  text-decoration: underline;
 }

@@ -1,4 +1,4 @@
-# GitHub workflow
+# GitHub Workflow
 
 Overview of the development workflow
 

@@ -98,120 +98,164 @@ PyHOPE reads a self-hosting INI-style parameter file. The following documentatio
 
 Common parameters for all mesh generation modes.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `nThreads`                               | int                                | `nProcs-2`                            | 0, ≥1                                  | Maximum number of worker threads for multiprocessing. Use the number of physical cores you want active during mesh generation/processing. Set to `0` to disable multiprocessing globally. |
+<div class="param-table" markdown>
+
+| Parameter  | Type | Default    | Allowed | Explanation                                                                                                                                                                               |
+| ---------- | ---- | ---------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nThreads` | int  | `nProcs-2` | 0, ≥1   | Maximum number of worker threads for multiprocessing. Use the number of physical cores you want active during mesh generation/processing. Set to `0` to disable multiprocessing globally. |
+
+</div>
 
 ## Output
 
 Output parameter controlling the output file name and format.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `ProjectName`                            | string                             | —                                     | string                                 | Base name for output files. If omitted, a tool- or input-derived name may be used. |
-| `OutputFormat`                           | int &#124; string                  | `HDF5`                                | `HDF5`, `VTK`, `GMSH` (experimental)   | Mesh output format for the generated mesh. `HDF5` is the native PyHOPE format. `VTK` and `GMSH` are provided as output formats for interoperability with other tools. |
-| `OutputBytes`                            | int &#124; string                  | `int32`                               | `int32`, `int64` (experimental)        | Byte size of the mesh output format for the generated mesh. `int32` is the native PyHOPE format. `int64` is provided as output format for large meshes. |
-| `DebugMesh`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Emit an auxiliary XDMF mesh for low-order visualization and troubleshooting.         |
-| `DebugVisu`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Launch the Gmsh GUI after mesh generation for interactive validation and spot checks. |
+<div class="param-table" markdown>
+
+| Parameter      | Type              | Default | Allowed                              | Explanation                                                                                                                                                           |
+| -------------- | ----------------- | ------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ProjectName`  | string            | —       | string                               | Base name for output files. If omitted, a tool- or input-derived name may be used.                                                                                    |
+| `OutputFormat` | int &#124; string | `HDF5`  | `HDF5`, `VTK`, `GMSH` (experimental) | Mesh output format for the generated mesh. `HDF5` is the native PyHOPE format. `VTK` and `GMSH` are provided as output formats for interoperability with other tools. |
+| `OutputBytes`  | int &#124; string | `int32` | `int32`, `int64` (experimental)      | Byte size of the mesh output format for the generated mesh. `int32` is the native PyHOPE format. `int64` is provided as output format for large meshes.               |
+| `DebugMesh`    | bool              | `F`     | `T` &#124; `F`                       | Emit an auxiliary XDMF mesh for low-order visualization and troubleshooting.                                                                                          |
+| `DebugVisu`    | bool              | `F`     | `T` &#124; `F`                       | Launch the Gmsh GUI after mesh generation for interactive validation and spot checks.                                                                                 |
+
+</div>
 
 ## Mesh
 
 Mesh parameters controlling the respective mesh generation mode.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `Mode`                                   | int &#124; string                  | —                                     | `1` (internal) &#124; `3` (external)    | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators. |
-| `NGeo`                                   | int                                | `1`                                   | ≥ 1                                    | Polynomial order used for representation of curved elements. Higher orders improve geometric fidelity. |
-| `BoundaryOrder`                          | int                                | `2`                                   | ≥ 2                                    | Legacy parameter for polynomial order used for representation of curved elements. Prefer `NGeo` where applicable; kept for backward compatibility. |
-| `MeshSorting`                            | string                             | `SFC`                                 | `SFC`, `IJK`, `LEX`, `Snake`, `None`   | Mesh sorting mode to reorder the elements. |
-| `MeshSortingSFC`                         | string                             | `default`                             | `default` (PYPI hilbertcurve), `hilbert` (HOPR), `hilbertZ` (HOPR), `morton` (HOPR), `mortonZ` (HOPR)   | The "default" space-filling curve is from the Python PYPI package and the others are C-ported from HOPR. |
-| `doSortIJK`                              | bool                               | `F`                                   | `T` &#124; `F`                         | Reorder elements primarily along I, then J, then K instead of the default space-filling Hilbert curve (legacy). |
+<div class="param-table" markdown>
+
+| Parameter        | Type              | Default   | Allowed                                                                                               | Explanation                                                                                                                                        |
+| ---------------- | ----------------- | --------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Mode`           | int &#124; string | —         | `1` (internal) &#124; `3` (external)                                                                  | Mesh generation mode. `1` builds meshes using the internal mesh generator. `3` reads and converts meshes from external mesh generators.            |
+| `NGeo`           | int               | `1`       | ≥ 1                                                                                                   | Polynomial order used for representation of curved elements. Higher orders improve geometric fidelity.                                             |
+| `BoundaryOrder`  | int               | `2`       | ≥ 2                                                                                                   | Legacy parameter for polynomial order used for representation of curved elements. Prefer `NGeo` where applicable; kept for backward compatibility. |
+| `MeshSorting`    | string            | `SFC`     | `SFC`, `IJK`, `LEX`, `Snake`, `None`                                                                  | Mesh sorting mode to reorder the elements.                                                                                                         |
+| `MeshSortingSFC` | string            | `default` | `default` (PYPI hilbertcurve), `hilbert` (HOPR), `hilbertZ` (HOPR), `morton` (HOPR), `mortonZ` (HOPR) | The "default" space-filling curve is from the Python PYPI package and the others are C-ported from HOPR.                                           |
+| `doSortIJK`      | bool              | `F`       | `T` &#124; `F`                                                                                        | Reorder elements primarily along I, then J, then K instead of the default space-filling Hilbert curve (legacy).                                    |
+
+</div>
 
 ### Internal Mesh Generator (Mode = `1` | `internal`)
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `nZones`                                 | int                                | —                                     | ≥ 1                                    | Number of mesh zones (logical blocks). Multi-zone meshes allow different discretizations or stretching per region. |
-| `Corner`                                 | vector                             | —                                     | `(/ x1,y1,z1,, …,, x8,y8,z8 /)`        | Corner node positions for a mesh block. Provide the eight 3D corner coordinates to define the block extents. |
-| `X0`                                     | vector                             | —                                     | `(/ x, y, z /)`                        | Zone origin (equivalent to first corner node). Must be combined with `DX` to define the zone extents. |
-| `DX`                                     | vector                             | —                                     | `(/ Δx, Δy, Δz /)`                     | Zone extents along each axis. Must be combined with `X0` to define the zone extents. |
-| `nElems`                                 | vector (int)                       | —                                     | `(/ Nx, Ny, Nz /)`                     | Number of elements per axis within the zone. Controls resolution of the transfinite mesh along each direction before stretching/splitting. |
-| `ElemType`                               | string                             | `108`                                 | `104` &#124; `105` &#124; `106` &#124; `108` | Element topology. Hexahedral (`108`) elements are default. Other element types are identified by the number of corner nodes and generated by splitting hexahedral elements. |
-| `StretchType`                            | vector (int)                       | `(/.../)`                             | `(/ Sx, Sy, Sz /)`                     | Stretching scheme per axis. `0` disables stretching; other positive integers select supported schemes (`constant`, `factor`, `ratio`, `combination`). |
-| `Factor`                                 | vector (float)                     | —                                     | `(/ fx, fy, fz /)`                     | Controls element growth/decay per axis for geometric schemes. Values > 1 produce growth; between 0 and 1 produce decay. |
-| `l0`                                     | vector (float)                     | —                                     | `(/ lx, ly, lz /)`                     | Target smallest element size per axis to resolve small-scale near-boundary features. |
-| `DXmaxToDXmin`                           | vector or float                    | —                                     | ratio ≥ 1                              | Ratio between the largest and smallest element sizes per axis. |
+<div class="param-table" markdown>
+
+| Parameter      | Type            | Default   | Allowed                                      | Explanation                                                                                                                                                                 |
+| -------------- | --------------- | --------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nZones`       | int             | —         | ≥ 1                                          | Number of mesh zones (logical blocks). Multi-zone meshes allow different discretizations or stretching per region.                                                          |
+| `Corner`       | vector          | —         | `(/ x1,y1,z1,, …,, x8,y8,z8 /)`              | Corner node positions for a mesh block. Provide the eight 3D corner coordinates to define the block extents.                                                                |
+| `X0`           | vector          | —         | `(/ x, y, z /)`                              | Zone origin (equivalent to first corner node). Must be combined with `DX` to define the zone extents.                                                                       |
+| `DX`           | vector          | —         | `(/ Δx, Δy, Δz /)`                           | Zone extents along each axis. Must be combined with `X0` to define the zone extents.                                                                                        |
+| `nElems`       | vector (int)    | —         | `(/ Nx, Ny, Nz /)`                           | Number of elements per axis within the zone. Controls resolution of the transfinite mesh along each direction before stretching/splitting.                                  |
+| `ElemType`     | string          | `108`     | `104` &#124; `105` &#124; `106` &#124; `108` | Element topology. Hexahedral (`108`) elements are default. Other element types are identified by the number of corner nodes and generated by splitting hexahedral elements. |
+| `StretchType`  | vector (int)    | `(/.../)` | `(/ Sx, Sy, Sz /)`                           | Stretching scheme per axis. `0` disables stretching; other positive integers select supported schemes (`constant`, `factor`, `ratio`, `combination`).                       |
+| `Factor`       | vector (float)  | —         | `(/ fx, fy, fz /)`                           | Controls element growth/decay per axis for geometric schemes. Values > 1 produce growth; between 0 and 1 produce decay.                                                     |
+| `l0`           | vector (float)  | —         | `(/ lx, ly, lz /)`                           | Target smallest element size per axis to resolve small-scale near-boundary features.                                                                                        |
+| `DXmaxToDXmin` | vector or float | —         | ratio ≥ 1                                    | Ratio between the largest and smallest element sizes per axis.                                                                                                              |
+
+</div>
 
 ### External Mesh Generator (Mode = `3` | `external`)
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `Filename`                               | string                             | —                                     | path                                   | Path to an external mesh when `Mode = 3`. PyHOPE might temporarily convert the mesh to an intermediate format for processing. |
-| `MeshIsAlreadyCurved`                    | bool                               | `F`                                   | `T` &#124; `F`                         | Indicates that the input geometry is curved. Enables mesh agglomeration if `NGeo>1`.
+<div class="param-table" markdown>
+
+| Parameter             | Type   | Default | Allowed        | Explanation                                                                                                                   |
+| --------------------- | ------ | ------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `Filename`            | string | —       | path           | Path to an external mesh when `Mode = 3`. PyHOPE might temporarily convert the mesh to an intermediate format for processing. |
+| `MeshIsAlreadyCurved` | bool   | `F`     | `T` &#124; `F` | Indicates that the input geometry is curved. Enables mesh agglomeration if `NGeo>1`.                                          |
+
+</div>
 
 ## Boundary Conditions
 
 Parameters controlling boundary conditions and zone interfaces.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `BoundaryName`                           | string                             | —                                     | identifier                             | Human-readable name for a domain boundary. Use consistent names for BC references when using external meshes. |
-| `BoundaryType`                           | tuple                              | —                                    | `(/ Type, curveIndex, State, alpha /)`  | Boundary condition specification. Must be compatible with the boundary conditions in the DG solver. |
-| `BCIndex`                                | array (int)                        | —                                    | per-face indices                        | Boundary condition index for each boundary face. Must match the block face ordering. |
-| `vv`                                     | vector                             | —                                     | `(/ vx, vy, vz /)`                     | Periodic boundary offset vector. Translates one periodic face to the other to enforce periodic matching. |
-| `doMortars`                              | bool                               | `T`                                   | `T` &#124; `F`                         | Enable mortar interfaces (non-conforming face coupling with hanging nodes) between elements. |
+<div class="param-table" markdown>
+
+| Parameter      | Type        | Default | Allowed                                | Explanation                                                                                                   |
+| -------------- | ----------- | ------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `BoundaryName` | string      | —       | identifier                             | Human-readable name for a domain boundary. Use consistent names for BC references when using external meshes. |
+| `BoundaryType` | tuple       | —       | `(/ Type, curveIndex, State, alpha /)` | Boundary condition specification. Must be compatible with the boundary conditions in the DG solver.           |
+| `BCIndex`      | array (int) | —       | per-face indices                       | Boundary condition index for each boundary face. Must match the block face ordering.                          |
+| `vv`           | vector      | —       | `(/ vx, vy, vz /)`                     | Periodic boundary offset vector. Translates one periodic face to the other to enforce periodic matching.      |
+| `doMortars`    | bool        | `T`     | `T` &#124; `F`                         | Enable mortar interfaces (non-conforming face coupling with hanging nodes) between elements.                  |
+
+</div>
 
 ## Transformation
 
 Transform mesh coordinates with translation, rotation, and scaling, or apply a user-defined transformation.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `meshScale`                              | float                              | `1.0`                                 | > 0                                    | Uniform scaling factor for all coordinates. |
-| `meshTrans`                              | vector                             | `(/.../)`                             | `(/ Δx, Δy, Δz /)`                     | Translation applied for all coordinates. |
-| `meshRot`                                | matrix (3×3)                       | `(/.../)`                             | row-major 9-tuple                      | Rotation matrix applied about `meshRotCenter`. Provide nine values forming an orthonormal rotation matrix. |
-| `meshRotCenter`                          | vector                             | `(/.../)`                             | `(/ x, y, z /)`                        | Pivot point for rotation. Set to the model's logical pivot/centroid to avoid unintended offsets. |
-| `MeshPostDeform`                         | string                             | `none`                                | template name                          | Optional post-transform deformation template applied after scale/translate/rotate. |
+<div class="param-table" markdown>
+
+| Parameter        | Type         | Default   | Allowed            | Explanation                                                                                                |
+| ---------------- | ------------ | --------- | ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `meshScale`      | float        | `1.0`     | > 0                | Uniform scaling factor for all coordinates.                                                                |
+| `meshTrans`      | vector       | `(/.../)` | `(/ Δx, Δy, Δz /)` | Translation applied for all coordinates.                                                                   |
+| `meshRot`        | matrix (3×3) | `(/.../)` | row-major 9-tuple  | Rotation matrix applied about `meshRotCenter`. Provide nine values forming an orthonormal rotation matrix. |
+| `meshRotCenter`  | vector       | `(/.../)` | `(/ x, y, z /)`    | Pivot point for rotation. Set to the model's logical pivot/centroid to avoid unintended offsets.           |
+| `MeshPostDeform` | string       | `none`    | template name      | Optional post-transform deformation template applied after scale/translate/rotate.                         |
+
+</div>
 
 ## Extrusion
 
 Extrude a 2D mesh into a 3D mesh by applying a user-defined template.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `MeshExtrude`                            | bool                               | `T`                                   | `T` &#124; `F`                         | Enables mesh extrusion. |
-| `MeshExtrudeTemplate`                    | string                             | `linear`                              | template name                          | Mesh extrusion template defining the extrusion extent of each element. |
-| `MeshExtrudeLength`                      | float                              | `1.0`                                 | > 0                                    | Mesh extrusion length defining the total length of the extruded domain. |
-| `MeshExtrudeDir`                         | vector                             | `(/.../)`                             | `(/ x, y, z /)`                        | Mesh extrusion direction defining the extrusion vector. |
-| `MeshExtrudeElems`                       | int                                | `1`                                   | > 0                                    | Number of elements to be generated in extrusion direction. |
-| `MeshExtrudeBCIndexBot            `      | int                                | —                                     | > 0                                    | Boundary index of the boundary condition used for extrusion. |
-| `MeshExtrudeBCIndexTop            `      | int                                | —                                     | > 0                                    | Boundary index of the far boundary condition after extrusion. |
+<div class="param-table" markdown>
+
+| Parameter               | Type   | Default   | Allowed         | Explanation                                                             |
+| ----------------------- | ------ | --------- | --------------- | ----------------------------------------------------------------------- |
+| `MeshExtrude`           | bool   | `T`       | `T` &#124; `F`  | Enables mesh extrusion.                                                 |
+| `MeshExtrudeTemplate`   | string | `linear`  | template name   | Mesh extrusion template defining the extrusion extent of each element.  |
+| `MeshExtrudeLength`     | float  | `1.0`     | > 0             | Mesh extrusion length defining the total length of the extruded domain. |
+| `MeshExtrudeDir`        | vector | `(/.../)` | `(/ x, y, z /)` | Mesh extrusion direction defining the extrusion vector.                 |
+| `MeshExtrudeElems`      | int    | `1`       | > 0             | Number of elements to be generated in extrusion direction.              |
+| `MeshExtrudeBCIndexBot` | int    | —         | > 0             | Boundary index of the boundary condition used for extrusion.            |
+| `MeshExtrudeBCIndexTop` | int    | —         | > 0             | Boundary index of the far boundary condition after extrusion.           |
+
+</div>
 
 ## Post-Processing
 
 Post-processing options for mesh cleanup and optimization.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `doPeriodicCorrect`                      | bool                               | `F`                                   | `T` &#124; `F`                         | Apply corrective adjustments for periodic matching after initial pairing. |
-| `doSplitToHex`                           | bool                               | `F`                                   | `T` &#124; `F`                         | Split simplex elements into hexahedra when supported to homogenize element types for hex-only toolchains. |
+<div class="param-table" markdown>
+
+| Parameter           | Type | Default | Allowed        | Explanation                                                                                               |
+| ------------------- | ---- | ------- | -------------- | --------------------------------------------------------------------------------------------------------- |
+| `doPeriodicCorrect` | bool | `F`     | `T` &#124; `F` | Apply corrective adjustments for periodic matching after initial pairing.                                 |
+| `doSplitToHex`      | bool | `F`     | `T` &#124; `F` | Split simplex elements into hexahedra when supported to homogenize element types for hex-only toolchains. |
+
+</div>
 
 ## Mesh Checks
 
 Perform mesh quality checks and report statistics.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `CheckElemJacobians`                     | bool                               | `T`                                   | `T` &#124; `F`                         | Compute Jacobian and scaled Jacobian for each element to detect inverted or poorly shaped cells. |
-| `CheckConnectivity`                      | bool                               | `T`                                   | `T` &#124; `F`                         | Verify side connectivity and correct face orientation/flip between adjacent elements to ensure topological consistency. |
-| `CheckWatertightness`                    | bool                               | `T`                                   | `T` &#124; `F`                         | Ensure there are no gaps/holes between connected elements. |
-| `CheckSurfaceNormals`                    | bool                               | `T`                                   | `T` &#124; `F`                         | Confirm surface normals point outward consistently. |
-| `CheckInternalBoundaries`                | bool                               | `T`                                   | `T` &#124; `F`                         | Ensure that internal faces do not have multiple BCs attached. |
+<div class="param-table" markdown>
+
+| Parameter                 | Type | Default | Allowed        | Explanation                                                                                                             |
+| ------------------------- | ---- | ------- | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `CheckElemJacobians`      | bool | `T`     | `T` &#124; `F` | Compute Jacobian and scaled Jacobian for each element to detect inverted or poorly shaped cells.                        |
+| `CheckConnectivity`       | bool | `T`     | `T` &#124; `F` | Verify side connectivity and correct face orientation/flip between adjacent elements to ensure topological consistency. |
+| `CheckWatertightness`     | bool | `T`     | `T` &#124; `F` | Ensure there are no gaps/holes between connected elements.                                                              |
+| `CheckSurfaceNormals`     | bool | `T`     | `T` &#124; `F` | Confirm surface normals point outward consistently.                                                                     |
+| `CheckInternalBoundaries` | bool | `T`     | `T` &#124; `F` | Ensure that internal faces do not have multiple BCs attached.                                                           |
+
+</div>
 
 ## FEM Connectivity
 
 DG methods only require side-based connectivity. Create explicit connectivity arrays for finite element method (FEM) solvers that require node/face-to-element connectivity.
 
-| <div style="width:200px">Parameter</div> | <div style="width:90px">Type</div> | <div style="width:50px">Default</div> | <div style="width:200px">Allowed</div> | Explanation                            |
-| ---------------------------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------- | ---------------------------------------- |
-| `doFEMConnect`                           | bool                               | `F`                                   | `T` &#124; `F`                         | Generate FEM connectivity (node/face-to-element). Enable when exporting to FEM solvers that require extended connectivity information. |
+<div class="param-table" markdown>
+
+| Parameter      | Type | Default | Allowed        | Explanation                                                                                                                            |
+| -------------- | ---- | ------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `doFEMConnect` | bool | `F`     | `T` &#124; `F` | Generate FEM connectivity (node/face-to-element). Enable when exporting to FEM solvers that require extended connectivity information. |
+
+</div>

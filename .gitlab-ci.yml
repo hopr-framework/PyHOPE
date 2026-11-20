@@ -537,7 +537,7 @@ documentation:
       - site
   before_script: *minimal-before-script
   script:
-    # Install MkDocs
-    - uv pip install mkdocs-material mkdocs-autorefs mkdocs-glightbox
+    # Install Zensical
+    - uv pip install zensical
     # Build documentation
-    - mkdocs build
+    - zensical build --clean

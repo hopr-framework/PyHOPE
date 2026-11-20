@@ -15,9 +15,9 @@ PyHOPE (Python High-Order Preprocessing Environment) is an open-source Python fr
 
 PyHOPE is heavily inspired by [HOPR (High Order Preprocessor)](https://github.com/hopr-framework/hopr) and shares the same input/output format. HOPR is written in modern Fortran and is maintained as legacy code and as a framework for reference. For more information and tutorials, please refer to the HOPR source code and documentation.
 
-<div class="text-center" style="margin-bottom: 2em;">
-<a href="https://github.com/hopr-framework/hopr" class="btn btn-primary btn-spacing btn-hopr"> <img src="assets/hopr-logo.png" alt="HOPR Logo" style="height:1.5em; vertical-align:middle; margin-right:0.5em;">HOPR Code</a>
-<a href="https://hopr.readthedocs.io"            class="btn btn-primary btn-spacing btn-hopr"> <img src="assets/hopr-logo.png" alt="HOPR Logo" style="height:1.5em; vertical-align:middle; margin-right:0.5em;">HOPR Documentation</a>
+<div class="text-center" style="margin-bottom: 2em;" markdown="1">
+[![HOPR Logo](assets/hopr-logo.png){ .hopr-logo } HOPR Code](https://github.com/hopr-framework/hopr){ .btn .btn-primary .btn-spacing .btn-hopr }
+[![HOPR Logo](assets/hopr-logo.png){ .hopr-logo } HOPR Documentation](https://hopr.readthedocs.io){ .btn .btn-primary .btn-spacing .btn-hopr }
 </div>
 
 PyHOPE has been developed by the Numerics Research Group (NRG) led by Prof. Andrea Beck at the Institute of Aerodynamics and Gas Dynamics at the University of Stuttgart, Germany.  
