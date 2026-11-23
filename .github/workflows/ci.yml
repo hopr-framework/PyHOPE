@@ -354,20 +354,18 @@ jobs:
     needs: [examples, healthcheck]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
-          python-version: 3.x
+          enable-cache: 'true'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
       - uses: actions/cache@v6.1.0
         with:
-          key: mkdocs-material-${{ env.cache_id }}
+          key: zensical-${{ env.cache_id }}
           path: .cache
           restore-keys: |
-            mkdocs-material-
-      # Install MkDocs
-      - run: pip install mkdocs-material mkdocs-autorefs mkdocs-glightbox
+            zensical-
       # Build documentation
-      - run: mkdocs build
+      - run: uvx zensical build --clean
 
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------

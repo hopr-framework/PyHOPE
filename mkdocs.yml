@@ -27,15 +27,55 @@ site_url: https://hopr-framework.github.io/PyHOPE
 repo_url: https://github.com/hopr-framework/PyHOPE
 site_description: PyHOPE documentation
 site_author: Numerics Research Group (NRG), University of Stuttgart
-copyright: Copyright &copy; 2025, <a href="https://numericsresearchgroup.org/team.html">Numerics Research Group</a>
+copyright: Copyright &copy; 2026, <a href="https://numericsresearchgroup.org/team.html">Numerics Research Group</a>
 edit_uri: ""  # Disable "Edit on GitHub", just link to the repository
+
+# Build settings
+strict: true
 
 # Visual settings
 theme:
-  name: mkdocs
-  user_color_mode_toggle: true
+  name: zensical
+  variant: modern
   locale: en
-  highlightjs: true
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.instant.prefetch
+    # - navigation.path
+    - navigation.prune
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    # - search.highlight
+    - toc.follow
+    # - toc.integrate
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: lucide/sun-moon
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: lucide/sun
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: orange
+      toggle:
+        icon: lucide/moon
+        name: Switch to system preference
+  logo: assets/pyhope.svg
+  favicon: assets/pyhope.svg
 
 # Navigation settings
 nav:
@@ -68,6 +108,10 @@ nav:
 extra_css:
   - css/extra.css
 
+# Footer settings
+extra:
+  generator: true
+
 # Plugin settings
 plugins:
   - search
@@ -77,34 +121,36 @@ plugins:
 
 # Markdown settings
 markdown_extensions:
-  # Footnotes
-  - footnotes
-  # Table of contents (links to headings)
+  # Content structure
   - toc:
       permalink: true
-  # Tables (enabled by default)
+  - footnotes
   - tables
-  # Code blocks
+  - attr_list
+  - md_in_html
+
+  # Tabs (content tabs with === "Label" syntax)
+  - pymdownx.tabbed:
+      alternate_style: true
+
+  # Code
   - pymdownx.highlight:
       anchor_linenums: true
       guess_lang: false
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
   - pymdownx.superfences
-  # Math equations
+
+  # Math (rendered by MathJax)
   - pymdownx.arithmatex:
       generic: true
-  # Adminition (callouts)
+
+  # Callouts, captions and includes
   - admonition
-  - pymdownx.details
-  - pymdownx.superfences
-  # Attribute lists
-  - attr_list
-  # Images support
-  - md_in_html
   - pymdownx.blocks.caption
+  - pymdownx.details
+  - pymdownx.snippets
 
 extra_javascript:
   - javascripts/mathjax.js
