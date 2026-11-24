@@ -52,6 +52,19 @@ body.homepage>div.container>div.row>div.col-md-9 {
   margin-left: 0.4rem;
 }
 
+/* == CITATION == */
+/* Wrap long BibTeX lines inside the collapsed citation block */
+.md-typeset details .highlight pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* == HOME PAGE SIDEBARS == */
+/* Hide the sidebar contents on the home page but keep their space */
+.md-main__inner:has(h1.home-page) .md-sidebar {
+  visibility: hidden;
+}
+
 /* == HEADERS == */
 /* h1 heading centered */
 div.col-md-9 h1:first-of-type {
