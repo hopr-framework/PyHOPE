@@ -149,37 +149,36 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 }
 
 /* == ALIGNED LIST == */
-.aligned-list {
+.md-typeset .aligned-list {
     display: grid;
     grid-template-columns: min-content 1fr;
-    gap: 0.1em 1em;
+    gap: 0.6em 1em;
+    margin: 0;
 }
 
-.aligned-list dt {
+.md-typeset .aligned-list dt,
+.md-typeset .aligned-list dd {
+    margin: 0;
+}
+
+.md-typeset .aligned-list dt {
     text-align: left;
     font-weight: bold;
     white-space: nowrap;
     position: relative;
-    padding-left: 1em; /* Add space for the bullet point */
+    padding-left: 1em; /* Space for the bullet point */
 }
 
-.aligned-list dt::before {
-    content: "\2022"; /* The character for a bullet point */
+.md-typeset .aligned-list dt::before {
+    content: "\2022"; /* Bullet point */
     position: absolute;
     left: 0;
     top: 0;
 }
 
-.aligned-list dd {
+.md-typeset .aligned-list dd {
     margin-left: 0;
     text-align: left;
-}
-
-/* Responsive tweak */
-@media (max-width: 480px) {
-  .aligned-steps > li {
-    column-gap: 0.5rem;
-  }
 }
 
 /* == PARAMETER TABLE (Common) == */
