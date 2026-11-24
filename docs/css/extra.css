@@ -231,6 +231,14 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 /* 6 columns: three pairs of Element Type / Index */
 .table-6 th { width: 16.66%; }
 
+/* == API HEADINGS == */
+.md-typeset h4.api {
+  font-family: var(--md-code-font-family);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 1.4em 0 0.3em;
+}
+
 /* == FOOTER == */
 .md-footer-meta {
   background-color: var(--md-default-bg-color);
