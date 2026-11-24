@@ -52,6 +52,19 @@ body.homepage>div.container>div.row>div.col-md-9 {
   margin-left: 0.4rem;
 }
 
+/* == CITATION == */
+/* Wrap long BibTeX lines inside the collapsed citation block */
+.md-typeset details .highlight pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* == HOME PAGE SIDEBARS == */
+/* Hide the sidebar contents on the home page but keep their space */
+.md-main__inner:has(h1.home-page) .md-sidebar {
+  visibility: hidden;
+}
+
 /* == HEADERS == */
 /* h1 heading centered */
 div.col-md-9 h1:first-of-type {
@@ -149,37 +162,36 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 }
 
 /* == ALIGNED LIST == */
-.aligned-list {
+.md-typeset .aligned-list {
     display: grid;
     grid-template-columns: min-content 1fr;
-    gap: 0.1em 1em;
+    gap: 0.6em 1em;
+    margin: 0;
 }
 
-.aligned-list dt {
+.md-typeset .aligned-list dt,
+.md-typeset .aligned-list dd {
+    margin: 0;
+}
+
+.md-typeset .aligned-list dt {
     text-align: left;
     font-weight: bold;
     white-space: nowrap;
     position: relative;
-    padding-left: 1em; /* Add space for the bullet point */
+    padding-left: 1em; /* Space for the bullet point */
 }
 
-.aligned-list dt::before {
-    content: "\2022"; /* The character for a bullet point */
+.md-typeset .aligned-list dt::before {
+    content: "\2022"; /* Bullet point */
     position: absolute;
     left: 0;
     top: 0;
 }
 
-.aligned-list dd {
+.md-typeset .aligned-list dd {
     margin-left: 0;
     text-align: left;
-}
-
-/* Responsive tweak */
-@media (max-width: 480px) {
-  .aligned-steps > li {
-    column-gap: 0.5rem;
-  }
 }
 
 /* == PARAMETER TABLE (Common) == */
@@ -231,6 +243,14 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
 
 /* 6 columns: three pairs of Element Type / Index */
 .table-6 th { width: 16.66%; }
+
+/* == API HEADINGS == */
+.md-typeset h4.api {
+  font-family: var(--md-code-font-family);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 1.4em 0 0.3em;
+}
 
 /* == FOOTER == */
 .md-footer-meta {
