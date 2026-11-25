@@ -1,16 +1,4 @@
 /* == HOMEPAGE == */
-/* Hide the navigation container */
-body.homepage>div.container>div.row>div.col-md-3 {
-    display: none;
-}
-
-/* Full width */
-body.homepage>div.container>div.row>div.col-md-9 {
-    margin-left: 0;
-    flex: 0 0 100%;
-    max-width: 100%;
-}
-
 /* Full width */
 .md-grid {
   max-width: 1440px;
@@ -44,44 +32,16 @@ body.homepage>div.container>div.row>div.col-md-9 {
 
 .md-header .md-logo img,
 .md-header .md-logo::after {
-  height: 1.75rem !important;
-  width: 1.75rem !important;
+  height: 1.75rem;
+  width: 1.75rem;
 }
 
 .md-header__title {
   margin-left: 0.4rem;
 }
 
-/* == CITATION == */
-/* Wrap long BibTeX lines inside the collapsed citation block */
-.md-typeset details .highlight pre {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* == HOME PAGE SIDEBARS == */
-/* Hide the sidebar contents on the home page but keep their space */
-.md-main__inner:has(h1.home-page) .md-sidebar {
-  visibility: hidden;
-}
-
 /* == HEADERS == */
-/* h1 heading centered */
-div.col-md-9 h1:first-of-type {
-    text-align: center;
-    font-size: 60px;
-    font-weight: 300;
-}
-
-/* First text centered */
-div.col-md-9>p:first-of-type {
-    text-align: center;
-}
-
-div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
-    text-align: left;
-}
-
+/* First h1 of a page is centered, with the first paragraph below it */
 .md-content__inner h1:first-of-type {
   text-align: center;
   font-size: 3.5rem;
@@ -95,9 +55,9 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
   margin-bottom: 0.65rem;
 }
 
-.md-content__inner .no-extra-css + h1:first-of-type,
-.md-content__inner .no-extra-css + h1:first-of-type + p {
-  text-align: left;
+/* Hide the permalink icon on page titles */
+.md-content__inner h1 .headerlink {
+  display: none;
 }
 
 /* == UTILITIES == */
@@ -156,42 +116,41 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
   background: none !important;
 }
 
-.btn-spacing,
 .md-typeset .btn-spacing {
   margin: 0 7px 6px;
 }
 
 /* == ALIGNED LIST == */
 .md-typeset .aligned-list {
-    display: grid;
-    grid-template-columns: min-content 1fr;
-    gap: 0.6em 1em;
-    margin: 0;
+  display: grid;
+  grid-template-columns: min-content 1fr;
+  gap: 0.6em 1em;
+  margin: 0;
 }
 
 .md-typeset .aligned-list dt,
 .md-typeset .aligned-list dd {
-    margin: 0;
+  margin: 0;
 }
 
 .md-typeset .aligned-list dt {
-    text-align: left;
-    font-weight: bold;
-    white-space: nowrap;
-    position: relative;
-    padding-left: 1em; /* Space for the bullet point */
+  text-align: left;
+  font-weight: bold;
+  white-space: nowrap;
+  position: relative;
+  padding-left: 1em; /* Space for the bullet point */
 }
 
 .md-typeset .aligned-list dt::before {
-    content: "\2022"; /* Bullet point */
-    position: absolute;
-    left: 0;
-    top: 0;
+  content: "\2022"; /* Bullet point */
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 .md-typeset .aligned-list dd {
-    margin-left: 0;
-    text-align: left;
+  margin-left: 0;
+  text-align: left;
 }
 
 /* == PARAMETER TABLE (Common) == */
@@ -250,6 +209,28 @@ div.col-md-9> div.no-extra-css + h1:first-of-type + p:first-of-type {
   font-size: 0.85rem;
   font-weight: 600;
   margin: 1.4em 0 0.3em;
+}
+
+/* == CITATION == */
+/* Wrap long BibTeX lines inside the collapsed citation block */
+.md-typeset details .highlight pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* == HOME PAGE SIDEBARS == */
+/* Hide the sidebar contents on the home page but keep their space, so the content stays centered.
+   Only applied at desktop widths: on mobile the primary sidebar is the navigation drawer and must stay usable. */
+@media screen and (min-width: 76.25em) {
+  .md-main__inner:has(h1.home-page) .md-sidebar--primary {
+    visibility: hidden;
+  }
+}
+
+@media screen and (min-width: 60em) {
+  .md-main__inner:has(h1.home-page) .md-sidebar--secondary {
+    visibility: hidden;
+  }
 }
 
 /* == FOOTER == */
