@@ -24,7 +24,7 @@ PyHOPE has been developed by the Numerics Research Group (NRG) led by Prof. Andr
 
 ## Citation
 
-This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the following article:
+This is a scientific project. If you use PyHOPE for publications or presentations in science, please support the project by citing the following article.
 
 > Kopper, P., Blind, M. P., Schwarz, A., Kurz, M., Rodach, F., Copplestone, S. M., & Beck, A. D. (2025). PyHOPE: A Python Toolkit for Three-Dimensional Unstructured High-Order Meshes. *Journal of Open Source Software*, 10(115), 8769. [https://doi.org/10.21105/joss.08769](https://doi.org/10.21105/joss.08769)
 
