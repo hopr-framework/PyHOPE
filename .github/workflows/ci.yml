@@ -354,7 +354,7 @@ jobs:
     needs: [examples, healthcheck]
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: astral-sh/setup-uv@v10.4.0
         with:
           enable-cache: 'true'
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
