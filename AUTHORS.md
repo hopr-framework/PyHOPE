@@ -1,11 +1,10 @@
-<div class="no-extra-css"></div>
 # Authors
 
-PyHOPE's development is coordinated by the Numerics Research Group (NRG) at 
-University of Stuttgart. The primary contact is Patrick Kopper, who is the *principal developer*
-and main contributor. In addition, there are *contributors* who have
-provided substantial additions or modifications. Together, these two groups form
-authors as mentioned in the [LICENSE.md](LICENSE.md) file.
+<div class="lead-left" markdown="1">
+
+PyHOPE's development is coordinated by the Numerics Research Group (NRG) at University of Stuttgart. The primary contact is Patrick Kopper, who is the *principal developer* and main contributor. In addition, there are *contributors* who have provided substantial additions or modifications. Together, these two groups form the authors as mentioned in the [LICENSE.md](LICENSE.md) file.
+
+</div>
 
 ## Principal Developers
 * [Patrick Kopper](https://www.iag.uni-stuttgart.de/en/institute/team/Kopper-00001/),
@@ -21,7 +20,7 @@ are listed in alphabetical order:
 * Justin Du Plessis
 * Patrick Kopper
 * Marius Kurz
-* Leon Teichröb
 * Felix Rodach
 * Anna Schwarz
+* Leon Teichröb
 * Michel Tirapelle

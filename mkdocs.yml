@@ -39,7 +39,7 @@ theme:
   variant: modern
   locale: en
   features:
-    - navigation.instant
+    # - navigation.instant
     - navigation.instant.progress
     - navigation.instant.prefetch
     # - navigation.path

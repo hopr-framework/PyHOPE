@@ -103,18 +103,16 @@ The element encoding follows CGNS-inspired conventions. The last digit of the su
 
 ### High-Order Nodes
 
-High-order nodes are stored in tensor-product style using (i,j,k) with uniform spacing in reference space \([-1, 1]^3\). Note that for `NGeo=1`, this node ordering differs from CGNS corner ordering for pyramids and hexahedra as the nodes `3`/`4` and `7`/`8` are swapped. The number of nodes per element depends on `NGeo` and element type.
+High-order nodes are stored in tensor-product style using (i,j,k) with uniform spacing in reference space $[-1, 1]^3$. Note that for `NGeo=1`, this node ordering differs from CGNS corner ordering for pyramids and hexahedra as the nodes `3`/`4` and `7`/`8` are swapped. The number of nodes per element depends on `NGeo` and element type.
 
-<dl class="aligned-list">
-    <dt><code>Tetrahedron</code>:</dt>
-    <dd>\((Ngeo+1)(Ngeo+2)(Ngeo+3)/6\)</dd>
-    <dt><code>Pyramid</code>:</dt>
-    <dd>\((Ngeo+1)(Ngeo+2)(2Ngeo+3)/6\)</dd>
-    <dt><code>Prism/Wedge</code>:</dt>
-    <dd>\((Ngeo+1)^2(Ngeo+2)/2\)</dd>
-    <dt><code>Hexahedron</code>:</dt>
-    <dd>\((Ngeo+1)^3\)</dd>
-</dl>
+<div class="aligned-list" markdown="1">
+
+- <span class="term">`Tetrahedron`:</span> <span class="formula">$(NGeo+1)(NGeo+2)(NGeo+3)/6$</span>
+- <span class="term">`Pyramid`:</span> <span class="formula">$(NGeo+1)(NGeo+2)(2NGeo+3)/6$</span>
+- <span class="term">`Prism/Wedge`:</span> <span class="formula">$(NGeo+1)^2(NGeo+2)/2$</span>
+- <span class="term">`Hexahedron`:</span> <span class="formula">$(NGeo+1)^3$</span>
+
+</div>
 
 ## Boundary Conditions
 
@@ -139,7 +137,7 @@ High-order nodes are stored in tensor-product style using (i,j,k) with uniform s
 <!---->
 <!-- The following outlines a high-level approach to load the mesh into a supported solver: -->
 <!---->
-<!-- 1. **Domain Decomposition**: Distribute contiguous element ranges across ranks. The element range for each domain \(\text{dom} \in [0:\text{nDom}-1]\) is \( \text{range}(\text{dom})=[\text{offsetElem}(\text{dom})+1; \text{offsetElem}(\text{myDom}+1)] \). -->
+<!-- 1. **Domain Decomposition**: Distribute contiguous element ranges across ranks. The element range for each domain $\text{dom} \in [0:\text{nDom}-1]$ is $ \text{range}(\text{dom})=[\text{offsetElem}(\text{dom})+1; \text{offsetElem}(\text{myDom}+1)] $. -->
 <!-- 2. **Element Read-In**: Read the local subarray of `ElemInfo` (HDF5 hyperslabs), then compute local ranges for `SideInfo` and `NodeCoords` via `offsetInd*`/`lastInd*`. -->
 <!-- 3. **Connectivity Building**: Build local connectivity; for inter-domain connections, locate the owning domain via element-range offsets (bisection over offsets). -->
 <!-- 4. **Side Matching**: Group sides per neighbor domain and sort by `GlobalSideID` to obtain matching lists on both sides without communication. -->
@@ -147,7 +145,7 @@ High-order nodes are stored in tensor-product style using (i,j,k) with uniform s
 
 <!-- <dl class="aligned-list"> -->
 <!--     <dt>Domain Decomposition:</dt> -->
-<!--     <dd>Distribute contiguous element ranges across ranks. The element range for each domain \(\text{dom} \in [0:\text{nDom}-1]\) is \( \text{range}(\text{dom})=[\text{offsetElem}(\text{dom})+1; \text{offsetElem}(\text{myDom}+1)] \).</dd> -->
+<!--     <dd>Distribute contiguous element ranges across ranks. The element range for each domain $\text{dom} \in [0:\text{nDom}-1]$ is $ \text{range}(\text{dom})=[\text{offsetElem}(\text{dom})+1; \text{offsetElem}(\text{myDom}+1)] $.</dd> -->
 <!--     <dt>Element Read-In:</dt> -->
 <!--     <dd>Read the local subarray of <code>ElemInfo</code> (HDF5 hyperslabs), then compute local ranges for <code>SideInfo</code> and <code>NodeCoords</code> via <code>offsetInd*</code>/<code>lastInd*</code>.</dd> -->
 <!--     <dt>Connectivity Building:</dt> -->

@@ -1,11 +1,14 @@
-<div class="no-extra-css"></div>
 # Contributing
+
+<div class="lead-left" markdown="1">
 
 PyHOPE is an open-source project and we are very happy to accept contributions
 from the community. Please feel free to open issues or submit patches (preferably
-as merge requests) any time. For planned larger contributions, it is often
+as pull requests) any time. For planned larger contributions, it is often
 beneficial to get in contact with one of the principal developers first (see
 [AUTHORS.md](AUTHORS.md)).
+
+</div>
 
 ## How To Collaborate
 In order to get your contributions into the code base as smoothly as possible, please follow these contribution guidelines.
@@ -19,7 +22,7 @@ In order to get your contributions into the code base as smoothly as possible, p
 - Make commits of logical units.
   Write [good commit messages][commit].
   Check for unnecessary whitespace with `git diff --check` before committing.
-- Include tests in `tutorials` to assure your feature works as expected and prevent breakages in the future
+- Include tests in `tutorials` to ensure your feature works as expected and prevent breakages in the future
 - Run `pyhope --verify` to ensure all existing code works as expected
 - Use the available [tools to format and check your contribution][devtools]
 - Submit a pull request to the PyHOPE repository
