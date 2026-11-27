@@ -39,6 +39,11 @@ theme:
   variant: modern
   locale: en
   features:
+    - content.code.copy
+    - content.code.select
+    - content.tabs.link
+    - navigation.expand
+    - navigation.footer
     # - navigation.instant
     - navigation.instant.progress
     - navigation.instant.prefetch
@@ -108,6 +113,10 @@ nav:
 extra_css:
   - css/extra.css
 
+# extra_javascript:
+#   - https://unpkg.com/tablesort@5.3.0/dist/tablesort.min.js
+#   - javascripts/tablesort.js
+
 # Footer settings
 extra:
   generator: true
@@ -125,7 +134,8 @@ markdown_extensions:
   - toc:
       permalink: true
   - footnotes
-  - tables
+
+  # Images
   - attr_list
   - md_in_html
 
@@ -151,6 +161,9 @@ markdown_extensions:
   - pymdownx.blocks.caption
   - pymdownx.details
   - pymdownx.snippets
+
+  # Tables
+  - tables
 
 extra_javascript:
   - javascripts/mathjax.js
