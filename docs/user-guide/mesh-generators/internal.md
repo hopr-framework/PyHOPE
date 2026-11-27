@@ -51,7 +51,8 @@ BoundaryType = (/9,0,0,0/)
 
 ### Multiple Cartesian Boxes
 
-![Internal mesh with multiple Cartesian boxes](../../assets/internal_mesh.png){ width='300', loading=lazy, align=right }
+![Internal mesh with multiple Cartesian boxes](../../assets/internal_mesh.png#only-light){ width='300', loading=lazy, align=right }
+![Internal mesh with multiple Cartesian boxes](../../assets/internal_mesh_dark.png#only-dark){ width='300', loading=lazy, align=right }
 PyHOPE supports multi-zone setups consisting of multiple Cartesian boxes. Each box, referred to as a zone, is defined by its 8 corner nodes specified in the `Corner` vector. The number of elements in each direction for each box is specified in the `nElems` vector. If boxes are connected with each other, the corner nodes of the touching element faces must either be identical or be placed at the center of the element edge (non-conforming interfaces with hanging nodes).
 
 ## Boundary Conditions
