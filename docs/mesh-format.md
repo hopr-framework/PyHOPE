@@ -18,7 +18,7 @@ The following spectral element solvers have (optional) support for meshes genera
 | FLUXO     | Fortran   | NSE/MHD/Maxwell     | [Rueda-Ramirez et al., 2017](https://github.com/project-fluxo/fluxo)   |
 | HORSES3D  | Fortran   | NSE/Cahn-Hilliard   | [Ferrer et al., 2023](https://doi.org/10.1016/j.cpc.2023.108700)       |
 | PICLas    | Fortran   | Maxwell/Poisson     | [Fasoulas et al., 2019](https://doi.org/10.1063/1.5097638)             |
-| SELF      | Fortran   | Shallow Water/Euler | [github.com/FluidNumerics/SELF](https://github.com/FluidNumerics/SELF) |
+| SELF      | Fortran   | Shallow Water/Euler | [Spectral Element Library in Fortran](https://self.fluidnumerics.com) |
 
 </div>
 

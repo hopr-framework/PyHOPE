@@ -1,3 +1,7 @@
+---
+icon: lucide/package-open
+---
+
 # Contributing to PyHOPE
 
 How to get started as a developer

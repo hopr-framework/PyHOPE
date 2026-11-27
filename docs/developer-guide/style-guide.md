@@ -1,3 +1,7 @@
+---
+icon: lucide/lighthouse
+---
+
 # Style Guide
 
 Rules and recommendations for code style

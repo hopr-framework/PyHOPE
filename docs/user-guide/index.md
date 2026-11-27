@@ -1,3 +1,7 @@
+---
+icon: lucide/package-open
+---
+
 # Introduction
 
 Scope and features of PyHOPE

@@ -1,3 +1,7 @@
+---
+icon: lucide/hammer
+---
+
 # Getting Started
 
 First steps using PyHOPE
