@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-27
+### Changed
+- Goodbye Python 3.10, Hello Python 3.15 [f7b1f38]
+- Perf: Remove interleaved loops for vectorized (numpy-fancy) indexing. Pause garbage collection during allocation-free hot loops [4eaafd2]
+- Perf: Skip unnecessary Gmsh synchronize calls [4665787] 
+
+### Fixed
+- Gambit: Fix faces_map for tetra in gambit_faces [a7dfe29]
+- CI/CD: Update rules for ty v0.0.108 [1cf29c7][fd654d6][4895b05][2eaf307][6bc40e1][146c791]
+- CI/CD: Ruff pre-commit version and node connect exceptions [9dc70b8]
+
+### Documentation
+- Docs: Add a mesh checks/visualization page [79cee2a]
+- Docs: Replace MkDocs with Zensical [0ceae35]
+- Docs: Clean-up CSS, fix header spacing [02f2b30]
+- Docs: Fix math rendering [a7665cd]
+- Docs: Add icons, footer, and dark mode images [1a058b6]
+- Changelog: Fix formatting [73b254d]
+
+### Dependencies
+- CI/CD: Add shellcheck stage [7ff96a9]
+- CI/CD: Use official pre-commit hook for ty [0ee1aab]
+- CI/CD: Add shfmt stage [b6d0b5d]
+- CI/CD: Replace pre-commit with prek [90af34d]
+- CI/CD: Replace shellcheck-precommit with shellcheck-py [398fcce]
+- CI/CD: Python version tracker [880e0e7]
+- CI/CD: Bump j178/prek-action from 3.0.0 to 3.1.1 [74cdfec][0a2fdf4][18cd723][cff8f61]
+- CI/CD: Update actions/cache to v6.1.0 [897c38c]
+- CI/CD: Update astral-sh/setup-uv to v10.4.0 [2b2113e][ac1491d]
+- CI/CD: Update rules for ty v0.0.80 
+
 ## [1.1.0] - 2026-09-06
 ### Added
 - Gmsh: Use GitHub release assets [8e5ae7f]
