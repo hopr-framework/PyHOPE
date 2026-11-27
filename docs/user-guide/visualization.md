@@ -1,3 +1,7 @@
+---
+icon: lucide/list-todo
+---
+
 # Mesh Checks / Visualization
 
 Finding and resolving issues

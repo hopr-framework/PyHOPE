@@ -1,3 +1,6 @@
+---
+icon: lucide/book-marked
+---
 # Library Usage
 
 Using PyHOPE as a Python Library

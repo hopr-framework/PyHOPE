@@ -1,3 +1,7 @@
+---
+icon: lucide/folder-git-2
+---
+
 # GitHub Workflow
 
 Overview of the development workflow

@@ -1,3 +1,7 @@
+---
+icon: lucide/cog
+---
+
 # Parameter File Format
 
 Description of the parameter file format and available options.

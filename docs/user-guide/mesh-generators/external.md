@@ -1,3 +1,7 @@
+---
+icon: lucide/grid-3x3-off
+---
+
 # External Mesh Generator
 
 Read and convert meshes generated with external mesh generators

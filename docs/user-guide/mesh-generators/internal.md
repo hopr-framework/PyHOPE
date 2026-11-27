@@ -1,3 +1,7 @@
+---
+icon: lucide/grid-2x2-plus
+---
+
 # Internal Mesh Generator
 
 A simple internal mesh generator for generating curved meshes of basic block-structured geometries

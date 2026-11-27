@@ -1,3 +1,7 @@
+---
+icon: lucide/squirrel
+---
+
 # Environment Setup
 
 Get the source and start developing
