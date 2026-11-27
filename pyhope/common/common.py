@@ -27,9 +27,9 @@
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
 import os
-from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import cast
-from typing import TextIO
+from typing import Any, TextIO, TypeVar
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -46,6 +46,7 @@ if typing.TYPE_CHECKING:
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local definitions
 # ----------------------------------------------------------------------------------------------------------------------------------
+T = TypeVar("T")
 # ==================================================================================================================================
 
 
@@ -197,7 +198,7 @@ def IsDisplay() -> bool:
 #     return dict.keys()[dict.values().index(item)]
 
 
-def find_index(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> int:
+def find_index(seq: Sequence[T] | npt.NDArray[Any], item: T) -> int:
     """ Find the first occurrences of a key in a list
     """
     # if isinstance(seq, np.ndarray):
@@ -214,7 +215,7 @@ def find_index(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> int:
     return -1
 
 
-def find_indices(seq: list | npt.NDArray, item: npt.NDArray | Iterable) -> tuple[int, ...]:
+def find_indices(seq: Sequence[T] | npt.NDArray[Any], item: T) -> tuple[int, ...]:
     """ Find all occurrences of a key in a list
     """
     if isinstance(seq, np.ndarray):
