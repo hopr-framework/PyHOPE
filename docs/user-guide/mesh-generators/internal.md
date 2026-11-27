@@ -138,14 +138,19 @@ $$
 
 Mesh zones can be deformed after the initial mesh generation using a set of pre-defined deformation templates. The resulting curved multi-block mesh is composed of several structured boxes, which are first assembled and then globally mapped to a curved domain. A template is selected with the `MeshPostDeform` parameter, for example `MeshPostDeform = sphere`. The default, `none`, applies no deformation.
 
-<div class="aligned-list" markdown="1">
-
-- <span class="term"><code>convtest</code>:</span> <span class="desc">Convergence test mapping. A simple sinusoidal deformation in all directions to test the convergence behavior of high-order methods on curved meshes.</span>
-- <span class="term"><code>cylinder</code>:</span> <span class="desc">Cylindrical mapping. The 2D square region is mapped to a cylindrical or toroidal coordinate system.</span>
-- <span class="term"><code>default</code>:</span> <span class="desc">Identity mapping. The points are returned unchanged.</span>
-- <span class="term"><code>phill</code>:</span> <span class="desc">Periodic hill mapping. A 2D mapping that generates an extruded periodic hill geometry.</span>
-- <span class="term"><code>sine</code>:</span> <span class="desc">Sinusoidal deformation with several selectable types.</span>
-- <span class="term"><code>sphere</code>:</span> <span class="desc">Spherical mapping. The 3D cubic region is mapped to a spherical coordinate system inside $[-1, 1]^3$.</span>
-- <span class="term"><code>sphere_box</code>:</span> <span class="desc">Spherical mapping with a cubic outer region. The cube $[-1, 1]^3$ is mapped to a sphere, and points outside the cube are smoothly blended back to a cube.</span>
-
-</div>
+<dl class="aligned-list">
+    <dt><code>convtest</code>:</dt>
+    <dd>Convergence test mapping. A simple sinusoidal deformation in all directions to test the convergence behavior of high-order methods on curved meshes.</dd>
+    <dt><code>cylinder</code>:</dt>
+    <dd>Cylindrical mapping. The 2D square region is mapped to a cylindrical or toroidal coordinate system.</dd>
+    <dt><code>default</code>:</dt>
+    <dd>Identity mapping. The points are returned unchanged.</dd>
+    <dt><code>phill</code>:</dt>
+    <dd>Periodic hill mapping. A 2D mapping that generates an extruded periodic hill geometry.</dd>
+    <dt><code>sine</code>:</dt>
+    <dd>Sinusoidal deformation with several selectable types.</dd>
+    <dt><code>sphere</code>:</dt>
+    <dd markdown="1">Spherical mapping. The 3D cubic region is mapped to a spherical coordinate system inside \([-1, 1]^3\).</dd>
+    <dt><code>sphere_box</code>:</dt>
+    <dd markdown="1">Spherical mapping with a cubic outer region. The cube \([-1, 1]^3\) is mapped to a sphere, and points outside the cube are smoothly blended back to a cube.</dd>
+</dl>

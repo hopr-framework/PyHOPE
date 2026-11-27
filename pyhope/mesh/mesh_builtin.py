@@ -120,7 +120,9 @@ def MeshCartesian() -> meshio.Mesh:
     # > https://gitlab.onelab.info/gmsh/gmsh/-/issues/2836
     gmsh.model.add('Domain')
     gmsh.model.set_current('Domain')
-    bcZones = [[] for _ in range(nZones)]
+    bcZones: list[list[int]] = [[] for _ in range(nZones)]
+    boxMin  = np.full(3,  np.inf)
+    boxMax  = np.full(3, -np.inf)
 
     for zone in range(nZones):
         hopout.routine(f'Generating zone {zone+1}')
@@ -172,11 +174,9 @@ def MeshCartesian() -> meshio.Mesh:
             e[j+8] = gmsh.model.geo.addLine(p[j], p[j+4])
 
         # Get dimensions of domain
-        gmsh.model.geo.synchronize()
-        box    = gmsh.model.get_bounding_box(-1, -1)
-        lEdges = np.zeros([3])
-        for i in range(3):
-            lEdges[i] = np.abs(box[i+3]-box[i])
+        boxMin = np.minimum(boxMin, np.min(corners, axis=0))
+        boxMax = np.maximum(boxMax, np.max(corners, axis=0))
+        lEdges = np.abs(boxMax - boxMin)
 
         # Get streching information of current zone
         stretchType = GetIntArray('StretchType', number=zone)
@@ -258,8 +258,6 @@ def MeshCartesian() -> meshio.Mesh:
 
         # Create the surface loop
         gmsh.model.geo.addSurfaceLoop(list(s), zone+1)
-
-        gmsh.model.geo.synchronize()
 
         # Create the volume
         gmsh.model.geo.addVolume([zone+1], zone+1)
@@ -364,20 +362,20 @@ def MeshCartesian() -> meshio.Mesh:
         hopout.sep()
 
     # To connect the generated cells, we can simply run
-    gmsh.model.mesh.recombine()
+    # gmsh.model.mesh.recombine()
     gmsh.model.mesh.generate(3)
 
     # Set the element order
     # > This needs to be executed after generate_mesh, see
     # > https://github.com/nschloe/pygmsh/issues/515#issuecomment-1020106499
-    gmsh.model.mesh.setOrder(mesh_vars.nGeo)
-    gmsh.model.geo.synchronize()
+    if mesh_vars.nGeo > 1:
+        gmsh.model.mesh.setOrder(mesh_vars.nGeo)
 
     if debugvisu and IsDisplay():
         gmsh.fltk.run()
         # Re-set the order for newly created elements
-        gmsh.model.mesh.setOrder(mesh_vars.nGeo)
-        gmsh.model.geo.synchronize()
+        if mesh_vars.nGeo > 1:
+            gmsh.model.mesh.setOrder(mesh_vars.nGeo)
 
     # Consistency check if the mesh contains volume elements
     # > User might have modified the mesh inside the FLTK GUI
@@ -386,16 +384,15 @@ def MeshCartesian() -> meshio.Mesh:
     #                         gmsh.option.getNumber('Mesh.NbPyramids'  ),
     #                         gmsh.option.getNumber('Mesh.NbHexahedra')), dtype=int)
     gmshTypes = gmsh.model.mesh.getElementTypes()
-    gmshElems = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                              for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
-                              if dim == 3])
+    gmshProps = [(elemName, dim, order) for type                          in gmshTypes                                     # noqa: E272
+                                        for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
+                ]
+    gmshElems = np.asarray([(elemName, order) for elemName, dim, order in gmshProps if dim == 3])
     if not np.any(gmshElems):
         hopout.error('Generated mesh does not contain volume elements, exiting...')
 
     # Consistency check if the mesh elements have the correct order
-    gmshIssue = np.asarray([(elemName, order) for type                          in gmshTypes                                     # noqa: E272
-                                              for elemName, dim, order, _, _, _ in [gmsh.model.mesh.getElementProperties(type)]  # noqa: E272
-                              if dim == 3 and order != mesh_vars.nGeo])
+    gmshIssue = np.asarray([(elemName, order) for elemName, dim, order in gmshProps if dim == 3 and order != mesh_vars.nGeo])
 
     if gmshIssue.size > 0:
         for elem in gmshIssue:
