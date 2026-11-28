@@ -74,7 +74,7 @@ def _ParseVersion(text: str) -> Optional[Version]:
         Returns:
             Optional[Version]: Version string
     """
-    # Local imports ----------------------------------------
+    # Standard libraries -----------------------------------
     from re import search
     from packaging.version import Version
     # ------------------------------------------------------
@@ -108,7 +108,7 @@ def GmshVersion() -> tuple[Version | bool | None, str | None]:
         Returns:
             tuple: (version, package)
     """
-    # Local imports ----------------------------------------
+    # Standard libraries -----------------------------------
     import re
     import shutil
     import subprocess
@@ -147,21 +147,31 @@ def ParaViewVersion() -> Optional[Version | bool]:
     """ Query the local system for the ParaView version
 
         Returns:
-            Optional[Version | bool]: Version string or install status
+            Optional[Version | bool]: Version, True (installed, unknown version) or None (not installed)
     """
+    # Standard libraries -----------------------------------
+    import os
+    import shutil
+    import subprocess
+    # ------------------------------------------------------
     # Try Python metadata first (near-instant)
     v = _PackageInstalledVersion('paraview')
     if isinstance(v, Version):
         return v
 
     # Try headless binaries (fast)
-    for cmd in ('pvpython', 'pvbatch'):
-        v = DependencyVersion(cmd)
-        if isinstance(v, Version):
-            return v
+    for cmd in ('pvpython', 'pvbatch', 'paraview'):
+        path = shutil.which(cmd)
+        if path is None:
+            continue
 
-    # Fallback to the GUI binary (slow due to GUI/OpenGL initialization)
-    return DependencyVersion('paraview')
+        # pvpython crashes in MPI_Init when OpenMPI fails to load the ROCm accelerator
+        env = {**os.environ, 'OMPI_MCA_accelerator': 'null'}
+        p   = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5, check=True, env=env)
+        ver = _ParseVersion((p.stdout or '') + "\n" + (p.stderr or ''))
+        return ver or True
+
+    return None
 
 
 def DependencyVersion(program: str) -> Optional[Version | bool]:
@@ -170,7 +180,7 @@ def DependencyVersion(program: str) -> Optional[Version | bool]:
         Returns:
             Optional[Version | bool]: Version string or install status
     """
-    # Local imports ----------------------------------------
+    # Standard libraries -----------------------------------
     import shutil
     import subprocess
     # ------------------------------------------------------
@@ -222,7 +232,7 @@ def _PackageInstalledVersion(package: str) -> Optional[Version]:
         Returns:
             Optional[Version]: Version string
     """
-    # Local imports ----------------------------------------
+    # Standard libraries -----------------------------------
     import importlib
     from importlib import metadata as importlib_metadata
     from packaging.version import Version
@@ -300,11 +310,13 @@ def PackageHealth(   pkg:      str,
 def CheckHealth() -> None:
     """ Internal health check
     """
-    # Local imports ----------------------------------------
-    from concurrent.futures import ThreadPoolExecutor
-    from pyhope.common.common_vars import Common
-    import pyhope.output.output as hopout
+    # Standard libraries -----------------------------------
+    import subprocess
     from importlib import metadata as importlib_metadata
+    from concurrent.futures import ThreadPoolExecutor
+    # Local imports ----------------------------------------
+    import pyhope.output.output as hopout
+    from pyhope.common.common_vars import Common
     # ------------------------------------------------------
 
     common  = Common()
@@ -386,7 +398,6 @@ def CheckHealth() -> None:
 
         # Collect binary results
         gmshv, gmshp = gmsh_future.result()
-        parav        = para_future.result()
 
     hopout.info('')
     hopout.small_banner('Dependencies')
@@ -405,4 +416,7 @@ def CheckHealth() -> None:
         print(hopout.warn('Detected Gmsh package uses an outdated CGNS (v3.4). ' +
                           'For compatibility, replace with the updated NRG version'))
 
-    DependencyHealth('ParaView', version=parav,                info=' (optional)')
+    try:
+        DependencyHealth('ParaView', version=para_future.result(), info=' (optional)')
+    except subprocess.SubprocessError:
+        hopout.printtest('ParaView [crashed] (optional)', symbols.WARN)

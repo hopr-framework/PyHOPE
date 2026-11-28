@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.2.0] - 2026-11-27
 ### Changed
@@ -33,7 +33,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - CI/CD: Bump j178/prek-action from 3.0.0 to 3.1.1 [74cdfec][0a2fdf4][18cd723][cff8f61]
 - CI/CD: Update actions/cache to v6.1.0 [897c38c]
 - CI/CD: Update astral-sh/setup-uv to v10.4.0 [2b2113e][ac1491d]
-- CI/CD: Update rules for ty v0.0.80 
 
 ## [1.1.0] - 2026-09-06
 ### Added

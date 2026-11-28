@@ -35,7 +35,6 @@ from functools import cache, lru_cache
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Third-party libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
-import numpy as np
 # ----------------------------------------------------------------------------------------------------------------------------------
 # Local imports
 # ----------------------------------------------------------------------------------------------------------------------------------
@@ -87,21 +86,8 @@ class LinkOffsetManager:
             self.breakpoints.insert(pos, (insert_index, prev_offset + delta))
             pos += 1
 
-        # INFO: This is the original implementation
-        # > Directly update the breakpoints list
-        # # Increase offset of all subsequent breakpoints
-        # for i in range(pos, len(self.breakpoints)):
-        #     index, current_offset = self.breakpoints[i]
-        #     # Calculate the new offset by adding delta to the current offset
-        #     self.breakpoints[i] = (index, current_offset + delta)
-
-        # NOTE: This is the alternative implementation
-        # > Convert the slice of breakpoints to a NumPy array
-        breakpoints_array = np.array(self.breakpoints[pos:], dtype=[('index', int), ('offset', int)]).reshape(-1, 2)
-        # Add delta to the 'offset' column
-        breakpoints_array['offset'] += delta
-        # Convert back to a list of tuples
-        self.breakpoints[ pos:    ]  = cast(list[tuple[int, int]], breakpoints_array.tolist())
+        # Increase offset of all subsequent breakpoints
+        self.breakpoints[pos:] = [(idx, off + delta) for idx, off in self.breakpoints[pos:]]
 
         # Clear any cached offset computations
         self.get_offset.cache_clear()
@@ -109,7 +95,7 @@ class LinkOffsetManager:
     @cache  # noqa: B019
     def get_offset(self,
                    index: int) -> int:
-        """ Cached offset lookup for stored index.
+        """ Cached offset lookup for stored index
         """
         # Binary search for the region containing 'index'
         pos = bisect.bisect_right(self.breakpoints, (index, float('inf'))) - 1
