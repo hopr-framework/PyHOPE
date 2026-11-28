@@ -77,13 +77,13 @@ def UpdateElemID(elems         : list,
     # ------------------------------------------------------
 
     sorted_elems = [elems[i] for i in sorted_indices.tolist()]   # Python ints, not np.int64
-    nElems       = len(elems)
-    nSides       = [len(e.sides) for e in sorted_elems]
+    nElems       = len(sorted_elems)
+    nSides       = np.fromiter((len(e.sides) for e in sorted_elems), dtype=np.int64, count=nElems)
 
     # Read ALL old side IDs before anything is overwritten
     sorted_sides = [sides[s] for e in sorted_elems for s in e.sides]
     offsetSides  = np.concatenate(([0], np.cumsum(nSides))).tolist()
-    offsetESide  = np.repeat(np.arange(nElems), nSides).tolist()
+    offsetESide  = np.repeat(np.arange(nElems, dtype=np.int64), nSides).tolist()
 
     for sideID, (s, elemSide) in enumerate(zip(sorted_sides, offsetESide, strict=True)):
         s.sideID = sideID
@@ -328,7 +328,9 @@ def SortMeshByIJK() -> None:
     hopout.info(f' Number of structured dirs      : {nStructDirs}')
     hopout.info(f' Number of elems [I,J,K]        : {nElemsIJK}')
 
-    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
 
     # Now sort the elements based on z, y, then x coordinates
     intList        = (intCoords[:, 2].astype(np.int64) * 10000 + intCoords[:, 1].astype(np.int64)) * 10000 + \
@@ -356,8 +358,9 @@ def SortMeshBySnake() -> None:  # pragma: no cover
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
-    totalElems = len(elems)
-    bar = ProgressBar(value=totalElems, title='│              Preparing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
 
     # Global bounding box
     points = mesh.points
@@ -402,8 +405,9 @@ def SortMeshByLEX() -> None:  # pragma: no cover
     elems = mesh_vars.elems
     sides = mesh_vars.sides
 
-    totalElems = len(elems)
-    bar = ProgressBar(value=totalElems, title='│          Preparing Elements', length=33)
+    # Use a moderate chunk size to bound intermediate progress updates
+    chunk = max(1, min(1000, max(10, int(len(elems)/(400)))))
+    bar = ProgressBar(value=len(elems), title='│              Preparing Elements', length=33, chunk=chunk)
 
     # Global bounding box
     points = mesh.points
