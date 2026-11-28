@@ -189,7 +189,17 @@ def find_bc_index(bcs: list | tuple, key: str) -> Optional[int]:
 #     return side_dict[corners_hash][0]
 
 
-def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[tuple, tuple[npt.NDArray, ...]]:
+def side_centers(sides: list, points: npt.NDArray) -> npt.NDArray:
+    """ Centers of the given sides
+    """
+    if len({len(s.corners) for s in sides}) == 1:
+        corners = np.array([s.corners for s in sides], dtype=np.int64)
+        return points[corners].mean(axis=1)
+
+    return np.array([np.mean(points[s.corners], axis=0) for s in sides])
+
+
+def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[tuple, npt.NDArray]:
     """ Get a list of internal sides that are not connected to any
         other side together with a list of their centers
     """
@@ -200,7 +210,7 @@ def get_nonconnected_sides(sides: list, mesh: meshio.Mesh) -> tuple[tuple, tuple
     nConnSide   = tuple(s for s in sides if   s.connection is None  # noqa: E271
                                          and (s.bcid is None or mesh_vars.bcs[s.bcid].type[0] in (0, 1, 100)))
 
-    nConnCenter = tuple(np.mean(mesh.points[s.corners], axis=0) for s in nConnSide)
+    nConnCenter = side_centers(nConnSide, mesh.points)
     return nConnSide, nConnCenter
 
 

@@ -26,7 +26,6 @@
 # Standard libraries
 # ----------------------------------------------------------------------------------------------------------------------------------
 from __future__ import annotations
-import bisect
 import copy
 import itertools
 from collections import defaultdict
@@ -277,13 +276,14 @@ def ConnectMortar( nConnSide  : list
 
     # Also update the elems with the new side IDs
     # > First, build a dictionary mapping elemID to list of sideIDs
-    elem_to_side_ids = defaultdict(list)
-    for side in sides:
-        elem_to_side_ids[side.elemID].append(side.sideID)
+    sideElem = np.fromiter((s.elemID for s in sides), dtype=np.int64, count=len(sides))
+    sideID   = np.fromiter((s.sideID for s in sides), dtype=np.int64, count=len(sides))
+    counts   = np.bincount(sideElem, minlength=len(elems))
+    groups   = np.split(sideID[np.argsort(sideElem, kind='stable')], np.cumsum(counts)[:-1])
 
     # > Then update elems using the dictionary
     for elem in elems:
-        elem.sides = np.array(elem_to_side_ids.get(elem.elemID, []))
+        elem.sides = groups[elem.elemID]
 
     # Change the title of the progress bar
     bar.title('│                Processing Sides')
@@ -421,9 +421,6 @@ def connect_mortar_sides( sideIDs    : tuple
         new_node = SideNode(value=new_side, link=new_side.connection)
         insertion_index = masterSideID + 1 + i
         rbtsides.insert(insertion_index, new_node)
-
-        # Insert the new sideID into the element's side list
-        bisect.insort(elems[masterElemID].sides, insertion_index)
 
 
 def find_mortar_match( targetCorners: npt.NDArray
